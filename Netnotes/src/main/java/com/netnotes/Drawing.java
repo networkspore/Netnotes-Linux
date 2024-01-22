@@ -4,6 +4,10 @@ import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
@@ -210,6 +214,12 @@ public class Drawing {
 
     /*int avg = (r + g + b) / 3;*/
     public static void fillArea(BufferedImage img, int RGB, int x1, int y1, int x2, int y2, boolean blend) {
+        x1 = x1 < 0 ? 0 : x1;
+        y1 = y1 < 0 ? 0 : y1;
+        x2 = x2 > img.getWidth()? img.getWidth() : x2;
+        y2 = y2 > img.getHeight() ? img.getHeight(): y2;
+        
+
         for (int x = x1; x < x2; x++) {
             for (int y = y1; y < y2; y++) {
                 if (blend) {

@@ -245,7 +245,7 @@ public class KucoinMarketItem {
             SimpleDoubleProperty chartWidth = new SimpleDoubleProperty(sceneWidth - 50);
             SimpleDoubleProperty chartHeight = new SimpleDoubleProperty(sceneHeight - 170);
             SimpleDoubleProperty chartHeightOffset = new SimpleDoubleProperty(0);
-            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(20);
+            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(30);
             SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
 
             double chartSizeInterval = 25;
@@ -428,6 +428,7 @@ public class KucoinMarketItem {
             chartView.rangeTopVvalueProperty().bind(chartRange.topVvalueProperty());
             chartView.rangeBottomVvalueProperty().bind(chartRange.bottomVvalueProperty());
             chartView.isSettingRangeProperty().bind(chartRange.settingRangeProperty());
+
             HBox bodyBox = new HBox(chartRange, chartScroll);
             bodyBox.setAlignment(Pos.TOP_LEFT);
             bodyBox.setId("bodyBox");
@@ -594,19 +595,19 @@ public class KucoinMarketItem {
                         JsonElement dataElement = sourceJson.get("data");
 
                         if (msgElement != null && msgElement.isJsonPrimitive()) {
-                            chartView.setMsg(msgElement.toString());
+                            Platform.runLater(()->chartView.setMsg(msgElement.toString()));
                         } else {
                             if (dataElement != null && dataElement.isJsonArray()) {
                                 JsonArray dataElementArray = dataElement.getAsJsonArray();
 
-                                chartView.setPriceDataList(dataElementArray, tSpan.getSeconds());
+                                Platform.runLater(()->chartView.setPriceDataList(dataElementArray, tSpan.getSeconds()));
 
                                 
 
-                                chartRange.setVisible(true);
+                                Platform.runLater(()->chartRange.setVisible(true));;
 
                                 if (exchange.isClientReady()) {
-                                    exchange.subscribeToCandles(m_parentInterface.getNetworkId(), m_symbol, m_timeSpan.getId());
+                                    Platform.runLater(()->exchange.subscribeToCandles(m_parentInterface.getNetworkId(), m_symbol, m_timeSpan.getId()));
                                 }
                                 FxTimer.runLater(Duration.ofMillis(100), resetScroll);
                             } else {

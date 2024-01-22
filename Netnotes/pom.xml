@@ -88,15 +88,7 @@
     
         <build>
             <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <version>2.3.1</version>
-                    <configuration>
-                    <outputDirectory>/home/iospore/Dev/Netnotes/netnotes</outputDirectory>
-                    </configuration>
-                </plugin>
-                     
+             
                 <plugin>
                     <groupId>org.openjfx</groupId>
                     <artifactId>javafx-maven-plugin</artifactId>

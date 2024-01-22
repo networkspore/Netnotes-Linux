@@ -326,11 +326,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         if (dataFile != null && dataFile.isFile()) {
             try {
                 JsonObject json = Utils.readJsonFile(secretKey, dataFile.toPath());
-                try {
-                    Files.writeString(new File("test").toPath(), json != null ? json.toString() : "null json");
-                } catch (IOException e) {
-
-                }
+           
                 if(json!= null){
            
                     openJson(json);
