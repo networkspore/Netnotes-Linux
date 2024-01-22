@@ -496,6 +496,7 @@ public class ErgoWallets extends Network implements NoteInterface {
                 walletsDataList.showAddWalletStage();
             });
 
+
             scrollPane.prefViewportWidthProperty().bind(walletsScene.widthProperty());
             scrollPane.prefViewportHeightProperty().bind(walletsScene.heightProperty().subtract(140));
 

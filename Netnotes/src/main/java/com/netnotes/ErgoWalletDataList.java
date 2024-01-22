@@ -2,27 +2,21 @@ package com.netnotes;
 
 import java.awt.Rectangle;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
 
 import org.ergoplatform.appkit.Mnemonic;
 import org.ergoplatform.appkit.MnemonicValidationException;
@@ -161,15 +155,19 @@ public class ErgoWalletDataList {
                         if (jsonObject != null) {
                             JsonElement nameElement = jsonObject.get("name");
                             JsonElement idElement = jsonObject.get("id");
+                            JsonElement fileLocationElement = jsonObject.get("file");
 
                             String id = idElement == null ? FriendlyId.createFriendlyId() : idElement.getAsString();
                             String name = nameElement == null ? "Wallet " + id : nameElement.getAsString();
+                            File walletFile = fileLocationElement != null && fileLocationElement.isJsonPrimitive() ? new File(fileLocationElement.getAsString()) : null;
 
-                            ErgoWalletData walletData = new ErgoWalletData(id, name, jsonObject, m_ergoWallet);
-                            m_noteInterfaceList.add(walletData);
+                            if(walletFile != null && walletFile.isFile()){
+                                ErgoWalletData walletData = new ErgoWalletData(id, name, jsonObject, m_ergoWallet);
+                                
+                                m_noteInterfaceList.add(walletData);
 
-                            walletData.addUpdateListener((obs, oldValue, newValue) -> save());
-
+                                walletData.addUpdateListener((obs, oldValue, newValue) -> save());
+                            }
                         }
                     }
                 }
@@ -563,10 +561,7 @@ public class ErgoWalletDataList {
             String marketsId = selectedMarketsData.get() == null ? null : selectedMarketsData.get().getId();
             boolean tokensEnabled = ergoTokensEnabledProperty.get();
             
-            Scene mnemonicScene = createMnemonicScene(friendlyId, walletNameField.getText(), nodeId, explorerId, marketsId, tokensEnabled, networkType, stage, () -> {
-                stage.setScene(walletScene);
-                stage.setTitle(titleString);
-            });
+            Scene mnemonicScene = createMnemonicScene(friendlyId, walletNameField.getText(), nodeId, explorerId, marketsId, tokensEnabled, networkType, stage);
             stage.setScene(mnemonicScene);
             ResizeHelper.addResizeListener(stage, 500, 425, windowBounds.getWidth(), windowBounds.getHeight());
         });
@@ -736,7 +731,7 @@ public class ErgoWalletDataList {
 
     }
 
-    public Scene createMnemonicScene(String id, String name, String nodeId,  String explorerId, String marketsId,boolean ergoTokensEnabled, NetworkType networkType, Stage stage, Runnable onBack) {        //String oldStageName = mnemonicStage.getTitle();
+    public Scene createMnemonicScene(String id, String name, String nodeId,  String explorerId, String marketsId,boolean ergoTokensEnabled, NetworkType networkType, Stage stage) {        //String oldStageName = mnemonicStage.getTitle();
 
         String titleStr = "Mnemonic phrase - " + m_ergoWallet.getName();
 
@@ -749,9 +744,8 @@ public class ErgoWalletDataList {
 
         //Region spacer = new Region();
         //HBox.setHgrow(spacer, Priority.ALWAYS);
-        BufferedButton backBtn = new BufferedButton("/assets/return-back-up-30.png", App.MENU_BAR_IMAGE_WIDTH);
-
-        HBox menuBar = new HBox(backBtn);
+     /*
+        HBox menuBar = new HBox();
         HBox.setHgrow(menuBar, Priority.ALWAYS);
         menuBar.setAlignment(Pos.CENTER_LEFT);
         menuBar.setId("menuBar");
@@ -759,7 +753,7 @@ public class ErgoWalletDataList {
 
         VBox menuPaddingBox = new VBox(menuBar);
         menuPaddingBox.setPadding(new Insets(0, 2, 5, 2));
-
+        */
         Text headingText = new Text("Mnemonic phrase");
         headingText.setFill(App.txtColor);
         headingText.setFont(App.txtFont);
@@ -811,7 +805,7 @@ public class ErgoWalletDataList {
         VBox.setMargin(bodyBox, new Insets(5, 10, 0, 20));
         VBox.setVgrow(bodyBox, Priority.ALWAYS);
 
-        VBox layoutVBox = new VBox(titleBox, menuPaddingBox, headerBox, bodyBox);
+        VBox layoutVBox = new VBox(titleBox, headerBox, bodyBox);
 
         mnemonicFieldBox.setMaxWidth(900);
         HBox.setHgrow(mnemonicFieldBox, Priority.ALWAYS);
@@ -828,10 +822,7 @@ public class ErgoWalletDataList {
 
         });
 
-        backBtn.setOnAction(e -> {
-            mnemonicField.setText("");
-            onBack.run();
-        });
+ 
 
         nextBtn.setOnAction(nxtEvent -> {
             Alert nextAlert = new Alert(AlertType.NONE, "This mnemonic phrase may be used to generate copies of this wallet, or to recover this wallet if it is lost. It is strongly recommended to always maintain a paper copy of this phrase in a secure location. \n\nWarning: Loss of your mnemonic phrase could lead to the loss of your ability to recover this wallet.", ButtonType.CANCEL, ButtonType.OK);
@@ -840,8 +831,8 @@ public class ErgoWalletDataList {
             nextAlert.setTitle("Notice - Mnemonic phrase - Add wallet");
             Optional<ButtonType> result = nextAlert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                 Button passBtn = new Button();
-                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, ErgoWallets.getSmallAppIcon(), ErgoWallets.getAppIcon(), passBtn, onSuccess -> {
+                 Button closePassBtn = new Button();
+                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, ErgoWallets.getSmallAppIcon(), ErgoWallets.getAppIcon(), closePassBtn, onSuccess -> {
                     Object sourceObject = onSuccess.getSource().getValue();
 
                     if (sourceObject != null && sourceObject instanceof String) {
@@ -856,8 +847,10 @@ public class ErgoWalletDataList {
                             saveFileChooser.setSelectedExtensionFilter(ErgoWallets.ergExt);
 
                             File walletFile = saveFileChooser.showSaveDialog(stage);
-
+                            int indexOfDecimal = walletFile != null ? walletFile.getName().lastIndexOf(".") : -1;
+                            walletFile = walletFile != null ? (indexOfDecimal != -1 && walletFile.getName().substring(indexOfDecimal).equals("erg") ? walletFile : new File(walletFile.getAbsolutePath() + ".erg")) : null;
                             if (walletFile != null) {
+                                
 
                                 Wallet.create(walletFile.toPath(), Mnemonic.create(SecretString.create(mnemonicField.getText()), SecretString.create(password)), walletFile.getName(), password.toCharArray());
                                 mnemonicField.setText("-");
@@ -867,12 +860,22 @@ public class ErgoWalletDataList {
                                 save();
                               
                             }
-
+                            closePassBtn.fire();
+                        }else{
+                            Alert a = new Alert(AlertType.NONE, "Enter a password for the wallet file.", ButtonType.OK);
+                            a.setTitle("Password Required");
+                            a.setHeaderText("Password Required");
+                            a.show();
                         }
 
+                    }else{
+                        closePassBtn.fire();
                     }
-                    stage.setScene(mnemonicScene);
-                    passBtn.fire();
+                    
+                });
+                closePassBtn.setOnAction(e->{
+                    passwordStage.close();
+                    stage.close();
                 });
                 passwordStage.show();
             }
