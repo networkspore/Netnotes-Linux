@@ -28,7 +28,7 @@ The jar can be executed with:
 ~~~
 java -jar <filename>.jar
 (eg: java -jar netnotes-0.2.0.jar)
-~~
+~~~
 
 For Apple users:
 ---
