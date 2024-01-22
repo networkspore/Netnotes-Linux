@@ -2,8 +2,6 @@ package com.netnotes;
 
 import java.time.LocalDateTime;
 
-import javax.imageio.ImageIO;
-
 import org.ergoplatform.appkit.Address;
 import org.ergoplatform.appkit.NetworkType;
 
@@ -31,8 +29,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+
 
 public class AddressBox extends HBox {
 

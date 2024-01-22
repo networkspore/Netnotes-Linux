@@ -306,7 +306,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
     private Scene getWalletScene(Wallet wallet, Stage walletStage) {
         
        
-        AddressesData addressesData = new AddressesData(FriendlyId.createFriendlyId(), wallet, this, m_networkType, walletStage);
+        AddressesData addressesData = new AddressesData(FriendlyId.createFriendlyId(), wallet, this, m_networkType);
            
 
         String title = getName() + " - (" + m_networkType.toString() + ")";

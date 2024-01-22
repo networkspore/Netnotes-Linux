@@ -74,7 +74,7 @@ import javafx.stage.StageStyle;
 
 public class ErgoWalletDataList {
 
-    private File logFile = new File("walletsDataBox-log.txt");
+    private File logFile = new File("netnotes-log.txt");
     private ArrayList<NoteInterface> m_noteInterfaceList = new ArrayList<>();
     private String m_selectedId;
     private VBox m_gridBox;
@@ -92,6 +92,8 @@ public class ErgoWalletDataList {
         m_gridWidth = new SimpleDoubleProperty(width);
         m_iconStyle = new SimpleStringProperty(iconStyle);
         m_gridBox = new VBox();
+        
+
 
         m_ergoWallet = ergoWallet;
         m_dataFile = dataFile;

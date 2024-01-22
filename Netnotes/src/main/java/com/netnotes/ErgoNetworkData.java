@@ -60,7 +60,7 @@ import javafx.stage.StageStyle;
 
 public class ErgoNetworkData implements InstallerInterface {
 
-    private File logFile;
+    private File logFile = new File("netnotes-log.txt");
 
     public final static String[] INTALLABLE_NETWORK_IDS = new String[]{
         ErgoExplorers.NETWORK_ID,
@@ -93,7 +93,7 @@ public class ErgoNetworkData implements InstallerInterface {
     private ScheduledFuture<?> m_lastExecution = null;
 
     public ErgoNetworkData(String iconStyle, double gridWidth, ErgoNetwork ergoNetwork) {
-        new File(ergoNetwork.getNetworksData().getAppDir().getAbsolutePath() + "/netnotes-log.txt");
+      
         m_ergoNetwork = ergoNetwork;
         m_iconStyle = new SimpleStringProperty(iconStyle);
         m_gridWidth = new SimpleDoubleProperty(gridWidth);

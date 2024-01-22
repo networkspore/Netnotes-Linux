@@ -97,33 +97,13 @@ public class ErgoWallets extends Network implements NoteInterface {
         m_ergoNetwork = ergoNetwork;
         m_ergNetData = ergNetData;
 
-        JsonElement directoriesElement = jsonObject.get("directories");
-        JsonElement datFileElement = jsonObject.get("datFile");
+
         JsonElement stageElement = jsonObject.get("stage");
 
-        if (directoriesElement != null && directoriesElement.isJsonObject()) {
-            JsonObject directoriesObject = directoriesElement.getAsJsonObject();
-            if (directoriesObject != null) {
-                JsonElement appDirElement = directoriesObject.get("app");
-                JsonElement walletsDirElement = directoriesObject.get("wallets");
-
-                m_appDir = appDirElement == null ? null : new File(appDirElement.getAsString());
-
-                m_walletsDir = walletsDirElement == null ? null : new File(walletsDirElement.getAsString());
-            }
-        }
         boolean save = false;
-        if (m_appDir == null || m_walletsDir == null) {
-            setupWallet();
-            save = true;
-        }
-
-        if (datFileElement != null && datFileElement.isJsonPrimitive()) {
-            m_dataFile = new File(datFileElement.getAsString());
-        } else {
-            m_dataFile = new File(m_appDir.getAbsolutePath() + "/ergoWallet.dat");
-            save = true;
-        }
+      
+        setupWallet();
+           
 
         if (stageElement != null && stageElement.isJsonObject()) {
             JsonObject stageObject = stageElement.getAsJsonObject();
@@ -633,17 +613,21 @@ public class ErgoWallets extends Network implements NoteInterface {
 
     public void setupWallet() {
 
-        m_appDir = m_appDir == null ? new File(m_ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME) : m_appDir;
+        m_appDir = new File(m_ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME);
 
-        m_walletsDir = m_walletsDir == null ? new File(m_appDir.getAbsolutePath() + "/wallets") : m_walletsDir;
+        m_walletsDir = new File(m_appDir.getAbsolutePath() + "/wallets");
         m_dataFile = new File(m_appDir.getAbsolutePath() + "/ergoWallets.dat");
+
         if (!m_appDir.isDirectory()) {
 
             try {
                 Files.createDirectories(m_appDir.toPath());
             } catch (IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.show();
+                try {
+                    Files.writeString(logFile.toPath(), "\nError creating Ergo Wallets directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+       
+                }
             }
         }
 
@@ -651,8 +635,11 @@ public class ErgoWallets extends Network implements NoteInterface {
             try {
                 Files.createDirectories(m_walletsDir.toPath());
             } catch (IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.show();
+                try {
+                    Files.writeString(logFile.toPath(), "\nError creating Ergo Wallets, wallets directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+             
+                }
             }
         }
      

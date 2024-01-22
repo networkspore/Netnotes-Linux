@@ -9,7 +9,7 @@ import java.net.URL;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-
+import java.nio.file.StandardOpenOption;
 import java.security.NoSuchAlgorithmException;
 
 import java.security.spec.InvalidKeySpecException;
@@ -59,7 +59,7 @@ public class AppData {
 
     public AppData() throws JsonParseException, IOException{
 
-        URL classLocation = Utils.getLocation(getClass());
+        URL classLocation = Utils.getLocation(App.class);
         m_appFile = Utils.urlToFile(classLocation);
         m_appHashData = new HashData(m_appFile);
         m_appDir = m_appFile.getParentFile();

@@ -6,6 +6,7 @@ import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -54,6 +55,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -124,7 +126,22 @@ public class NetworksData implements InstallerInterface {
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         m_rect = ge.getMaximumWindowBounds();
  
+        
 
+        try {
+            
+            InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream();//ClassLoader.getSystemClassLoader().getResourceAsStream("/assets/OCRAEXT.TTF");
+            java.awt.Font ocrFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, stream).deriveFont(48f);
+            ge.registerFont(ocrFont);
+        } catch (FontFormatException | IOException e) {
+
+            try {
+                Files.writeString(logFile.toPath(), "\nError registering font: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+            
+            }
+
+        } 
 
         if (isFile) {
             readFile(m_appData.appKeyProperty().get(), networksFile.toPath());
