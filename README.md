@@ -12,22 +12,26 @@ This release is designed to be easily built and run on linux with minimal user s
 Installation Instructions
 ===
 Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
+(Built using GraalVM for linux (graalvm-ce-java17-22.3.3)
 
 *See https://github.com/networkspore/Netnotes/releases for Windows releases
 
 
 This project is targeted toward Java 17+ jdk and and Maven.
 
-If you JAVA_HOME environment variable is set, the jar can be run from the terminal with: java -jar <filename>.jar
+Your default-jdk must be set (sudo apt install default-jdk)
+
+The jar can be executed with:
+java -jar <filename>.jar  (eg: java -jar netnotes-0.2.0.jar)
 
 
 For Apple users:
 ---
-If the build fails,try building the project with: 
+The jar may require being built with the correct platform selected: 
 ~~~
 mvn package -Djavafx.platform=mac-aarch64
 ~~~
-(other options for platform are: 
+(other mac options for platform are: 
 ~~~
 mac (x86_64) mac-monocle (x86_64 monocle), and mac-aarch64-monocle
 ~~~
