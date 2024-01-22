@@ -3,7 +3,11 @@ Netnotes.io
 Netnotes-Linux
 ===
 
-This release does not contain any of the setup features: including the launcher and daemon/autorun functionality, in order to be easily built and run with minimal user setup requirements. 
+This release is designed to be easily built and run on linux with minimal user setup requirements and currently is not designed to be run with a setup/laucher binary. 
+
+*Currently taskbar support and the ability to run as a daemon has been removed from this release 
+
+(This release utilises the bash shell, rather than cmd or powershell, and so windows users should utilize the windows release).
 
 Installation Instructions
 ===
@@ -12,6 +16,9 @@ See https://github.com/networkspore/Netnotes/releases for Windows releases
 Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
 
 This project is targeted toward Java 17+ jdk and and Maven.
+
+If you JAVA_HOME environment variable is set, the jar can be run from the terminal with: java -jar <filename>.jar
+
 
 For Apple users:
 ---
