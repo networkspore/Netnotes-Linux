@@ -1,5 +1,29 @@
 Netnotes.io
 ----
+Netnotes-Linux
+===
+
+This release does not contain any of the setup features: including the launcher and daemon/autorun functionality, in order to be easily built and run with minimal user setup requirements. 
+
+Installation Instructions
+===
+
+See https://github.com/networkspore/Netnotes/releases for Windows releases
+Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
+
+This project is targeted toward Java 17+ jdk and and Maven.
+
+For Apple users:
+---
+If the build fails,try building the project with: 
+~~~
+mvn package -Djavafx.platform=mac-aarch64
+~~~
+(other options for platform are: 
+~~~
+mac (x86_64) mac-monocle (x86_64 monocle), and mac-aarch64-monocle
+~~~
+
 Description
 ===
 An evolving desktop application which allows you to install and control your access to the Ergo Block chain and receive live crypto currency market data utilizing various API (KuCoin Exchange/ Spectrum Finanace) .
@@ -21,9 +45,3 @@ This app connects to the KuCoin public API in order to allow you to search and w
 
 Charts: The live chart allows for zooming in on the candlestick charts, which are displayed with a linear scale. In order crop the chart to focus in on the areas which you want to view more closely, you may use the cropping bar tool on the left hand side. Simply click the bar tool then click and drag the top end of the bar to the top of the chart which you wish to see, and then click and drag the bottom of the bar to the lowest data which you would like to see. You may then click the green button at the top of the bar, or the red button to reset the crop to normal.
 
-Installation Instructions
-===
-
-See https://github.com/networkspore/Netnotes/releases for the Windows release 
-
-Download the linux jar release at: https://github.com/networkspore/Netnotes-Linux/releases
