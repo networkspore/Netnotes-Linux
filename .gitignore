@@ -1,1 +1,8 @@
 /.vscode
+/Netnotes/target
+/Netnotes/.vscode
+/Netnotes/.svn
+/Netnotes/netnotes.sh
+/Netnotes/netnotes-log.txt
+/Netnotes/dependency-reduced-pom.xml
+/Netnotes/netnotes
