@@ -19,11 +19,16 @@ Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
 
 This project is targeted toward Java 17+ jdk and and Maven.
 
-Your default-jdk must be set (sudo apt install default-jdk)
+Your default-jdk must be installed and set
+~~~
+sudo apt install default-jdk)
+~~~
 
 The jar can be executed with:
-java -jar <filename>.jar  (eg: java -jar netnotes-0.2.0.jar)
-
+~~~
+java -jar <filename>.jar
+(eg: java -jar netnotes-0.2.0.jar)
+~~
 
 For Apple users:
 ---
