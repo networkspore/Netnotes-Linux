@@ -11,9 +11,10 @@ This release is designed to be easily built and run on linux with minimal user s
 
 Installation Instructions
 ===
-
-See https://github.com/networkspore/Netnotes/releases for Windows releases
 Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
+
+*See https://github.com/networkspore/Netnotes/releases for Windows releases
+
 
 This project is targeted toward Java 17+ jdk and and Maven.
 
