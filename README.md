@@ -21,7 +21,7 @@ This project is targeted toward Java 17+ jdk and and Maven.
 
 Your default-jdk must be installed and set
 ~~~
-sudo apt install default-jdk)
+sudo apt install default-jdk
 ~~~
 
 The jar can be executed with:
