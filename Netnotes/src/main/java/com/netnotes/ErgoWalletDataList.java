@@ -825,12 +825,14 @@ public class ErgoWalletDataList {
  
 
         nextBtn.setOnAction(nxtEvent -> {
-            Alert nextAlert = new Alert(AlertType.NONE, "This mnemonic phrase may be used to generate copies of this wallet, or to recover this wallet if it is lost. It is strongly recommended to always maintain a paper copy of this phrase in a secure location. \n\nWarning: Loss of your mnemonic phrase could lead to the loss of your ability to recover this wallet.", ButtonType.CANCEL, ButtonType.OK);
+            Alert nextAlert = new Alert(AlertType.NONE, "This mnemonic phrase may be used to generate backup or to recover this wallet if it is lost. It is strongly recommended to always maintain a paper copy of this phrase in a secure location. \n\nWarning: Loss of your mnemonic phrase could lead to the loss of your ability to recover this wallet.", ButtonType.CANCEL, ButtonType.OK);
             nextAlert.setHeaderText("Notice");
             nextAlert.initOwner(stage);
             nextAlert.setTitle("Notice - Mnemonic phrase - Add wallet");
             Optional<ButtonType> result = nextAlert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
+
+            if(result != null && result.isPresent() && result.get() == ButtonType.OK){
+
                  Button closePassBtn = new Button();
                 Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, ErgoWallets.getSmallAppIcon(), ErgoWallets.getAppIcon(), closePassBtn, onSuccess -> {
                     Object sourceObject = onSuccess.getSource().getValue();
@@ -860,7 +862,10 @@ public class ErgoWalletDataList {
                                 save();
                               
                             }
+                  
+                            
                             closePassBtn.fire();
+                            stage.close();
                         }else{
                             Alert a = new Alert(AlertType.NONE, "Enter a password for the wallet file.", ButtonType.OK);
                             a.setTitle("Password Required");
@@ -875,9 +880,11 @@ public class ErgoWalletDataList {
                 });
                 closePassBtn.setOnAction(e->{
                     passwordStage.close();
-                    stage.close();
+             
                 });
                 passwordStage.show();
+                Platform.runLater(()->passwordStage.requestFocus());
+                Platform.runLater(()->passwordStage.toFront());
             }
         });
 
