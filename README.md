@@ -13,7 +13,7 @@ Installation Instructions
 ===
 Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
 
-(Built using GraalVM for linux (graalvm-ce-java17-22.3.3)
+(Built using openJDK 17.0.9)
 
 *See https://github.com/networkspore/Netnotes/releases for Windows releases
 
