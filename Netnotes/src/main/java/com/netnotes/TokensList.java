@@ -975,7 +975,7 @@ public class TokensList extends Network {
                         File imgFile = new File(selectedFileString.get());
                         Image isImage = null;
                         try {
-                            isImage = Utils.getImageByFile(imgFile, selectedFileString.get());
+                            isImage = Utils.getImageByFile(imgFile);
                         } catch (IOException e1) {
                             try {
                                 Files.writeString(logFile.toPath(), "\nTokenList error selecting image: " + e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);

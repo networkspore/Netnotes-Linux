@@ -683,7 +683,7 @@ public class Utils {
                 }*/
                 if (checkFileHashData.getHashStringHex().equals(hashData.getHashStringHex())) {
                     
-                    return getImageByFile(checkFile, imageString);
+                    return getImageByFile(checkFile);
                 }
             } catch (Exception e) {
                 try {
@@ -701,7 +701,7 @@ public class Utils {
 
     }
 
-    public static Image getImageByFile(File file, String urlPath) throws IOException{
+    public static Image getImageByFile(File file) throws IOException{
         if (file != null && file.isFile()) {
            
           

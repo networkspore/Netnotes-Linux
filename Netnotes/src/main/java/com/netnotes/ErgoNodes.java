@@ -351,8 +351,11 @@ public class ErgoNodes extends Network implements NoteInterface {
             });
             shutdownNowProperty().addListener((obs, oldVal, newVal) -> {
                 m_ergoNodesList.shutdown();
-                m_stage.close();
-                m_stage = null;
+                
+                if(m_stage != null){
+                    m_stage.close();
+                    m_stage = null;
+                }
             });
 
             Runnable updateScrollWidth = () -> {
