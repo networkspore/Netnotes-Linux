@@ -41,6 +41,7 @@ mvn package -Djavafx.platform=mac-aarch64
 ~~~
 mac (x86_64) mac-monocle (x86_64 monocle), and mac-aarch64-monocle
 ~~~
+Uses the bash shell to launch and shutdown the node, and check the ping. By all accounts this should work in OSX but if it doesn't, let me know if you know a fix.
 
 Description
 ===
