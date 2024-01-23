@@ -12,6 +12,7 @@ This release is designed to be easily built and run on linux with minimal user s
 Installation Instructions
 ===
 Latest linux .jar: https://github.com/networkspore/Netnotes-Linux/releases
+
 (Built using GraalVM for linux (graalvm-ce-java17-22.3.3)
 
 *See https://github.com/networkspore/Netnotes/releases for Windows releases
