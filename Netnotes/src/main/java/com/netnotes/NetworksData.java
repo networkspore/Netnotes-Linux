@@ -17,6 +17,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
@@ -31,6 +32,8 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+
+import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -690,13 +693,13 @@ public class NetworksData implements InstallerInterface {
                 addAll();
             });
 
-            
+            m_addNetworkStage.show();
             updateAvailableLists();
-            Platform.runLater(()->{
-                m_addNetworkStage.show();
-                m_addNetworkStage.requestFocus();
+            FxTimer.runLater(Duration.ofMillis(100), ()->{
+                Platform.runLater(()->m_addNetworkStage.requestFocus());
+                Platform.runLater(()->m_addNetworkStage.toFront());
             });
-            
+       
         } else {
              Platform.runLater(()->{
                 m_addNetworkStage.show();
@@ -1091,7 +1094,7 @@ public class NetworksData implements InstallerInterface {
 
     private void sendAck(String senderId) {
 
-        File ackFile = new File(m_outDir.getAbsolutePath() + "\\" + senderId + OUT_EXT);
+        File ackFile = new File(m_outDir.getAbsolutePath() + "/" + senderId + OUT_EXT);
         try {
             Files.writeString(ackFile.toPath(), getAckString(senderId, System.currentTimeMillis()));
         } catch (IOException e) {

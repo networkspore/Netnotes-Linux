@@ -63,29 +63,28 @@ public class AppData {
         m_appFile = Utils.urlToFile(classLocation);
         m_appHashData = new HashData(m_appFile);
         m_appDir = m_appFile.getParentFile();
-
         m_settingsFile = new File(m_appDir.getAbsolutePath() + "/" + SETTINGS_FILE_NAME);
+
         readFile();
 
-      
     }
 
     public AppData(String password)throws NoSuchAlgorithmException, InvalidKeySpecException, IOException{
-        URL classLocation = Utils.getLocation(getClass());
+      
+        URL classLocation = Utils.getLocation(App.class);
         m_appFile = Utils.urlToFile(classLocation);
         m_appHashData = new HashData(m_appFile);
         m_appDir = m_appFile.getParentFile();
         m_settingsFile = new File(m_appDir.getAbsolutePath() + "/" + SETTINGS_FILE_NAME);
 
-        m_persistenceStage = new Stage(StageStyle.UTILITY);
-        m_persistenceStage.setHeight(0);
-        m_persistenceStage.setWidth(0);
-        m_persistenceStage.setX(java.lang.Double.MAX_VALUE);
-        m_persistenceStage.show();
         m_appKey = Utils.getBcryptHashString(password);
+        
         save();
         createKey(password);
+   
     }
+
+  
 
     private void readFile()throws JsonParseException, IOException{
         

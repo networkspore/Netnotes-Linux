@@ -175,7 +175,7 @@ public class App extends Application {
 
                 if (!newPassword.equals("")) {
                     try{
-                        startApp(new AppData(newPassword), appStage);
+                        openNetnotes(new AppData(newPassword), appStage);
                     }catch(NoSuchAlgorithmException | InvalidKeySpecException | IOException e){
                         Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.OK);
                         a.setTitle("Fatal Error");
@@ -410,7 +410,7 @@ public class App extends Application {
       
 
         ImageView barIconView = new ImageView(iconImage);
-        barIconView.setFitWidth(25);
+        barIconView.setFitWidth(20);
         barIconView.setPreserveRatio(true);
 
         // Rectangle2D logoRect = new Rectangle2D(30,30,30,30);
@@ -994,6 +994,7 @@ public class App extends Application {
         if (!isNetworksFile) {
 
             m_networksData.showManageNetworkStage();
+            
         }
     }
     
@@ -1549,7 +1550,7 @@ public class App extends Application {
     public static HBox createTopBar(Image iconImage, Button fillRightBtn, Button maximizeBtn, Button closeBtn, Stage theStage) {
 
         ImageView barIconView = new ImageView(iconImage);
-        barIconView.setFitWidth(25);
+        barIconView.setFitWidth(20);
         barIconView.setPreserveRatio(true);
 
         // Rectangle2D logoRect = new Rectangle2D(30,30,30,30);
@@ -1623,7 +1624,7 @@ public class App extends Application {
     public static HBox createTopBar(Image iconImage, Button maximizeBtn, Button closeBtn, Stage theStage) {
 
         ImageView barIconView = new ImageView(iconImage);
-        barIconView.setFitWidth(25);
+        barIconView.setFitWidth(20);
         barIconView.setPreserveRatio(true);
 
         // Rectangle2D logoRect = new Rectangle2D(30,30,30,30);
@@ -1695,7 +1696,7 @@ public class App extends Application {
     public static HBox createTopBar(Image iconImage, String titleString, Button maximizeBtn, Button closeBtn, Stage theStage) {
 
         ImageView barIconView = new ImageView(iconImage);
-        barIconView.setFitWidth(25);
+        barIconView.setFitWidth(20);
         barIconView.setPreserveRatio(true);
 
         // Rectangle2D logoRect = new Rectangle2D(30,30,30,30);
@@ -1764,7 +1765,7 @@ public class App extends Application {
     public static HBox createTopBar(Image iconImage, String titleString, Button closeBtn, Stage theStage) {
 
         ImageView barIconView = new ImageView(iconImage);
-        barIconView.setFitWidth(25);
+        barIconView.setFitWidth(20);
         barIconView.setPreserveRatio(true);
 
         // Rectangle2D logoRect = new Rectangle2D(30,30,30,30);
@@ -1829,7 +1830,7 @@ public class App extends Application {
     public static HBox createTopBar(Image iconImage, Label newTitleLbl, Button closeBtn, Stage theStage) {
 
         ImageView barIconView = new ImageView(iconImage);
-        barIconView.setFitWidth(25);
+        barIconView.setFitWidth(20);
         barIconView.setPreserveRatio(true);
 
         // Rectangle2D logoRect = new Rectangle2D(30,30,30,30);

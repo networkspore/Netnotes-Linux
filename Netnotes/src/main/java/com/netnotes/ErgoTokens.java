@@ -112,7 +112,14 @@ public class ErgoTokens extends Network implements NoteInterface {
         } else {
             m_dataFile = new File(m_appDir.getAbsolutePath() + "/" + NAME + ".dat");
             m_testnetDataFile = new File(m_appDir.getAbsolutePath() + "/testnet" + NAME + ".dat");
-            m_tokensList = new TokensList(getNetworksData().getAppData().appKeyProperty().get(), m_networkType, this);
+            if(m_dataFile.isFile()){
+                m_tokensList = new TokensList(getNetworksData().getAppData().appKeyProperty().get(), m_networkType, this);
+            }else{
+                File tokensDir = new File(m_appDir.getAbsolutePath() + "/tokens");
+                setupTokens(getNetworksData().getAppData().appKeyProperty().get(), tokensDir);
+            }
+            
+           
         }
 
 
@@ -219,7 +226,7 @@ public class ErgoTokens extends Network implements NoteInterface {
                 Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
                 a.show();
             }
-            File tokensDir = new File(m_appDir.getAbsolutePath() + "/tokens");
+           
 
             if (dataElement == null) {
                 m_dataFile = new File(m_appDir.getAbsolutePath() + "/" + ErgoTokens.NAME + ".dat");
@@ -232,7 +239,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             } else {
                 m_testnetDataFile = new File(testnetDataElement.getAsString());
             }
-
+            File tokensDir = new File(m_appDir.getAbsolutePath() + "/tokens");
             setupTokens(getNetworksData().getAppData().appKeyProperty().get(), tokensDir);
         } else {
 
@@ -715,7 +722,7 @@ public class ErgoTokens extends Network implements NoteInterface {
                 zipStream = new ZipInputStream(is);
                 final Blake2b digest = Blake2b.Digest.newInstance(32);
             
-                String tokensPathString = tokensDir.getCanonicalPath() + "\\";
+                String tokensPathString = tokensDir.getCanonicalPath();
 
                 if (zipStream != null) {
                     // Enumeration<? extends ZipEntry> entries = zipFile.entries();
@@ -733,15 +740,16 @@ public class ErgoTokens extends Network implements NoteInterface {
 
                             String fileName = entryName.substring(0, indexOfExt);
 
-                            File newDirFile = new File(tokensPathString + "\\" + fileName);
+                            File newDirFile = new File(tokensPathString + "/" + fileName);
                             if (!newDirFile.isDirectory()) {
                                 Files.createDirectory(newDirFile.toPath());
                             }
-                            String fileString = tokensPathString + "\\" + fileName + "\\" + entryName;
+                            String fileString = tokensPathString + "/" + fileName + "/" + entryName;
                             File entryFile = new File(fileString);
                             OutputStream outStream = null;
                             try {
-
+                                
+                              
                                 outStream = new FileOutputStream(entryFile);
                                 //outStream.write(buffer);
 

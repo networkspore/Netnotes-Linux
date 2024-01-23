@@ -973,7 +973,17 @@ public class TokensList extends Network {
 
                     if(!selectedFileString.get().equals("Select an image")){
                         File imgFile = new File(selectedFileString.get());
-                        if(Utils.getImageByFile(imgFile) != null){
+                        Image isImage = null;
+                        try {
+                            isImage = Utils.getImageByFile(imgFile, selectedFileString.get());
+                        } catch (IOException e1) {
+                            try {
+                                Files.writeString(logFile.toPath(), "\nTokenList error selecting image: " + e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e2) {
+                         
+                            }
+                        }
+                        if(isImage != null){
                             try {
                                 HashData hashData = new HashData(imgFile);
                                 String ergoTokensDir =  m_ergoTokens.getAppDir().getCanonicalPath();

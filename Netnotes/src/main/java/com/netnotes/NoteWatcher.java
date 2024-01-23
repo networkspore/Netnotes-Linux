@@ -76,7 +76,7 @@ public class NoteWatcher {
                         Object contextObject = event.context();
                         if (contextObject != null && contextObject instanceof Path) {
                             Path eventContextPath = (Path) contextObject;
-                            String filePathString = pathString + "\\" + eventContextPath.toString();
+                            String filePathString = pathString + "/" + eventContextPath.toString();
                             if (!eventCondenser.contains(filePathString)) {
                                 eventCondenser.add(filePathString);
                             }

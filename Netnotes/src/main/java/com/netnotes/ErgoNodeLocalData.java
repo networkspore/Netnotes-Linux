@@ -1595,7 +1595,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                 if (!installDir.isDirectory()) {
 
-                    Alert a = new Alert(AlertType.NONE, "This will create the '" + folderNameField.getText() + "' folder.\n(" + dir.getAbsolutePath() +"\\"+ folderNameField.getText() + ")", ButtonType.OK, ButtonType.CANCEL);
+                    Alert a = new Alert(AlertType.NONE, "This will create the '" + folderNameField.getText() + "' folder.\n(" + dir.getAbsolutePath() +"/"+ folderNameField.getText() + ")", ButtonType.OK, ButtonType.CANCEL);
                     a.initOwner(m_stage);
                     a.setTitle("Create Folder");
                     a.setHeaderText("Create Folder");

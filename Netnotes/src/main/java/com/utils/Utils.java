@@ -682,14 +682,16 @@ public class Utils {
 
                 }*/
                 if (checkFileHashData.getHashStringHex().equals(hashData.getHashStringHex())) {
-                    return getImageByFile(checkFile);
+                    
+                    return getImageByFile(checkFile, imageString);
                 }
             } catch (Exception e) {
                 try {
-                    Files.writeString(new File("netnotes-log.txt").toPath(), "\n" + e, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(new File("netnotes-log.txt").toPath(), "\nCheck and load image: " + imageString + " *" + e , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e2) {
 
                 }
+                new Image("/assets/unknown-unit.png");
             }
         }
 
@@ -699,19 +701,20 @@ public class Utils {
 
     }
 
-    public static Image getImageByFile(File file) {
+    public static Image getImageByFile(File file, String urlPath) throws IOException{
         if (file != null && file.isFile()) {
-            String contentType = null;
-            try {
-                contentType = Files.probeContentType(file.toPath());
-                contentType = contentType.split("/")[0];
-                if (contentType != null && contentType.equals("image")) {
-                    return  new Image(file.getAbsolutePath());
-                    
-                }
-              } catch (IOException e) {
-                return null;
+           
+          
+            String contentType  = Files.probeContentType(file.toPath());
+            contentType = contentType.split("/")[0];
+            if (contentType != null && contentType.equals("image")) {
+                
+                FileInputStream iStream = new FileInputStream(file);
+                Image img = new Image(iStream);
+                iStream.close();
+                return img;
             }
+           
         }
          return null;
     }
