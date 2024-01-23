@@ -35,7 +35,7 @@ public class AmountSendBox extends AmountBox {
 
   
 
-    private SimpleObjectProperty<PriceAmount> m_balanceAmount = new SimpleObjectProperty<>();
+    private SimpleObjectProperty<PriceAmount> m_balanceAmount;
     private SimpleObjectProperty<Image> m_maxAmountImage = new SimpleObjectProperty<>();
     private SimpleBooleanProperty m_isFee = new SimpleBooleanProperty();
     private AmountFeeBox m_feeBox = null;
@@ -43,6 +43,7 @@ public class AmountSendBox extends AmountBox {
 
     public AmountSendBox(PriceAmount priceAmount, Scene scene, boolean editable) {
         super();
+        m_balanceAmount =  new SimpleObjectProperty<>(new PriceAmount(0L, priceAmount.getCurrency()));
         setId("darkBox");
         setMinHeight(40);
         priceAmountProperty().set(priceAmount);
