@@ -1139,7 +1139,7 @@ public class App extends Application {
         passwordBox.setAlignment(Pos.CENTER_LEFT);
         passwordBox.setPadding(new Insets(10, 0, 0, 20));
         passwordBox.setMinHeight(30);
-
+        /*
         Text updatesTxt = new Text(String.format("%-12s", "  Updates:"));
         updatesTxt.setFill(txtColor);
         updatesTxt.setFont(txtFont);
@@ -1152,9 +1152,9 @@ public class App extends Application {
         updatesBox.setAlignment(Pos.CENTER_LEFT);
         updatesBox.setPadding(new Insets(0, 0, 0, 20));
         updatesBox.setMinHeight(30);
-
+ */
         
-        VBox settingsVBox = new VBox(passwordBox, updatesBox);
+        VBox settingsVBox = new VBox(passwordBox);
         HBox.setHgrow(settingsVBox, Priority.ALWAYS);
 
         settingsVBox.setAlignment(Pos.CENTER_LEFT);
