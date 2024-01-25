@@ -920,9 +920,9 @@ public class Utils {
 
         return null;
     }*/
-    public static JsonObject readJsonFile(SecretKey appKey, Path filePath) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException {
+    public static JsonObject readJsonFile(SecretKey appKey, File file) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException {
 
-        FileChannel channel = FileChannel.open(filePath, StandardOpenOption.READ);
+        FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         int bufferSize = 1024;
@@ -999,15 +999,41 @@ public class Utils {
 
     }
 
-    //logFile.toPath(), jsonObject.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND
-    public static void writeString(Path filepath, String str, StandardOpenOption... openOptions) throws IOException {
+    public static String readStringFile(SecretKey appKey, File file) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException {
 
-        AsynchronousFileChannel asyncFile = AsynchronousFileChannel.open(filepath, openOptions);
+        FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-        asyncFile.write(ByteBuffer.wrap("Some text to be written".getBytes()), 0);
+        int bufferSize = 1024;
+        if (bufferSize > channel.size()) {
+            bufferSize = (int) channel.size();
+        }
+        ByteBuffer buff = ByteBuffer.allocate(bufferSize);
 
-        //Files.writeString(filepath, str, openOptions);
+        while (channel.read(buff) > 0) {
+            out.write(buff.array(), 0, buff.position());
+            buff.clear();
+        }
+
+        channel.close();
+
+        byte[] fileBytes = out.toByteArray();
+
+        byte[] iv = new byte[]{
+            fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3],
+            fileBytes[4], fileBytes[5], fileBytes[6], fileBytes[7],
+            fileBytes[8], fileBytes[9], fileBytes[10], fileBytes[11]
+        };
+
+        buff = ByteBuffer.wrap(fileBytes, 12, fileBytes.length - 12);
+
+        return new String(AESEncryption.decryptData(iv, appKey, buff));
+       
+
+
     }
+
+   
 
     public static void moveFileAndHash(File inputFile, File outputFile, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
 

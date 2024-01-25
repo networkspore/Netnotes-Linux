@@ -11,8 +11,15 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
 
 import org.reactfx.util.FxTimer;
 
@@ -20,9 +27,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
-import com.google.gson.Gson;
 
 import com.utils.Utils;
 
@@ -88,12 +93,8 @@ public class SpectrumMarketItem {
 
     public File getMarketFile() throws IOException{
     
-        File marketFile = new File(m_dataList.getSpectrumFinance().getDataDir().getAbsolutePath() + "/" + m_symbol + ".json" );
+        File marketFile = m_dataList.getSpectrumFinance().getIdDataFile(m_symbol);
 
-        File parentFile = marketFile.getParentFile();
-        if(!parentFile.isDirectory()){
-            Files.createDirectory(parentFile.toPath());
-        }
         return marketFile;
     }
 
@@ -590,8 +591,8 @@ public class SpectrumMarketItem {
             Runnable setCandles = () ->{
                 JsonObject existingObj = null;
                 try {
-                    existingObj = getMarketFile().isFile() ? new JsonParser().parse(Files.readString(getMarketFile().toPath())).getAsJsonObject() : null;
-                } catch (IOException | JsonParseException e) {
+                    existingObj = getMarketFile().isFile() ? Utils.readJsonFile(getAppKey(), getMarketFile()) : null;
+                } catch (IOException | JsonParseException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
                     try {
                         Files.writeString(logFile.toPath(), "\nSpectrum Market Data (setCandles.run):" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException  e1) {
@@ -649,8 +650,9 @@ public class SpectrumMarketItem {
             Runnable updateCandles = () ->{
                 JsonObject existingObj = null;
                 try {
-                    existingObj = getMarketFile().isFile() ? new JsonParser().parse(Files.readString(getMarketFile().toPath())).getAsJsonObject() : null;
-                } catch (IOException | JsonParseException e) {
+                    File marketFile = getMarketFile();
+                    existingObj = marketFile.isFile() ? Utils.readJsonFile(getAppKey(), marketFile) : null;
+                } catch (IOException | JsonParseException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
                     try {
                         Files.writeString(logFile.toPath(), "\nSpectrum Market Data (setCandles.run):" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException  e1) {
@@ -764,6 +766,10 @@ public class SpectrumMarketItem {
         }
     }
 
+    public SecretKey getAppKey(){
+        return m_dataList.getSpectrumFinance().getAppKey();
+    }
+
     public void saveNewDataJson(long lastTimeStamp, JsonArray jsonArray){
       
      
@@ -772,8 +778,8 @@ public class SpectrumMarketItem {
             json.add("priceData", jsonArray);
 
             try {
-                Files.writeString(getMarketFile().toPath(), json.toString());
-            } catch (IOException e) {
+                Utils.saveJson(getAppKey(), json, getMarketFile());
+            } catch (IOException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
                 try {
                     Files.writeString(logFile.toPath(), "\nSpectrumMarketItem (saveNewDataJson): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND );
                 } catch (IOException e1) {

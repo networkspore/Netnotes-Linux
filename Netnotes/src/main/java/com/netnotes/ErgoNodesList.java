@@ -106,7 +106,7 @@ public class ErgoNodesList {
           
             try {
    
-                JsonObject json = Utils.readJsonFile(m_ergoNodes.getNetworksData().getAppData().appKeyProperty().get(), m_ergoNodes.getDataFile().toPath());
+                JsonObject json = Utils.readJsonFile(m_ergoNodes.getNetworksData().getAppData().appKeyProperty().get(), m_ergoNodes.getDataFile());
                 openJson(json);
             } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException

@@ -55,7 +55,7 @@ public class ErgoExplorerList {
    
         if (dataFile != null && dataFile.isFile()) {
             try {
-                openJson(Utils.readJsonFile(secretKey, dataFile.toPath()));
+                openJson(Utils.readJsonFile(secretKey, dataFile));
             } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                     | IOException e) {

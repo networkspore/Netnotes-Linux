@@ -1,18 +1,50 @@
 package com.netnotes;
 
 import java.awt.Rectangle;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonParseException;
 import com.utils.Utils;
 
+import io.circe.Json;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener.Change;
+import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -56,18 +88,22 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static java.awt.Color NEGATIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xffe96d71, true);
     public static java.awt.Color NEUTRAL_COLOR = new java.awt.Color(0x111111);
 
-    
+    public static long DATA_TIMEOUT_SPAN = (30*1000)-100;
     private File m_appDir = null;
-    private File m_dataFile = null;
+   // private File m_dataFile = null;
     private File m_dataDir = null;
 
     private Stage m_appStage = null;
 
+    public static final String CMC_DATA_ID = "cmcMarketData";
+    public static final String TICKER_DATA_ID = "tickerData";
 
     private SimpleObjectProperty<JsonObject> m_cmdObjectProperty = new SimpleObjectProperty<>(null);
 
-   
-
+    private ArrayList<String> m_favoriteIds = new ArrayList<>();
+    private List<SpectrumMarketItem> m_marketsList = Collections.synchronizedList(new ArrayList<SpectrumMarketItem>());
+    private AtomicLong m_cmcLastChecked = new AtomicLong(0);
+    private AtomicLong m_tickersLastChecked = new AtomicLong(0);
 
     public SpectrumFinance(NetworksData networksData) {
         this(null, networksData);
@@ -83,7 +119,37 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
     public void addListeners(){
-       
+        getNetworksData().getAppData().appKeyProperty().addListener((obs,oldval,newval)->{
+            File indexFile = getIdIndexFile();
+            if(indexFile != null && indexFile.isFile()){
+                JsonArray jsonArray = getIndexFileArray(oldval, indexFile);
+                saveIndexFile(jsonArray);
+                if(jsonArray != null){
+                int size = jsonArray.size();
+                    for(int i = 0; i< size ; i++){
+                        JsonElement jsonElement = jsonArray.get(i);
+                
+                        JsonObject obj = jsonElement.getAsJsonObject();
+
+                        File file = new File(obj.get("file").getAsString());
+                        if(file.isFile()){
+                            try {
+                                String oldString = Utils.readStringFile(oldval, file);
+                                Utils.writeEncryptedString(newval, file, oldString);
+                            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                                    | IOException e) {
+                                try {
+                                    Files.writeString(logFile.toPath(), "SpectrumFinance (addListenersr): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                } catch (IOException e1) {
+                                
+                                }
+                            }
+                        }
+                    }
+                }
+            }     
+        });
     }
 
     public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
@@ -107,9 +173,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return new Image("/assets/spectrumFinance.png");
     }
 
-    public File getDataFile() {
-        return m_dataFile;
-    }
 
 
     private void setup(JsonObject jsonObject) {
@@ -142,7 +205,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }
 
    
-        m_dataFile = new File(fileString == null ? m_appDir.getAbsolutePath() + "/" + NAME + ".dat" : fileString);
+
         m_dataDir = new File(m_appDir.getAbsolutePath() + "/data");
         if(!m_dataDir.isDirectory()){
             try {
@@ -151,6 +214,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
           
             }
         }
+
     }
 
     public void open() {
@@ -167,17 +231,57 @@ public class SpectrumFinance extends Network implements NoteInterface {
         
         return m_dataDir;
     }
+    
+ 
+    public boolean getIsFavorite(String id){
+        return m_favoriteIds.contains(id);
+    }
 
+
+    public void addFavorite(String id, boolean doSave) {
+ 
+        m_favoriteIds.add(id);
+        if (doSave) {
+            getLastUpdated().set(LocalDateTime.now());
+        }   
+    }
+
+    public void removeFavorite(String symbol, boolean doSave) {
+        m_favoriteIds.remove(symbol);
+
+        if (doSave) {
+            getLastUpdated().set(LocalDateTime.now());
+        }
+        
+    }
+
+
+    
+    public SpectrumMarketItem getMarketItem(String id) {
+        if (id != null) {
+            
+            for (SpectrumMarketItem item : m_marketsList) {
+                if (item.getId().equals(id)) {
+                    return item;
+                }
+            }
+            
+        }
+        return null;
+    }
+
+
+    public void updateMarkets() {
+        
+       
+    }
 
 
     private void showAppStage() {
         if (m_appStage == null) {
             
 
-            SpectrumDataList spectrumData = new SpectrumDataList(this);
-
-    
-      
+            SpectrumDataList spectrumData = new SpectrumDataList(getNetworkId(), this);
 
             double appStageWidth = 450;
             double appStageHeight = 600;
@@ -489,29 +593,214 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return true;
     }
 
+  
 
-    public boolean getCMCMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+
+    private void getCMCMarketsLocal(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/price-tracking/cmc/markets";
         /*try {
             Files.writeString(logFile.toPath(), "\ngetting url: " + urlString, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJsonArray(urlString, onSucceeded, onFailed, null);
+        
+        Task<JsonArray> task = new Task<JsonArray>() {
+            @Override
+            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
+                InputStream inputStream = null;
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                String outputString = null;
 
-        return false;
+                URL url = new URL(urlString);
+
+                URLConnection con = url.openConnection();
+
+                con.setRequestProperty("User-Agent", Utils.USER_AGENT);
+
+                inputStream = con.getInputStream();
+
+                byte[] buffer = new byte[2048];
+
+                int length;
+
+                while ((length = inputStream.read(buffer)) != -1) {
+
+                    outputStream.write(buffer, 0, length);
+
+            
+                }
+
+                outputStream.close();
+                outputString = outputStream.toString();
+
+                JsonElement jsonElement = new JsonParser().parse(outputString);
+
+                JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
+
+                if(jsonArray != null){
+                    Platform.runLater(()->{
+                        File cmcFile = getIdDataFile(CMC_DATA_ID);
+                        try {
+                            Utils.writeEncryptedString(getAppKey(), cmcFile, jsonArray.toString());
+                        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
+                                | IOException e) {
+                            try {
+                                Files.writeString(logFile.toPath(), "SpectrumFinance (CMCmarketsLocal): " + e.toString(),StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
+                  
+                            }
+                        }
+                  
+                    });
+                    
+                }
+
+                return jsonArray == null ? null : jsonArray;
+
+            }
+
+        };
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        Thread t = new Thread(task);
+        t.setDaemon(true);
+        t.start();
+                
+              
+
+    }
+
+    public void getCMCMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        
+        long currentTime = System.currentTimeMillis();
+        long lastChecked = m_cmcLastChecked.getAndSet(currentTime);
+        File cmcFile = getIdDataFile(CMC_DATA_ID);
+
+        if(lastChecked != 0 && (currentTime -lastChecked) < (1000*30) && cmcFile.isFile() && cmcFile.length() > 50 ){
+            
+            try{
+                
+                String fileString = Utils.readStringFile(getAppKey(), cmcFile);
+           
+                Utils.returnObject(new JsonParser().parse(fileString).getAsJsonArray(), onSucceeded, onSucceeded);
+            }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
+                try {
+                    Files.writeString(logFile.toPath(), "\nSpectrumFinance: getCMCMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+
+                }
+                getCMCMarketsLocal(onSucceeded, onFailed);
+            }
+
+        }else{
+            getCMCMarketsLocal(onSucceeded, onFailed);
+        }
+        
     }
     
-    public boolean getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public void getTickersLocal(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/cg/tickers";
-        /*try {
-            Files.writeString(logFile.toPath(), "\ngetting url: " + urlString, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
 
-        }*/
-        Utils.getUrlJsonArray(urlString, onSucceeded, onFailed, null);
+        Task<JsonArray> task = new Task<JsonArray>() {
+            @Override
+            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
+                InputStream inputStream = null;
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                String outputString = null;
 
-        return false;
+                URL url = new URL(urlString);
+
+                URLConnection con = url.openConnection();
+
+                con.setRequestProperty("User-Agent", Utils.USER_AGENT);
+
+                inputStream = con.getInputStream();
+
+                byte[] buffer = new byte[2048];
+
+                int length;
+
+                while ((length = inputStream.read(buffer)) != -1) {
+
+                    outputStream.write(buffer, 0, length);
+
+            
+                }
+
+                outputStream.close();
+                outputString = outputStream.toString();
+
+                JsonElement jsonElement = new JsonParser().parse(outputString);
+
+                JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
+
+                if(jsonArray != null){
+                    Platform.runLater(()->{
+                        File tickerFile = getIdDataFile(TICKER_DATA_ID);
+                        try {
+                            Utils.writeEncryptedString(getAppKey(), tickerFile, jsonArray.toString());
+                        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
+                                | IOException e) {
+                            try {
+                                Files.writeString(logFile.toPath(), "SpectrumFinance (CMCmarketsLocal): " + e.toString(),StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
+                  
+                            }
+                        }
+                  
+                    });
+                    
+                }
+
+                return jsonArray == null ? null : jsonArray;
+
+            }
+
+        };
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        Thread t = new Thread(task);
+        t.setDaemon(true);
+        t.start();
+                
+
+    }
+
+    public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        
+        long currentTime = System.currentTimeMillis();
+        long lastChecked = m_tickersLastChecked.getAndSet(currentTime);
+        File tickersFile = getIdDataFile(TICKER_DATA_ID);
+
+        if(lastChecked != 0 && (currentTime -lastChecked) < DATA_TIMEOUT_SPAN && tickersFile.isFile() && tickersFile.length() > 50 ){
+            
+            try{
+                String fileString = Utils.readStringFile(getAppKey(), tickersFile);
+        
+                Utils.returnObject(new JsonParser().parse(fileString).getAsJsonArray(), onSucceeded, onSucceeded);
+
+            }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
+                try {
+                    Files.writeString(logFile.toPath(), "\nSpectrumFinance: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+
+                }
+                getTickersLocal(onSucceeded, onFailed);
+            }
+
+        }else{
+             getTickersLocal(onSucceeded, onFailed);
+        }
+        
     }
     //
     public boolean getPoolChart(String poolId,long from, long to, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -537,5 +826,99 @@ public class SpectrumFinance extends Network implements NoteInterface {
         };
 
         return iconButton;
+    }
+    public File getIdIndexFile(){
+        return new File(m_dataDir.getAbsolutePath() + "/index.dat");
+    }
+    
+    public File addNewIdFile(String id, JsonArray jsonArray){
+        String filePath = m_dataDir.getAbsolutePath() + "/" + id + ".dat";
+        File newFile = new File(filePath);
+        JsonObject json = new JsonObject();
+        json.addProperty("id", id);
+        json.addProperty("file", filePath);
+
+        jsonArray.add(json);
+        return newFile;
+    }
+    public SecretKey getAppKey(){
+        return getNetworksData().getAppData().appKeyProperty().get();
+    }
+    public void saveIndexFile(JsonArray jsonArray){
+        JsonObject json = new JsonObject();
+        json.add("fileArray", jsonArray);
+        
+        try {
+            Utils.saveJson(getAppKey(), json, getIdIndexFile());
+        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                | IOException e) {
+            try {
+                Files.writeString(logFile.toPath(), "SpectrumFinance (saveIndexFile): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+
+            }
+        }
+    }
+
+    private JsonArray getIndexFileArray(SecretKey key, File indexFile){
+        try {
+            JsonObject indexFileJson = indexFile.isFile() ? Utils.readJsonFile(key, indexFile) : null;
+            if(indexFileJson != null){
+                JsonElement fileArrayElement = indexFileJson.get("fileArray");
+                if(fileArrayElement != null && fileArrayElement.isJsonArray()){
+                    return fileArrayElement.getAsJsonArray();
+                }
+            }
+        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                | IOException e) {
+            try {
+                Files.writeString(logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+
+            }
+            
+        }
+        return null;
+    }
+
+    public File getIdDataFile(String id){
+        File indexFile = getIdIndexFile();
+        JsonArray indexFileArray = indexFile.isFile() ? getIndexFileArray(getAppKey(), indexFile) : null;
+        
+        if(indexFileArray != null){
+            File existingFile = getFileById(id, indexFileArray);
+            if(existingFile != null){
+                return existingFile;
+            }else{
+                File newFile = addNewIdFile(id, indexFileArray);
+                saveIndexFile(indexFileArray);
+                return newFile;
+            }
+        }else{
+            JsonArray newIndexFileArray = new JsonArray();
+            File newFile = addNewIdFile(id, newIndexFileArray);
+            
+            saveIndexFile(newIndexFileArray);
+
+            return newFile;
+        }
+
+    }
+
+    private File getFileById(String id, JsonArray jsonArray){
+        int size = jsonArray.size();
+        for(int i = 0; i < size; i++){
+            JsonElement jsonElement = jsonArray.get(i);
+            
+            JsonObject obj = jsonElement.getAsJsonObject();
+
+            String idString = obj.get("id").getAsString();
+            if(idString.equals(id)){
+                return new File(obj.get("file").getAsString());
+            }
+        }
+        return null;
     }
 }

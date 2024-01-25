@@ -182,7 +182,7 @@ public class ErgoWallets extends Network implements NoteInterface {
             File idDataFile =  getIdDataFile();
             if(idDataFile.isFile()){
               
-                JsonObject json = Utils.readJsonFile(getNetworksData().getAppData().appKeyProperty().get(), idDataFile.toPath());
+                JsonObject json = Utils.readJsonFile(getNetworksData().getAppData().appKeyProperty().get(), idDataFile);
                 JsonElement idsElement = json.get("ids");
         
                 if(idsElement != null && idsElement.isJsonArray()){
@@ -243,7 +243,7 @@ public class ErgoWallets extends Network implements NoteInterface {
         File idDataFile = getIdDataFile(id, id2);
         if(idDataFile.isFile()){
             try {
-                return Utils.readJsonFile(getNetworksData().getAppData().appKeyProperty().get(), idDataFile.toPath());
+                return Utils.readJsonFile(getNetworksData().getAppData().appKeyProperty().get(), idDataFile);
             } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
                 try {
@@ -265,7 +265,7 @@ public class ErgoWallets extends Network implements NoteInterface {
            
         if(idDataFile.isFile()){
             
-            JsonObject json = Utils.readJsonFile(getNetworksData().getAppData().appKeyProperty().get(), idDataFile.toPath());
+            JsonObject json = Utils.readJsonFile(getNetworksData().getAppData().appKeyProperty().get(), idDataFile);
             JsonElement idsElement = json.get("ids");
             json.remove("ids");
             if(idsElement != null && idsElement.isJsonArray()){
@@ -682,7 +682,7 @@ public class ErgoWallets extends Network implements NoteInterface {
                 File idDataFile = getIdDataFile();
                 if(idDataFile.isFile()){
                     try {
-                        JsonObject dataFileJson = Utils.readJsonFile(oldval, idDataFile.toPath());
+                        JsonObject dataFileJson = Utils.readJsonFile(oldval, idDataFile);
                         if(dataFileJson != null){
                             Utils.saveJson(newval, dataFileJson, idDataFile);
 
@@ -710,7 +710,7 @@ public class ErgoWallets extends Network implements NoteInterface {
                                                     if(fileElement != null && fileElement.isJsonPrimitive()){
                                                         File file = new File(fileElement.getAsString());
                                                         if(file.isFile()){
-                                                            JsonObject fileObject = Utils.readJsonFile(oldval, file.toPath());
+                                                            JsonObject fileObject = Utils.readJsonFile(oldval, file);
                                                             if(fileObject != null){
                                                                 Utils.saveJson(newval, fileObject, file);
                                                             }

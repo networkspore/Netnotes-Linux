@@ -331,7 +331,7 @@ public class KuCoinDataList extends Network implements NoteInterface {
         File dataFile = m_kucoinExchange.getDataFile();
         if (dataFile != null && dataFile.isFile()) {
             try {
-                JsonObject json = Utils.readJsonFile(oldKey, dataFile.toPath());
+                JsonObject json = Utils.readJsonFile(oldKey, dataFile);
                
                 if(json!= null){
                     Utils.saveJson(newKey, json, dataFile);
@@ -356,7 +356,7 @@ public class KuCoinDataList extends Network implements NoteInterface {
         File dataFile = m_kucoinExchange.getDataFile();
         if (dataFile != null && dataFile.isFile()) {
             try {
-                JsonObject json = Utils.readJsonFile(secretKey, dataFile.toPath());
+                JsonObject json = Utils.readJsonFile(secretKey, dataFile);
                
                 if(json!= null){
            

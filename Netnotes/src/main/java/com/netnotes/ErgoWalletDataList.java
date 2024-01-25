@@ -117,7 +117,7 @@ public class ErgoWalletDataList {
         if (m_dataFile != null && m_dataFile.isFile()) {
             try {
 
-                openJson(Utils.readJsonFile(secretKey, m_dataFile.toPath()));
+                openJson(Utils.readJsonFile(secretKey, m_dataFile));
 
             } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException

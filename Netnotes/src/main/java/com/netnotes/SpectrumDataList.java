@@ -61,8 +61,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private SpectrumSort m_sortMethod = new SpectrumSort();
     private String m_searchText = null;
 
-    public SpectrumDataList(SpectrumFinance spectrumFinance) {
-        super(null, "spectrumDataList", "SPECTRUM_DATA_LIST", spectrumFinance);
+    public SpectrumDataList(String id, SpectrumFinance spectrumFinance) {
+        super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
         m_spectrumFinance = spectrumFinance;
 
         setup(m_spectrumFinance.getNetworksData().getAppData().appKeyProperty().get());
@@ -70,8 +70,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
 
     }
-    public SpectrumDataList(SpectrumFinance spectrumFinance, SecretKey oldval, SecretKey newval ) {
-        super(null, "spectrumDataList", "SPECTRUM_DATA_LIST", spectrumFinance);
+    public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SecretKey oldval, SecretKey newval ) {
+        super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
         m_spectrumFinance = spectrumFinance;
 
         updateFile(oldval, newval);
@@ -295,12 +295,17 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return this;
     }
 
+    public File getDataFile(){
+        return new File(m_spectrumFinance.getDataDir().getAbsolutePath() + "/" + getNetworkId() + ".dat");
+    }
 
     private void updateFile(SecretKey oldKey, SecretKey newKey){
-        File dataFile = m_spectrumFinance.getDataFile();
+        
+
+        File dataFile = getDataFile();
         if (dataFile != null && dataFile.isFile()) {
             try {
-                JsonObject json = Utils.readJsonFile(oldKey, dataFile.toPath());
+                JsonObject json = Utils.readJsonFile(oldKey, dataFile);
                
                 if(json!= null){
                     Utils.saveJson(newKey, json, dataFile);
@@ -322,10 +327,10 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private void getFile(SecretKey secretKey) {
 
-        File dataFile = m_spectrumFinance.getDataFile();
+        File dataFile = getDataFile();
         if (dataFile != null && dataFile.isFile()) {
             try {
-                JsonObject json = Utils.readJsonFile(secretKey, dataFile.toPath());
+                JsonObject json = Utils.readJsonFile(secretKey, dataFile);
            
                 if(json!= null){
            
@@ -624,7 +629,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
   
         try {
            
-            Utils.saveJson(secretKey, getJsonObject(), m_spectrumFinance.getDataFile());
+            Utils.saveJson(secretKey, getJsonObject(), getDataFile());
         } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {

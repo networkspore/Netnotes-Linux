@@ -1370,7 +1370,9 @@ public class App extends Application {
         });
         passwordScene.focusOwnerProperty().addListener((obs,oldVal,newVal)->{
             if(!(newVal != null && newVal instanceof TextField)){
-                Platform.runLater(()->newVal.requestFocus());
+                Platform.runLater(()->{
+                    passwordField.requestFocus();
+                });
             }
         });
         return passwordStage;
