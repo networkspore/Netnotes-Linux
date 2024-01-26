@@ -7,6 +7,7 @@ package com.netnotes;
 import javafx.application.Application;
 import javafx.application.HostServices;
 import javafx.application.Platform;
+import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -70,6 +71,8 @@ import org.reactfx.util.FxTimer;
 
 import com.netnotes.IconButton.IconStyle;
 import com.google.gson.JsonParseException;
+import com.utils.GitHubAPI.GitHubAsset;
+import com.utils.GitHubAPI;
 import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
@@ -77,6 +80,10 @@ import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 
 public class App extends Application {
 
+    public static final String CURRENT_VERSION = "v0.2.1-beta";
+
+    public static final String GITHUB_USER = "networkspore";
+    public static final String GITHUB_PROJECT = "Netnotes-Linux";
     public static final String CMD_SHOW_APPSTAGE = "SHOW_APPSTAGE";
     public static final long NOTE_EXECUTION_TIME = 100;
     public static final String notesFileName = "notes.dat";
@@ -754,6 +761,7 @@ public class App extends Application {
     }
 
     
+    
     public static void verifyAppKey(Stage passwordStage, AppData appData, EventHandler<WorkerStateEvent> onSucceeded, Runnable onAbort) {
        
         String title = "Enter Password - Netnotes";
@@ -931,7 +939,7 @@ public class App extends Application {
         showNetworks(appScene, headerBox, bodyVBox);
 
         Rectangle rect = m_networksData.getMaximumWindowBounds();
-        ResizeHelper.addResizeListener(appStage, 400, 200, rect.getWidth(), rect.getHeight());
+        ResizeHelper.addResizeListener(appStage, 400, 250, rect.getWidth(), rect.getHeight());
 
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
             public Thread newThread(Runnable r) {
@@ -1039,14 +1047,19 @@ public class App extends Application {
         header.setId("darkBox");
         header.getChildren().add(menuBarPadding);
 
+
         VBox gridBox = m_networksData.getNetworksBox();
 
 
         ScrollPane scrollPane = new ScrollPane(gridBox);
         scrollPane.setId("bodyBox");
         scrollPane.setPadding(new Insets(5));
-        scrollPane.prefViewportWidthProperty().bind(appScene.widthProperty().subtract(90));
-        scrollPane.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(menuBar.heightProperty().get()).subtract(50));
+        scrollPane.prefViewportWidthProperty().bind(appScene.widthProperty());
+        scrollPane.prefViewportHeightProperty().bind(appScene.heightProperty());
+
+        Binding<Double> viewportWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get().getWidth(), scrollPane.viewportBoundsProperty());
+
+        gridBox.prefWidthProperty().bind(viewportWidth);
 
         VBox scrollPanePadding = new VBox(scrollPane);
         VBox.setVgrow(scrollPanePadding,Priority.ALWAYS);
@@ -1078,7 +1091,7 @@ public class App extends Application {
         HBox settingsBtnBox = new HBox(settingsButton);
         settingsBtnBox.setAlignment(Pos.CENTER);
 
-        Text passwordTxt = new Text(String.format("%-12s", "  Password:"));
+        Text passwordTxt = new Text(String.format("%-18s", "  Password:"));
         passwordTxt.setFill(txtColor);
         passwordTxt.setFont(txtFont);
 
@@ -1086,6 +1099,7 @@ public class App extends Application {
 
         Button passwordBtn = new Button("(click to update)");
         passwordBtn.setFont(txtFont);
+        passwordBtn.setAlignment(Pos.CENTER_LEFT);
         passwordBtn.setId("toolBtn");
         passwordBtn.setOnAction(e -> {
             Button closeBtn = new Button();
@@ -1137,31 +1151,233 @@ public class App extends Application {
 
         HBox passwordBox = new HBox(passwordTxt, passwordBtn);
         passwordBox.setAlignment(Pos.CENTER_LEFT);
-        passwordBox.setPadding(new Insets(10, 0, 0, 20));
+        passwordBox.setPadding(new Insets(10, 0, 10, 10));
         passwordBox.setMinHeight(30);
-        /*
-        Text updatesTxt = new Text(String.format("%-12s", "  Updates:"));
-        updatesTxt.setFill(txtColor);
-        updatesTxt.setFont(txtFont);
 
-        Button updatesBtn = new Button("Check for updates");
-        updatesBtn.setFont(txtFont);
-        updatesBtn.setId("toolBtn");
-      
-        HBox updatesBox = new HBox(updatesTxt, updatesBtn);
-        updatesBox.setAlignment(Pos.CENTER_LEFT);
-        updatesBox.setPadding(new Insets(0, 0, 0, 20));
-        updatesBox.setMinHeight(30);
- */
+        Text versionTxt = new Text(String.format("%-18s", "  Version:"));
+        versionTxt.setFill(txtColor);
+        versionTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        TextField versionField = new TextField(CURRENT_VERSION);
+        versionField.setFont(txtFont);
+        versionField.setId("formField");
+        versionField.setEditable(false);
+        HBox.setHgrow(versionField, Priority.ALWAYS);
+   
+        HBox versionBox = new HBox(versionTxt, versionField);
+        versionBox.setPadding(new Insets(10,10,5,10));
+        versionBox.setAlignment(Pos.CENTER_LEFT);
+
+        Text fileTxt = new Text(String.format("%-18s", "  File:"));
+        fileTxt.setFill(txtColor);
+        fileTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        TextField fileField = new TextField(m_networksData.getAppData().getAppFile().getName());
+        fileField.setFont(txtFont);
+        fileField.setEditable(false);
+        fileField.setId("formField");
+        HBox.setHgrow(fileField, Priority.ALWAYS);
+   
+        HBox fileBox = new HBox(fileTxt, fileField);
+        HBox.setHgrow(fileBox, Priority.ALWAYS);
+        fileBox.setAlignment(Pos.CENTER_LEFT);
+        fileBox.setPadding(new Insets(5,10,5,10));
+    
+        Text hashTxt = new Text(String.format("%-18s", "  Hash (Blake-2b):"));
+        hashTxt.setFill(txtColor);
+        hashTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        TextField hashField = new TextField(m_networksData.getAppData().appHashData().getHashStringHex());
+        hashField.setFont(txtFont);
+        hashField.setEditable(false);
+        hashField.setId("formField");
+        HBox.setHgrow(hashField, Priority.ALWAYS);
+   
+        HBox hashBox = new HBox(hashTxt, hashField);
+        HBox.setHgrow(hashBox, Priority.ALWAYS);
+        hashBox.setPadding(new Insets(5,10,5,10));
+        hashBox.setAlignment(Pos.CENTER_LEFT);
+
+        Text passwordHeading = new Text("Password");
+        passwordHeading.setFont(txtFont);
+        passwordHeading.setFill(txtColor);
+
+        HBox passHeadingBox = new HBox(passwordHeading);
+        HBox.setHgrow(passHeadingBox,Priority.ALWAYS);
+        passHeadingBox.setId("headingBox");
+        passHeadingBox.setPadding(new Insets(5));
+
+        VBox passwordSettingsBox = new VBox(passHeadingBox, passwordBox);
+        passwordSettingsBox.setId("bodyBox");
+
+        Text appHeading = new Text("App");
+        appHeading.setFont(txtFont);
+        appHeading.setFill(txtColor);
+
+        HBox appHeadingBox = new HBox(appHeading);
+        HBox.setHgrow(appHeadingBox,Priority.ALWAYS);
+        appHeadingBox.setId("headingBox");
+        appHeadingBox.setPadding(new Insets(5));
+
+        VBox appSettingsBox = new VBox(appHeadingBox, versionBox, fileBox, hashBox);
+        appSettingsBox.setId("bodyBox");
         
-        VBox settingsVBox = new VBox(passwordBox);
+
+        Text latestVersionTxt = new Text(String.format("%-18s", "  Version:"));
+        latestVersionTxt.setFill(txtColor);
+        latestVersionTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        Button latestVersionField = new Button("(Click to get latest info.)");
+        latestVersionField.setFont(txtFont);
+        latestVersionField.setId("formField");
+        HBox.setHgrow(latestVersionField, Priority.ALWAYS);
+   
+        HBox latestVersionBox = new HBox(latestVersionTxt, latestVersionField);
+        latestVersionBox.setPadding(new Insets(10,10,5,10));
+        latestVersionBox.setAlignment(Pos.CENTER_LEFT);
+
+        Text latestURLTxt = new Text(String.format("%-18s", "  Url:"));
+        latestURLTxt.setFill(txtColor);
+        latestURLTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        TextField latestURLField = new TextField();
+        latestURLField.setFont(txtFont);
+        latestURLField.setEditable(false);
+        latestURLField.setId("formField");
+        HBox.setHgrow(latestURLField, Priority.ALWAYS);
+   
+        HBox latestURLBox = new HBox(latestURLTxt, latestURLField);
+        HBox.setHgrow(latestURLBox, Priority.ALWAYS);
+        latestURLBox.setAlignment(Pos.CENTER_LEFT);
+        latestURLBox.setPadding(new Insets(5,10,5,10));
+    
+        Text latestHashTxt = new Text(String.format("%-18s", "  Hash (Blake-2b):"));
+        latestHashTxt.setFill(txtColor);
+        latestHashTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        TextField latestHashField = new TextField();
+        latestHashField.setFont(txtFont);
+        latestHashField.setEditable(false);
+        latestHashField.setId("formField");
+        HBox.setHgrow(latestHashField, Priority.ALWAYS);
+   
+        HBox latestHashBox = new HBox(latestHashTxt, latestHashField);
+        HBox.setHgrow(latestHashBox, Priority.ALWAYS);
+        latestHashBox.setPadding(new Insets(5,10,5,10));
+        latestHashBox.setAlignment(Pos.CENTER_LEFT);
+
+        
+        Text latestHeading = new Text("Latest");
+        latestHeading.setFont(txtFont);
+        latestHeading.setFill(txtColor);
+
+        Region latestHeadingSpacer = new Region();
+        HBox.setHgrow(latestHeadingSpacer, Priority.ALWAYS);
+
+        GitHubAPI gitHubAPI = new GitHubAPI(GITHUB_USER, GITHUB_PROJECT);
+        
+        Button downloadLatestBtn = new Button("Download");
+
+        Runnable doDownload = () ->{
+
+        };
+
+        Button getLatestBtn = new Button("Update");
+        getLatestBtn.setId("checkBtn");
+        getLatestBtn.setOnAction(e->{
+            gitHubAPI.getAssetsLatest((onFinished)->{
+                Object finishedObject = onFinished.getSource().getValue();
+                if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
+            
+                    GitHubAsset[] assets = (GitHubAsset[]) finishedObject;
+
+                    for(GitHubAsset asset : assets){
+                        if(asset.getName().equals("releaseInfo.json")){
+                            Utils.getUrlJson(asset.getUrl(), (onReleaseInfo)->{
+                                Object sourceObject = onReleaseInfo.getSource().getValue();
+                                if(sourceObject != null && sourceObject instanceof com.google.gson.JsonObject){
+                                    com.google.gson.JsonObject releaseInfoJson = (com.google.gson.JsonObject) sourceObject;
+                                    HashData appHashData = new HashData(releaseInfoJson.get("application").getAsJsonObject().get("hashData").getAsJsonObject());
+                                    Platform.runLater(()->latestHashField.setText(appHashData.getHashStringHex()));
+                                }
+                            }, (releaseInfoFailed)->{
+
+                            }, null);
+                        }else{
+                            if(asset.getContentType().equals("application/x-java-archive")){
+                                if(asset.getName().startsWith("netnotes-")){
+                                    Platform.runLater(()->latestURLField.setText(asset.getUrl()));
+                                    Platform.runLater(()->latestVersionField.setText(asset.getTagName()));
+                                  
+                                }
+                            }
+                        }
+                    }
+                }
+            },(onFailed)->{
+
+            });
+
+
+                    
+
+        });
+        downloadLatestBtn.setOnAction(e->{
+            if(latestURLField.getText().equals("")){
+                getLatestBtn.fire();
+            }else{
+                doDownload.run();
+            }
+        });
+
+        latestVersionField.setOnAction(e->getLatestBtn.fire());
+
+        HBox latestHeadingBox = new HBox(latestHeading, latestHeadingSpacer, getLatestBtn);
+        HBox.setHgrow(latestHeadingBox,Priority.ALWAYS);
+        latestHeadingBox.setId("headingBox");
+        latestHeadingBox.setPadding(new Insets(5,10,5,10));
+        latestHeadingBox.setAlignment(Pos.CENTER_LEFT);
+     
+        
+       
+        HBox downloadLatestBox = new HBox(downloadLatestBtn);
+        downloadLatestBox.setAlignment(Pos.CENTER_RIGHT);
+        downloadLatestBox.setPadding(new Insets(5,15,5,10));
+
+        VBox latestSettingsBox = new VBox(latestHeadingBox, latestVersionBox, latestURLBox, latestHashBox, downloadLatestBox);
+        latestSettingsBox.setId("bodyBox");
+        
+        
+        Region settingsSpacer1 = new Region();
+        settingsSpacer1.setMinHeight(15);
+
+        Region settingsSpacer2 = new Region();
+        settingsSpacer2.setMinHeight(15);
+
+        VBox settingsVBox = new VBox(settingsBtnBox, passwordSettingsBox, settingsSpacer1, appSettingsBox, settingsSpacer2, latestSettingsBox);
         HBox.setHgrow(settingsVBox, Priority.ALWAYS);
 
         settingsVBox.setAlignment(Pos.CENTER_LEFT);
-        settingsVBox.setPadding(new Insets(15,0,15,0));
+        settingsVBox.setPadding(new Insets(15,15,15,15));
 
+        Scene appScene = appStage.getScene();
 
-        bodyVBox.getChildren().addAll(settingsBtnBox, settingsVBox);
+        ScrollPane settingsScroll = new ScrollPane(settingsVBox);
+
+        settingsScroll.prefViewportHeightProperty().bind(appScene.heightProperty());
+        settingsScroll.prefViewportWidthProperty().bind(appScene.widthProperty());
+        
+        Binding<Double> viewportWidth = Bindings.createObjectBinding(()->settingsScroll.viewportBoundsProperty().get().getWidth(), settingsScroll.viewportBoundsProperty());
+
+        settingsVBox.prefWidthProperty().bind(viewportWidth);
+
+        bodyVBox.getChildren().add(settingsScroll);
     }
 
     private VBox createMenu(Button settingsBtn, Button networksBtn) {

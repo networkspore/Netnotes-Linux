@@ -15,12 +15,25 @@ public class GitHubAPI {
         private String m_url;
         private String m_contentType;
         private long m_size;
+        private String m_tagName;
 
         public GitHubAsset(String name, String url, String contentType, long size){
             m_name = name;
             m_url = url;
             m_contentType = contentType;
             m_size = size;
+        }
+        
+        public GitHubAsset(String name, String url, String contentType, long size, String tagName){
+            m_name = name;
+            m_url = url;
+            m_contentType = contentType;
+            m_size = size;
+            m_tagName = tagName;
+        }
+
+        public String getTagName(){
+            return m_tagName;
         }
 
         public String getName(){
@@ -70,7 +83,7 @@ public class GitHubAPI {
 
                 if (elementObject != null && elementObject.isJsonObject()) {
                      JsonObject gitHubApiJson = elementObject.getAsJsonObject();
-
+                    String tagName = gitHubApiJson.get("tag_name").getAsString();
                     JsonElement assetsElement = gitHubApiJson.get("assets");
                     if (assetsElement != null && assetsElement.isJsonArray()) {
                         
@@ -97,7 +110,7 @@ public class GitHubAPI {
                                         long contentSize = sizeElement.getAsLong();
                                         String contentTypeString = contentTypeElement.getAsString();
 
-                                        assetArray[i] = new GitHubAsset(name, url, contentTypeString, contentSize);
+                                        assetArray[i] = new GitHubAsset(name, url, contentTypeString, contentSize, tagName);
 
                                     }
                                 }
@@ -124,7 +137,8 @@ public class GitHubAPI {
                 Object sourceObject = onSucceeded.getSource().getValue();
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject gitHubApiJson = (JsonObject) sourceObject;
-
+                 
+                    String tagName = gitHubApiJson.get("tag_name").getAsString();
                     JsonElement assetsElement = gitHubApiJson.get("assets");
                     if (assetsElement != null && assetsElement.isJsonArray()) {
                         
@@ -151,7 +165,7 @@ public class GitHubAPI {
                                         long contentSize = sizeElement.getAsLong();
                                         String contentTypeString = contentTypeElement.getAsString();
 
-                                        assetArray[i] = new GitHubAsset(name, url, contentTypeString, contentSize);
+                                        assetArray[i] = new GitHubAsset(name, url, contentTypeString, contentSize, tagName);
 
                                     }
                                 }

@@ -45,6 +45,7 @@ import com.satergo.extra.AESEncryption;
 
 import javafx.application.HostServices;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
@@ -133,9 +134,10 @@ public class NetworksData implements InstallerInterface {
 
         try {
             
-            InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream();//ClassLoader.getSystemClassLoader().getResourceAsStream("/assets/OCRAEXT.TTF");
+            InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream();
             java.awt.Font ocrFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, stream).deriveFont(48f);
             ge.registerFont(ocrFont);
+            stream.close();
         } catch (FontFormatException | IOException e) {
 
             try {
@@ -790,11 +792,17 @@ public class NetworksData implements InstallerInterface {
         }
     }
 
+    private SimpleDoubleProperty m_gridWidth = new SimpleDoubleProperty(200);
+    
+
     public void updateNetworksGrid() {
         m_networksBox.getChildren().clear();
+        double minSize = m_stageWidth - 110;
 
         int numCells = m_noteInterfaceList.size();
-        double width = m_stageWidth - 80;
+        double width = m_networksBox.widthProperty().get();
+        width = width < minSize ? minSize : width;
+        
         String currentIconStyle = m_stageIconStyle.get();
 
         if (numCells != 0) {

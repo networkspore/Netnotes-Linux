@@ -296,7 +296,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
     }
 
     public File getDataFile(){
-        return new File(m_spectrumFinance.getDataDir().getAbsolutePath() + "/" + getNetworkId() + ".dat");
+        return m_spectrumFinance.getIdDataFile(getNetworkId());
     }
 
     private void updateFile(SecretKey oldKey, SecretKey newKey){

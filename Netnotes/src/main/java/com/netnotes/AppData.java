@@ -44,8 +44,8 @@ public class AppData {
     public static final String HOME_DIRECTORY = System.getProperty("user.home");
     public static final File DESKTOP_DIRECTORY = new File(HOME_DIRECTORY + "/Desktop");
 
-    public File m_appDir = null;
-    public File m_settingsFile = null;
+    private File m_appDir = null;
+    private File m_settingsFile = null;
 
     private String m_appKey;
     
@@ -54,7 +54,7 @@ public class AppData {
     private Version m_javaVersion = null;
     private SimpleObjectProperty<SecretKey> m_secretKey = new SimpleObjectProperty<SecretKey>(null);
     private boolean m_updates = false;
-    private Stage m_persistenceStage = null;
+   // private Stage m_persistenceStage = null;
 
 
     public AppData() throws JsonParseException, IOException{
@@ -119,6 +119,10 @@ public class AppData {
 
     public File getAppDir(){
         return m_appDir;
+    }
+
+    public File getAppFile(){
+        return m_appFile;
     }
 
   
