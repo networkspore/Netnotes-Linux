@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
@@ -1255,6 +1256,22 @@ public class App extends Application {
         HBox.setHgrow(latestURLBox, Priority.ALWAYS);
         latestURLBox.setAlignment(Pos.CENTER_LEFT);
         latestURLBox.setPadding(new Insets(5,10,5,10));
+
+        Text latestNameTxt = new Text(String.format("%-18s", "  File name:"));
+        latestNameTxt.setFill(txtColor);
+        latestNameTxt.setFont(txtFont);
+        //LATEST_RELEASE_URL
+
+        TextField latestNameField = new TextField();
+        latestNameField.setFont(txtFont);
+        latestNameField.setEditable(false);
+        latestNameField.setId("formField");
+        HBox.setHgrow(latestNameField, Priority.ALWAYS);
+   
+        HBox latestNameBox = new HBox(latestNameTxt, latestNameField);
+        HBox.setHgrow(latestNameBox, Priority.ALWAYS);
+        latestNameBox.setAlignment(Pos.CENTER_LEFT);
+        latestNameBox.setPadding(new Insets(5,10,5,10));
     
         Text latestHashTxt = new Text(String.format("%-18s", "  Hash (Blake-2b):"));
         latestHashTxt.setFill(txtColor);
@@ -1283,28 +1300,26 @@ public class App extends Application {
         GitHubAPI gitHubAPI = new GitHubAPI(GITHUB_USER, GITHUB_PROJECT);
         
         Button downloadLatestBtn = new Button("Download");
-
-        Runnable doDownload = () ->{
-
-        };
-
-        Button getLatestBtn = new Button("Update");
-        getLatestBtn.setId("checkBtn");
-        getLatestBtn.setOnAction(e->{
+      
+        Runnable getInfo = () ->{
             gitHubAPI.getAssetsLatest((onFinished)->{
                 Object finishedObject = onFinished.getSource().getValue();
                 if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
             
                     GitHubAsset[] assets = (GitHubAsset[]) finishedObject;
-
+                    SimpleStringProperty url = new SimpleStringProperty("");
+                    SimpleStringProperty tagName = new SimpleStringProperty("");
+                    SimpleStringProperty name = new SimpleStringProperty("");
+                    SimpleObjectProperty<HashData> appHashData = new SimpleObjectProperty<>(null);
                     for(GitHubAsset asset : assets){
                         if(asset.getName().equals("releaseInfo.json")){
                             Utils.getUrlJson(asset.getUrl(), (onReleaseInfo)->{
                                 Object sourceObject = onReleaseInfo.getSource().getValue();
                                 if(sourceObject != null && sourceObject instanceof com.google.gson.JsonObject){
                                     com.google.gson.JsonObject releaseInfoJson = (com.google.gson.JsonObject) sourceObject;
-                                    HashData appHashData = new HashData(releaseInfoJson.get("application").getAsJsonObject().get("hashData").getAsJsonObject());
-                                    Platform.runLater(()->latestHashField.setText(appHashData.getHashStringHex()));
+                                    
+                                    appHashData.set(new HashData(releaseInfoJson.get("application").getAsJsonObject().get("hashData").getAsJsonObject()));
+                            
                                 }
                             }, (releaseInfoFailed)->{
 
@@ -1312,33 +1327,67 @@ public class App extends Application {
                         }else{
                             if(asset.getContentType().equals("application/x-java-archive")){
                                 if(asset.getName().startsWith("netnotes-")){
-                                    Platform.runLater(()->latestURLField.setText(asset.getUrl()));
-                                    Platform.runLater(()->latestVersionField.setText(asset.getTagName()));
-                                  
+                                    name.set(asset.getName());
+                                    tagName.set(asset.getTagName());
+                                    url.set(asset.getUrl());
                                 }
                             }
                         }
                     }
+                    
+                    
+                    appHashData.addListener((obs,oldval,newval)->{
+                        Platform.runLater(()->{
+                            latestHashField.setText(newval.getHashStringHex());
+                            latestHashField.setUserData(newval);
+                            latestVersionField.setText(tagName.get());
+                            latestNameField.setText(name.get());
+                            latestURLField.setText(url.get());
+                        });
+                    });
+                    
+
                 }
             },(onFailed)->{
 
             });
+        };
 
-
-                    
-
+        Button getInfoBtn = new Button("Update");
+        getInfoBtn.setId("checkBtn");
+        getInfoBtn.setOnAction(e->{
+            getInfo.run();           
         });
         downloadLatestBtn.setOnAction(e->{
+
             if(latestURLField.getText().equals("")){
-                getLatestBtn.fire();
+                latestURLField.textProperty().addListener((obs,oldval,newval)->{
+                    String urlString = newval;
+                    if(urlString.startsWith("http")){
+                        Object hashDataObject = latestHashField.getUserData();
+                        if(hashDataObject != null && hashDataObject instanceof HashData){
+                            HashData latestHashData = (HashData) hashDataObject;
+                            HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),latestHashData, HashDataDownloader.Extensions.getJarFilter());
+                            dlder.start();
+                        }
+                    }
+                });
+                getInfo.run();
             }else{
-                doDownload.run();
+                String urlString = latestURLField.getText();
+                Object hashDataObject = latestHashField.getUserData();
+                if(hashDataObject != null && hashDataObject instanceof HashData){
+                    HashData latestHashData = (HashData) hashDataObject;
+                    HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),latestHashData, HashDataDownloader.Extensions.getJarFilter());
+                    dlder.start();
+                }
+                    
             }
         });
 
-        latestVersionField.setOnAction(e->getLatestBtn.fire());
+        latestVersionField.setOnAction(e->getInfo.run());
 
-        HBox latestHeadingBox = new HBox(latestHeading, latestHeadingSpacer, getLatestBtn);
+        HBox latestHeadingBox = new HBox(latestHeading, latestHeadingSpacer, getInfoBtn);
         HBox.setHgrow(latestHeadingBox,Priority.ALWAYS);
         latestHeadingBox.setId("headingBox");
         latestHeadingBox.setPadding(new Insets(5,10,5,10));
@@ -1348,9 +1397,9 @@ public class App extends Application {
        
         HBox downloadLatestBox = new HBox(downloadLatestBtn);
         downloadLatestBox.setAlignment(Pos.CENTER_RIGHT);
-        downloadLatestBox.setPadding(new Insets(5,15,5,10));
+        downloadLatestBox.setPadding(new Insets(5,15,10,10));
 
-        VBox latestSettingsBox = new VBox(latestHeadingBox, latestVersionBox, latestURLBox, latestHashBox, downloadLatestBox);
+        VBox latestSettingsBox = new VBox(latestHeadingBox, latestVersionBox, latestNameBox, latestURLBox, latestHashBox, downloadLatestBox);
         latestSettingsBox.setId("bodyBox");
         
         
@@ -2286,13 +2335,13 @@ public class App extends Application {
 
     }
 
-    public static Scene getProgressScene(Image icon, String headingString, String titleContextString, SimpleStringProperty fileName, ProgressBar progressBar, Stage stage) {
+    public static Scene getProgressScene(Image icon, String headingString, String titleContextString, String fileName, ProgressBar progressBar, Stage stage, Button closeBtn) {
 
         double defaultRowHeight = 40;
-        Button closeBtn = new Button();
+       
 
 
-        Text fileNameProgressText = new Text(fileName.get() + " (" + String.format("%.1f", progressBar.getProgress() * 100) + "%)");
+        Text fileNameProgressText = new Text(fileName + " (" + String.format("%.1f", progressBar.getProgress() * 100) + "%)");
         fileNameProgressText.setFill(txtColor);
         fileNameProgressText.setFont(txtFont);
 
@@ -2334,7 +2383,7 @@ public class App extends Application {
        
 
         progressBar.progressProperty().addListener((obs, oldVal, newVal) -> {
-            fileNameProgressText.setText(fileName.get() + " (" + String.format("%.1f", newVal.doubleValue() * 100) + "%)");
+            fileNameProgressText.setText(fileName + " (" + String.format("%.1f", newVal.doubleValue() * 100) + "%)");
         });
 
         stage.titleProperty().bind(Bindings.concat(fileNameProgressText.textProperty(), " - ", titleContextString));
@@ -2361,12 +2410,12 @@ public class App extends Application {
 
         VBox footerBox = new VBox(footerSpacer);
         VBox layoutBox = new VBox(headerBox, bodyPaddingBox, footerBox);
-        Scene coreFileProgressScene = new Scene(layoutBox, 600, 260);
-        coreFileProgressScene.setFill(null);
-        coreFileProgressScene.getStylesheets().add("/css/startWindow.css");
+        Scene scene = new Scene(layoutBox, 600, 260);
+        scene.setFill(null);
+        scene.getStylesheets().add("/css/startWindow.css");
 
         // bodyTopRegion.minHeightProperty().bind(stage.heightProperty().subtract(30).divide(2).subtract(progressAlignmentBox.heightProperty()).subtract(fileNameProgressBox.heightProperty().divide(2)));
         bodyBox.prefHeightProperty().bind(stage.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(10));
-        return coreFileProgressScene;
+        return scene;
     }
 }

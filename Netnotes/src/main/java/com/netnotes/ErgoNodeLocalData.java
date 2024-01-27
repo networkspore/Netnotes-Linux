@@ -1758,10 +1758,11 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                         if (isDownload) {
                             File appFile = new File(installDir + "/" + downloadFileName.get());
-
-                            Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Setup - " + ErgoNodes.NAME, downloadFileName, progressBar, m_stage);
+                            Button closeBtn = new Button();
+                            Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Setup - " + ErgoNodes.NAME, downloadFileName.get(), progressBar, m_stage, closeBtn);
                             m_stage.setScene(progressScene);
                             m_stage.setHeight(260);
+                            SimpleBooleanProperty cancelDl = new SimpleBooleanProperty(false);
 
                             Utils.getUrlFileHash(downloadUrl.get(), appFile, (onSucceeded) -> {
                                 Object sourceObject = onSucceeded.getSource().getValue();
@@ -1793,7 +1794,11 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                                 a.setHeaderText("Error");
                                 a.show();
                                 m_stage.setScene(initialScene);
-                            }, progressBar);
+                            }, progressBar, cancelDl);
+                            closeBtn.setOnAction(e1->{
+                                cancelDl.set(true);
+                                
+                            });
                         } else {
                             File customFile = jarFile.get();
 
@@ -1801,8 +1806,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                                 SimpleStringProperty fileNameProperty = new SimpleStringProperty(customFile.getName());
                                 File appFile = new File(installDir.getAbsolutePath() + "/" + fileNameProperty.get());
-
-                                Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Setup - " + ErgoNodes.NAME, fileNameProperty, progressBar, m_stage);
+                                Button closeBtn = new Button();
+                                closeBtn.setDisable(true);
+                                Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Setup - " + ErgoNodes.NAME, fileNameProperty.get(), progressBar, m_stage, closeBtn);
                                 m_stage.setScene(progressScene);
 
                                 if (customFile.getAbsolutePath().equals(appFile.getAbsolutePath())) {
@@ -1858,6 +1864,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                                     }, progressBar);
 
                                 }
+                             
 
                             } else {
                                 Alert a = new Alert(AlertType.NONE, "Select a valid Ergo core file. (ergo-<Version>.jar)", ButtonType.OK);
@@ -2622,14 +2629,15 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
             File appFile = new File(m_appDir.getAbsolutePath() + "/" + name);
             ProgressBar progressBar = new ProgressBar();
-
+            Button closeBtn = new Button();
             if (stage != null) {
-                Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Settings - Ergo Local Node - " + ErgoNodes.NAME, new SimpleStringProperty(name), progressBar, stage);
+                Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Settings - Ergo Local Node - " + ErgoNodes.NAME, name, progressBar, stage, closeBtn);
                 stage.setScene(progressScene);
 
                 stage.setX((rect.getWidth() / 2) - (stage.getWidth() / 2));
                 stage.setY((rect.getHeight() / 2) - (stage.getHeight() / 2));
             }
+            SimpleBooleanProperty cancel = new SimpleBooleanProperty(false);
             Utils.getUrlFileHash(url, appFile, (onDlSucceeded) -> {
                 Object dlObject = onDlSucceeded.getSource().getValue();
                 if (dlObject != null && dlObject instanceof HashData) {
@@ -2686,7 +2694,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     stage.setX(rect.getWidth() - (stage.getWidth() / 2));
                     stage.setY(rect.getHeight() - (stage.getHeight() / 2));
                 }
-            }, stage != null ? progressBar : null);
+            }, stage != null ? progressBar : null, cancel);
+
+            closeBtn.setOnAction(e->cancel.set(true));
 
         } else {
             if (noUpdate != null) {
@@ -2797,6 +2807,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         HBox.setHgrow(appDirField, Priority.ALWAYS);
 
         Tooltip navTooltip = new Tooltip("Open in File Explorer");
+        navTooltip.setShowDelay(new Duration(100));
 
         BufferedButton navBtn = new BufferedButton("/assets/navigate-outline-white-30.png", App.MENU_BAR_IMAGE_WIDTH);
         navBtn.setText("Location");
@@ -2806,7 +2817,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         navBtn.setTooltip(navTooltip);
         navBtn.setOnAction(e -> {
             try {
-                Desktop.getDesktop().open(m_appDir);
+                Utils.openDir(m_appDir);
             } catch (IOException e1) {
                 Alert a = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
                 a.setTitle("Error");

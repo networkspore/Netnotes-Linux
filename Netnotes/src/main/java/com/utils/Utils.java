@@ -1155,7 +1155,7 @@ public class Utils {
         t.start();
     }
 
-    public static void getUrlFileHash(String urlString, File outputFile, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public static void getUrlFileHash(String urlString, File outputFile, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator, SimpleBooleanProperty cancel) {
 
         Task<HashData> task = new Task<HashData>() {
             @Override
@@ -1165,7 +1165,7 @@ public class Utils {
                 }
                 Files.deleteIfExists(outputFile.toPath());
 
-                InputStream inputStream = null;
+               
                 FileOutputStream outputStream = new FileOutputStream(outputFile);
 
                 final Blake2b digest = Blake2b.Digest.newInstance(32);
@@ -1174,10 +1174,14 @@ public class Utils {
 
                 URLConnection con = url.openConnection();
 
+                         
+
                 con.setRequestProperty("User-Agent", USER_AGENT);
 
                 long contentLength = con.getContentLengthLong();
-                inputStream = con.getInputStream();
+                InputStream inputStream = con.getInputStream();
+
+                
 
                 byte[] buffer = new byte[8 * 1024];
 
@@ -1191,6 +1195,12 @@ public class Utils {
                     if (progressIndicator != null) {
                         downloaded += (long) length;
                         updateProgress(downloaded, contentLength);
+                    }
+                    if(cancel.get()){
+                        inputStream.close();
+                        outputStream.close();
+                        return null;
+
                     }
                 }
 
@@ -1495,6 +1505,13 @@ public class Utils {
               return false;
           }
           return false;
+    }
+    public static void openDir(File file) throws IOException{
+
+        String[] cmd = new String[]{ "bash", "-c",  "gio open " + file.getParentFile().getCanonicalPath()};
+
+        Runtime.getRuntime().exec(cmd);
+  
     }
 
     public static void pingIP(String ip, SimpleStringProperty status, SimpleStringProperty updated, SimpleBooleanProperty available) throws Exception{
