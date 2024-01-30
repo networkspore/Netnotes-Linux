@@ -49,12 +49,7 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
 
     @Override
     public void start() {
-        
-        try {
-            Files.writeString(new File("kucoinMarketData.txt").toPath(), "started");
-        } catch (IOException e) {
-        
-        }
+      
         if (getMarketId() != null &&  !statusProperty().get().equals(STARTED)) {
             NoteInterface marketInterface = getMarketsList().getErgoMarkets().getNetworksData().getNoteInterface(getMarketId());
            

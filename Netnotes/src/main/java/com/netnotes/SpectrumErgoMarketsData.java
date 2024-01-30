@@ -19,7 +19,7 @@ import javafx.beans.value.ChangeListener;
 public class SpectrumErgoMarketsData extends ErgoMarketsData{
    
     public SpectrumErgoMarketsData(ErgoMarketsList marketsList){
-        super("Spectrum FInance", SpectrumFinance.NETWORK_ID, "ERG", "sigUSD", ErgoMarketsData.POLLED, ErgoMarketsData.TICKER, marketsList);
+        super("Spectrum Finance", SpectrumFinance.NETWORK_ID, "ERG", "sigUSD", ErgoMarketsData.POLLED, ErgoMarketsData.TICKER, marketsList);
     }
     public SpectrumErgoMarketsData(ErgoMarketsList marketsList, JsonObject json) throws NullPointerException {
         super(marketsList, json);

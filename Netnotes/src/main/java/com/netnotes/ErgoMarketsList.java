@@ -69,11 +69,7 @@ public class ErgoMarketsList {
     }
 
     public ErgoMarketsData getMarketsData(String id) {
-        try {
-            Files.writeString(logFile.toPath(), id != null ? id : "\ngetmarkedata:null", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-
-        }
+    
         if (id != null) {
             for (int i = 0; i < m_dataList.size(); i++) {
                 ErgoMarketsData marketsData = m_dataList.get(i);
