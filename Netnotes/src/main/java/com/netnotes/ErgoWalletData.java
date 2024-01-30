@@ -461,22 +461,11 @@ public class ErgoWalletData extends Network implements NoteInterface {
         BufferedMenuButton marketsBtn = new BufferedMenuButton("/assets/ergoChart-30.png", imageWidth);
         marketsBtn.setPadding(new Insets(2, 0, 0, 0));
         marketsBtn.setTooltip(marketsTip);
-        
-        SimpleObjectProperty<ErgoMarketsData> ergoMarketsData = new SimpleObjectProperty<>(null);
-        
-        if(m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID) != null){
-            String marketId = getMarketsId();
-            ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-            if(ergoMarkets != null){
-                ErgoMarketsData mData = ergoMarkets.getErgoMarketsList().getMarketsData( marketId);
-                if(mData != null){
-                    addressesData.updateSelectedMarket(mData);
-                    ergoMarketsData.set(mData);
-                }
-            }
-        }
 
-      
+        ErgoMarkets marketInterface = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+        SimpleObjectProperty<ErgoMarketsList> marketsList = new SimpleObjectProperty<>(marketInterface != null ? marketInterface.getErgoMarketsList() : null);
+        SimpleObjectProperty<ErgoMarketsData> ergoMarketsData = new SimpleObjectProperty<>( marketsList.get() != null ? marketsList.get().getMarketsData(getMarketsId()) : null);
+
   
          Runnable updateMarketsBtn = () ->{
             ErgoMarketsData marketsData = ergoMarketsData.get();
@@ -484,12 +473,14 @@ public class ErgoWalletData extends Network implements NoteInterface {
       
           
             if(marketsData != null && ergoMarkets != null){
-                
+              
+
                 marketsTip.setText("Ergo Markets: " + marketsData.getName());
                 addressesData.updateSelectedMarket(marketsData);
             }else{
                
                 if(ergoMarkets == null){
+                    marketsList.set(null);
                     marketsTip.setText("(install 'Ergo Markets')");
                 }else{
                     marketsTip.setText("Select market...");
@@ -498,7 +489,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
           
         };
 
-          ergoMarketsData.addListener((obs,oldval,newVal) -> {
+        ergoMarketsData.addListener((obs,oldval,newVal) -> {
             setMarketsId(newVal == null ? null : newVal.getMarketId());
             updateMarketsBtn.run();
             
@@ -507,9 +498,15 @@ public class ErgoWalletData extends Network implements NoteInterface {
         Runnable getAvailableMarketsMenu = ()->{
             ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
             if(ergoMarkets != null){
-                 marketsBtn.setId("menuBtn");
+                ErgoMarketsList scopeMarketsList = marketsList.get();
+                if(scopeMarketsList == null){
+                    ErgoMarketsList newErgoMarketsList = ergoMarkets.getErgoMarketsList();
+                    marketsList.set(newErgoMarketsList);
+                    newErgoMarketsList.getMenu(marketsBtn, ergoMarketsData);
+                }else{
+                    scopeMarketsList.getMenu(marketsBtn, ergoMarketsData);
+                }
                 
-                ergoMarkets.getErgoMarketsList().getMenu(marketsBtn, ergoMarketsData);
             }else{
                 marketsBtn.getItems().clear();
                 marketsBtn.setId("menuBtnDisabled");
@@ -699,7 +696,8 @@ public class ErgoWalletData extends Network implements NoteInterface {
         getAvailableExplorerMenu.run();
         getAvailableNodeMenu.run();
         getAvailableMarketsMenu.run();
-        updateTokensMenu.run();
+      
+      
 
         sendBtn.setOnAction((actionEvent) -> {
            
@@ -851,6 +849,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     public void setMarketsId(String marketsId) {
         m_marketsId = marketsId;
+    
         getLastUpdated().set(LocalDateTime.now());
     }
 

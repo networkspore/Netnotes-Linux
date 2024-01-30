@@ -3,6 +3,7 @@ package com.netnotes;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -68,11 +69,17 @@ public class ErgoMarketsList {
     }
 
     public ErgoMarketsData getMarketsData(String id) {
+        try {
+            Files.writeString(logFile.toPath(), id != null ? id : "\ngetmarkedata:null", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+
+        }
         if (id != null) {
             for (int i = 0; i < m_dataList.size(); i++) {
                 ErgoMarketsData marketsData = m_dataList.get(i);
 
                 if (marketsData.getId().equals(id)) {
+                  
                     return marketsData;
                 }
             }
@@ -152,8 +159,34 @@ public class ErgoMarketsList {
 
             for (int i = 0; i < marketsArray.size(); i++) {
                 JsonElement marketsDataItem = marketsArray.get(i);
+                JsonObject marketsDataJson = marketsDataItem.getAsJsonObject();
+                String marketId = marketsDataJson.get("id").getAsString();
+                switch(marketId){
+                    case KucoinExchange.NETWORK_ID:
+                        try{
+                            KucoinErgoMarketsData kEMData = new KucoinErgoMarketsData(this, marketsDataJson);
+                            m_dataList.add(kEMData);
+                        }catch(NullPointerException e){
+                            try {
+                                Files.writeString(logFile.toPath(), "ErgoMarketsList (openJson):" +e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
 
-                m_dataList.add(new ErgoMarketsData(this, marketsDataItem.getAsJsonObject()));
+                            }
+                        }
+                        break;
+                    case SpectrumFinance.NETWORK_ID:
+                        try{
+                            m_dataList.add(new SpectrumErgoMarketsData(this, marketsDataJson));
+                        }catch(NullPointerException e){
+                            try {
+                                Files.writeString(logFile.toPath(), "ErgoMarketsList (openJson):" +e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
+
+                            }
+                        }
+                    break;
+                }
+               // m_dataList.add(new ErgoMarketsData(this, ));
             }
         }
 

@@ -11,7 +11,7 @@ import java.nio.file.StandardOpenOption;
 
 import com.google.gson.JsonElement;
 
-public class SpectrumMarketData {
+public class SpectrumMarketData extends PriceQuote {
 
     private File logFile = new File("netnotes-log.txt");
 
@@ -61,12 +61,30 @@ public class SpectrumMarketData {
             m_baseVolume = baseVolumeElement.getAsBigDecimal();
 
             m_invertedPrice = lastPriceElement.getAsBigDecimal();
-            
+         
+            setTxCurrencyId(m_quoteId);
+            if(m_quoteSymbol.equals("SigUSD")){
+                try{
+                    BigDecimal lastPrice = BigDecimal.ONE.divide(m_invertedPrice, 4, RoundingMode.CEILING);
+                    setLastPrice(lastPrice);
+                    
+                    setPrices(lastPrice.toString(), m_baseSymbol, m_quoteSymbol);
+                }catch(ArithmeticException ae){
+                    setPrices("0", m_baseSymbol, m_quoteSymbol);
+                    Files.writeString(logFile.toPath(), "\nspectrumMarketData (Arithmetic exception): " + ae.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                }
+            }else{
+                setLastPrice(m_invertedPrice);
+                String priceString = String.format("%.6f", m_invertedPrice);
+                setPrices(priceString, m_quoteSymbol, m_baseSymbol);
+            }
         }else{
             throw new Exception("Missing expected arguments");
         }
         
     }
+
+    
 
     public String getPoolId(){
         return m_poolId;

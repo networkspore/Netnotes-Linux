@@ -155,14 +155,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
                                     boolean isFavorite = this.getIsFavorite(marketData.getId());
 
                                     if (init) {
-                                        BigDecimal invertedPrice = marketData.getInvertedLastPrice();
                                         
-                                        try{
-                                            BigDecimal lastPrice = BigDecimal.ONE.divide(invertedPrice, invertedPrice.precision(), RoundingMode.CEILING);
-                                            marketData.setLastPrice(lastPrice);
-                                        }catch(ArithmeticException ae){
-
-                                        }
                                         SpectrumMarketItem newMarketItem = new SpectrumMarketItem( isFavorite, marketData, getSpectrumDataList());
                                         m_marketsList.add(newMarketItem);
                                         
@@ -175,15 +168,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
                                             marketData.setLiquidityUSD(item.getLiquidityUSD());
                                             item.marketDataProperty().set(marketData);
                                         }else{
-                                            BigDecimal invertedPrice = marketData.getInvertedLastPrice();
-
-                                            try {
-                                                BigDecimal lastPrice = BigDecimal.ONE.divide(invertedPrice,
-                                                    invertedPrice.precision(), RoundingMode.CEILING);
-                                                    marketData.setLastPrice(lastPrice);
-                                            } catch (ArithmeticException ae) {
-
-                                            }
+                                         
                                             SpectrumMarketItem newItem = new SpectrumMarketItem(isFavorite, marketData, getSpectrumDataList());
                                             m_marketsList.add(newItem);
 

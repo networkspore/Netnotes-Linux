@@ -86,8 +86,6 @@ public class ErgoTokens extends Network implements NoteInterface {
     private TokensList m_tokensList = null;
 
     private boolean m_firstOpen = false;
-    private SimpleStringProperty m_defaultTokenMarket = new SimpleStringProperty(SpectrumFinance.NETWORK_ID);
-    
     
     private final SimpleObjectProperty<ErgoExplorerData> m_selectedExplorerData = new SimpleObjectProperty<>(null);
 
@@ -402,51 +400,6 @@ public class ErgoTokens extends Network implements NoteInterface {
             defaultMarketBtn.setTooltip(defaultMarketTip);
 
             
-
-            Runnable updateDefaultMarketBtn = () ->{
-                String defaultMarketId = m_defaultTokenMarket.get();
-            
-                if(defaultMarketId != null){
-
-                    NoteInterface noteInterface = getNetworksData().getNoteInterface(defaultMarketId);
-                    InstallableIcon installableIcon = new InstallableIcon(getNetworksData(), defaultMarketId, true);
-                    String url = installableIcon.getIcon().getUrl();
-
-                    defaultMarketBtn.setImage(new Image(url));
-                    defaultMarketTip.setText("Token Market:" + (noteInterface != null ? noteInterface.getName() : installableIcon.getName() + " (Not installed)"));
-
-                }else{
-         
-                    defaultMarketTip.setText("Token Market: (set default)");
-                    defaultMarketBtn.setImage(new Image("/assets/ergo-charts-30.png"));
-                }
-                
-            };
-
-            Runnable getAvailableTokenMarketsMenu = () ->{
-                defaultMarketBtn.getItems().clear();
-                String selectedMarket = m_defaultTokenMarket.get();
-                for(String marketID : TOKEN_MARKETS){
-                    if(getNetworksData().getNoteInterface(marketID)!= null){
-                        InstallableIcon installableIcon = new InstallableIcon(getNetworksData(), marketID, false);
-                        String url = installableIcon.getIcon().getUrl();
-                        String name = installableIcon.getName();
-                        MenuItem marketMenuItem = new MenuItem(selectedMarket.equals(marketID) ? "* " + name + " (selected)" : name, IconButton.getIconView( new Image(url), App.MENU_BAR_IMAGE_WIDTH));
-                        marketMenuItem.setOnAction(e->{
-                            m_defaultTokenMarket.set(marketID);
-                        });
-                        defaultMarketBtn.getItems().add(marketMenuItem);
-                    }
-                }
-
-                if(defaultMarketBtn.getItems().size() == 0){
-                    MenuItem noneItem = new MenuItem("No Token Market installed");
-                    defaultMarketBtn.getItems().add(noneItem);
-                }
-                
-                updateDefaultMarketBtn.run();
-            };
-
 
             Tooltip explorerTip = new Tooltip("Select explorer");
             explorerTip.setShowDelay(new javafx.util.Duration(50));

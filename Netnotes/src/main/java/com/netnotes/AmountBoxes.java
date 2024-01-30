@@ -31,6 +31,7 @@ public class AmountBoxes extends VBox {
     private String m_lastRowItemStyle = ADD_AS_LAST_ROW;
     private boolean m_lastRowItemDisabled = false;
 
+    private SimpleObjectProperty<PriceQuote> m_priceQuoteProperty = new SimpleObjectProperty<>(null);
     
 
     public AmountBoxes(AmountBox... boxes) {
@@ -51,6 +52,9 @@ public class AmountBoxes extends VBox {
             update();
         }
 
+    }
+    public SimpleObjectProperty<PriceQuote> priceQuoteProperty(){
+        return m_priceQuoteProperty;
     }
 
     public ObservableList<AmountBox> amountsList(){
@@ -118,7 +122,7 @@ public class AmountBoxes extends VBox {
             AmountBox existingBox = getAmountBox(amountBox.getTokenId());
             if(existingBox == null){
                 m_amountsList.add(amountBox);
-          
+                amountBox.priceQuoteProperty().bind(m_priceQuoteProperty);
             }else{ 
                 PriceAmount newPriceAmount = amountBox.priceAmountProperty().get();
                 existingBox.priceAmountProperty().set(newPriceAmount);

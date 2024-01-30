@@ -33,6 +33,8 @@ import com.utils.Utils;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -487,7 +489,7 @@ public class AddressData extends Network {
         HBox.setHgrow(amountBoxPadding, Priority.ALWAYS);
 
         AmountBoxes amountBoxes = new AmountBoxes();
-
+        amountBoxes.priceQuoteProperty().bind(m_addressesData.currentPriceQuoteProperty());
         amountBoxes.setPadding(new Insets(10,10,10,0));
         amountBoxes.setAlignment(Pos.TOP_LEFT);
         HBox.setHgrow(amountBoxes, Priority.ALWAYS);
@@ -499,11 +501,15 @@ public class AddressData extends Network {
             for(int i = 0; i < m_confirmedTokensList.size() ; i ++){
                 PriceAmount tokenAmount = m_confirmedTokensList.get(i);
                 AmountBox amountBox = amountBoxes.getAmountBox(tokenAmount.getCurrency().getTokenId());
+                
                 if(amountBox == null){
                     AmountBox newAmountBox = new AmountBox(tokenAmount, scene, m_addressesData.isErgoTokensProperty(), m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData());
                     newAmountBox.setTimeStamp(timestamp);
+        
                     amountBoxes.add(newAmountBox);
+
                 }else{
+                    
                     amountBox.priceAmountProperty().set(tokenAmount);
                     amountBox.setTimeStamp(timestamp);
                 }
@@ -1935,7 +1941,7 @@ public class AddressData extends Network {
                         }
 
                         PriceAmount tokenAmount = networkToken != null ? new PriceAmount(amount, networkToken) : new PriceAmount(amount, new PriceCurrency(tokenId, name, name, decimals, ErgoNetwork.NETWORK_ID,m_address.getNetworkType().toString(), "/assets/unknown-unit.png",tokenType, ""));    
-                   
+                        
                         m_confirmedTokensList.add(tokenAmount);
                    
                     }

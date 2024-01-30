@@ -88,7 +88,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static java.awt.Color NEGATIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xffe96d71, true);
     public static java.awt.Color NEUTRAL_COLOR = new java.awt.Color(0x111111);
 
-    public static long DATA_TIMEOUT_SPAN = (30*1000)-100;
+    public static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     private File m_appDir = null;
    // private File m_dataFile = null;
     private File m_dataDir = null;
@@ -296,7 +296,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Runnable runClose = () -> {
 
         
-                spectrumData.closeAll();
+                spectrumData.shutdown();
                 spectrumData.removeUpdateListener();
 
                 m_appStage = null;

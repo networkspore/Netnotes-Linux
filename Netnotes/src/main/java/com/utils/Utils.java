@@ -390,21 +390,15 @@ public class Utils {
         String priceTotal = valid ? formatedDecimals : "-";
     
         switch (target) {
-            case "ERG":
-                priceTotal = priceTotal + " ERG";
-                break;
+
             case "USD":
                 priceTotal = "$" + priceTotal;
-                break;
-            case "USDT":
-                priceTotal = priceTotal + " USDT";
                 break;
             case "EUR":
                 priceTotal = "€‎" + priceTotal;
                 break;
-            case "BTC":
-                priceTotal ="฿" + priceTotal;
-                break;
+            default:
+                priceTotal = priceTotal + " " + target;
         }
 
         return priceTotal;

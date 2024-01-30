@@ -4,8 +4,12 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 
@@ -217,7 +221,7 @@ public class AmountBox extends HBox {
 
         
         m_priceQuoteProperty.addListener((obs, oldval, newval)->updateBufferedImage());
-        updateBufferedImage();
+      
 
         
 
@@ -413,15 +417,23 @@ public class AmountBox extends HBox {
         m_minImgWidth = width;
     }
    
-
+  
    
     public void updateBufferedImage() {
         PriceAmount priceAmount = m_currentAmount.get();
         boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
         BigDecimal priceAmountDecimal = priceAmount != null && quantityValid ? priceAmount.getBigDecimalAmount() : BigDecimal.valueOf(0);
 
-        PriceQuote priceQuote = m_priceQuoteProperty.get();
+        PriceQuote priceQuoteBase = m_priceQuoteProperty.get();
+        //PriceQuote priceQuote = priceQuoteBase != null ? priceQuoteBase.getPriceQuote(quantityValid ? priceAmount.getTokenId() : null) : null;
+     
+        String tokenId = priceAmount != null ? priceAmount.getTokenId() : null;
+
+        PriceQuote priceQuote =  (priceQuoteBase != null && tokenId != null ? priceQuoteBase.getPriceQuote(tokenId): null);
+
         boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
+        
+        
         BigDecimal priceQuoteBigDecimal = priceValid  && priceQuote != null ? priceQuote.getBigDecimalAmount() : BigDecimal.valueOf(0);
         
         String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( priceAmountDecimal.multiply(priceQuoteBigDecimal), priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  quantityValid && priceValid) : " -.--";

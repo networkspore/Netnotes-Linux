@@ -73,11 +73,12 @@ public class ErgoMarkets extends Network implements NoteInterface {
                 a.show();
             }
 
-            String newMarketDataId = FriendlyId.createFriendlyId();
+   
 
             ErgoMarketsList marketsList = new ErgoMarketsList(this);
-            marketsList.add(new ErgoMarketsData(newMarketDataId, "KuCoin Ticker (Live)", KucoinExchange.NETWORK_ID, "ERG", "USDT", ErgoMarketsData.REALTIME, ErgoMarketsData.TICKER, marketsList));
-            marketsList.defaultIdProperty().set(newMarketDataId);
+            marketsList.add(new KucoinErgoMarketsData(marketsList));
+            marketsList.add(new SpectrumErgoMarketsData(marketsList));
+            marketsList.defaultIdProperty().set(SpectrumFinance.NETWORK_ID);
             marketsList.save();
 
         } 
