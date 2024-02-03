@@ -20,7 +20,7 @@ public class PriceQuote {
 
     private int m_fractionalPrecision = 0;
 
-    private PriceQuote[] m_priceArray = new PriceQuote[0];
+
 
     public PriceQuote(){
         m_timestamp = System.currentTimeMillis();
@@ -65,35 +65,6 @@ public class PriceQuote {
         m_precisionLong = (long) (precision * amount);
     }
 
-    public void setPriceQuotes(PriceQuote[] quotes){
-        m_priceArray = quotes;
-    }
-
-    public PriceQuote[] getPriceQuotes(){
-        return m_priceArray;
-    }
-
-    public String getTxCurrencyId(){
-        return m_transactionCurrencyId;
-    }
-
-    public void setTxCurrencyId(String txCurrencyId){
-        m_transactionCurrencyId = txCurrencyId;
-    }
-
-    public PriceQuote getPriceQuote(String txCurrencyId ){
-      
-        if(txCurrencyId != null){
-            for(int i = 0; i < m_priceArray.length ; i ++){
-                PriceQuote pq = m_priceArray[i];
-            
-                if(pq.getTxCurrencyId().equals(txCurrencyId)){
-                    return pq;
-                }
-            }
-        }
-        return null;
-    }
 
 
     public double getDoubleAmount() {

@@ -220,6 +220,7 @@ public class HashDataDownloader {
                 okBox.setAlignment(Pos.CENTER_LEFT);
                 okBox.setPadding(new Insets(5,15,10,10));
                 bodyVBox.getChildren().add(okBox);
+                bodyVBox.setId("highlightRow");
 
                 HBox layoutPaddingBox = new HBox(bodyVBox);
                 HBox.setHgrow(bodyVBox, Priority.ALWAYS);

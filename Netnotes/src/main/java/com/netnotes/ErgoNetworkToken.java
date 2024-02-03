@@ -57,10 +57,10 @@ public class ErgoNetworkToken extends PriceCurrency {
     private SimpleDoubleProperty m_sceneHeight = new SimpleDoubleProperty(575);
     private String m_urlString;
     private Stage m_ergoTokenStage = null;
-    private TokensList m_tokensList = null;
+    private ErgoTokensList m_tokensList = null;
     //String token_id, String name, String symbol, String description, int fractionalPrecision, String networkId, String unitImageString, String networkType, long emissionAmount, long timestamp
     
-    public ErgoNetworkToken(String name, String tokenId, NetworkType networkType, JsonObject jsonObject, TokensList tokensList) {
+    public ErgoNetworkToken(String name, String tokenId, NetworkType networkType, JsonObject jsonObject, ErgoTokensList tokensList) {
         super(tokenId, name, name, name, 0,  ErgoNetwork.NETWORK_ID, "/assets/unknown-unit.png", networkType.toString(),0, 0);
         m_tokensList = tokensList;
 
@@ -103,7 +103,7 @@ public class ErgoNetworkToken extends PriceCurrency {
         }
     }
 
-    public ErgoNetworkToken(String name, String url, String tokenId, String fileString, HashData hashData, NetworkType networkType, TokensList tokensList) {
+    public ErgoNetworkToken(String name, String url, String tokenId, String fileString, HashData hashData, NetworkType networkType, ErgoTokensList tokensList) {
          super(tokenId, name, name, name, 0,  ErgoNetwork.NETWORK_ID, fileString, networkType.toString(),0, 0);
         m_tokensList = tokensList;
         m_urlString = url;
@@ -152,6 +152,8 @@ public class ErgoNetworkToken extends PriceCurrency {
         return networkTypeString != null ? (networkTypeString.equals(NetworkType.MAINNET.toString()) ? NetworkType.MAINNET : NetworkType.TESTNET) : NetworkType.MAINNET;
     }
 
+    private String m_marketId = null;
+
     public void updateTokenInfo() {
         ErgoExplorerData ergoExplorerData =  m_tokensList.getErgoTokens().explorerDataProperty().get();
     
@@ -180,8 +182,17 @@ public class ErgoNetworkToken extends PriceCurrency {
             });
     
         }
+
+        
       
 
+    }
+    public void updatePriceQuote(){
+        String marketId = m_marketId == null ? m_tokensList.getErgoTokens().marketIdProperty().get() : m_marketId;
+
+        if(marketId != null){
+           
+        }
     }
 
     public void visitUrl(){

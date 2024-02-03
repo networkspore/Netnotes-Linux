@@ -306,7 +306,7 @@ public class AmountBox extends HBox {
                             addItem.setOnAction(e->{
                                   
                                NetworkType tokenNetworkType = currency.getNetworkTypeString().equals(NetworkType.TESTNET.toString()) ? NetworkType.TESTNET : NetworkType.MAINNET;
-                               TokensList tokensList = ergoTokens.getTokensList(tokenNetworkType);
+                               ErgoTokensList tokensList = ergoTokens.getTokensList(tokenNetworkType);
                                //  Alert a = new Alert(AlertType.NONE, "ok", ButtonType.OK);
                              //   a.show();
 
@@ -424,12 +424,12 @@ public class AmountBox extends HBox {
         boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
         BigDecimal priceAmountDecimal = priceAmount != null && quantityValid ? priceAmount.getBigDecimalAmount() : BigDecimal.valueOf(0);
 
-        PriceQuote priceQuoteBase = m_priceQuoteProperty.get();
+        PriceQuote priceQuote = m_priceQuoteProperty.get();
         //PriceQuote priceQuote = priceQuoteBase != null ? priceQuoteBase.getPriceQuote(quantityValid ? priceAmount.getTokenId() : null) : null;
      
-        String tokenId = priceAmount != null ? priceAmount.getTokenId() : null;
+        //String tokenId = priceAmount != null ? priceAmount.getTokenId() : null;
 
-        PriceQuote priceQuote =  (priceQuoteBase != null && tokenId != null ? priceQuoteBase.getPriceQuote(tokenId): null);
+        //PriceQuote priceQuote =  (priceQuoteBase != null && tokenId != null ? priceQuoteBase.getPriceQuote(tokenId): null);
 
         boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
         

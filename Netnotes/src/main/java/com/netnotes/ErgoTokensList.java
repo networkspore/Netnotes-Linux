@@ -12,6 +12,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import javax.crypto.BadPaddingException;
@@ -35,8 +36,11 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
@@ -64,28 +68,32 @@ import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
-public class TokensList extends Network {
+public class ErgoTokensList extends Network {
 
     private File logFile = new File("netnotes-log.txt");
 
     private final ArrayList<ErgoNetworkToken> m_networkTokenList = new ArrayList<>();
-    private VBox m_buttonGrid = null;
+   // private VBox m_buttonGrid = null;
     private double m_sceneWidth = 600;
     private double  m_sceneHeight = 630;
     private NetworkType m_networkType;
     private ErgoTokens m_ergoTokens = null;
     private final SimpleObjectProperty<ErgoNetworkToken> m_selectedNetworkToken = new SimpleObjectProperty<>(null);
+   
+    private String m_marketId = null;
 
 
-    public TokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens) {
+    public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens) {
         super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
-
+    
+        
         openFile(secretKey);
+        
     }
 
-    public TokensList(ArrayList<ErgoNetworkToken> networkTokenList, NetworkType networkType, ErgoTokens ergoTokens) {
+    public ErgoTokensList(ArrayList<ErgoNetworkToken> networkTokenList, NetworkType networkType, ErgoTokens ergoTokens) {
         super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
@@ -94,6 +102,16 @@ public class TokensList extends Network {
             addToken(networkToken, false);
 
         }
+    }
+
+
+
+    public String getMarketId(){
+        return m_marketId;
+    }
+
+    public void setMarketId(String id){
+        m_marketId = id;
     }
 
     public SimpleObjectProperty<ErgoNetworkToken> selectedTokenProperty(){
@@ -151,7 +169,7 @@ public class TokensList extends Network {
         m_networkType = networkType;
         setName("Ergo Tokens - List (" + networkType.toString() + ")");
         openFile(secretKey);
-        updateGrid();
+     
 
     }
 
@@ -175,21 +193,18 @@ public class TokensList extends Network {
         }
     }
 
+
+
     public VBox getButtonGrid() {
-        if (m_buttonGrid == null) {
-            m_buttonGrid = new VBox();
-        }
+        
+        VBox buttonGrid = new VBox();
+        
 
-        updateGrid();
-
-        return m_buttonGrid;
-    }
-
-    public void updateGrid() {
-        if (m_buttonGrid != null) {
+        Runnable updateGrid = ()->{
+         
             int numCells = m_networkTokenList.size();
 
-            m_buttonGrid.getChildren().clear();
+            buttonGrid.getChildren().clear();
             // VBox.setVgrow(m_buttonGrid, Priority.ALWAYS);
 
             for (int i = 0; i < numCells; i++) {
@@ -197,11 +212,19 @@ public class TokensList extends Network {
 
                 IconButton rowButton = networkToken.getButton(IconStyle.ROW);
 
-                m_buttonGrid.getChildren().add(rowButton);
-                rowButton.prefWidthProperty().bind(m_buttonGrid.widthProperty());
+                buttonGrid.getChildren().add(rowButton);
+                rowButton.prefWidthProperty().bind(buttonGrid.widthProperty());
             }
-        }
+            
+        };
+
+        updateGrid.run();
+        getLastUpdated().addListener((obs,oldval,newval)->updateGrid.run());
+
+        return buttonGrid;
     }
+
+  
 
     public ErgoNetworkToken getErgoToken(String tokenid) {
         if(tokenid != null){
@@ -298,7 +321,8 @@ public class TokensList extends Network {
 
                 m_networkTokenList.remove(networkToken);
                 if (update) {
-                    updateGrid();
+                    
+                  
                     getLastUpdated().set(LocalDateTime.now());
                 }
             }
@@ -315,7 +339,7 @@ public class TokensList extends Network {
              //   networkToken.close();
 
                 m_networkTokenList.remove(networkToken);
-                updateGrid();
+         
                 getLastUpdated().set(LocalDateTime.now());
             }
         }
@@ -483,7 +507,6 @@ public class TokensList extends Network {
             }
         }
         if (updated) {
-            updateGrid();
             getLastUpdated().set(LocalDateTime.now());
         }
 
@@ -1006,7 +1029,7 @@ public class TokensList extends Network {
                             
                                     removeToken(oldToken.getNetworkId(), false);
                                     addToken(newToken, false);
-                                    updateGrid();
+                                   
                                     getLastUpdated().set(LocalDateTime.now());
                                     closeBtn.fire();
                                     
@@ -1019,7 +1042,7 @@ public class TokensList extends Network {
                                         tokenAlert.setGraphic(IconButton.getIconView(getParentInterface().getButton().getIcon(), 75));
                                     } else {
                                         m_networkTokenList.add(newToken);
-                                        updateGrid();
+                                     
                                         getLastUpdated().set(LocalDateTime.now());
                                          closeBtn.fire();
                                     }

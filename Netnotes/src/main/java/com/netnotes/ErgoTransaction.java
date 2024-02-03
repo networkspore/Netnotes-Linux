@@ -914,7 +914,7 @@ public class ErgoTransaction {
         
         if(jsonArray != null && jsonArray.size() > 0){
             ErgoTokens ergoTokens = getParentAddress().getAddressesData().isErgoTokensProperty().get() ? (ErgoTokens) getParentAddress().getAddressesData().getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) : null;
-            TokensList tokensList = ergoTokens != null ? ergoTokens.getTokensList(getParentAddress().getNetworkType()) : null;
+            ErgoTokensList tokensList = ergoTokens != null ? ergoTokens.getTokensList(getParentAddress().getNetworkType()) : null;
 
             int size = jsonArray.size();
             ArrayList<PriceAmount> tokenArrayList = new ArrayList<>();

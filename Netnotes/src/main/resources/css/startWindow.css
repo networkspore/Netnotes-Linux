@@ -833,6 +833,9 @@
     -fx-border-width: 1px;
     -fx-border-style: solid;
 }
+#highlightRow{
+    -fx-background-color: #22222280;
+}
 
 #toolSelected:hover {
     -fx-text-fill: white;

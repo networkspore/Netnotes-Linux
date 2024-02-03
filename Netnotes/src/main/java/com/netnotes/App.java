@@ -70,6 +70,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.reactfx.util.FxTimer;
 
+import com.netnotes.AppData.UpdateInformation;
 import com.netnotes.IconButton.IconStyle;
 import com.google.gson.JsonParseException;
 import com.utils.GitHubAPI.GitHubAsset;
@@ -1155,6 +1156,33 @@ public class App extends Application {
         passwordBox.setPadding(new Insets(10, 0, 10, 10));
         passwordBox.setMinHeight(30);
 
+        Tooltip checkForUpdatesTip = new Tooltip();
+        checkForUpdatesTip.setShowDelay(new javafx.util.Duration(100));
+
+        String checkImageUrlString = "/assets/checkmark-25.png";
+        
+
+        BufferedButton checkForUpdatesToggle = new BufferedButton(m_networksData.getAppData().getUpdates() ? checkImageUrlString : null, App.MENU_BAR_IMAGE_WIDTH);
+        checkForUpdatesToggle.setTooltip(checkForUpdatesTip);
+
+        checkForUpdatesToggle.setOnAction(e->{
+            boolean wasUpdates = m_networksData.getAppData().getUpdates();
+            
+            wasUpdates = !wasUpdates;
+
+            checkForUpdatesToggle.setImage(wasUpdates ? new Image(checkImageUrlString) : null);
+
+            try {
+                m_networksData.getAppData().setUpdates(wasUpdates);
+            } catch (IOException e1) {
+                Alert a = new Alert(AlertType.NONE, e1.toString(), ButtonType.CANCEL);
+                a.setTitle("Error: File IO");
+                a.setHeaderText("Error");
+                a.initOwner(appStage);
+                a.show();
+            }
+        });
+
         Text versionTxt = new Text(String.format("%-18s", "  Version:"));
         versionTxt.setFill(txtColor);
         versionTxt.setFont(txtFont);
@@ -1297,95 +1325,58 @@ public class App extends Application {
         Region latestHeadingSpacer = new Region();
         HBox.setHgrow(latestHeadingSpacer, Priority.ALWAYS);
 
-        GitHubAPI gitHubAPI = new GitHubAPI(GITHUB_USER, GITHUB_PROJECT);
-        
         Button downloadLatestBtn = new Button("Download");
-      
-        Runnable getInfo = () ->{
-            gitHubAPI.getAssetsLatest((onFinished)->{
-                Object finishedObject = onFinished.getSource().getValue();
-                if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
-            
-                    GitHubAsset[] assets = (GitHubAsset[]) finishedObject;
-                    SimpleStringProperty url = new SimpleStringProperty("");
-                    SimpleStringProperty tagName = new SimpleStringProperty("");
-                    SimpleStringProperty name = new SimpleStringProperty("");
-                    SimpleObjectProperty<HashData> appHashData = new SimpleObjectProperty<>(null);
-                    for(GitHubAsset asset : assets){
-                        if(asset.getName().equals("releaseInfo.json")){
-                            Utils.getUrlJson(asset.getUrl(), (onReleaseInfo)->{
-                                Object sourceObject = onReleaseInfo.getSource().getValue();
-                                if(sourceObject != null && sourceObject instanceof com.google.gson.JsonObject){
-                                    com.google.gson.JsonObject releaseInfoJson = (com.google.gson.JsonObject) sourceObject;
-                                    
-                                    appHashData.set(new HashData(releaseInfoJson.get("application").getAsJsonObject().get("hashData").getAsJsonObject()));
-                            
-                                }
-                            }, (releaseInfoFailed)->{
+        
+        SimpleObjectProperty<UpdateInformation> updateInfoProperty = new SimpleObjectProperty<>();
 
-                            }, null);
-                        }else{
-                            if(asset.getContentType().equals("application/x-java-archive")){
-                                if(asset.getName().startsWith("netnotes-")){
-                                    name.set(asset.getName());
-                                    tagName.set(asset.getTagName());
-                                    url.set(asset.getUrl());
-                                }
-                            }
-                        }
-                    }
-                    
-                    
-                    appHashData.addListener((obs,oldval,newval)->{
-                        Platform.runLater(()->{
-                            latestHashField.setText(newval.getHashStringHex());
-                            latestHashField.setUserData(newval);
-                            latestVersionField.setText(tagName.get());
-                            latestNameField.setText(name.get());
-                            latestURLField.setText(url.get());
-                        });
-                    });
-                    
-
-                }
-            },(onFailed)->{
-
-            });
-        };
+        updateInfoProperty.addListener((obs,oldval,newval)->{
+        
+            latestHashField.setText(newval.getAppHashData().getHashStringHex());
+            latestVersionField.setText(newval.getTagName());
+            latestNameField.setText(newval.getAppName());
+            latestURLField.setText(newval.getAppUrl());
+        
+        });
+        
+        
 
         Button getInfoBtn = new Button("Update");
         getInfoBtn.setId("checkBtn");
         getInfoBtn.setOnAction(e->{
-            getInfo.run();           
+            m_networksData.getAppData().checkForUpdates(updateInfoProperty);         
         });
         downloadLatestBtn.setOnAction(e->{
+            SimpleObjectProperty<UpdateInformation> downloadInformation = new SimpleObjectProperty<>();
+            UpdateInformation updateInfo = updateInfoProperty.get();
+            if(updateInfo != null && updateInfo.getAppHashData() != null){
+            
+                HashData appHashData = updateInfo.getAppHashData();
+                String appName = updateInfo.getAppName();
+                String urlString = updateInfo.getAppUrl();
+             
+                HashDataDownloader dlder = new HashDataDownloader(logo, urlString, appName, appHashData, HashDataDownloader.Extensions.getJarFilter());
+                dlder.start();
 
-            if(latestURLField.getText().equals("")){
-                latestURLField.textProperty().addListener((obs,oldval,newval)->{
-                    String urlString = newval;
-                    if(urlString.startsWith("http")){
-                        Object hashDataObject = latestHashField.getUserData();
-                        if(hashDataObject != null && hashDataObject instanceof HashData){
-                            HashData latestHashData = (HashData) hashDataObject;
+            }else{
+                downloadInformation.addListener((obs,oldval,newval)->{
+                    if(newval != null){
+                        updateInfoProperty.set(newval);
+
+                        String urlString = newval.getAppUrl();
+                        if(urlString.startsWith("http")){  
+                            HashData latestHashData = newval.getAppHashData();
                             HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),latestHashData, HashDataDownloader.Extensions.getJarFilter());
                             dlder.start();
                         }
                     }
                 });
-                getInfo.run();
-            }else{
-                String urlString = latestURLField.getText();
-                Object hashDataObject = latestHashField.getUserData();
-                if(hashDataObject != null && hashDataObject instanceof HashData){
-                    HashData latestHashData = (HashData) hashDataObject;
-                    HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),latestHashData, HashDataDownloader.Extensions.getJarFilter());
-                    dlder.start();
-                }
-                    
+                m_networksData.getAppData().checkForUpdates(downloadInformation);
             }
         });
 
-        latestVersionField.setOnAction(e->getInfo.run());
+        latestVersionField.setOnAction(e->{
+            getInfoBtn.fire();
+        });
 
         HBox latestHeadingBox = new HBox(latestHeading, latestHeadingSpacer, getInfoBtn);
         HBox.setHgrow(latestHeadingBox,Priority.ALWAYS);

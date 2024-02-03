@@ -9,15 +9,20 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 
 public class SpectrumErgoMarketsData extends ErgoMarketsData{
-   
+    
+    private String m_id = FriendlyId.createFriendlyId();
+
+
     public SpectrumErgoMarketsData(ErgoMarketsList marketsList){
         super("Spectrum Finance", SpectrumFinance.NETWORK_ID, "ERG", "sigUSD", ErgoMarketsData.POLLED, ErgoMarketsData.TICKER, marketsList);
     }
@@ -32,91 +37,75 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
            
             if (marketInterface instanceof SpectrumFinance) {
                 SpectrumFinance exchange = (SpectrumFinance) marketInterface;
-
-                switch (getUpdateType()) {
-                    case POLLED:
-                        startPolling(exchange);
-                        break;       
-                }
+                connectToExchange(exchange);
             }
                 
         }
     }
 
-    private ChangeListener<LocalDateTime> m_timeCycleListener = null;
     
+   
+    public void onTickerMsg(SpectrumMarketData[] marketData){
+        //SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD")
+        //priceQuoteProperty().set();
+        SpectrumMarketData data = SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD");
+        priceQuoteProperty().set(data);
+        try {
+            Files.writeString(logFile.toPath(), "ErgoMarkets Spectrum onTickerMsg: " + (data != null ? data.getBaseId() : "data null"), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
 
-    public void startPolling(SpectrumFinance spectrum){
+        }
+
+    }
+    SpectrumMarketInterface m_msgListener;
+
+    /*public void getMarketArray(SpectrumFinance exchange){
+        SimpleObjectProperty<SpectrumMarketData[]> data = new SimpleObjectProperty<>();
+        
+        data.addListener((obs,oldval,newval)->{
+            onTickerMsg(newval);
+        });
+        exchange.getMarketArray(data);
+
+
+    }*/
+    public void connectToExchange(SpectrumFinance spectrum){
         statusProperty().set(STARTED);
-        Runnable poll = () ->{    
+        
+  
 
-            spectrum.getCMCMarkets(success -> {
-                SimpleObjectProperty<SpectrumMarketData> newPriceQuoteProperty = new SimpleObjectProperty<>();
-                Object sourceObject = success.getSource().getValue();
-                if (sourceObject != null && sourceObject instanceof JsonArray) {
-                
-                    JsonArray jsonArray = (JsonArray) sourceObject;
-                    ArrayList<SpectrumMarketData> marketDataList = new ArrayList<>();
-                    
-                    for(int i = 0; i < jsonArray.size();i++) {
-                        
-                        JsonElement marketObjectElement = jsonArray.get(i);
-                        if (marketObjectElement != null && marketObjectElement.isJsonObject()) {
+        m_msgListener = new SpectrumMarketInterface() {
+            
+            
+          
+            public String getId() {
+                return m_id;
+            }
+        
+            public void marketArrayChange(SpectrumMarketData[] dataArray) {
+                onTickerMsg(dataArray);
+            }
 
-                            JsonObject marketDataJson = marketObjectElement.getAsJsonObject();
-                            
-                            try{
-                                
-                                SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson);
-                                                
-                                
-                            
-                                if(marketData.getQuoteCurrency().equals("SigUSD") && marketData.getTransactionCurrency().equals("ERG")){
-                                    
-                                    newPriceQuoteProperty.set(marketData);
-                                }else{
-                                    marketDataList.add(marketData);
-                                }
-                
-                            }catch(Exception e){
-                                try {
-                                    Files.writeString(logFile.toPath(), "\nSpectrumFinance(updateMarkets): " + e.toString() + " " + marketDataJson.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                } catch (IOException e1) {
-                                
-                                }
-                            }
-                            
-                        }
 
-                    }          
-                    
-                    if(newPriceQuoteProperty.get() !=null){
-                        SpectrumMarketData smD = newPriceQuoteProperty.get();
-                        SpectrumMarketData[] txMarketArray = new SpectrumMarketData[marketDataList.size()];
-                        txMarketArray = marketDataList.toArray(txMarketArray);
-                        smD.setPriceQuotes(txMarketArray);
-                        priceQuoteProperty().set(smD);
-                    }   
-                            }
-            },(onFailed)->{
-                try {
-                    Files.writeString(logFile.toPath(), "\nSpectrumErgoMarketsData Polling Failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-                    
-                }
-            });
-                
         };
-        m_timeCycleListener = (obs, oldval, newval) -> poll.run();
-        poll.run();
-        getMarketsList().getErgoMarkets().getNetworksData().timeCycleProperty().addListener(m_timeCycleListener);       
+
+        spectrum.addMsgListener(m_msgListener);
+
+        setShutdownListener((obs, oldval, newVal) -> {
+            spectrum.removeMsgListener(m_msgListener);
+            statusProperty().set(STOPPED);
+        });
+       // spectrum.
+        
     }
 
     @Override
     public void shutdown(){
-        if(m_timeCycleListener != null){
-            getMarketsList().getErgoMarkets().getNetworksData().timeCycleProperty().removeListener(m_timeCycleListener); 
-            m_timeCycleListener = null;
+        if (getMarketId() != null &&  !statusProperty().get().equals(STARTED)) {
+            NoteInterface marketInterface = getMarketsList().getErgoMarkets().getNetworksData().getNoteInterface(getMarketId());
+           
+            if (marketInterface instanceof SpectrumFinance) {
+            }
         }
         super.shutdown();
     }

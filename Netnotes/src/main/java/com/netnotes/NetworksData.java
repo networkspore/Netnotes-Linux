@@ -138,6 +138,9 @@ public class NetworksData implements InstallerInterface {
             java.awt.Font ocrFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, stream).deriveFont(48f);
             ge.registerFont(ocrFont);
             stream.close();
+            
+ 
+            
         } catch (FontFormatException | IOException e) {
 
             try {

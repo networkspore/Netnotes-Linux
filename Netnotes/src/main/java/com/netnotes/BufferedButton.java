@@ -27,14 +27,14 @@ public class BufferedButton extends Button {
 
     public BufferedButton(String urlString, double imageWidth) {
         super();
-       
-        m_imgBufView = new BufferedImageView(new Image(urlString), imageWidth);
-        setGraphic(m_imgBufView);
         
+        m_imgBufView =  urlString != null ? m_imgBufView = new BufferedImageView(new Image(urlString), imageWidth) : new BufferedImageView(imageWidth);
+        setGraphic(m_imgBufView);
         
         setOnMousePressed((pressedEvent) -> m_imgBufView.applyInvertEffect(ON_MOUSE_PRESSED_EFFECT_ID, .6));
         setOnMouseReleased((pressedEvent) -> m_imgBufView.removeEffect(ON_MOUSE_PRESSED_EFFECT_ID));
-         setId("menuBtn");
+        setId("menuBtn");
+        
     }
 
 

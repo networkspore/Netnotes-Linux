@@ -35,7 +35,7 @@ import org.ergoplatform.appkit.NetworkType;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-
+import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ListChangeListener;
@@ -49,6 +49,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
@@ -73,6 +74,8 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     public final static String[] TOKEN_MARKETS = new String[] { SpectrumFinance.NETWORK_ID };
 
+    public SimpleStringProperty m_marketId = new SimpleStringProperty(SpectrumFinance.NETWORK_ID);
+
     private File logFile = new File("netnotes-log.txt");
     private File m_dataFile = null;
     private File m_testnetDataFile = null;
@@ -83,7 +86,7 @@ public class ErgoTokens extends Network implements NoteInterface {
     private String m_explorerId = null;
 
     private ErgoNetworkData m_ergNetData;
-    private TokensList m_tokensList = null;
+    private ErgoTokensList m_tokensList = null;
 
     private boolean m_firstOpen = false;
     
@@ -114,7 +117,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             m_dataFile = new File(m_appDir.getAbsolutePath() + "/" + NAME + ".dat");
             m_testnetDataFile = new File(m_appDir.getAbsolutePath() + "/testnet" + NAME + ".dat");
             if(m_dataFile.isFile()){
-                m_tokensList = new TokensList(getNetworksData().getAppData().appKeyProperty().get(), m_networkType, this);
+                m_tokensList = new ErgoTokensList(getNetworksData().getAppData().appKeyProperty().get(), m_networkType, this);
             }else{
                 File tokensDir = new File(m_appDir.getAbsolutePath() + "/tokens");
                 setupTokens(getNetworksData().getAppData().appKeyProperty().get(), tokensDir);
@@ -128,7 +131,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             if(m_tokensList != null && m_tokensList.getNetworkType().toString().equals(NetworkType.MAINNET.toString())){
                 save(getNetworksData().getAppData().appKeyProperty().get(), m_tokensList.getJsonObject(), NetworkType.MAINNET);
             }else{
-                TokensList tokensList = new TokensList(oldVal, NetworkType.MAINNET, this);
+                ErgoTokensList tokensList = new ErgoTokensList(oldVal, NetworkType.MAINNET, this);
 
                 save(getNetworksData().getAppData().appKeyProperty().get(), tokensList.getJsonObject(), NetworkType.MAINNET);
             }
@@ -179,6 +182,10 @@ public class ErgoTokens extends Network implements NoteInterface {
         JsonElement dataElement = jsonObject.get("dataFile");
         JsonElement testnetDataElement = jsonObject.get("testnetDataFile");
         JsonElement explorerIdElement = jsonObject.get("explorerId");
+        JsonElement marketIdElement = jsonObject.get("marketId");
+        String defaultId = marketIdElement != null && marketIdElement.isJsonPrimitive() ? marketIdElement.getAsString() : SpectrumFinance.NETWORK_ID;
+
+        m_marketId.set(defaultId);
 
          if(ergNetData.getNetwork(ErgoExplorers.NETWORK_ID) != null){
             ErgoExplorers ergoExplorers = (ErgoExplorers) ergNetData.getNetwork(ErgoExplorers.NETWORK_ID);
@@ -256,7 +263,7 @@ public class ErgoTokens extends Network implements NoteInterface {
                 m_testnetDataFile = new File(testnetDataElement.getAsString());
             }
 
-            m_tokensList = new TokensList(getNetworksData().getAppData().appKeyProperty().get(), m_networkType, this);
+            m_tokensList = new ErgoTokensList(getNetworksData().getAppData().appKeyProperty().get(), m_networkType, this);
         }
 
       
@@ -270,7 +277,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             if(m_tokensList != null && m_tokensList.getNetworkType() == NetworkType.MAINNET){
                 save(getNetworksData().getAppData().appKeyProperty().get(), m_tokensList.getJsonObject(), NetworkType.MAINNET);
             }else{
-                TokensList tokensList = new TokensList(oldVal, NetworkType.MAINNET, this);
+                ErgoTokensList tokensList = new ErgoTokensList(oldVal, NetworkType.MAINNET, this);
 
                 save(getNetworksData().getAppData().appKeyProperty().get(), tokensList.getJsonObject(), NetworkType.MAINNET);
             }
@@ -391,13 +398,13 @@ public class ErgoTokens extends Network implements NoteInterface {
                
             });
 
-            Tooltip defaultMarketTip = new Tooltip("Token Market: (set default)");
-            defaultMarketTip.setShowDelay(new javafx.util.Duration(50));
-            defaultMarketTip.setFont(App.txtFont);
+            Tooltip marketTip = new Tooltip("Token Market: (set default)");
+            marketTip.setShowDelay(new javafx.util.Duration(50));
+            marketTip.setFont(App.txtFont);
      
-            BufferedMenuButton defaultMarketBtn = new BufferedMenuButton("/assets/ergo-charts-30.png", App.MENU_BAR_IMAGE_WIDTH);
-            defaultMarketBtn.setPadding(new Insets(2, 0, 0, 2));
-            defaultMarketBtn.setTooltip(defaultMarketTip);
+            BufferedMenuButton marketBtn = new BufferedMenuButton("/assets/ergo-charts-30.png", App.MENU_BAR_IMAGE_WIDTH);
+            marketBtn.setPadding(new Insets(2, 0, 0, 2));
+            marketBtn.setTooltip(marketTip);
 
             
 
@@ -449,9 +456,80 @@ public class ErgoTokens extends Network implements NoteInterface {
                 updateExplorerBtn.run();
             };
 
-    
+            Runnable updateMarketBtn = () ->{
+                String selectedMarketId = getmarketId();
+            
+                NoteInterface selectedMarket = getNetworksData().getNoteInterface(selectedMarketId);
+            
+            
+                if(selectedMarket != null){
+                
+                    marketTip.setText("Selected Market: " + selectedMarket.getName());
+                    marketBtn.setImage(selectedMarket.getButton().getIcon());
+                    
 
-            HBox rightSideMenu = new HBox(defaultMarketBtn, explorerBtn);
+                }else{
+                    marketBtn.setImage(new Image("/assets/ergo-charts-30.png"));
+                    marketTip.setText("Selected Market: (none)");
+                    
+                }
+                
+            };
+
+            Runnable updateMarketMenu = () -> {
+                marketBtn.getItems().clear();
+    
+                String marketId = getmarketId();
+                
+                MenuItem noneMenuItem = new MenuItem("(disabled)");
+                if( marketId == null){
+                    noneMenuItem.setId("selectedMenuItem");
+                }
+                
+    
+                noneMenuItem.setOnAction(e->{
+                    setmarketId(null);
+                    getLastUpdated().set(LocalDateTime.now());
+                    updateMarketBtn.run();
+                });
+                marketBtn.getItems().add(noneMenuItem);
+         
+    
+            
+    
+                for (int i = 0; i < TOKEN_MARKETS.length ; i++) {
+                    String networkId = TOKEN_MARKETS[i];
+                    NoteInterface noteInterface = getNetworksData().getNoteInterface(networkId);
+                    
+                    if(noteInterface != null){
+                        String name = noteInterface.getName();
+                        boolean isSelected = marketId != null && networkId != null && marketId.equals(networkId);
+                        MenuItem menuItem = new MenuItem( name+  (isSelected ?  " (selected)" : ""));
+                        menuItem.setGraphic(IconButton.getIconView(noteInterface.getButton().getIcon(), App.MENU_BAR_IMAGE_WIDTH));
+                        if(isSelected){
+                            menuItem.setId("selectedMenuItem");
+                        }
+                        menuItem.setOnAction(e->{
+                            m_marketId.set(networkId);
+                            updateMarketBtn.run();
+                        });
+    
+                        marketBtn.getItems().add(menuItem);
+                       
+                    }
+                }
+             
+                updateMarketBtn.run();
+            };
+    
+            Platform.runLater(()->updateMarketMenu.run());
+    
+            m_marketId.addListener((obs,oldval, newval)->updateMarketMenu.run());
+            
+         
+      
+
+            HBox rightSideMenu = new HBox(marketBtn, explorerBtn);
             rightSideMenu.setId("rightSideMenuBar");
             rightSideMenu.setPadding(new Insets(0, 10, 0, 20));
 
@@ -553,7 +631,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
     
                 getAvailableExplorerMenu.run();
-        
+                updateMarketMenu.run();
             });
 
             getAvailableExplorerMenu.run();
@@ -630,11 +708,11 @@ public class ErgoTokens extends Network implements NoteInterface {
         return m_testnetDataFile;
     }
 
-    public TokensList getTokensList(NetworkType networkType){
+    public ErgoTokensList getTokensList(NetworkType networkType){
         if(m_tokensList.getNetworkType().toString().equals(networkType.toString())){
             return m_tokensList;
         }else{
-            return new TokensList(getNetworksData().getAppData().appKeyProperty().get(), networkType, this);
+            return new ErgoTokensList(getNetworksData().getAppData().appKeyProperty().get(), networkType, this);
         }
         //return tokensList;
     }
@@ -674,6 +752,18 @@ public class ErgoTokens extends Network implements NoteInterface {
         getLastUpdated().set(LocalDateTime.now());
     }
 
+    public String getmarketId(){
+        return m_marketId.get();
+    }
+
+    public void setmarketId(String id){
+        m_marketId.set(id);
+    }
+
+    public SimpleStringProperty marketIdProperty(){
+        return m_marketId;
+    }
+
     @Override
     public JsonObject getJsonObject() {
         JsonObject json = super.getJsonObject();
@@ -687,6 +777,9 @@ public class ErgoTokens extends Network implements NoteInterface {
         }
         if(m_explorerId != null){
             json.addProperty("explorerId", m_explorerId);
+        }
+        if(m_marketId != null){
+            json.addProperty("marketId", getmarketId());
         }
         return json;
     }
@@ -713,8 +806,8 @@ public class ErgoTokens extends Network implements NoteInterface {
             }
         }
         
-        m_tokensList = new TokensList(appKey, m_networkType, this);
-
+        m_tokensList = new ErgoTokensList(appKey, m_networkType, this);
+     
         if (tokensDir.isDirectory() && createdtokensDirectory) {
             //ArrayList<ErgoNetworkToken> ergoTokenList = new ArrayList<ErgoNetworkToken>();
 
@@ -898,6 +991,8 @@ public class ErgoTokens extends Network implements NoteInterface {
             }
         }
     }
+    
+    
 
     @Override
     public IconButton getButton(String iconStyle) {

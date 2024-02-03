@@ -13,9 +13,17 @@ public class BufferedImageView extends ImageView {
     private Image m_img;
     private ArrayList<Effects> m_effects = new ArrayList<Effects>();
 
+   
+
     public BufferedImageView() {
         super();
         m_img = null;
+        setPreserveRatio(true);
+    } 
+    
+    public BufferedImageView(double fitWidth){
+        this();
+        setFitWidth(fitWidth);
     }
 
     public BufferedImageView(Image image, double imageWidth) {

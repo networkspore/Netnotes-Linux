@@ -1905,7 +1905,7 @@ public class AddressData extends Network {
                 
                 ErgoTokens ergoTokens = m_addressesData.isErgoTokensProperty().get() ? (ErgoTokens) m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) : null;
             
-                TokensList tokensList = ergoTokens != null ? ergoTokens.getTokensList(getNetworkType()) : null;
+                ErgoTokensList tokensList = ergoTokens != null ? ergoTokens.getTokensList(getNetworkType()) : null;
 
                
                 

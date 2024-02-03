@@ -145,7 +145,9 @@ public class SpectrumMarketItem {
         rowButton.setGraphic(buttonImage == null ? null : IconButton.getIconView(buttonImage, buttonImage.getWidth()));
         rowButton.setId("rowBtn");
 
-        HBox rowBox = new HBox(favoriteBtn, rowButton);
+        Text hasChart = new Text(m_marketDataProperty.get().getPoolId() != null ? " Chart Available" : "");
+
+        HBox rowBox = new HBox(favoriteBtn, rowButton, hasChart);
 
         rowButton.prefWidthProperty().bind(rowBox.widthProperty().subtract(favoriteBtn.widthProperty()));
 
@@ -179,14 +181,14 @@ public class SpectrumMarketItem {
         }
         int height = 30;
         int symbolColWidth = 160;
-        String symbolString = String.format("%-18s", getCurrentSymbol(m_dataList.getSortMethod().isTargetSwapped()) );
-        String priceString = m_dataList.getSortMethod().isTargetSwapped() ? data.getInvertedLastPrice().toString() : data.getLastPrice().toString();
+        String symbolString = String.format("%-18s", getCurrentSymbol(isInvert()) );
+        String priceString = isInvert() ? data.getInvertedLastPrice().toString() : data.getLastPrice().toString();
 
         boolean positive = false;
         boolean neutral = true;
 
         java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 15);
-
+        java.awt.Font txtFont = new java.awt.Font("Deja Vu Sans", java.awt.Font.PLAIN, 15);
         BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = img.createGraphics();
         g2d.setFont(font);
@@ -210,7 +212,7 @@ public class SpectrumMarketItem {
         g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        g2d.setFont(font);
+        g2d.setFont(txtFont);
         g2d.setColor(WHITE_COLOR);
         g2d.drawString(symbolString, 0, stringY);
     
@@ -248,10 +250,14 @@ public class SpectrumMarketItem {
         return getId();
     }
 
+    public boolean isInvert(){
+        return m_marketDataProperty.get().getDefaultInvert() ? !m_dataList.getSortMethod().isTargetSwapped() : m_dataList.getSortMethod().isTargetSwapped();
+    }
+
     public void showStage() {
         if (m_stage == null) {
          
-            SimpleBooleanProperty isInvertChart = new SimpleBooleanProperty(m_dataList.getSortMethod().isTargetSwapped());
+            SimpleBooleanProperty isInvertChart = new SimpleBooleanProperty(isInvert());
 
             double sceneWidth = 750;
             double sceneHeight = 800;

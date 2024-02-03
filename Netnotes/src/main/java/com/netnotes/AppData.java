@@ -28,21 +28,21 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
-
+import com.utils.GitHubAPI;
+import com.utils.GitHubAPI.GitHubAsset;
 import com.utils.Utils;
 import com.utils.Version;
 
-
+import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-
 
 public class AppData {
    // private static File logFile = new File("netnotes-log.txt");
     public static final String SETTINGS_FILE_NAME = "settings.conf";
     public static final String HOME_DIRECTORY = System.getProperty("user.home");
     public static final File DESKTOP_DIRECTORY = new File(HOME_DIRECTORY + "/Desktop");
+  
+    
 
     private File m_appDir = null;
     private File m_settingsFile = null;
@@ -101,10 +101,12 @@ public class AppData {
     private void openJson(JsonObject dataObject) throws JsonParseException{
         
         JsonElement appkeyElement = dataObject.get("appKey");
+        JsonElement updatesElement = dataObject.get("updates");
 
         if (appkeyElement != null && appkeyElement.isJsonPrimitive()) {
 
             m_appKey = appkeyElement.getAsString();
+            m_updates = updatesElement != null && updatesElement.isJsonPrimitive() ? updatesElement.getAsBoolean() : false;
            
         } else {
             throw new JsonParseException("Null appKey");
@@ -114,6 +116,11 @@ public class AppData {
 
     public boolean getUpdates(){
         return m_updates;
+    }
+
+    public void setUpdates(boolean updates) throws IOException{
+        m_updates = updates;
+        save();
     }
    
 
@@ -147,7 +154,57 @@ public class AppData {
 
     }
 
+    
 
+
+    public void checkForUpdates( SimpleObjectProperty<UpdateInformation> updateInformation){
+        GitHubAPI gitHubAPI = new GitHubAPI(App.GITHUB_USER, App.GITHUB_PROJECT);
+         gitHubAPI.getAssetsLatest((onFinished)->{
+            UpdateInformation tmpInfo = new UpdateInformation();
+
+                Object finishedObject = onFinished.getSource().getValue();
+                if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
+            
+                    GitHubAsset[] assets = (GitHubAsset[]) finishedObject;
+              
+                    for(GitHubAsset asset : assets){
+                        if(asset.getName().equals("releaseInfo.json")){
+                            tmpInfo.setReleaseUrl(asset.getUrl());
+                            
+                        }else{
+                            if(asset.getContentType().equals("application/x-java-archive")){
+                                if(asset.getName().startsWith("netnotes-")){
+                                   
+                                    tmpInfo.setAppName(asset.getName());
+                                    tmpInfo.setTagName(asset.getTagName());
+                                    tmpInfo.setAppUrl(asset.getUrl());
+                                                                
+                                }
+                            }
+                        }
+                    }
+
+                    Utils.getUrlJson(tmpInfo.getReleaseUrl(), (onReleaseInfo)->{
+                        Object sourceObject = onReleaseInfo.getSource().getValue();
+                        if(sourceObject != null && sourceObject instanceof com.google.gson.JsonObject){
+                            com.google.gson.JsonObject releaseInfoJson = (com.google.gson.JsonObject) sourceObject;
+                            UpdateInformation upInfo = new UpdateInformation(tmpInfo.getAppUrl(),tmpInfo.getTagName(),tmpInfo.getAppName(),null,tmpInfo.getReleaseUrl());
+                            upInfo.setReleaseInfoJson(releaseInfoJson);
+             
+                            Platform.runLater(()->updateInformation.set(upInfo));
+                        }
+                    }, (releaseInfoFailed)->{
+
+                    }, null);
+                    
+                 
+
+                }
+            },(onFailed)->{
+
+            });
+
+    }
 
     
     public String getAppKey() {
@@ -188,11 +245,79 @@ public class AppData {
     public JsonObject getJson() {
         JsonObject dataObject = new JsonObject();
         dataObject.addProperty("appKey", m_appKey);
+        dataObject.addProperty("updates", m_updates);
         return dataObject;
     }
 
     public void save() throws IOException {
         String jsonString = getJson().toString();
         Files.writeString(m_settingsFile.toPath(), jsonString);
+    }
+
+    protected class UpdateInformation{
+        private String m_appUrl = null;
+        private String m_tagName = null;
+        private String m_appName = null; 
+        private HashData m_appHashData = null;
+        private String m_releaseUrl;
+        private JsonObject m_releaseInfoJson = null;
+
+        public UpdateInformation(){
+        }
+
+        public UpdateInformation(String appUrl, String tagName, String appName, HashData hashData, String releaseUrl){
+            m_appUrl = appUrl;
+            m_tagName = tagName;
+            m_appName = appName;
+            m_appHashData = hashData;
+            m_releaseUrl = releaseUrl;
+        }
+
+        public void setReleaseInfoJson(JsonObject releaseInfo){
+            m_releaseInfoJson = releaseInfo;
+          
+            m_appHashData = new HashData(m_releaseInfoJson.get("application").getAsJsonObject().get("hashData").getAsJsonObject());
+        }
+
+        public JsonObject getReleaseInfoJson(){
+            return m_releaseInfoJson;
+        }
+
+        public String getReleaseUrl(){
+            return m_releaseUrl;
+        }
+
+        public void setReleaseUrl(String releaseUrl){
+            m_releaseUrl = releaseUrl;
+        }
+
+        public String getAppUrl(){
+            return m_appUrl;
+        }
+
+        public String getTagName(){
+            return m_tagName;
+        }
+
+        public String getAppName(){
+            return m_appName;
+        } 
+        public HashData getAppHashData(){
+            return m_appHashData;
+        }
+
+        public void setAppUrl(String url){
+            m_appUrl = url;
+        }
+
+        public void setTagName(String tagName){
+            m_tagName = tagName;
+        }
+        public void setAppName(String name){
+            m_appName = name;
+        } 
+        public void setAppHashData(HashData hashData){
+            m_appHashData = hashData;
+        } 
     }
 }
