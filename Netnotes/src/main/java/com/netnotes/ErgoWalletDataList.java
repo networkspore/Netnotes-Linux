@@ -82,7 +82,7 @@ public class ErgoWalletDataList {
     private double m_stageWidth = 600;
     private double m_stageHeight = 450;
 
-    public ErgoWalletDataList(double width, String iconStyle, File dataFile, File walletsDirectory, ErgoWallets ergoWallet) {
+    public ErgoWalletDataList(double width, String iconStyle, File dataFile, ErgoWallets ergoWallet) {
         m_gridWidth = new SimpleDoubleProperty(width);
         m_iconStyle = new SimpleStringProperty(iconStyle);
         m_gridBox = new VBox();

@@ -67,16 +67,16 @@ public class AmountBox extends HBox {
         
     }
 
+    private AddressesData m_addressesData;
 
-
-    public AmountBox(PriceAmount priceAmount, Scene scene, SimpleBooleanProperty isErgoTokensProperty, ErgoNetworkData ergoNetworkData) {
+    public AmountBox(PriceAmount priceAmount, Scene scene, AddressesData addressesData) {
         super();
         setId("darkRowBox");
         setMinHeight(45);
         setMaxHeight(45);
 
         m_currentAmount.set(priceAmount);
-  
+        m_addressesData = addressesData;
         
 
        
@@ -238,14 +238,15 @@ public class AmountBox extends HBox {
 
         MenuItem installErgoTokensItem = new MenuItem("Install Ergo Tokens");
         installErgoTokensItem.setOnAction(e->{
-            ergoNetworkData.showwManageStage();
+            m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().showwManageStage();
+          
         });
 
         final String enableString = "enable";
 
         MenuItem enableErgoTokens = new MenuItem("Enable Ergo Tokens");
         enableErgoTokens.setOnAction(e->{
-            isErgoTokensProperty.set(true);
+            m_addressesData.isErgoTokensProperty().set(true);
         });
 
         final String rememberString = "Remember";
@@ -263,8 +264,11 @@ public class AmountBox extends HBox {
 
         Runnable updates = () ->{
             
-            boolean isErgoTokens = isErgoTokensProperty.get();
-            ErgoTokens ergoTokens = (ErgoTokens) ergoNetworkData.getNetwork(ErgoTokens.NETWORK_ID) ;
+            
+            ErgoTokensList tokensList = m_addressesData.tokensListProperty().get();
+
+            boolean isErgoTokens = tokensList != null;
+
             Object btnUserData =ergoTokensBtn.getUserData();
             String tokenOptionsBtnUserData = btnUserData != null && btnUserData instanceof String ?  (String) btnUserData : "null";
 
@@ -278,9 +282,8 @@ public class AmountBox extends HBox {
                 PriceCurrency currency = currentAmount.getCurrency();
         
                
-
-                if(ergoTokens != null && isErgoTokens){
-            
+                if(tokensList != null){
+                   
                     if(currency instanceof ErgoNetworkToken){
                         
                         if(!tokenOptionsBtnUserData.equals(viewString)){
@@ -306,7 +309,7 @@ public class AmountBox extends HBox {
                             addItem.setOnAction(e->{
                                   
                                NetworkType tokenNetworkType = currency.getNetworkTypeString().equals(NetworkType.TESTNET.toString()) ? NetworkType.TESTNET : NetworkType.MAINNET;
-                               ErgoTokensList tokensList = ergoTokens.getTokensList(tokenNetworkType);
+                               
                                //  Alert a = new Alert(AlertType.NONE, "ok", ButtonType.OK);
                              //   a.show();
 
@@ -331,7 +334,7 @@ public class AmountBox extends HBox {
                         }
                     }
                 }else{
-                    if(!isErgoTokens && ergoTokens != null){
+                    if(!isErgoTokens && m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) != null){
                         
                         if(!tokenOptionsBtnUserData.equals(enableString)){
                             ergoTokensBtn.setUserData(enableString);
@@ -360,8 +363,8 @@ public class AmountBox extends HBox {
             updates.run();
             updateBufferedImage();
         });
-        isErgoTokensProperty.addListener((obs,oldval,newval)->updates.run());
-        ergoNetworkData.addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> updates.run());
+        m_addressesData.tokensListProperty().addListener((obs,oldval,newval)->updates.run());
+        m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> updates.run());
         
         updateBufferedImage();
         updates.run();

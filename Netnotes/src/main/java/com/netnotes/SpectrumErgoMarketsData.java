@@ -1,27 +1,15 @@
 package com.netnotes;
 
-import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 
 import com.devskiller.friendly_id.FriendlyId;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
-import javafx.application.Platform;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
+import com.google.gson.JsonObject;
 
 public class SpectrumErgoMarketsData extends ErgoMarketsData{
     
-    private String m_id = FriendlyId.createFriendlyId();
-
 
     public SpectrumErgoMarketsData(ErgoMarketsList marketsList){
         super("Spectrum Finance", SpectrumFinance.NETWORK_ID, "ERG", "sigUSD", ErgoMarketsData.POLLED, ErgoMarketsData.TICKER, marketsList);
@@ -45,16 +33,19 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
 
     
    
-    public void onTickerMsg(SpectrumMarketData[] marketData){
+    public void updateMarkets(SpectrumMarketData[] marketData){
         //SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD")
         //priceQuoteProperty().set();
-        SpectrumMarketData data = SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD");
-        priceQuoteProperty().set(data);
-        try {
-            Files.writeString(logFile.toPath(), "ErgoMarkets Spectrum onTickerMsg: " + (data != null ? data.getBaseId() : "data null"), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-
+        if(marketData != null){
+            SpectrumMarketData data = SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD");
+            
+            priceQuoteProperty().set(data);
+            marketDataProperty().set(marketData);
+        }else{
+            priceQuoteProperty().set(null);
+            marketDataProperty().set(null);
         }
+     
 
     }
     SpectrumMarketInterface m_msgListener;
@@ -69,44 +60,51 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
 
 
     }*/
+    private String m_exchangeId = FriendlyId.createFriendlyId();
     public void connectToExchange(SpectrumFinance spectrum){
-        statusProperty().set(STARTED);
+        statusProperty().set(ErgoMarketsData.STARTED);
+       
         
-  
-
         m_msgListener = new SpectrumMarketInterface() {
             
             
           
             public String getId() {
-                return m_id;
+                return m_exchangeId;
             }
         
             public void marketArrayChange(SpectrumMarketData[] dataArray) {
-                onTickerMsg(dataArray);
+                try {
+                    Files.writeString(logFile.toPath(), "\nspecErgoMarkets got data: ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+               
+                }
+                if(dataArray != null){
+                    updateMarkets(dataArray);
+                }else{
+                    priceQuoteProperty().set(null);
+                }
             }
 
 
         };
 
         spectrum.addMsgListener(m_msgListener);
-
+        
         setShutdownListener((obs, oldval, newVal) -> {
+            try {
+                Files.writeString(logFile.toPath(), "\nSpecErgoMarkets stopping", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+           
+            }
             spectrum.removeMsgListener(m_msgListener);
-            statusProperty().set(STOPPED);
+            statusProperty().set(ErgoMarketsData.STOPPED);
+            getShutdownNow().removeListener(getShutdownListener());
+            priceQuoteProperty().set(null);
         });
        // spectrum.
         
     }
 
-    @Override
-    public void shutdown(){
-        if (getMarketId() != null &&  !statusProperty().get().equals(STARTED)) {
-            NoteInterface marketInterface = getMarketsList().getErgoMarkets().getNetworksData().getNoteInterface(getMarketId());
-           
-            if (marketInterface instanceof SpectrumFinance) {
-            }
-        }
-        super.shutdown();
-    }
+
 }

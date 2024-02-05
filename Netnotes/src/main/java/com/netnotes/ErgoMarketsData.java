@@ -3,12 +3,6 @@ package com.netnotes;
 
 import java.io.File;
 import java.time.LocalDateTime;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
@@ -19,10 +13,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -81,7 +72,7 @@ public class ErgoMarketsData {
     private SimpleObjectProperty<PriceQuote> m_priceQuoteProperty = new SimpleObjectProperty<PriceQuote>(null);
     private SimpleStringProperty m_statusProperty = new SimpleStringProperty(STOPPED);
 
-
+    private SimpleObjectProperty<PriceQuote[]> m_marketDataProperty = new SimpleObjectProperty<>(new PriceQuote[0]);
 
     public ErgoMarketsData(ErgoMarketsList marketsList, JsonObject json) throws NullPointerException {
         m_marketsList = marketsList;
@@ -173,7 +164,9 @@ public class ErgoMarketsData {
     }
 
 
-
+    public SimpleObjectProperty<PriceQuote[]> marketDataProperty(){
+        return m_marketDataProperty;
+    }
 
     public String getUpdateType() {
         return m_updateType;

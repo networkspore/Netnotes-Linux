@@ -188,11 +188,7 @@ public class ErgoNetworkToken extends PriceCurrency {
 
     }
     public void updatePriceQuote(){
-        String marketId = m_marketId == null ? m_tokensList.getErgoTokens().marketIdProperty().get() : m_marketId;
-
-        if(marketId != null){
-           
-        }
+       
     }
 
     public void visitUrl(){

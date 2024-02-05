@@ -184,21 +184,23 @@ public class ErgoMarkets extends Network implements NoteInterface {
             scrollPane.setContent(gridBox);
 
             ResizeHelper.addResizeListener(m_stage, 300, 300, rect.getWidth(), rect.getHeight());
-
-            m_stage.setOnCloseRequest(e -> {
+            Runnable doClose = ()->{
                 marketsList.shutdown();
                 m_stage = null;
+            };
+            m_stage.setOnCloseRequest(e -> {
+                doClose.run();
             });
 
             closeBtn.setOnAction(closeEvent -> {
               
                 m_stage.close();
-                m_stage = null;
+                doClose.run();
             });
             shutdownNowProperty().addListener((obs, oldVal, newVal) -> {
         
                 m_stage.close();
-                m_stage = null;
+                doClose.run();
             });
 
             gridBox.heightProperty().addListener((obs, oldVal, newVal) -> {

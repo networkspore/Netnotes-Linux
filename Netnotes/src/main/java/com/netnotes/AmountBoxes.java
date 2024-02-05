@@ -53,9 +53,6 @@ public class AmountBoxes extends VBox {
         }
 
     }
-    public SimpleObjectProperty<PriceQuote> priceQuoteProperty(){
-        return m_priceQuoteProperty;
-    }
 
     public ObservableList<AmountBox> amountsList(){
         return m_amountsList;
@@ -122,7 +119,7 @@ public class AmountBoxes extends VBox {
             AmountBox existingBox = getAmountBox(amountBox.getTokenId());
             if(existingBox == null){
                 m_amountsList.add(amountBox);
-                amountBox.priceQuoteProperty().bind(m_priceQuoteProperty);
+             
             }else{ 
                 PriceAmount newPriceAmount = amountBox.priceAmountProperty().get();
                 existingBox.priceAmountProperty().set(newPriceAmount);

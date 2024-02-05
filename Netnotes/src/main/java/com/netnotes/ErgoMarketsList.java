@@ -400,7 +400,7 @@ public class ErgoMarketsList {
             ErgoMarketsData selectedMarketData = selectedMarketsData.get();
 
             menuBtn.getItems().clear();
-            MenuItem noneMenuItem = new MenuItem("(disabled)");
+            MenuItem noneMenuItem = new MenuItem("(disable)");
             if(selectedMarketData == null){
                 noneMenuItem.setId("selectedMenuItem");
             }

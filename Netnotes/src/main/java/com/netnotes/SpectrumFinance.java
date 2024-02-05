@@ -3,34 +3,29 @@ package com.netnotes;
 import java.awt.Rectangle;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.channels.FileLock;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+
+import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -39,16 +34,12 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
 import com.utils.Utils;
 
-import io.circe.Json;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -69,7 +60,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
@@ -97,7 +87,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
     private File m_appDir = null;
    // private File m_dataFile = null;
-    private File m_dataDir = null;
+
 
     private Stage m_appStage = null;
 
@@ -184,14 +174,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private void setup(JsonObject jsonObject) {
 
 
-        String fileString = null;
         String appDirFileString = null;
         if (jsonObject != null) {
             JsonElement appDirElement = jsonObject.get("appDir");
       
-            JsonElement dataFileElement = jsonObject.get("dataFile");
+          //  JsonElement dataFileElement = jsonObject.get("dataFile");
 
-            fileString = dataFileElement == null ? null : dataFileElement.toString();
+        //    fileString = dataFileElement == null ? null : dataFileElement.toString();
 
             appDirFileString = appDirElement == null ? null : appDirElement.getAsString();
 
@@ -212,14 +201,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
    
 
-        m_dataDir = new File(m_appDir.getAbsolutePath() + "/data");
-        if(!m_dataDir.isDirectory()){
-            try {
-                Files.createDirectories(m_dataDir.toPath());
-            } catch (IOException e) {
-          
-            }
-        }
+        setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
+        getDataDir();
 
     }
 
@@ -233,12 +216,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return m_appStage;
     }
 
-    public File getDataDir(){
-        
-        return m_dataDir;
-    }
+
     public static SpectrumMarketData getMarketDataBySymbols(SpectrumMarketData[] dataArray,  String baseSymbol, String quoteSymbol) {
-        if (baseSymbol != null && quoteSymbol != null) {
+        if (dataArray != null && baseSymbol != null && quoteSymbol != null) {
             for (SpectrumMarketData data : dataArray) {
 
            
@@ -322,7 +302,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Button closeBtn = new Button();
 
             Runnable runClose = () -> {
-
+                
         
                 spectrumData.shutdown();
                 spectrumData.removeUpdateListener();
@@ -595,8 +575,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     }
                 }
             });
-
-           
+            FxTimer.runLater(Duration.ofMillis(100), ()->Platform.runLater(()->spectrumData.connectToExchange(this)));
+            
 
             m_appStage.setOnCloseRequest(e -> runClose.run());
 
@@ -979,20 +959,19 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
     private ChangeListener<LocalDateTime> m_timeCycleListener = null;
-    SimpleObjectProperty<SpectrumMarketData[]> m_dataArrayObject = new SimpleObjectProperty<>();
-
+    
     public void startUpdating(){
+        SimpleObjectProperty<SpectrumMarketData[]> dataArrayObject = new SimpleObjectProperty<>(null);
+
         m_connectionStatus.set(1);
        
         Runnable doUpdate = ()-> {
          
-            getMarketArray(m_dataArrayObject);
+            getMarketArray(dataArrayObject);
         };
         m_timeCycleListener = (obs,oldval,newval)-> doUpdate.run();
         getNetworksData().timeCycleProperty().addListener(m_timeCycleListener);
 
-  
-        
             
         ChangeListener<SpectrumMarketData[]> dataChangeListener = (obs,oldval,newval)->{
         
@@ -1011,13 +990,18 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 shutdown();
             }
         };
-        m_dataArrayObject.addListener(dataChangeListener);
+        dataArrayObject.addListener(dataChangeListener);
         doUpdate.run();
-        shutdownNowProperty().addListener((obs,oldval,newval)->{
-         
+        addShutdownListener((obs,oldval,newval)->{
+            try {
+                Files.writeString(logFile.toPath(), "\nSpectrum finance shutdown", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+             
+            }
             getNetworksData().timeCycleProperty().removeListener(m_timeCycleListener);
             m_connectionStatus.set(0);
-            m_dataArrayObject.removeListener(dataChangeListener);
+            dataArrayObject.removeListener(dataChangeListener);
+            removeShutdownListener();
         });
     }
 
@@ -1043,19 +1027,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
         if (listener != null) {
             boolean removed = m_msgListeners.remove(listener);
 
-            /*try {
+            try {
                 Files.writeString(logFile.toPath(), "removed listener:" + item.getId() + " " + removed, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e) {
 
-            }*/
+            }
 
             if (m_msgListeners.size() == 0) {
                 shutdown();
-                try {
-                    Files.writeString(logFile.toPath(), "\nRemoved all Listeners shutting down ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
               
-                }
             }
             return removed;
         }
@@ -1076,98 +1056,5 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         return iconButton;
     }
-    public File getIdIndexFile(){
-        return new File(m_dataDir.getAbsolutePath() + "/index.dat");
-    }
     
-    public File addNewIdFile(String id, JsonArray jsonArray){
-        String filePath = m_dataDir.getAbsolutePath() + "/" + id + ".dat";
-        File newFile = new File(filePath);
-        JsonObject json = new JsonObject();
-        json.addProperty("id", id);
-        json.addProperty("file", filePath);
-
-        jsonArray.add(json);
-        return newFile;
-    }
-    public SecretKey getAppKey(){
-        return getNetworksData().getAppData().appKeyProperty().get();
-    }
-    public void saveIndexFile(JsonArray jsonArray){
-        JsonObject json = new JsonObject();
-        json.add("fileArray", jsonArray);
-        
-        try {
-            Utils.saveJson(getAppKey(), json, getIdIndexFile());
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                | IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "SpectrumFinance (saveIndexFile): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
-            }
-        }
-    }
-
-    private JsonArray getIndexFileArray(SecretKey key, File indexFile){
-        try {
-            JsonObject indexFileJson = indexFile.isFile() ? Utils.readJsonFile(key, indexFile) : null;
-            if(indexFileJson != null){
-                JsonElement fileArrayElement = indexFileJson.get("fileArray");
-                if(fileArrayElement != null && fileArrayElement.isJsonArray()){
-                    return fileArrayElement.getAsJsonArray();
-                }
-            }
-        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                | IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
-            }
-            
-        }
-        return null;
-    }
-
-    public File getIdDataFile(String id){
-        File indexFile = getIdIndexFile();
-        JsonArray indexFileArray = indexFile.isFile() ? getIndexFileArray(getAppKey(), indexFile) : null;
-        
-        if(indexFileArray != null){
-            File existingFile = getFileById(id, indexFileArray);
-            if(existingFile != null){
-                return existingFile;
-            }else{
-                File newFile = addNewIdFile(id, indexFileArray);
-                saveIndexFile(indexFileArray);
-                return newFile;
-            }
-        }else{
-            JsonArray newIndexFileArray = new JsonArray();
-            File newFile = addNewIdFile(id, newIndexFileArray);
-            
-            saveIndexFile(newIndexFileArray);
-
-            return newFile;
-        }
-
-    }
-
-    private File getFileById(String id, JsonArray jsonArray){
-        int size = jsonArray.size();
-        for(int i = 0; i < size; i++){
-            JsonElement jsonElement = jsonArray.get(i);
-            
-            JsonObject obj = jsonElement.getAsJsonObject();
-
-            String idString = obj.get("id").getAsString();
-            if(idString.equals(id)){
-                return new File(obj.get("file").getAsString());
-            }
-        }
-        return null;
-    }
 }

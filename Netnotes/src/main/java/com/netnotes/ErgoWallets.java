@@ -141,19 +141,29 @@ public class ErgoWallets extends Network implements NoteInterface {
         jsonObject.add("stage", getStageJson());
         return jsonObject;
     }
-    
-    public File getDataDir() throws IOException{
+
+    @Override
+    public File getDataDir(){
         File dataDir = new File(getAppDir().getAbsolutePath() + "/data");
         if(!dataDir.isDirectory()){
-            Files.createDirectory(dataDir.toPath());
+            try{
+                Files.createDirectory(dataDir.toPath());
+            }catch(IOException e){
+                try {
+                    Files.writeString(logFile.toPath(),"\nWallets cannot create data directory: " + e.toString()  , StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+
+                }
+                
+            }
         }
         return dataDir;
     }
 
-    public File getIdDataFile() throws IOException{
+    public File getIdDataFile(){
         File dataDir = getDataDir();
 
-        File idDataFile = new File(dataDir.getCanonicalPath() + "/data.dat");
+        File idDataFile = new File(dataDir.getAbsolutePath() + "/data.dat");
         return idDataFile;
     }
 
@@ -408,7 +418,7 @@ public class ErgoWallets extends Network implements NoteInterface {
     public void showWalletsStage() {
         if (m_walletsStage == null) {
 
-            ErgoWalletDataList walletsDataList = new ErgoWalletDataList(getStageWidth() - 30, getStageIconStyle(), m_dataFile, m_walletsDir, this);
+            ErgoWalletDataList walletsDataList = new ErgoWalletDataList(getStageWidth() - 30, getStageIconStyle(), m_dataFile, this);
 
             String title = "Wallets" + " - " + getName();
 

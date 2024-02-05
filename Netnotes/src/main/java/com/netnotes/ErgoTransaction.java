@@ -583,7 +583,7 @@ public class ErgoTransaction {
                     for (int i = 0; i < numTokens; i++) {
                         PriceAmount tokenAmount = tokens[i];
 
-                        AmountBox amountBox = new AmountBox(tokenAmount,txScene, getParentAddress().getAddressesData().isErgoTokensProperty(), getParentAddress().getAddressesData().getWalletData().getErgoWallets().getErgoNetworkData());
+                        AmountBox amountBox = new AmountBox(tokenAmount,txScene, getParentAddress().getAddressesData());
                         amountBoxes.add(amountBox);
                         
                     }

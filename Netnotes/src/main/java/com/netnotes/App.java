@@ -286,6 +286,7 @@ public class App extends Application {
                                 openNetnotes(appData, appStage);
                              
                             } catch (Exception e1) {
+                                e1.printStackTrace();
                                 try {
                                     Files.writeString(logFile.toPath(), "\nApp  errpr " + e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                 } catch (IOException e2) {

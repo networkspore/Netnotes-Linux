@@ -69,7 +69,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
         setup(m_spectrumFinance.getNetworksData().getAppData().appKeyProperty().get());
         
-        connectToExchange(spectrumFinance);
+        
 
     }
 
@@ -121,8 +121,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 }
             }
             sort();
-            statusProperty().set(ErgoMarketsData.TICKER);
+         
           updateGridBox();
+          statusProperty().set(ErgoMarketsData.TICKER);
            getLastUpdated().set(LocalDateTime.now());
         }else{
             try {
@@ -159,11 +160,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         spectrum.addMsgListener(m_msgListener);
         
         shutdownNowProperty().addListener((obs, oldval, newVal) -> {
-            try {
-                Files.writeString(logFile.toPath(), "spectrumdatalist shutdown called",StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-        
-            }
+         
             spectrum.removeMsgListener(m_msgListener);
             statusProperty().set(ErgoMarketsData.STOPPED);
         });
@@ -281,8 +278,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
 
     public VBox getGridBox() {
-
-        return m_gridBox;
+        VBox gridBox = m_gridBox;
+        updateGridBox();
+        return gridBox;
     }
 
     public VBox getFavoriteGridBox() {

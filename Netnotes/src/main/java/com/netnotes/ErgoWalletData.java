@@ -269,6 +269,11 @@ public class ErgoWalletData extends Network implements NoteInterface {
                     } catch (Exception e1) {
 
                         passwordField.setText("");
+                        try {
+                            Files.writeString(logFile.toPath(), "Password error: " + getName() + " \n" +e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e2) {
+                  
+                        }
                         e1.printStackTrace();
                     }
 
@@ -462,57 +467,55 @@ public class ErgoWalletData extends Network implements NoteInterface {
         marketsBtn.setPadding(new Insets(2, 0, 0, 0));
         marketsBtn.setTooltip(marketsTip);
 
-        ErgoMarkets marketInterface = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-        SimpleObjectProperty<ErgoMarketsList> marketsList = new SimpleObjectProperty<>(marketInterface != null ? marketInterface.getErgoMarketsList() : null);
-        SimpleObjectProperty<ErgoMarketsData> ergoMarketsData = new SimpleObjectProperty<>( marketsList.get() != null ? marketsList.get().getMarketsData(getMarketsId()) : null);
 
-  
-         Runnable updateMarketsBtn = () ->{
+
+        SimpleObjectProperty<ErgoMarketsData> ergoMarketsData = new SimpleObjectProperty<>(addressesData.selectedMarketData().get());
+
+        Runnable updateMarketsBtn = () -> {
             ErgoMarketsData marketsData = ergoMarketsData.get();
-            ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-      
-          
-            if(marketsData != null && ergoMarkets != null){
-              
+            ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+
+            if (marketsData != null && ergoMarkets != null) {
 
                 marketsTip.setText("Ergo Markets: " + marketsData.getName());
                 addressesData.updateSelectedMarket(marketsData);
-            }else{
-               
-                if(ergoMarkets == null){
-                    marketsList.set(null);
+
+            } else {
+
+                if (ergoMarkets == null) {
                     marketsTip.setText("(install 'Ergo Markets')");
-                }else{
+                } else {
                     marketsTip.setText("Select market...");
                 }
             }
-          
-        };
 
-        ergoMarketsData.addListener((obs,oldval,newVal) -> {
-            setMarketsId(newVal == null ? null : newVal.getMarketId());
+        };
+        ergoMarketsData.addListener((obs, oldval, newVal) -> {
+            setMarketsId(newVal != null ? newVal.getMarketId() : null);
             updateMarketsBtn.run();
-            
         });
 
-        Runnable getAvailableMarketsMenu = ()->{
-            ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-            if(ergoMarkets != null){
-                ErgoMarketsList scopeMarketsList = marketsList.get();
-                if(scopeMarketsList == null){
-                    ErgoMarketsList newErgoMarketsList = ergoMarkets.getErgoMarketsList();
-                    marketsList.set(newErgoMarketsList);
-                    newErgoMarketsList.getMenu(marketsBtn, ergoMarketsData);
-                }else{
-                    scopeMarketsList.getMenu(marketsBtn, ergoMarketsData);
-                }
-                
-            }else{
+        Runnable getAvailableMarketsMenu = () -> {
+            ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+            if (ergoMarkets != null) {
+                marketsBtn.setId("menuBtn");
+
+                ergoMarkets.getErgoMarketsList().getMenu(marketsBtn, ergoMarketsData);
+            } else {
                 marketsBtn.getItems().clear();
                 marketsBtn.setId("menuBtnDisabled");
             }
             updateMarketsBtn.run();
         };
+    
+        /*Runnable setSelectedMarket = ()->{
+            ErgoMarkets marketInterface = getMarketsId() != null ? (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID) : null;
+            ErgoMarketsList marketsList = marketInterface != null ? marketInterface.getErgoMarketsList() : null;
+            ErgoMarketsData marketsData = marketsList != null ? marketsList.getMarketsData(getMarketsId()) : null;
+      
+            getAvailableMarketsMenu.run();
+        };*/
+
 
         
        
@@ -674,7 +677,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 bodyVBox.getChildren().addAll(titleBox, menuVBox, scrollBox, summaryBox, updateBox);
             }
         });
-
         addButton.setOnAction(e -> {
             addressesData.addAddress();
         });

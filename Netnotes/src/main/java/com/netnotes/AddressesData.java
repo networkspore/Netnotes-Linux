@@ -24,6 +24,8 @@ import com.satergo.WalletKey.Failure;
 import com.satergo.ergo.ErgoInterface;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 
 import javafx.beans.property.SimpleLongProperty;
@@ -76,7 +78,7 @@ public class AddressesData {
 
     private SimpleObjectProperty<ErgoAmount> m_totalErgoAmount = new SimpleObjectProperty<>(null);
 
-   
+    private SimpleObjectProperty<ErgoTokensList> m_tokensListProperty = new SimpleObjectProperty<>(null);
     
 
     private ObservableList<AddressData> m_addressDataList = FXCollections.observableArrayList();
@@ -104,6 +106,7 @@ public class AddressesData {
         ErgoNodes ergoNodes = (ErgoNodes) ergNetData.getNetwork(ErgoNodes.NETWORK_ID);
         ErgoExplorers ergoExplorer = (ErgoExplorers) ergNetData.getNetwork(ErgoExplorers.NETWORK_ID);
         ErgoTokens ergoTokens = (ErgoTokens) ergNetData.getNetwork(ErgoTokens.NETWORK_ID);
+        ErgoMarkets ergoMarkets = (ErgoMarkets) ergNetData.getNetwork(ErgoMarkets.NETWORK_ID);
 
         if (ergoNodes != null && walletData.getNodesId() != null) {
             m_selectedNodeData.set(ergoNodes.getErgoNodesList().getErgoNodeData(walletData.getNodesId()));
@@ -111,11 +114,31 @@ public class AddressesData {
         if (ergoExplorer != null && walletData.getExplorerId() != null) {
             String explorerId = walletData.getExplorerId();
             ErgoExplorerData explorerData = ergoExplorer.getErgoExplorersList().getErgoExplorerData(explorerId);
-
             m_selectedExplorerData.set(explorerData);
         }
+        boolean isTokens= ergoTokens != null && walletData.isErgoTokens();
+        m_isErgoTokens.set(isTokens);
 
-        m_isErgoTokens.set(ergoTokens == null ? false : walletData.isErgoTokens());
+        if(isTokens){
+            m_tokensListProperty.set(ergoTokens.getTokensList(networkType));
+        }
+        m_isErgoTokens.addListener((obs,oldval,newval)->{
+            if(newval){
+                m_tokensListProperty.set(ergoTokens.getTokensList(networkType));
+            }else{
+                m_tokensListProperty.set(null);
+            }
+        });
+
+        if(ergoMarkets != null && walletData.getMarketsId()!= null){
+            String marketId = walletData.getMarketsId();
+            ErgoMarketsData marketData = ergoMarkets.getErgoMarketsList().getMarketsData(marketId);
+            m_selectedMarketData.set(marketData);
+            if(marketData != null){
+                marketData.start();
+                m_currentQuote.bind(marketData.priceQuoteProperty());
+            }
+        }
 
         m_wallet.myAddresses.forEach((index, name) -> {
 
@@ -136,13 +159,13 @@ public class AddressesData {
         });
         selectedAddressDataProperty().set(m_addressDataList.get(0));
         calculateCurrentTotal();
-  
-
-        
-
+     
     }
 
    
+    public SimpleObjectProperty<ErgoTokensList> tokensListProperty(){
+        return m_tokensListProperty;
+    }
 
 
 
@@ -357,10 +380,6 @@ public class AddressesData {
 
         }
 
-        if (marketsData != null) {
-            m_currentQuote.bind(marketsData.priceQuoteProperty());
-            marketsData.start();
-        }
 
         return true;
 
