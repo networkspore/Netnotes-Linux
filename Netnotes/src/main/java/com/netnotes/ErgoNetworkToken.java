@@ -197,16 +197,12 @@ public class ErgoNetworkToken extends PriceCurrency {
             for(int i = 0; i < priceQuotes.length ; i ++){
                 PriceQuote priceQuote = priceQuotes[i];
                 if(priceQuote != null){
-                    String currency = priceQuote.getTransactionCurrency();
+                    //String currency = priceQuote.getTransactionCurrency();
                     String tokenId = getTokenId();
                     String txId = priceQuote.getTransactionCurrencyId();
                    
                     if(txId != null && tokenId.equals(txId)){
-                        try {
-                            Files.writeString(new File("priceQuotes.txt").toPath(), "\n" + priceQuote.getJsonObject().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        } catch (IOException e) {
-                         
-                        }
+                     
                         return priceQuote;
                     }
                 }
