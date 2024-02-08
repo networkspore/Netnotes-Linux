@@ -126,11 +126,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
           statusProperty().set(ErgoMarketsData.TICKER);
            getLastUpdated().set(LocalDateTime.now());
         }else{
-            try {
-                Files.writeString(logFile.toPath(), "\nSpectrumDataList (null Array)", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
- 
-            }
+           
         }
                              
 

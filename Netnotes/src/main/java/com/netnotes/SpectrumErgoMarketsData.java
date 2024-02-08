@@ -88,11 +88,7 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
         spectrum.addMsgListener(m_msgListener);
         
         setShutdownListener((obs, oldval, newVal) -> {
-            try {
-                Files.writeString(logFile.toPath(), "\nSpecErgoMarkets stopping", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-           
-            }
+          
             spectrum.removeMsgListener(m_msgListener);
             statusProperty().set(ErgoMarketsData.STOPPED);
             getShutdownNow().removeListener(getShutdownListener());

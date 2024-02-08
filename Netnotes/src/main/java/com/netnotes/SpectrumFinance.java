@@ -997,11 +997,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 
             }else{
                 if(newSize == 0){
-                    try {
-                        Files.writeString(logFile.toPath(), "\nNo Listeners shutting down ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e) {
-                  
-                    }
+                 
                     shutdown();
                 }
             }
@@ -1009,11 +1005,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             m_listenerSize = newSize;
         });
         addShutdownListener((obs,oldval,newval)->{
-            try {
-                Files.writeString(logFile.toPath(), "\nSpectrum finance shutdown", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-             
-            }
+           
             getNetworksData().timeCycleProperty().removeListener(m_timeCycleListener);
             m_connectionStatus.set(0);
             dataArrayObject.removeListener(dataChangeListener);
