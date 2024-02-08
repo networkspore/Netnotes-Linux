@@ -71,6 +71,7 @@ public class AmountBox extends HBox {
 
     public AmountBox(PriceAmount priceAmount, Scene scene, AddressesData addressesData) {
         super();
+       
         setId("darkRowBox");
         setMinHeight(45);
         setMaxHeight(45);
@@ -273,6 +274,7 @@ public class AmountBox extends HBox {
             String tokenOptionsBtnUserData = btnUserData != null && btnUserData instanceof String ?  (String) btnUserData : "null";
 
             PriceAmount currentAmount = m_currentAmount.get();
+
             if(currentAmount != null){
 
                 String newAmountText = df.format(currentAmount.getDoubleAmount());
@@ -280,12 +282,13 @@ public class AmountBox extends HBox {
                     amountField.setText(newAmountText);
                 }
                 PriceCurrency currency = currentAmount.getCurrency();
-        
+                
                
                 if(tokensList != null){
                    
                     if(currency instanceof ErgoNetworkToken){
-                        
+                        ErgoNetworkToken currencyToken = (ErgoNetworkToken) currency;
+
                         if(!tokenOptionsBtnUserData.equals(viewString)){
                             ergoTokensBtn.setUserData(viewString);
                             ergoTokensBtn.getItems().clear();
@@ -427,7 +430,12 @@ public class AmountBox extends HBox {
         boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
         BigDecimal priceAmountDecimal = priceAmount != null && quantityValid ? priceAmount.getBigDecimalAmount() : BigDecimal.valueOf(0);
 
-        PriceQuote priceQuote = m_priceQuoteProperty.get();
+        PriceCurrency priceCurrency = priceAmount != null ? priceAmount.getCurrency() : null;
+
+        int decimalPlaces = priceCurrency != null ? priceCurrency.getFractionalPrecision() : 0;
+        String currencySymbol =  priceCurrency != null ? priceCurrency.getSymbol() : "UKNOWN";
+
+        PriceQuote priceQuote = priceCurrency != null && priceCurrency instanceof ErgoNetworkToken ? ((ErgoNetworkToken) priceCurrency).getPriceQuote() : m_priceQuoteProperty.get();
         //PriceQuote priceQuote = priceQuoteBase != null ? priceQuoteBase.getPriceQuote(quantityValid ? priceAmount.getTokenId() : null) : null;
      
         //String tokenId = priceAmount != null ? priceAmount.getTokenId() : null;
@@ -442,8 +450,7 @@ public class AmountBox extends HBox {
         String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( priceAmountDecimal.multiply(priceQuoteBigDecimal), priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  quantityValid && priceValid) : " -.--";
         BigInteger integers = priceAmount != null ? priceAmount.getBigDecimalAmount().toBigInteger() : BigInteger.ZERO;
         BigDecimal decimals = priceAmount != null ? priceAmount.getBigDecimalAmount().subtract(new BigDecimal(integers)) : BigDecimal.ZERO;
-        int decimalPlaces = priceAmount != null ? priceAmount.getCurrency().getFractionalPrecision() : 0;
-        String currencySymbol = priceAmount != null ? priceAmount.getCurrency().getSymbol() : "UKNOWN";
+      
        
 
         //String currencyName = priceAmount != null ? priceAmount.getCurrency().getSymbol() : "Token";

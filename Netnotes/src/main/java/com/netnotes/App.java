@@ -70,7 +70,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.reactfx.util.FxTimer;
 
-import com.netnotes.AppData.UpdateInformation;
 import com.netnotes.IconButton.IconStyle;
 import com.google.gson.JsonParseException;
 import com.utils.GitHubAPI.GitHubAsset;
@@ -1332,10 +1331,10 @@ public class App extends Application {
 
         updateInfoProperty.addListener((obs,oldval,newval)->{
         
-            latestHashField.setText(newval.getAppHashData().getHashStringHex());
+            latestHashField.setText(newval.getJarHashData().getHashStringHex());
             latestVersionField.setText(newval.getTagName());
-            latestNameField.setText(newval.getAppName());
-            latestURLField.setText(newval.getAppUrl());
+            latestNameField.setText(newval.getJarName());
+            latestURLField.setText(newval.getJarUrl());
         
         });
         
@@ -1349,13 +1348,14 @@ public class App extends Application {
         downloadLatestBtn.setOnAction(e->{
             SimpleObjectProperty<UpdateInformation> downloadInformation = new SimpleObjectProperty<>();
             UpdateInformation updateInfo = updateInfoProperty.get();
-            if(updateInfo != null && updateInfo.getAppHashData() != null){
+            File appDir = m_networksData.getAppData().getAppDir();
+            if(updateInfo != null && updateInfo.getJarHashData() != null){
             
-                HashData appHashData = updateInfo.getAppHashData();
-                String appName = updateInfo.getAppName();
-                String urlString = updateInfo.getAppUrl();
+                HashData appHashData = updateInfo.getJarHashData();
+                String appName = updateInfo.getJarName();
+                String urlString = updateInfo.getJarUrl();
              
-                HashDataDownloader dlder = new HashDataDownloader(logo, urlString, appName, appHashData, HashDataDownloader.Extensions.getJarFilter());
+                HashDataDownloader dlder = new HashDataDownloader(logo, urlString, appName, appDir, appHashData, HashDataDownloader.Extensions.getJarFilter());
                 dlder.start();
 
             }else{
@@ -1363,10 +1363,10 @@ public class App extends Application {
                     if(newval != null){
                         updateInfoProperty.set(newval);
 
-                        String urlString = newval.getAppUrl();
+                        String urlString = newval.getJarUrl();
                         if(urlString.startsWith("http")){  
-                            HashData latestHashData = newval.getAppHashData();
-                            HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),latestHashData, HashDataDownloader.Extensions.getJarFilter());
+                            HashData latestHashData = newval.getJarHashData();
+                            HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),appDir, latestHashData, HashDataDownloader.Extensions.getJarFilter());
                             dlder.start();
                         }
                     }

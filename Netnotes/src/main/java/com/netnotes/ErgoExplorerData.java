@@ -1,5 +1,6 @@
 package com.netnotes;
 
+import java.io.File;
 //import java.io.File;
 import java.time.LocalDateTime;
 
@@ -68,7 +69,7 @@ public class ErgoExplorerData {
 
 
      public ErgoExplorerData(String id, ErgoExplorerList explorerList){
-       
+         
           m_ergoNetworkUrlProperty.set(new ErgoNetworkUrl(id,"Ergo Platform API", "https", "api.ergoplatform.com",443, NetworkType.MAINNET ));
           m_websiteUrlProperty.set( new ErgoNetworkUrl( id, "Explorer Website", "https", "explorer.ergoplatform.com", 443, NetworkType.MAINNET));
           m_explorerList = explorerList;
@@ -108,8 +109,11 @@ public class ErgoExplorerData {
         ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
 
         String urlString = namedUrl.getUrlString() + "/api/v1/tokens/" + tokenId;
-        Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+      
+        m_explorerList.getErgoExplorer().getIdJson("getTokenInfo" + tokenId, urlString, onSucceeded, onFailed);
     }
+
+
 
      public void getBalance(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 

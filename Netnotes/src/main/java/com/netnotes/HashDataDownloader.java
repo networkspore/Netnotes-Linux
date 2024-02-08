@@ -54,13 +54,23 @@ public class HashDataDownloader {
     private Image m_image = null;
     private Throwable m_failedEvent = null;
     private File m_saveFile = null;
+    private File m_dlDir = null;
 
-    public HashDataDownloader(Image logo, String urlString, String filename, HashData expectedHash, ExtensionFilter... filters ){
+    public HashDataDownloader(Image logo, String urlString, String filename, File dlDir, HashData expectedHash, ExtensionFilter... filters ){
         m_image = logo;
         m_urlString = urlString;
         m_fileName = filename;
         m_expectedHash = expectedHash;
         m_filters = filters;
+        m_dlDir = dlDir;
+    }
+
+    public File getDownloadDir(){
+        return m_dlDir;
+    }
+
+    public void setDownloadDir(File dir){
+        m_dlDir = dir;
     }
 
     public void start(){
@@ -100,7 +110,7 @@ public class HashDataDownloader {
                 navBtn.setOnAction(e -> {
                     try {
                         Utils.openDir(m_saveFile);
-                    } catch (IOException e1) {
+                    } catch (Exception e1) {
                         Alert a = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
                         a.setTitle("Error");
                         a.initOwner(m_stage);
@@ -251,6 +261,7 @@ public class HashDataDownloader {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Select Location");
             chooser.getExtensionFilters().addAll(m_filters);
+            chooser.setInitialDirectory(m_dlDir);
             chooser.setInitialFileName(m_fileName);
             m_saveFile = chooser.showSaveDialog(m_stage);
             SimpleBooleanProperty cancel = new SimpleBooleanProperty(false);

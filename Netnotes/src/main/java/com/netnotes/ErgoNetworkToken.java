@@ -17,8 +17,10 @@ import com.google.gson.JsonObject;
 import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.geometry.Insets;
@@ -27,7 +29,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -46,20 +47,15 @@ public class ErgoNetworkToken extends PriceCurrency {
 
     private File logFile = new File("netnotes-log.txt");
 
-    
-
-
-    // private ErgoTokens m_ErgoTokens = null;
     private SimpleBooleanProperty m_explorerVerified = new SimpleBooleanProperty(false);
-
 
     private SimpleDoubleProperty m_sceneWidth = new SimpleDoubleProperty(450);
     private SimpleDoubleProperty m_sceneHeight = new SimpleDoubleProperty(575);
     private String m_urlString;
     private Stage m_ergoTokenStage = null;
     private ErgoTokensList m_tokensList = null;
-    //String token_id, String name, String symbol, String description, int fractionalPrecision, String networkId, String unitImageString, String networkType, long emissionAmount, long timestamp
-    
+
+  
     public ErgoNetworkToken(String name, String tokenId, NetworkType networkType, JsonObject jsonObject, ErgoTokensList tokensList) {
         super(tokenId, name, name, name, 0,  ErgoNetwork.NETWORK_ID, "/assets/unknown-unit.png", networkType.toString(),0, 0);
         m_tokensList = tokensList;
@@ -101,6 +97,7 @@ public class ErgoNetworkToken extends PriceCurrency {
         if(getTimeStamp() == 0){
             updateTokenInfo();
         }
+     
     }
 
     public ErgoNetworkToken(String name, String url, String tokenId, String fileString, HashData hashData, NetworkType networkType, ErgoTokensList tokensList) {
@@ -111,7 +108,9 @@ public class ErgoNetworkToken extends PriceCurrency {
         setNetworkType(networkType.toString());
 
         updateTokenInfo();
+   
     }
+
 
 
     public void open() {
@@ -152,11 +151,13 @@ public class ErgoNetworkToken extends PriceCurrency {
         return networkTypeString != null ? (networkTypeString.equals(NetworkType.MAINNET.toString()) ? NetworkType.MAINNET : NetworkType.TESTNET) : NetworkType.MAINNET;
     }
 
-    private String m_marketId = null;
+
 
     public void updateTokenInfo() {
         ErgoExplorerData ergoExplorerData =  m_tokensList.getErgoTokens().explorerDataProperty().get();
-    
+        
+
+
         if(ergoExplorerData != null){
 
             ergoExplorerData.getTokenInfo(getTokenId(), succeededEvent -> {
@@ -166,11 +167,12 @@ public class ErgoNetworkToken extends PriceCurrency {
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject sourceJson = (JsonObject) sourceObject;
          
-                
-
-                    Platform.runLater(() -> setTokenData(sourceJson));
-                    m_explorerVerified.set(true);
-                    getLastUpdated().set(LocalDateTime.now());
+                    Platform.runLater(() -> {
+                        setTokenData(sourceJson);
+                        m_explorerVerified.set(true);
+                        getLastUpdated().set(LocalDateTime.now());
+                    });
+                    
                 }
             }, failedEvent -> {
                 m_explorerVerified.set(false);
@@ -187,8 +189,30 @@ public class ErgoNetworkToken extends PriceCurrency {
       
 
     }
-    public void updatePriceQuote(){
-       
+
+    @Override
+    public PriceQuote getPriceQuote(){
+        PriceQuote[] priceQuotes = m_tokensList.priceQuotesProperty().get();
+        if(priceQuotes != null){
+            for(int i = 0; i < priceQuotes.length ; i ++){
+                PriceQuote priceQuote = priceQuotes[i];
+                if(priceQuote != null){
+                    String currency = priceQuote.getTransactionCurrency();
+                    String tokenId = getTokenId();
+                    String txId = priceQuote.getTransactionCurrencyId();
+                   
+                    if(txId != null && tokenId.equals(txId)){
+                        try {
+                            Files.writeString(new File("priceQuotes.txt").toPath(), "\n" + priceQuote.getJsonObject().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e) {
+                         
+                        }
+                        return priceQuote;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     public void visitUrl(){

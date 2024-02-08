@@ -42,7 +42,7 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
             priceQuoteProperty().set(data);
             marketDataProperty().set(marketData);
         }else{
-            priceQuoteProperty().set(null);
+            priceQuoteProperty().set(null);            
             marketDataProperty().set(null);
         }
      
@@ -74,11 +74,7 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
             }
         
             public void marketArrayChange(SpectrumMarketData[] dataArray) {
-                try {
-                    Files.writeString(logFile.toPath(), "\nspecErgoMarkets got data: ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-               
-                }
+                
                 if(dataArray != null){
                     updateMarkets(dataArray);
                 }else{

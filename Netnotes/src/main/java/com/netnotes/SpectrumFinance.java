@@ -39,6 +39,9 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener.Change;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
@@ -944,7 +947,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return false;
     }
     
-    private ArrayList<SpectrumMarketInterface> m_msgListeners = new ArrayList<>();
+    private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
     private SimpleIntegerProperty m_connectionStatus = new SimpleIntegerProperty(0);
 
     public void addMsgListener(SpectrumMarketInterface item) {
@@ -953,13 +956,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
             if (m_connectionStatus.get() == 0) {
                 startUpdating();
             }
-
+            
             m_msgListeners.add(item);
         }
 
     }
     private ChangeListener<LocalDateTime> m_timeCycleListener = null;
-    
+    private int m_listenerSize = 0;
     public void startUpdating(){
         SimpleObjectProperty<SpectrumMarketData[]> dataArrayObject = new SimpleObjectProperty<>(null);
 
@@ -974,24 +977,37 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             
         ChangeListener<SpectrumMarketData[]> dataChangeListener = (obs,oldval,newval)->{
-        
-           
-            if(m_msgListeners.size() > 0){
-                
-                for(SpectrumMarketInterface msgListener : m_msgListeners){
-                    msgListener.marketArrayChange(newval);
-                }
-            }else{
-                try {
-                    Files.writeString(logFile.toPath(), "\nNo Listeners shutting down ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-              
-                }
-                shutdown();
+    
+            for(SpectrumMarketInterface msgListener : m_msgListeners){
+                msgListener.marketArrayChange(newval);
             }
+            
         };
         dataArrayObject.addListener(dataChangeListener);
         doUpdate.run();
+    
+        m_msgListeners.addListener((ListChangeListener.Change<? extends SpectrumMarketInterface> c) ->{
+            int newSize = m_msgListeners.size();
+            boolean added = newSize > m_listenerSize;
+            
+            if(added){
+                
+                SpectrumMarketInterface lastInterface = m_msgListeners.get(newSize-1);
+                lastInterface.marketArrayChange(dataArrayObject.get());
+                
+            }else{
+                if(newSize == 0){
+                    try {
+                        Files.writeString(logFile.toPath(), "\nNo Listeners shutting down ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+                  
+                    }
+                    shutdown();
+                }
+            }
+
+            m_listenerSize = newSize;
+        });
         addShutdownListener((obs,oldval,newval)->{
             try {
                 Files.writeString(logFile.toPath(), "\nSpectrum finance shutdown", StandardOpenOption.CREATE, StandardOpenOption.APPEND);

@@ -15,8 +15,10 @@ import com.google.gson.JsonObject;
 
 public class PriceCurrency {
 
+    public final static int VALID_TIMEOUT = 1000*60;
+    
     private boolean m_priceValid = true;
-    private double m_price = 0;
+   
     private String m_tokenId = null;
     private String m_symbol = null;
     private String m_name = null;
@@ -172,18 +174,15 @@ public class PriceCurrency {
     public String getFontSymbol(){
         return m_fontSymbol;
     }
+   public PriceQuote getPriceQuote() {
+        return null;
+    }
 
     public boolean getPriceValid() {
-        return m_priceValid;
+        return getPriceQuote() != null ? getPriceQuote().howOldMillis() < VALID_TIMEOUT  : m_priceValid;
     }
 
-    public double getPrice() {
-        return m_price;
-    }
-
-    public void setPrice(double price) {
-        m_price = price;
-    }
+ 
 
     public String getTokenId() {
         return m_tokenId;

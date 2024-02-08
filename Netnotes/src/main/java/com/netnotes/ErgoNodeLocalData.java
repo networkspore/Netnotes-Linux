@@ -2818,7 +2818,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         navBtn.setOnAction(e -> {
             try {
                 Utils.openDir(m_appDir);
-            } catch (IOException e1) {
+            } catch (Exception e1) {
                 Alert a = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
                 a.setTitle("Error");
                 a.initOwner(stage);

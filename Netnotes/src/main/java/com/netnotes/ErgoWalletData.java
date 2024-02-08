@@ -649,10 +649,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
         scrollBox.setPadding(new Insets(5, 5, 0, 5));
         VBox bodyVBox = new VBox(titleBox, menuVBox, scrollBox, summaryBox, updateBox);
 
-        Scene openWalletScene = new Scene(bodyVBox, getStageWidth(), getStageHeight());
-        openWalletScene.setFill(null);
-        
-        scrollPane.setContent(addressesData.getAddressesBox(openWalletScene));
       
 
         SimpleDoubleProperty normalHeight = new SimpleDoubleProperty(MIN_HEIGHT);
@@ -681,11 +677,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
             addressesData.addAddress();
         });
 
-        
-
-        scrollPane.prefViewportWidthProperty().bind(openWalletScene.widthProperty().subtract(10));
-        scrollPane.prefViewportHeightProperty().bind(openWalletScene.heightProperty().subtract(titleBox.heightProperty()).subtract(menuBar.heightProperty()).subtract(updateBox.heightProperty()).subtract(summaryBox.heightProperty()).subtract(5));
-
 
 
         m_ergoWallet.getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
@@ -713,6 +704,17 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }
 
         });
+
+        Scene openWalletScene = new Scene(bodyVBox, getStageWidth(), getStageHeight());
+        openWalletScene.getStylesheets().add("/css/startWindow.css");
+        openWalletScene.setFill(null);
+        
+        scrollPane.setContent(addressesData.getAddressesBox(openWalletScene));
+      
+
+        scrollPane.prefViewportWidthProperty().bind(openWalletScene.widthProperty().subtract(10));
+        scrollPane.prefViewportHeightProperty().bind(openWalletScene.heightProperty().subtract(titleBox.heightProperty()).subtract(menuBar.heightProperty()).subtract(updateBox.heightProperty()).subtract(summaryBox.heightProperty()).subtract(5));
+
 
 
         openWalletScene.focusOwnerProperty().addListener((e) -> {
@@ -779,7 +781,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     
 
-        openWalletScene.getStylesheets().add("/css/startWindow.css");
+
         closeBtn.setOnAction(closeEvent -> {
            
          

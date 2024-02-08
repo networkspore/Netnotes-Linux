@@ -15,6 +15,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -328,7 +329,8 @@ public class Network extends IconButton {
     }
     
     public File addNewIdFile(String id, JsonArray jsonArray){
-        String filePath = getDataDir().getAbsolutePath() + "/" + id + ".dat";
+        String friendlyId = FriendlyId.createFriendlyId();
+        String filePath = getDataDir().getAbsolutePath() + "/" + friendlyId + ".dat";
         File newFile = new File(filePath);
         JsonObject json = new JsonObject();
         json.addProperty("id", id);
@@ -355,6 +357,29 @@ public class Network extends IconButton {
 
             }
         }
+    }
+
+    public JsonArray getIndexFileArray(SecretKey key){
+        File indexFile = getIdIndexFile();
+        try {
+            JsonObject indexFileJson = indexFile.isFile() ? Utils.readJsonFile(key, indexFile) : null;
+            if(indexFileJson != null){
+                JsonElement fileArrayElement = indexFileJson.get("fileArray");
+                if(fileArrayElement != null && fileArrayElement.isJsonArray()){
+                    return fileArrayElement.getAsJsonArray();
+                }
+            }
+        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                | IOException e) {
+            try {
+                Files.writeString(logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+
+            }
+            
+        }
+        return null;
     }
 
     public JsonArray getIndexFileArray(SecretKey key, File indexFile){

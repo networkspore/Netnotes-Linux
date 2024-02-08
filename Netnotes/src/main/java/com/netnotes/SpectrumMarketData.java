@@ -64,29 +64,55 @@ public class SpectrumMarketData extends PriceQuote {
             String baseId = baseIdElement.getAsString();
             String quoteId = quoteIdElement.getAsString();
             m_id = quoteId + "_" + baseId;
-
+            String quoteSymbol = quoteSymbolElement.getAsString();
             
-            m_baseId = baseId;
-            m_baseSymbol = baseSymbolElement.getAsString();
-            m_quoteId = quoteIdElement.getAsString();
-            m_quoteSymbol = quoteSymbolElement.getAsString();
-        
-            m_baseVolume = baseVolumeBigDecimal;
-            m_quoteVolume = quoteVolumeBigDecimal;
-
-            if(m_quoteSymbol.equals("SigUSD")){
-                m_defaultInvert = true;
-            }
-            try{
+     
+            if(quoteSymbol.equals("SigUSD")){
+                m_quoteId = quoteId;
+                m_quoteSymbol = quoteSymbol;
+                m_baseId = baseId;
+                m_baseSymbol = baseSymbolElement.getAsString();
+            
+                m_quoteVolume = quoteVolumeBigDecimal;
+                m_baseVolume = baseVolumeBigDecimal;
+    
+                try{
              
-                m_invertedPrice = BigDecimal.ONE.divide(m_lastPrice, m_lastPrice.precision(), RoundingMode.CEILING);
-                setPrices(lastPriceElement.getAsString(), m_baseSymbol, m_quoteSymbol);
-            }catch(ArithmeticException ae){
-                m_invertedPrice = BigDecimal.ZERO;
-                setPrices("0", m_baseSymbol, m_quoteSymbol);
-              // Files.writeString(logFile.toPath(), "\nspectrumMarketData (Arithmetic exception): " + ae.toString() + "|n" + json.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            //   throw new Exception("Divide by zero");
+                 
+                    m_lastPrice = lastPriceElement.getAsBigDecimal();
+                     m_invertedPrice = BigDecimal.ONE.divide(m_lastPrice, m_lastPrice.precision(), RoundingMode.CEILING);
+   
+                    setPrices(m_lastPrice.toString(), m_baseSymbol,m_quoteSymbol, m_baseId, m_quoteId);
+               }catch(ArithmeticException ae){
+                   m_invertedPrice = BigDecimal.ZERO;
+                   setPrices("0", m_baseSymbol, m_quoteSymbol, m_baseId, m_quoteId);
+                 // Files.writeString(logFile.toPath(), "\nspectrumMarketData (Arithmetic exception): " + ae.toString() + "|n" + json.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+               //   throw new Exception("Divide by zero");
+               }
+            }else{
+                m_quoteId = baseId;
+                m_quoteSymbol = baseSymbolElement.getAsString();
+                m_baseId = quoteIdElement.getAsString();
+                m_baseSymbol = quoteSymbol;
+            
+                m_quoteVolume = baseVolumeBigDecimal;
+                m_baseVolume = quoteVolumeBigDecimal;
+    
+                try{
+             
+                 
+                    m_invertedPrice = lastPriceElement.getAsBigDecimal();
+                    m_lastPrice = BigDecimal.ONE.divide(m_invertedPrice, m_invertedPrice.precision(), RoundingMode.CEILING);
+   
+                    setPrices(m_lastPrice.toString(), m_baseSymbol,m_quoteSymbol, m_baseId, m_quoteId);
+               }catch(ArithmeticException ae){
+                   m_invertedPrice = BigDecimal.ZERO;
+                   setPrices("0", m_baseSymbol, m_quoteSymbol, m_baseId, m_quoteId);
+                 // Files.writeString(logFile.toPath(), "\nspectrumMarketData (Arithmetic exception): " + ae.toString() + "|n" + json.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+               //   throw new Exception("Divide by zero");
+               }
             }
+            
           
         }else{
             throw new Exception("Missing expected arguments");

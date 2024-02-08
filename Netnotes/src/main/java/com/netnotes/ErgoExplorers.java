@@ -3,14 +3,25 @@ package com.netnotes;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import org.ergoplatform.appkit.NetworkType;
-import com.google.gson.JsonObject;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.utils.Utils;
 
 import javafx.beans.property.SimpleDoubleProperty;
-
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -41,7 +52,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     public final static String MAINNET_EXPLORER_URL = "explorer.ergoplatform.com/";
     public final static String TESTNET_EXPLORER_URL = "testnet.ergoplatform.com/";
 
-    
+    private static File logFile = new File("netnotes-log.txt");
     private Stage m_stage = null;
     
   //  private final static long EXECUTION_TIME = 500;
@@ -58,18 +69,62 @@ public class ErgoExplorers extends Network implements NoteInterface {
 
         m_appDir = new File(ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME);
         setup(null);
+        
     }
 
     public ErgoExplorers(JsonObject jsonObject, ErgoNetwork ergoNetwork) {
         super(getAppIcon(), NAME, NETWORK_ID, ergoNetwork);
 
         m_appDir = new File(ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME);
+        setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
         setup(jsonObject);
     }
 
     @Override
     public void open(){
         showStage();
+    }
+    
+    public void getIdJson(String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        File dataFile = getIdDataFile(id);
+        if(dataFile != null && dataFile.isFile()){
+            try {
+                JsonObject json = Utils.readJsonFile(getAppKey(), dataFile);
+
+                Utils.returnObject(json, onSucceeded, onFailed);
+            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                    | IOException e) {
+                try {
+                    Files.writeString(logFile.toPath(), "ErgoExplorers (getIdJson): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+                    
+                }
+
+            }
+        }else{
+            Utils.getUrlJson(urlString, (urlJson)->{
+                Object sourceObject = urlJson.getSource().getValue();
+                if(sourceObject != null && sourceObject instanceof JsonObject){
+                    try {
+                        JsonObject json = (JsonObject) sourceObject;
+                        Utils.saveJson(getAppKey(), json, dataFile );
+                        Utils.returnObject(sourceObject, onSucceeded, onFailed);
+                    } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                            | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                            | IOException e) {
+                        try {
+                            Files.writeString(logFile.toPath(),"ErgoExplorers (getidjson urljson): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e1) {
+         
+                        }
+                    }
+                }else{
+                    Utils.returnObject(null, onSucceeded, onFailed);
+                }
+            }, onFailed, null);
+        }
+        
     }
 
      private void setup(JsonObject json) {
@@ -88,7 +143,41 @@ public class ErgoExplorers extends Network implements NoteInterface {
             }
         }  
         m_dataFile = new File(m_appDir.getAbsolutePath() + "/" + NAME + ".dat");
+        setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
         m_explorersList = new ErgoExplorerList(this);
+
+        getNetworksData().getAppData().appKeyProperty().addListener((obs, oldVal, newVal) -> {
+            JsonArray indexArray = getIndexFileArray(oldVal);
+            if(indexArray != null){
+                saveIndexFile(indexArray);
+                for(int i = 0; i< indexArray.size() ; i++){
+                    JsonElement fileElement = indexArray.get(i);
+                    JsonObject idFileObject = fileElement.getAsJsonObject();
+                    JsonElement fileLocationElement = idFileObject.get("file");
+                    String fileLocationString = fileLocationElement.getAsString();
+
+                    File file = new File(fileLocationString);
+                    
+                    if(file.isFile()){
+                        try {
+                            String fileString = Utils.readStringFile(oldVal, file);
+                            Utils.writeEncryptedString(newVal, file, fileString);
+                        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                                | IOException e) {
+                            try {
+                                Files.writeString(logFile.toPath(), "ErgoTokens: could not update file: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
+                        
+                            }
+                        }
+                    }
+                }
+            }
+            
+            
+            
+        });
     }
 
     public File getDataFile(){

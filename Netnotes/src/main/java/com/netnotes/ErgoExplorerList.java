@@ -49,6 +49,10 @@ public class ErgoExplorerList {
         m_ergoExplorer.getNetworksData().getAppData().appKeyProperty().addListener((obs, oldVal, newVal) -> save());
     }
 
+    public ErgoExplorers getErgoExplorer(){
+        return m_ergoExplorer;
+    }
+
     private void readFile(){
         SecretKey secretKey = m_ergoExplorer.getNetworksData().getAppData().appKeyProperty().get();
         File dataFile = m_ergoExplorer.getDataFile();

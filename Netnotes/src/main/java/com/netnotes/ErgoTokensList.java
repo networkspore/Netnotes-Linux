@@ -12,7 +12,6 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import javax.crypto.BadPaddingException;
@@ -34,13 +33,9 @@ import com.satergo.extra.AESEncryption;
 import com.utils.Utils;
 
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
@@ -79,24 +74,25 @@ public class ErgoTokensList extends Network {
     private NetworkType m_networkType;
     private ErgoTokens m_ergoTokens = null;
     private final SimpleObjectProperty<ErgoNetworkToken> m_selectedNetworkToken = new SimpleObjectProperty<>(null);
-   
+    private final SimpleObjectProperty<ErgoMarketsData> m_selectedMarketData = new SimpleObjectProperty<>(null);
+    private final SimpleObjectProperty<PriceQuote[]> m_priceQuotesProperty = new SimpleObjectProperty<>(null);
     private String m_marketId = null;
 
-
-    public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens) {
+    public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens, String marketId) {
         super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
-    
-        
+        m_marketId = marketId;
+        updateMarketData();
         openFile(secretKey);
         
     }
 
-    public ErgoTokensList(ArrayList<ErgoNetworkToken> networkTokenList, NetworkType networkType, ErgoTokens ergoTokens) {
+    public ErgoTokensList(ArrayList<ErgoNetworkToken> networkTokenList, NetworkType networkType, ErgoTokens ergoTokens, String marketId) {
         super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
+        m_marketId = marketId;
         for (ErgoNetworkToken networkToken : networkTokenList) {
 
             addToken(networkToken, false);
@@ -105,6 +101,74 @@ public class ErgoTokensList extends Network {
     }
 
 
+    public void updateMarketData(){
+        updateMarketData(m_marketId);
+    }
+
+    public void updateMarketData(String marketId){
+        ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoTokens.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+        ErgoMarketsData marketData = ergoMarkets.getErgoMarketsList().getMarketsData(marketId);
+        updateSelectedMarket(marketData);
+    }
+  
+    public SimpleObjectProperty<ErgoMarketsData> selectedMarketData(){
+        return m_selectedMarketData;
+    }
+
+    public boolean updateSelectedMarket(ErgoMarketsData marketsData) {
+        ErgoMarketsData previousSelectedMarketsData = m_selectedMarketData.get();
+
+        if (marketsData == null && previousSelectedMarketsData == null) {
+            return false;
+        }
+
+        m_selectedMarketData.set(marketsData);
+
+        if (previousSelectedMarketsData != null) {
+            if (marketsData != null) {
+                if (previousSelectedMarketsData.getId().equals(marketsData.getId()) && previousSelectedMarketsData.getMarketId().equals(marketsData.getMarketId())) {
+                    return false;
+                }
+            }
+            m_priceQuotesProperty.unbind();
+            previousSelectedMarketsData.shutdown();
+
+        }
+        marketsData.start();
+        m_priceQuotesProperty.bind(marketsData.marketDataProperty());
+
+        return true;
+
+        // return false;
+    }
+
+    @Override
+    public void shutdown(){
+        m_priceQuotesProperty.unbind();
+        ErgoMarketsData marketsData = m_selectedMarketData.get();
+        if(marketsData != null){
+            marketsData.shutdown();
+        }
+        super.shutdown();
+    }
+
+    public PriceQuote findPriceQuote(String baseSymbol, String quoteSymbol){
+        PriceQuote[] quotes = priceQuotesProperty().get();
+        if(quotes != null && baseSymbol != null && quoteSymbol != null){
+            for(int i = 0; i < quotes.length ; i++){
+                
+                PriceQuote quote = quotes[i];
+                if(quote.getTransactionCurrency().equals(baseSymbol) && quote.getQuoteCurrency().equals(quoteSymbol)){
+                    return quote;
+                }
+            }
+        }
+        return null;
+    }
+
+    public SimpleObjectProperty<PriceQuote[]> priceQuotesProperty(){
+        return m_priceQuotesProperty;
+    }
 
     public String getMarketId(){
         return m_marketId;

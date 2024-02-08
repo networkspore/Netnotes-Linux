@@ -175,9 +175,9 @@ public class AppData {
                             if(asset.getContentType().equals("application/x-java-archive")){
                                 if(asset.getName().startsWith("netnotes-")){
                                    
-                                    tmpInfo.setAppName(asset.getName());
+                                    tmpInfo.setJarName(asset.getName());
                                     tmpInfo.setTagName(asset.getTagName());
-                                    tmpInfo.setAppUrl(asset.getUrl());
+                                    tmpInfo.setJarUrl(asset.getUrl());
                                                                 
                                 }
                             }
@@ -188,7 +188,7 @@ public class AppData {
                         Object sourceObject = onReleaseInfo.getSource().getValue();
                         if(sourceObject != null && sourceObject instanceof com.google.gson.JsonObject){
                             com.google.gson.JsonObject releaseInfoJson = (com.google.gson.JsonObject) sourceObject;
-                            UpdateInformation upInfo = new UpdateInformation(tmpInfo.getAppUrl(),tmpInfo.getTagName(),tmpInfo.getAppName(),null,tmpInfo.getReleaseUrl());
+                            UpdateInformation upInfo = new UpdateInformation(tmpInfo.getJarUrl(),tmpInfo.getTagName(),tmpInfo.getJarName(),null,tmpInfo.getReleaseUrl());
                             upInfo.setReleaseInfoJson(releaseInfoJson);
              
                             Platform.runLater(()->updateInformation.set(upInfo));
@@ -254,70 +254,5 @@ public class AppData {
         Files.writeString(m_settingsFile.toPath(), jsonString);
     }
 
-    protected class UpdateInformation{
-        private String m_appUrl = null;
-        private String m_tagName = null;
-        private String m_appName = null; 
-        private HashData m_appHashData = null;
-        private String m_releaseUrl;
-        private JsonObject m_releaseInfoJson = null;
-
-        public UpdateInformation(){
-        }
-
-        public UpdateInformation(String appUrl, String tagName, String appName, HashData hashData, String releaseUrl){
-            m_appUrl = appUrl;
-            m_tagName = tagName;
-            m_appName = appName;
-            m_appHashData = hashData;
-            m_releaseUrl = releaseUrl;
-        }
-
-        public void setReleaseInfoJson(JsonObject releaseInfo){
-            m_releaseInfoJson = releaseInfo;
-          
-            m_appHashData = new HashData(m_releaseInfoJson.get("application").getAsJsonObject().get("hashData").getAsJsonObject());
-        }
-
-        public JsonObject getReleaseInfoJson(){
-            return m_releaseInfoJson;
-        }
-
-        public String getReleaseUrl(){
-            return m_releaseUrl;
-        }
-
-        public void setReleaseUrl(String releaseUrl){
-            m_releaseUrl = releaseUrl;
-        }
-
-        public String getAppUrl(){
-            return m_appUrl;
-        }
-
-        public String getTagName(){
-            return m_tagName;
-        }
-
-        public String getAppName(){
-            return m_appName;
-        } 
-        public HashData getAppHashData(){
-            return m_appHashData;
-        }
-
-        public void setAppUrl(String url){
-            m_appUrl = url;
-        }
-
-        public void setTagName(String tagName){
-            m_tagName = tagName;
-        }
-        public void setAppName(String name){
-            m_appName = name;
-        } 
-        public void setAppHashData(HashData hashData){
-            m_appHashData = hashData;
-        } 
-    }
+    
 }

@@ -1500,7 +1500,7 @@ public class Utils {
           }
           return false;
     }
-    public static void openDir(File file) throws IOException{
+    public static void openDir(File file) throws Exception{
 
         String[] cmd = new String[]{ "bash", "-c",  "gio open " + file.getParentFile().getCanonicalPath()};
 

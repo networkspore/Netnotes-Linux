@@ -133,10 +133,9 @@ public class AddressesData {
         if(ergoMarkets != null && walletData.getMarketsId()!= null){
             String marketId = walletData.getMarketsId();
             ErgoMarketsData marketData = ergoMarkets.getErgoMarketsList().getMarketsData(marketId);
-            m_selectedMarketData.set(marketData);
+         
             if(marketData != null){
-                marketData.start();
-                m_currentQuote.bind(marketData.priceQuoteProperty());
+                updateSelectedMarket(marketData);
             }
         }
 
@@ -334,8 +333,18 @@ public class AddressesData {
    
 
     public void shutdown() {
-      
-       
+        m_currentQuote.unbind();
+        ErgoTokensList tokensList = tokensListProperty().get();
+        ErgoMarketsData marketsData = m_selectedMarketData.get();
+    
+        if(marketsData != null){
+            marketsData.shutdown();
+        }
+
+        if(tokensList != null){
+            tokensList.shutdown();
+        }
+
     }
 
 
@@ -367,6 +376,9 @@ public class AddressesData {
             return false;
         }
 
+        
+        
+
         m_selectedMarketData.set(marketsData);
 
         if (previousSelectedMarketsData != null) {
@@ -379,7 +391,8 @@ public class AddressesData {
             previousSelectedMarketsData.shutdown();
 
         }
-
+        marketsData.start();
+        m_currentQuote.bind(marketsData.priceQuoteProperty());
 
         return true;
 
