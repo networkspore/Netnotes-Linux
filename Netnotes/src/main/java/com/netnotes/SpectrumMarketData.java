@@ -65,9 +65,10 @@ public class SpectrumMarketData extends PriceQuote {
             String quoteId = quoteIdElement.getAsString();
             m_id = quoteId + "_" + baseId;
             String quoteSymbol = quoteSymbolElement.getAsString();
-            
+          
      
             if(quoteSymbol.equals("SigUSD")){
+                m_defaultInvert = false;
                 m_quoteId = quoteId;
                 m_quoteSymbol = quoteSymbol;
                 m_baseId = baseId;
@@ -90,6 +91,7 @@ public class SpectrumMarketData extends PriceQuote {
                //   throw new Exception("Divide by zero");
                }
             }else{
+                m_defaultInvert = true;
                 m_quoteId = baseId;
                 m_quoteSymbol = baseSymbolElement.getAsString();
                 m_baseId = quoteIdElement.getAsString();

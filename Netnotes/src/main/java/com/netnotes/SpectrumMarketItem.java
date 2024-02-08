@@ -179,10 +179,11 @@ public class SpectrumMarketItem {
         if (data == null) {
             return null;
         }
+        boolean isInvert = m_dataList.getSortMethod().isTargetSwapped();
         int height = 30;
         int symbolColWidth = 160;
-        String symbolString = String.format("%-18s", getCurrentSymbol(isInvert()) );
-        String priceString = isInvert() ? data.getInvertedLastPrice().toString() : data.getLastPrice().toString();
+        String symbolString = String.format("%-18s", getCurrentSymbol(isInvert) );
+        String priceString = isInvert ? data.getInvertedLastPrice().toString() : data.getLastPrice().toString();
 
         boolean positive = false;
         boolean neutral = true;
