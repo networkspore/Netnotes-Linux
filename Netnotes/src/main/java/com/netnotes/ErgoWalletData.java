@@ -275,7 +275,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         } catch (IOException e2) {
                   
                         }
-                        e1.printStackTrace();
+                        
                     }
 
                 }
@@ -789,7 +789,11 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
         calculateTotal.run();
 
-    
+        if(addressesData.selectedMarketData().get() != null){
+            addressesData.selectedMarketData().get().priceQuoteProperty().addListener(priceQuoteListener);
+       
+        }
+        
 
 
         closeBtn.setOnAction(closeEvent -> {

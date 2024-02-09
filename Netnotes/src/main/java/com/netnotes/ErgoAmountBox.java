@@ -35,7 +35,7 @@ import javafx.scene.text.TextAlignment;
 
 public class ErgoAmountBox extends HBox {
 
-    private long m_quoteTimeout = AddressData.QUOTE_TIMEOUT;
+    
     private final SimpleObjectProperty<PriceAmount> m_currentAmount = new SimpleObjectProperty<PriceAmount>(null);
     private String m_id = FriendlyId.createFriendlyId();
     private final SimpleObjectProperty<Image> m_imgBuffer = new SimpleObjectProperty<Image>(null);
@@ -283,13 +283,6 @@ public class ErgoAmountBox extends HBox {
         m_id = id;
     }
 
-    public long getQuoteTimeout(){
-        return m_quoteTimeout;
-    }
-
-    public void setQuoteTimeout(long timeout){
-        m_quoteTimeout = timeout;
-    }
 
     public String getTokenId(){
         return m_currentAmount.get().getCurrency().getTokenId();
@@ -320,7 +313,7 @@ public class ErgoAmountBox extends HBox {
         double priceAmountDouble = priceAmount != null && quantityValid ? priceAmount.getDoubleAmount() : 0;
 
         PriceQuote priceQuote = m_priceQuoteProperty.get();
-        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
+        boolean priceValid = priceQuote != null;
         double priceQuoteDouble = priceValid  && priceQuote != null ? priceQuote.getDoubleAmount() : 0;
         
         String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( priceQuoteDouble * priceAmountDouble, priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  quantityValid && priceValid) : " -.--";
@@ -407,7 +400,7 @@ public class ErgoAmountBox extends HBox {
             }
         }
          */
-        g2d.drawImage(unitImage, 75 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        g2d.drawImage(unitImage, 200 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
 
        
 

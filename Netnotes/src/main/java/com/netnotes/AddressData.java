@@ -99,7 +99,7 @@ public class AddressData extends Network {
     }
     
     public final static int UPDATE_LIMIT = 10;
-    public final static long QUOTE_TIMEOUT = 120000;
+    public final static long QUOTE_TIMEOUT = 1000*60;
   
     private int m_index;
     private Address m_address;
@@ -166,7 +166,10 @@ public class AddressData extends Network {
             }
         });
 
-      
+        if(m_addressesData.selectedMarketData().get() != null){
+            m_addressesData.selectedMarketData().get().priceQuoteProperty().addListener(quoteChangeListener);
+            updateBufferedImage();
+        }
         
         getNetworksData().timeCycleProperty().addListener((obs, oldval, newval)->{
             update();
@@ -520,6 +523,8 @@ public class AddressData extends Network {
 
         ChangeListener<PriceQuote> priceQuoteListener = (obs,oldval,newval)->{
             ergoAmountBox.priceQuoteProperty().set(newval);
+            m_fieldsUpdated.set(LocalDateTime.now());
+
         };   
 
         m_addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
@@ -530,13 +535,14 @@ public class AddressData extends Network {
             }
             if (newVal != null) {
                 newVal.priceQuoteProperty().addListener(priceQuoteListener);   
-            
+                ergoAmountBox.priceQuoteProperty().set(newVal.priceQuoteProperty().get());
             } 
         });
         if(m_addressesData.selectedMarketData().get() != null){
             PriceQuote priceQuote = m_addressesData.selectedMarketData().get().priceQuoteProperty().get();
 
             ergoAmountBox.priceQuoteProperty().set(priceQuote);
+            
         }
 
         VBox balanceVBox = new VBox(amountBoxPadding, amountBoxes);
@@ -1459,7 +1465,7 @@ public class AddressData extends Network {
     }
 
     public boolean getValid() {
-        return m_addressesData.selectedMarketData().get() != null && m_addressesData.selectedMarketData().get().priceQuoteProperty().get() != null && (m_addressesData.selectedMarketData().get().priceQuoteProperty().get().getTimeStamp() - System.currentTimeMillis() < 1000 * 30);
+        return m_addressesData.selectedMarketData().get() != null && m_addressesData.selectedMarketData().get().priceQuoteProperty().get() != null;
     }
 
     public Address getAddress() {

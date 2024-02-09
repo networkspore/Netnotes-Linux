@@ -546,7 +546,7 @@ public class AmountBox extends HBox {
             }
         }
          */
-        g2d.drawImage(unitImage, 75 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        g2d.drawImage(unitImage, 200 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
 
         //g2d.setFont(smallFont);
       //  g2d.setColor(new java.awt.Color(0x777777, false));

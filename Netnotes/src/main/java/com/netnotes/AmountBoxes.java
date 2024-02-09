@@ -31,9 +31,7 @@ public class AmountBoxes extends VBox {
     private String m_lastRowItemStyle = ADD_AS_LAST_ROW;
     private boolean m_lastRowItemDisabled = false;
 
-    private SimpleObjectProperty<PriceQuote> m_priceQuoteProperty = new SimpleObjectProperty<>(null);
-    
-
+ 
     public AmountBoxes(AmountBox... boxes) {
         super();
        //m_addressData = addressData;
