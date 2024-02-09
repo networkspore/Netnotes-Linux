@@ -117,7 +117,7 @@ public class NetworksData implements InstallerInterface {
     private ScheduledExecutorService m_timeExecutor = null;
     private ScheduledFuture<?> m_lastExecution = null;
     private final SimpleObjectProperty<LocalDateTime> m_timeCycle = new SimpleObjectProperty<>(LocalDateTime.now());
-    private long m_cyclePeriod = 30;
+    private long m_cyclePeriod = 15;
     private TimeUnit m_cycleTimeUnit = TimeUnit.SECONDS;
 
     public NetworksData(AppData appData,  HostServices hostServices, File networksFile, boolean isFile) {
