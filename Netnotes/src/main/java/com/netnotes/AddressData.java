@@ -42,6 +42,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.ListChangeListener.Change;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
@@ -152,20 +153,20 @@ public class AddressData extends Network {
         setAlignment(Pos.CENTER_LEFT);
         setTextAlignment(TextAlignment.LEFT);
        
+        ChangeListener<PriceQuote> quoteChangeListener = (obs,oldval,newval)->updateBufferedImage();
 
-        /*m_addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
+        m_addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
             if (oldval != null) {
-                oldval.priceQuoteProperty().removeListener(m_quoteChangeListener);
+                oldval.priceQuoteProperty().removeListener(quoteChangeListener);
                // oldval.shutdown();
             }
             if (newVal != null) {
-                newVal.priceQuoteProperty().addListener(m_quoteChangeListener);
-               //whpro 2 newVal.start();
+                newVal.priceQuoteProperty().addListener(quoteChangeListener);
+                updateBufferedImage();
             }
-        });*/
+        });
 
-        m_addressesData.currentPriceQuoteProperty().addListener((obs,oldval,newval)->updateBufferedImage());
-
+      
         
         getNetworksData().timeCycleProperty().addListener((obs, oldval, newval)->{
             update();
@@ -472,9 +473,9 @@ public class AddressData extends Network {
     public VBox getBalanceBox(Scene scene){
         ErgoAmountBox ergoAmountBox = new ErgoAmountBox(ergoAmountProperty().get(), scene, getNetworksData().getHostServices());
         HBox.setHgrow(ergoAmountBox,Priority.ALWAYS);
-        ergoAmountBox.priceQuoteProperty().bind(m_addressesData.currentPriceQuoteProperty());
+      
         ergoAmountBox.priceAmountProperty().bind(ergoAmountProperty());
-
+        
         
 
         HBox amountBoxPadding = new HBox(ergoAmountBox);
@@ -517,7 +518,26 @@ public class AddressData extends Network {
 
         m_ergoAmountProperty.addListener((obs,oldval,newval)->updateAmountBoxes.run());
 
+        ChangeListener<PriceQuote> priceQuoteListener = (obs,oldval,newval)->{
+            ergoAmountBox.priceQuoteProperty().set(newval);
+        };   
 
+        m_addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
+           
+            if(oldval != null){
+                oldval.priceQuoteProperty().removeListener(priceQuoteListener);
+           
+            }
+            if (newVal != null) {
+                newVal.priceQuoteProperty().addListener(priceQuoteListener);   
+            
+            } 
+        });
+        if(m_addressesData.selectedMarketData().get() != null){
+            PriceQuote priceQuote = m_addressesData.selectedMarketData().get().priceQuoteProperty().get();
+
+            ergoAmountBox.priceQuoteProperty().set(priceQuote);
+        }
 
         VBox balanceVBox = new VBox(amountBoxPadding, amountBoxes);
       
@@ -982,54 +1002,41 @@ public class AddressData extends Network {
             marketsBtn.setPadding(new Insets(2, 0, 0, 0));
             marketsBtn.setTooltip(marketsTip);
 
-            Runnable updateMarketsBtn = () ->{
-                ErgoMarketsData marketsData = m_addressesData.selectedMarketData().get();
-              
-                if(marketsData != null){
-                  
-    
-                    marketsTip.setText("Ergo Markets: " + marketsData.getName());
-        
-                }else{
-                   
-                    marketsTip.setText("Select market...");
+         
+
+            m_addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
+               
+           
+                if (newVal != null) {
+                    marketsTip.setText("Ergo Markets: " + newVal.getName());
                     
-                }
-            };
-
-            m_addressesData.selectedMarketData().addListener((obs,oldval,newVal) -> {
-                updateMarketsBtn.run();
-            });
-
-            Runnable getAvailableMarketsMenu = ()->{
-                ErgoMarketsData marketsData =  m_addressesData.selectedMarketData().get();
-                marketsBtn.getItems().clear();
-                if(marketsData != null){
-                    marketsBtn.setId("menuBtn");
-                    marketsData.getMarketsList().getMenu(marketsBtn, m_addressesData.selectedMarketData());
-                }else{
-                    ErgoMarkets ergoMarkets = (ErgoMarkets) m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-                    if(ergoMarkets != null){
-                        ErgoMarketsList marketsList = ergoMarkets.getErgoMarketsList();
-                        if(marketsList != null){
-                            marketsList.getMenu(marketsBtn, m_addressesData.selectedMarketData());
-                        }else{
-                            marketsBtn.getItems().add(new MenuItem("(unavailable)"));
-                        }
-                    }else{
-                        MenuItem installItem = new MenuItem("Install 'Ergo Markets'...");
-                        installItem.setOnAction(e->{
-                            m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().showwManageStage();
-                        });
-                        marketsBtn.getItems().add(installItem);
+                } else {
+                    NoteInterface ergoMarkets = m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+    
+                    if (ergoMarkets == null) {
+                        marketsTip.setText("(install 'Ergo Markets')");
+                    } else {
+                        marketsTip.setText("Select market...");
                     }
                 }
-
-                updateMarketsBtn.run();
-            };
-
-            
+            });
         
+
+            Runnable getAvailableMarketsMenu = () -> {
+                ErgoMarkets ergoMarkets = (ErgoMarkets) m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+                
+                if (ergoMarkets != null) {
+                    marketsBtn.setId("menuBtn");
+    
+                    ergoMarkets.getErgoMarketsList().getMenu(marketsBtn, m_addressesData.selectedMarketData());
+                } else {
+                    marketsBtn.getItems().clear();
+                    marketsBtn.setId("menuBtnDisabled");
+                }
+               
+            };
+        
+            
 
             Tooltip tokensTip = new Tooltip("Ergo Tokens");
             tokensTip.setShowDelay(new javafx.util.Duration(50));
@@ -1452,7 +1459,7 @@ public class AddressData extends Network {
     }
 
     public boolean getValid() {
-        return m_addressesData.selectedMarketData().get() != null && m_addressesData.currentPriceQuoteProperty().get() != null && (m_addressesData.currentPriceQuoteProperty().get().getTimeStamp() - System.currentTimeMillis() < 1000 * 60 * 2);
+        return m_addressesData.selectedMarketData().get() != null && m_addressesData.selectedMarketData().get().priceQuoteProperty().get() != null && (m_addressesData.selectedMarketData().get().priceQuoteProperty().get().getTimeStamp() - System.currentTimeMillis() < 1000 * 30);
     }
 
     public Address getAddress() {
@@ -1509,7 +1516,7 @@ public class AddressData extends Network {
 
     public double getPrice() {
 
-        return getValid() ? m_addressesData.currentPriceQuoteProperty().get().getDoubleAmount() : 0.0;
+        return getValid() ? m_addressesData.selectedMarketData().get().priceQuoteProperty().get().getDoubleAmount()  : 0.0;
     }
 
     public double getTotalAmountPrice() {
@@ -1645,7 +1652,7 @@ public class AddressData extends Network {
         boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
         double priceAmountDouble = priceAmount != null && quantityValid ? priceAmount.getDoubleAmount() : 0;
 
-        PriceQuote priceQuote = m_addressesData.currentPriceQuoteProperty().get();
+        PriceQuote priceQuote = getValid() ? m_addressesData.selectedMarketData().get().priceQuoteProperty().get() : null;
         boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
         double priceQuoteDouble = priceValid  && priceQuote != null ? priceQuote.getDoubleAmount() : 0;
         

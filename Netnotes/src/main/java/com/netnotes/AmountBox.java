@@ -21,6 +21,7 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
@@ -223,10 +224,7 @@ public class AmountBox extends HBox {
         
         m_priceQuoteProperty.addListener((obs, oldval, newval)->updateBufferedImage());
       
-
-        
-
-
+      
         Tooltip ergoTokensBtnTip = new Tooltip("Options");
         
 
@@ -287,7 +285,7 @@ public class AmountBox extends HBox {
                 if(tokensList != null){
                    
                     if(currency instanceof ErgoNetworkToken){
-                        ErgoNetworkToken currencyToken = (ErgoNetworkToken) currency;
+                        
 
                         if(!tokenOptionsBtnUserData.equals(viewString)){
                             ergoTokensBtn.setUserData(viewString);
@@ -366,7 +364,22 @@ public class AmountBox extends HBox {
             updates.run();
             updateBufferedImage();
         });
-        m_addressesData.tokensListProperty().addListener((obs,oldval,newval)->updates.run());
+        ChangeListener<PriceQuote[]> listPriceListener = (obs,oldval,newval)->updateBufferedImage();
+        m_addressesData.tokensListProperty().addListener((obs,oldval,newval)->{
+            updates.run();
+            if(oldval != null){
+                oldval.priceQuotesProperty().removeListener(listPriceListener);
+            }
+            if(newval != null){
+                newval.priceQuotesProperty().addListener(listPriceListener);
+                
+            }
+            updateBufferedImage();
+        });
+        if(m_addressesData.tokensListProperty().get() != null){
+            m_addressesData.tokensListProperty().get().priceQuotesProperty().addListener(listPriceListener);
+            updateBufferedImage();
+        }
         m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> updates.run());
         
         updateBufferedImage();
@@ -423,7 +436,7 @@ public class AmountBox extends HBox {
         m_minImgWidth = width;
     }
    
-  
+    
    
     public void updateBufferedImage() {
         PriceAmount priceAmount = m_currentAmount.get();
@@ -487,6 +500,7 @@ public class AmountBox extends HBox {
         int currencyWidth = fm.stringWidth(currencyPrice);
         int priceLength = (priceWidth > currencyWidth ? priceWidth : currencyWidth);
        
+        priceLength = priceLength < 400 ? 400 : priceLength;
        // int smallAscent = fm.getAscent();
 
         //  int priceAscent = fm.getAscent();

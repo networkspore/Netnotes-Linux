@@ -1035,12 +1035,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         if (listener != null) {
             boolean removed = m_msgListeners.remove(listener);
 
-            try {
-                Files.writeString(logFile.toPath(), "removed listener:" + item.getId() + " " + removed, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-
-            }
-
+     
             if (m_msgListeners.size() == 0) {
                 shutdown();
               

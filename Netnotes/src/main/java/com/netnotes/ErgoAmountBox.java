@@ -314,6 +314,7 @@ public class ErgoAmountBox extends HBox {
 
    
     public void updateBufferedImage() {
+        
         PriceAmount priceAmount = m_currentAmount.get();
         boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
         double priceAmountDouble = priceAmount != null && quantityValid ? priceAmount.getDoubleAmount() : 0;
@@ -361,6 +362,7 @@ public class ErgoAmountBox extends HBox {
         int priceWidth = fm.stringWidth(totalPrice);
         int currencyWidth = fm.stringWidth(currencyPrice);
         int priceLength = (priceWidth > currencyWidth ? priceWidth : currencyWidth);
+        priceLength = priceLength < 400 ? 400 : priceLength;
 
         //  int priceAscent = fm.getAscent();
         int integersX = priceLength + 10;

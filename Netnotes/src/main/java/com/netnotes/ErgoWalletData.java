@@ -24,6 +24,7 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -469,43 +470,20 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
 
 
-        SimpleObjectProperty<ErgoMarketsData> ergoMarketsData = new SimpleObjectProperty<>(addressesData.selectedMarketData().get());
 
-        Runnable updateMarketsBtn = () -> {
-            ErgoMarketsData marketsData = ergoMarketsData.get();
-            ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
 
-            if (marketsData != null && ergoMarkets != null) {
-
-                marketsTip.setText("Ergo Markets: " + marketsData.getName());
-                addressesData.updateSelectedMarket(marketsData);
-
-            } else {
-
-                if (ergoMarkets == null) {
-                    marketsTip.setText("(install 'Ergo Markets')");
-                } else {
-                    marketsTip.setText("Select market...");
-                }
-            }
-
-        };
-        ergoMarketsData.addListener((obs, oldval, newVal) -> {
-            setMarketsId(newVal != null ? newVal.getMarketId() : null);
-            updateMarketsBtn.run();
-        });
 
         Runnable getAvailableMarketsMenu = () -> {
             ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
             if (ergoMarkets != null) {
                 marketsBtn.setId("menuBtn");
 
-                ergoMarkets.getErgoMarketsList().getMenu(marketsBtn, ergoMarketsData);
+                ergoMarkets.getErgoMarketsList().getMenu(marketsBtn, addressesData.selectedMarketData());
             } else {
                 marketsBtn.getItems().clear();
                 marketsBtn.setId("menuBtnDisabled");
             }
-            updateMarketsBtn.run();
+           
         };
     
         /*Runnable setSelectedMarket = ()->{
@@ -752,9 +730,13 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
             ErgoAmount totalErgoAmount = addressesData.totalErgoAmountProperty().get();
             
+            ErgoMarketsData marketsData = addressesData.selectedMarketData().get();
+
+
+
             String totalString = totalErgoAmount == null ? "Σ-" : totalErgoAmount.toString();
 
-            PriceQuote priceQuote = addressesData.currentPriceQuoteProperty().get(); 
+            PriceQuote priceQuote = marketsData != null ? marketsData.priceQuoteProperty().get() : null;
     
             double ergoAmountDouble = (totalErgoAmount != null ? totalErgoAmount.getDoubleAmount() : 0);
 
@@ -773,8 +755,36 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
 
         addressesData.totalErgoAmountProperty().addListener((obs, oldval, newval)->calculateTotal.run());
-        addressesData.currentPriceQuoteProperty().addListener((obs, oldVal, newVal) -> calculateTotal.run());
+       
+        ChangeListener<PriceQuote> priceQuoteListener = (obs,oldval,newval)->{
+            calculateTotal.run();
+        };
+        
+     
+        addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
+            setMarketsId(newVal != null ? newVal.getMarketId() : null);
+            
+            if(oldval != null){
+                oldval.priceQuoteProperty().removeListener(priceQuoteListener);
+                oldval.shutdown();
+            }
+            if (newVal != null) {
+                newVal.priceQuoteProperty().addListener(priceQuoteListener);
+                marketsTip.setText("Ergo Markets: " + newVal.getName());
+                
+                newVal.start();
 
+            
+            } else {
+                NoteInterface ergoMarkets = getErgoWallets().getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+
+                if (ergoMarkets == null) {
+                    marketsTip.setText("(install 'Ergo Markets')");
+                } else {
+                    marketsTip.setText("Select market...");
+                }
+            }
+        });
         
         
         calculateTotal.run();

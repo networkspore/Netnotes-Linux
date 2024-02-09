@@ -565,8 +565,28 @@ public class ErgoTransaction {
 
             ErgoAmountBox ergoAmountBox = new ErgoAmountBox(getErgoAmount(), txScene, getParentAddress().getNetworksData().getHostServices());
             HBox.setHgrow(ergoAmountBox, Priority.ALWAYS);
-            ergoAmountBox.priceQuoteProperty().bind(getParentAddress().getAddressesData().currentPriceQuoteProperty());
+       
             ergoAmountBox.priceAmountProperty().bind(ergoAmountProperty());
+
+            ChangeListener<PriceQuote> quoteChangeListener = (obs,oldval,newval)->{
+                ergoAmountBox.priceQuoteProperty().set(newval);
+            };
+
+            m_parentAddress.getAddressesData().selectedMarketData().addListener((obs, oldval, newVal) -> {
+                if (oldval != null) {
+                    oldval.priceQuoteProperty().removeListener(quoteChangeListener);
+                   // oldval.shutdown();
+                }
+                if (newVal != null) {
+                    newVal.priceQuoteProperty().addListener(quoteChangeListener);
+                    ergoAmountBox.priceQuoteProperty().set(newVal.priceQuoteProperty().get());
+                }
+            });
+
+            if(m_parentAddress.getAddressesData().selectedMarketData().get() != null){
+                ergoAmountBox.priceQuoteProperty().set(m_parentAddress.getAddressesData().selectedMarketData().get().priceQuoteProperty().get());
+            }
+    
 
             HBox amountBoxPadding = new HBox(ergoAmountBox);
             amountBoxPadding.setPadding(new Insets(10, 10, 0, 10));
