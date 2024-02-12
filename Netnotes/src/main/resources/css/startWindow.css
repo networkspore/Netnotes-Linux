@@ -328,6 +328,7 @@
     -fx-opacity: .7;
     -fx-font-size: 25px;
     -fx-font-family: 'OCR A Extended';
+    -fx-padding: 0 5 0 5;
 }
 #priceField:hover{
     -fx-opacity: 1;

@@ -3,6 +3,7 @@ package com.netnotes;
 import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
@@ -611,12 +612,21 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setId("bodyBox");
+        
         TextField totalField = new TextField();
         totalField.setId("priceField");
         totalField.setEditable(false);
         HBox.setHgrow(totalField, Priority.ALWAYS);
 
-        HBox summaryBox = new HBox(totalField);
+        TextField totalTokensField = new TextField();
+        totalTokensField.setId("formFieldSmall");
+        totalTokensField.setEditable(false);
+        HBox.setHgrow(totalField, Priority.ALWAYS);
+
+      //  HBox totalTokensBox = new HBox(totalTokensField);
+      //  HBox.setHgrow(totalTokensBox, Priority.ALWAYS);
+
+        VBox summaryBox = new VBox(totalField, totalTokensField);
         HBox.setHgrow(summaryBox, Priority.ALWAYS);
         summaryBox.setPadding(new Insets(5, 0, 0, 0));
         summaryBox.setAlignment(Pos.CENTER_LEFT);
@@ -726,28 +736,44 @@ public class ErgoWalletData extends Network implements NoteInterface {
         });
 
         Runnable calculateTotal = () ->{
-         
+            
         
             ErgoAmount totalErgoAmount = addressesData.totalErgoAmountProperty().get();
+
+            ErgoAmount totalTokenErgs = addressesData.getTotalTokenErgs();
             
             ErgoMarketsData marketsData = addressesData.selectedMarketData().get();
 
+            PriceQuote priceQuote = marketsData != null ? marketsData.priceQuoteProperty().get() : null;
 
+            
 
+            
             String totalString = totalErgoAmount == null ? "Σ-" : totalErgoAmount.toString();
 
-            PriceQuote priceQuote = marketsData != null ? marketsData.priceQuoteProperty().get() : null;
+            
     
             double ergoAmountDouble = (totalErgoAmount != null ? totalErgoAmount.getDoubleAmount() : 0);
 
+
+            BigDecimal tokenErgsPrice = priceQuote != null ? priceQuote.getBigDecimalAmount().multiply(totalTokenErgs.getBigDecimalAmount()) : null;
+
             double totalPrice = priceQuote != null ? priceQuote.getDoubleAmount() * ergoAmountDouble : 0;
         
+            double totalTokenPrice = tokenErgsPrice != null ? tokenErgsPrice.doubleValue() : 0;
+            
             String quoteString = (priceQuote != null ? ": " + Utils.formatCryptoString( totalPrice , priceQuote.getQuoteCurrency(),priceQuote.getFractionalPrecision(),  totalErgoAmount != null) +" (" + priceQuote.toString() + ")" : "" );
 
+            
             String text = totalString  + quoteString;
+
+            String tokenQuoteString = (priceQuote != null ? Utils.formatCryptoString( totalTokenPrice , priceQuote.getQuoteCurrency(),priceQuote.getFractionalPrecision(),  totalTokenErgs != null)  : "" );
+
+            String tokenText = totalTokenPrice > 0 ? "Tokens: " + totalTokenErgs.toString() + " (" +tokenQuoteString + ")"  : "";
 
             Platform.runLater(() ->totalField.setText(text));
         
+            Platform.runLater(()-> totalTokensField.setText(tokenText));
 
             Platform.runLater(() -> lastUpdatedField.setText(Utils.formatDateTimeString(LocalDateTime.now())));
         };

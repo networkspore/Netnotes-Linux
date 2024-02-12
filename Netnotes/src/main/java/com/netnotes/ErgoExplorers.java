@@ -59,7 +59,6 @@ public class ErgoExplorers extends Network implements NoteInterface {
 
   //  private ScheduledFuture<?> m_lastExecution = null;
 
-    private ErgoExplorerList m_explorersList = null;
     private File m_appDir = null;
     private File m_dataFile = null;
 
@@ -128,11 +127,6 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
      private void setup(JsonObject json) {
-
-  
-        
-        
-
         if (!m_appDir.isDirectory()) {
 
             try {
@@ -144,8 +138,11 @@ public class ErgoExplorers extends Network implements NoteInterface {
         }  
         m_dataFile = new File(m_appDir.getAbsolutePath() + "/" + NAME + ".dat");
         setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
-        m_explorersList = new ErgoExplorerList(this);
-
+        
+        
+        new ErgoExplorerList(this);
+     
+        
         getNetworksData().getAppData().appKeyProperty().addListener((obs, oldVal, newVal) -> {
             JsonArray indexArray = getIndexFileArray(oldVal);
             if(indexArray != null){
@@ -234,7 +231,8 @@ public class ErgoExplorers extends Network implements NoteInterface {
         if(m_stage == null){
             String title = getName();
 
-        
+            ErgoExplorerList explorersList = new ErgoExplorerList(this);
+
             double buttonHeight = 100;
 
             m_stage = new Stage();
@@ -300,7 +298,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
             SimpleDoubleProperty scrollWidth = new SimpleDoubleProperty(0);
             gridWidth.bind(m_stage.widthProperty().subtract(15));
 
-            VBox gridBox = m_explorersList.getGridBox(gridWidth, scrollWidth);
+            VBox gridBox = explorersList.getGridBox(gridWidth, scrollWidth);
 
             scrollPane.setContent(gridBox);
 
@@ -345,6 +343,6 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
     public ErgoExplorerList getErgoExplorersList(){
-        return m_explorersList;
+        return new ErgoExplorerList(this);
     }
 }

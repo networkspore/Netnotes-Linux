@@ -2,6 +2,7 @@ package com.netnotes;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
@@ -79,7 +80,7 @@ public class AddressesData {
     private SimpleObjectProperty<ErgoAmount> m_totalErgoAmount = new SimpleObjectProperty<>(null);
 
     private SimpleObjectProperty<ErgoTokensList> m_tokensListProperty = new SimpleObjectProperty<>(null);
-    
+    private SimpleObjectProperty<ErgoExplorerList> m_ergoExplorerList = new SimpleObjectProperty<>(null);
 
     private ObservableList<AddressData> m_addressDataList = FXCollections.observableArrayList();
 
@@ -111,10 +112,24 @@ public class AddressesData {
         if (ergoNodes != null && walletData.getNodesId() != null) {
             m_selectedNodeData.set(ergoNodes.getErgoNodesList().getErgoNodeData(walletData.getNodesId()));
         }
-        if (ergoExplorer != null && walletData.getExplorerId() != null) {
-            String explorerId = walletData.getExplorerId();
-            ErgoExplorerData explorerData = ergoExplorer.getErgoExplorersList().getErgoExplorerData(explorerId);
-            m_selectedExplorerData.set(explorerData);
+        if(ergoExplorer != null){
+            ErgoExplorerList explorerList = ergoExplorer.getErgoExplorersList();
+            m_ergoExplorerList.set(explorerList);
+        
+            if (walletData.getExplorerId() != null) {
+                String explorerId = walletData.getExplorerId();
+                if(explorerId != null){
+                    ErgoExplorerData explorerData = explorerList.getErgoExplorerData(explorerId);
+                    if(explorerData != null){
+                        m_selectedExplorerData.set(explorerData);
+                    }else{
+                        ErgoExplorerData defaultExplorerData = explorerList.getErgoExplorerData(explorerList.defaultIdProperty().get());
+                        m_selectedExplorerData.set(defaultExplorerData);
+                    }
+                }else{
+                    m_selectedExplorerData.set(null);
+                }
+            }
         }
         boolean isTokens= ergoTokens != null && walletData.isErgoTokens();
         m_isErgoTokens.set(isTokens);
@@ -367,20 +382,40 @@ public class AddressesData {
         return true;
     }
 
-
+    public ErgoAmount getTotalTokenErgs(){
+        BigDecimal totalTokenErgs = BigDecimal.ZERO;
+        for (int i = 0; i < m_addressDataList.size(); i++) {
+            AddressData addressData = m_addressDataList.get(i);
+           
+            BigDecimal tokenErgs = addressData.getTotalTokenErgBigDecimal();
+            totalTokenErgs = totalTokenErgs.add(tokenErgs);
+            
+        
+        }   
+   
+        
+        return new ErgoAmount(totalTokenErgs, m_networkType);
+    }
 
     public void calculateCurrentTotal() {
         SimpleLongProperty totalNanoErgs = new SimpleLongProperty();
+       
         for (int i = 0; i < m_addressDataList.size(); i++) {
             AddressData addressData = m_addressDataList.get(i);
             ErgoAmount ergoAmount = addressData.ergoAmountProperty().get();
-
+            
+        
             totalNanoErgs.set(totalNanoErgs.get() + (ergoAmount == null ? 0 : ergoAmount.getLongAmount()));
 
         }
 
         m_totalErgoAmount.set(new ErgoAmount(totalNanoErgs.get(), m_networkType));
     }
+
+    public SimpleObjectProperty<ErgoAmount> totalErgoTokenAmountProperty(){
+        return m_totalErgoTokenAmountProperty;
+    }
+    private final SimpleObjectProperty<ErgoAmount> m_totalErgoTokenAmountProperty = new SimpleObjectProperty<>(null);
 
     public SimpleObjectProperty<ErgoAmount> totalErgoAmountProperty() {
         return m_totalErgoAmount;

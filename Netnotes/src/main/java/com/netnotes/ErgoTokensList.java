@@ -75,15 +75,25 @@ public class ErgoTokensList extends Network {
     private ErgoTokens m_ergoTokens = null;
     private final SimpleObjectProperty<ErgoNetworkToken> m_selectedNetworkToken = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<ErgoMarketsData> m_selectedMarketData = new SimpleObjectProperty<>(null);
-    private final SimpleObjectProperty<PriceQuote[]> m_priceQuotesProperty = new SimpleObjectProperty<>(null);
-    private String m_marketId = null;
+    private final SimpleObjectProperty<ErgoExplorerData> m_selectedExplorerData = new SimpleObjectProperty<>(null);
 
-    public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens, String marketId) {
+    private final SimpleObjectProperty<PriceQuote[]> m_priceQuotesProperty = new SimpleObjectProperty<>(null);
+    private final SimpleObjectProperty<ErgoMarketsList> m_ergoMarketsList = new SimpleObjectProperty<>(null);
+    private final SimpleObjectProperty<ErgoExplorerList> m_ergoExplorersList = new SimpleObjectProperty<>(null);
+    private String m_marketId = null;
+    private String m_explorerId = null;
+
+    public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens, String marketId, String explorerId) {
         super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
         m_marketId = marketId;
-        updateMarketData();
+        m_explorerId = explorerId;
+
+    
+        setupMarketData(marketId);
+        setupExplorerData();
+
         openFile(secretKey);
         
     }
@@ -100,15 +110,56 @@ public class ErgoTokensList extends Network {
         }
     }
 
-
-    public void updateMarketData(){
-        updateMarketData(m_marketId);
+    public SimpleObjectProperty<ErgoExplorerData> selectedExplorerData(){
+        return m_selectedExplorerData;
     }
 
-    public void updateMarketData(String marketId){
+
+
+    public void setupMarketData(String marketId){
         ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoTokens.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-        ErgoMarketsData marketData = ergoMarkets.getErgoMarketsList().getMarketsData(marketId);
-        updateSelectedMarket(marketData);
+        if(marketId != null && ergoMarkets != null){
+            m_ergoMarketsList.set(ergoMarkets.getErgoMarketsList());
+            ErgoMarketsData marketData = m_ergoMarketsList.get().getMarketsData(marketId);
+         
+            m_selectedMarketData.set(marketData);
+            marketData.start();
+            m_priceQuotesProperty.bind(marketData.marketDataProperty());
+            setMarketId(marketData.getId());
+        }else{
+            if(ergoMarkets != null){
+                m_ergoMarketsList.set(ergoMarkets.getErgoMarketsList());
+            }else{
+                m_ergoMarketsList.set(null);
+            }
+            m_selectedMarketData.set(null);
+        }
+    }
+
+    public void setupExplorerData(){
+        setupExplorerData(m_explorerId);
+    }
+
+    public void setupExplorerData(String explorerId){
+        ErgoExplorers ergoExplorers = (ErgoExplorers) m_ergoTokens.getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
+        if(explorerId != null && ergoExplorers != null){
+            m_ergoExplorersList.set(ergoExplorers.getErgoExplorersList());
+            ErgoExplorerData explorerData = m_ergoExplorersList.get().getErgoExplorerData(explorerId);
+       
+            
+            m_selectedExplorerData.set(explorerData);
+        }else{
+            if(ergoExplorers != null){
+                m_ergoExplorersList.set(ergoExplorers.getErgoExplorersList());
+            }else{
+                m_ergoExplorersList.set(null);
+            }
+            m_selectedExplorerData.set(null);
+        }
+    }
+
+    public SimpleObjectProperty<ErgoExplorerList> ergoExplorerListProperty(){
+        return m_ergoExplorersList;
     }
   
     public SimpleObjectProperty<ErgoMarketsData> selectedMarketData(){
@@ -136,7 +187,7 @@ public class ErgoTokensList extends Network {
         }
         marketsData.start();
         m_priceQuotesProperty.bind(marketsData.marketDataProperty());
-
+        setMarketId(marketsData.getId());
         return true;
 
         // return false;

@@ -1,6 +1,10 @@
 package com.netnotes;
 
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
@@ -147,7 +151,9 @@ public class PriceAmount {
         DecimalFormat df = new DecimalFormat("0");
         df.setMaximumFractionDigits(precision);
         
+        
         String formatedDecimals = df.format(m_amount);
+
         return formatedDecimals;
     }
 

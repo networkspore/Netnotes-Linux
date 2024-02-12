@@ -109,10 +109,6 @@ public class AddressData extends Network {
 
     private final ObservableList<ErgoTransaction> m_watchedTransactions = FXCollections.observableArrayList();
     private final SimpleObjectProperty<ErgoTransaction> m_selectedTransaction = new SimpleObjectProperty<>(null);
-    
-    
-
-
     private long m_quoteTimeout = QUOTE_TIMEOUT;
     private long m_unconfirmedNanoErgs = 0;
     private String m_priceBaseCurrency = "ERG";
@@ -128,8 +124,6 @@ public class AddressData extends Network {
     private SimpleObjectProperty<Image> m_imgBuffer = new SimpleObjectProperty<Image>(null);
     private final String m_addressString;
     private ScheduledFuture<?> m_lastExecution = null;
-  
-    
     
     public AddressData(String name, int index, Address address, NetworkType networktype, AddressesData addressesData) {
         super(null, name, address.toString(), addressesData.getWalletData());
@@ -1506,6 +1500,31 @@ public class AddressData extends Network {
 
     public ArrayList<PriceAmount> getConfirmedTokenList() {
         return m_confirmedTokensList;
+    }
+    
+    public BigDecimal getTotalTokenErgBigDecimal(){
+        int tokenListSize = m_confirmedTokensList.size();
+        BigDecimal totalErgoAmount = BigDecimal.ZERO;
+
+        PriceAmount[] tokenAmounts = new PriceAmount[tokenListSize];
+        tokenAmounts = m_confirmedTokensList.toArray(tokenAmounts);
+
+        for(int i = 0; i < tokenListSize ; i++){
+            PriceAmount priceAmount = tokenAmounts[i];
+            PriceCurrency priceCurrency = priceAmount.getCurrency();
+          
+            PriceQuote priceQuote = (priceCurrency != null && priceCurrency instanceof ErgoNetworkToken) && ((ErgoNetworkToken) priceCurrency).getPriceQuote() != null ? ((ErgoNetworkToken) priceCurrency).getPriceQuote() : null;
+            
+            BigDecimal priceBigDecimal = priceQuote != null ? priceQuote.getBigDecimalAmount() : null;
+            BigDecimal amountBigDecimal = priceQuote != null ? priceAmount.getBigDecimalAmount() : null;
+            BigDecimal tokenErgs = priceBigDecimal != null && amountBigDecimal != null ? priceBigDecimal.multiply(amountBigDecimal) : BigDecimal.ZERO;
+        
+        
+            totalErgoAmount = totalErgoAmount.add(tokenErgs);
+            
+        }
+ 
+        return totalErgoAmount;
     }
 
     public ArrayList<PriceAmount> getUnconfirmedTokenList() {

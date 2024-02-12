@@ -66,17 +66,18 @@ public class ErgoExplorerData {
 
      
      private ChangeListener<LocalDateTime> m_updateListener = null;
+     private String m_id;
 
-
-     public ErgoExplorerData(String id, ErgoExplorerList explorerList){
-         
-          m_ergoNetworkUrlProperty.set(new ErgoNetworkUrl(id,"Ergo Platform API", "https", "api.ergoplatform.com",443, NetworkType.MAINNET ));
-          m_websiteUrlProperty.set( new ErgoNetworkUrl( id, "Explorer Website", "https", "explorer.ergoplatform.com", 443, NetworkType.MAINNET));
+     public ErgoExplorerData(String id,String name, String apiUrl,String websiteName, String webstiteUrl, ErgoExplorerList explorerList){
+          m_id = id; 
+          m_ergoNetworkUrlProperty.set(new ErgoNetworkUrl(id,name, "https", apiUrl, 443, NetworkType.MAINNET ));
+          m_websiteUrlProperty.set( new ErgoNetworkUrl( id, websiteName, "https", webstiteUrl, 443, NetworkType.MAINNET));
           m_explorerList = explorerList;
           
      }
 
-     public ErgoExplorerData(JsonObject json, ErgoExplorerList explorerList) throws Exception{
+     public ErgoExplorerData(String id, JsonObject json, ErgoExplorerList explorerList) throws Exception{
+          m_id = id;
           m_explorerList = explorerList;
           openJson(json);
      }
@@ -96,6 +97,8 @@ public class ErgoExplorerData {
                m_websiteUrlProperty.set(new ErgoNetworkUrl(id, "Explorer Website", "https", "explorer.ergoplatform.com", 443, NetworkType.MAINNET));
           }
      }
+
+
   
      public void getLatestBlocks(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
@@ -161,7 +164,7 @@ public class ErgoExplorerData {
      }
 
      public String getId(){
-          return m_ergoNetworkUrlProperty.get().getId();
+          return m_id;
      }
 
      public String getName() {
@@ -403,7 +406,7 @@ public class ErgoExplorerData {
     public JsonObject getJsonObject(){
 
           JsonObject json = new JsonObject();
-          
+          json.addProperty("explorerId", m_id);
           json.add("ergoNetworkUrl", m_ergoNetworkUrlProperty.get().getJsonObject());
           json.add("webUrl", m_websiteUrlProperty.get().getJsonObject());
           return json;

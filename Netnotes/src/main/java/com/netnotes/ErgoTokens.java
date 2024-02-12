@@ -83,19 +83,17 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     private ErgoNetworkData m_ergNetData;
 
-    private boolean m_firstOpen = false;
+   // private boolean m_firstOpen = false;
     
-    private final SimpleObjectProperty<ErgoExplorerData> m_selectedExplorerData = new SimpleObjectProperty<>(null);
-   
+
     private String m_marketId = SpectrumFinance.NETWORK_ID;
 
     public ErgoTokens(ErgoNetworkData ergNetData, ErgoNetwork ergoNetwork) {
         super(getAppIcon(), NAME, NETWORK_ID, ergoNetwork);
         m_ergNetData = ergNetData;
         m_appDir = new File(ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME);
-        m_firstOpen = true;
+     
         getLastUpdated().set(LocalDateTime.now());
-        addListeners();
 
     }
 
@@ -109,7 +107,7 @@ public class ErgoTokens extends Network implements NoteInterface {
         m_marketId = marketIdElement != null && marketIdElement.isJsonPrimitive() ? marketIdElement.getAsString() : SpectrumFinance.NETWORK_ID;
 
         m_explorerId = explorerIdElement != null ? explorerIdElement.getAsString() : null;
-
+        
         if (networkTypeElement != null) {
             if (networkTypeElement.getAsString().equals(NetworkType.TESTNET.toString())) {
                 m_networkType = NetworkType.TESTNET;
@@ -117,9 +115,10 @@ public class ErgoTokens extends Network implements NoteInterface {
                 m_networkType = NetworkType.MAINNET;
             }
         }
+        addListeners();
         setup();
 
-        addListeners();
+        
     }
 
     public void setMarketId(String marketId){
@@ -162,39 +161,8 @@ public class ErgoTokens extends Network implements NoteInterface {
     }
     public void addListeners(){
 
-        Runnable setDefaultExplorer = () ->{
-            if(m_explorerId == null && m_ergNetData.getNetwork(ErgoExplorers.NETWORK_ID) != null){
-                ErgoExplorers ergoExplorers = (ErgoExplorers) m_ergNetData.getNetwork(ErgoExplorers.NETWORK_ID);
-                m_explorerId = ergoExplorers.getErgoExplorersList().defaultIdProperty().get();
-                if(m_explorerId != null){
-                    ErgoExplorerData ergoExplorerData = ergoExplorers.getErgoExplorersList().getErgoExplorerData(m_explorerId);
-                    if(ergoExplorerData != null){
-                        m_selectedExplorerData.set(ergoExplorerData);
-                    
-                    }
-                }
-          
-            }
-        };
-        if(m_firstOpen){
-            setDefaultExplorer.run();
-        }
-        getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
-
-            if(m_ergNetData.getNetwork(ErgoExplorers.NETWORK_ID) == null){
-                m_selectedExplorerData.set(null);
-            }else{
-                if(!m_firstOpen){
-                    setDefaultExplorer.run();
-                }
-            }
+        
     
-        });
-
-        m_selectedExplorerData.addListener((obs,oldval,newval)->{
-            
-            setExplorerId(newval != null ? newval.getId() : null);
-        });
 
         
         getNetworksData().getAppData().appKeyProperty().addListener((obs, oldVal, newVal) -> {
@@ -237,7 +205,6 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     public void setExplorerId(String explorerId){
         m_explorerId = explorerId;
-        m_firstOpen = true;
         getLastUpdated().set(LocalDateTime.now());
     }
 
@@ -247,7 +214,6 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     @Override
     public void open() {
-        m_firstOpen = true;
         showTokensStage();
     }
 
@@ -263,9 +229,15 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     public void showTokensStage() {
         if (m_tokensStage == null) {
-            ErgoTokensList tokensList = new ErgoTokensList(getAppKey(), m_networkType, this, m_marketId);
+            ErgoTokensList tokensList = new ErgoTokensList(getAppKey(), m_networkType, this, m_marketId, m_explorerId);
+            
 
-           
+            tokensList.selectedExplorerData().addListener((obs,oldval,newval)->{
+                setExplorerId(newval != null ? newval.getId() : null);
+            });
+
+
+
             double tokensStageWidth = 375;
             double tokensStageHeight = 600;
             double buttonHeight = 100;
@@ -370,13 +342,13 @@ public class ErgoTokens extends Network implements NoteInterface {
             Runnable updateExplorerBtn = () ->{
                 ErgoExplorers ergoExplorers = (ErgoExplorers) getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
             
-                ErgoExplorerData explorerData = m_selectedExplorerData.get();
-            
+                ErgoExplorerData explorerData = tokensList.selectedExplorerData().get();
+                
             
                 if(explorerData != null && ergoExplorers != null){
                 
                     explorerTip.setText("Ergo Explorer: " + explorerData.getName());
-                    
+                
 
                 }else{
                     
@@ -391,10 +363,10 @@ public class ErgoTokens extends Network implements NoteInterface {
 
             Runnable getAvailableExplorerMenu = () ->{
             
-                ErgoExplorers ergoExplorers = (ErgoExplorers) getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-                if(ergoExplorers != null){
+                ErgoExplorerList explorerList = tokensList.ergoExplorerListProperty().get();
+                if(explorerList != null){
                     explorerBtn.setId("menuBtn");
-                    ergoExplorers.getErgoExplorersList().getMenu(explorerBtn, m_selectedExplorerData);
+                    explorerList.getMenu(explorerBtn, tokensList.selectedExplorerData());
                 }else{
                     explorerBtn.getItems().clear();
                     explorerBtn.setId("menuBtnDisabled");
@@ -403,17 +375,16 @@ public class ErgoTokens extends Network implements NoteInterface {
                 updateExplorerBtn.run();
             };
 
-            SimpleObjectProperty<ErgoMarketsData> ergoMarketsData = new SimpleObjectProperty<>(tokensList.selectedMarketData().get());
-
             Runnable updateMarketsBtn = () -> {
-                ErgoMarketsData marketsData = ergoMarketsData.get();
+                
+                ErgoMarketsData marketsData = tokensList.selectedMarketData().get();
                 ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
     
                 if (marketsData != null && ergoMarkets != null) {
     
                     marketsTip.setText("Ergo Markets: " + marketsData.getName());
                     tokensList.updateSelectedMarket(marketsData);
-    
+                    
                 } else {
     
                     if (ergoMarkets == null) {
@@ -424,17 +395,18 @@ public class ErgoTokens extends Network implements NoteInterface {
                 }
     
             };
-            ergoMarketsData.addListener((obs, oldval, newVal) -> {
+            tokensList.selectedMarketData().addListener((obs, oldval, newVal) -> {
                 setMarketId(newVal != null ? newVal.getMarketId() : null);
                 updateMarketsBtn.run();
             });
     
             Runnable getAvailableMarketsMenu = () -> {
                 ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+         
                 if (ergoMarkets != null) {
                     marketBtn.setId("menuBtn");
-    
-                    ergoMarkets.getErgoMarketsList().getMenu(marketBtn, ergoMarketsData);
+                    
+                    ergoMarkets.getErgoMarketsList().getMenu(marketBtn, tokensList.selectedMarketData());
                 } else {
                     marketBtn.getItems().clear();
                     marketBtn.setId("menuBtnDisabled");
@@ -623,13 +595,13 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     public ErgoTokensList getTokensList(NetworkType networkType){
       
-        return new ErgoTokensList(getAppKey(), networkType, this, m_marketId);
+        return new ErgoTokensList(getAppKey(), networkType, this, m_marketId, m_explorerId);
 
     }
 
-    public ErgoTokensList getTokensList(NetworkType networkType, String marketId){
+    public ErgoTokensList getTokensList(NetworkType networkType, String marketId, String explorerId){
       
-        return new ErgoTokensList(getAppKey(), networkType, this, marketId);
+        return new ErgoTokensList(getAppKey(), networkType, this, marketId, explorerId);
 
     }
 
@@ -640,9 +612,6 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     }
 
-    public SimpleObjectProperty<ErgoExplorerData> explorerDataProperty(){
-        return m_selectedExplorerData;
-    }
 
     public static Image getAppIcon() {
         return new Image("/assets/diamond-150.png");
@@ -705,7 +674,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             }
         }
         
-        ErgoTokensList tokensList = new ErgoTokensList(appKey, m_networkType, this, m_marketId);
+        ErgoTokensList tokensList = new ErgoTokensList(appKey, m_networkType, this, m_marketId, m_explorerId);
      
         if (tokensDir.isDirectory() && createdtokensDirectory) {
             //ArrayList<ErgoNetworkToken> ergoTokenList = new ArrayList<ErgoNetworkToken>();
@@ -765,6 +734,7 @@ public class ErgoTokens extends Network implements NoteInterface {
                           //      ErgoNetworkToken token = createToken();
                             
                              //   if (token != null) {
+
                                     tokensList.addToken(fileName, fileString, hashData);
                                // }
 

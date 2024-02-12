@@ -17,10 +17,8 @@ import com.google.gson.JsonObject;
 import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
 import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.geometry.Insets;
@@ -154,8 +152,7 @@ public class ErgoNetworkToken extends PriceCurrency {
 
 
     public void updateTokenInfo() {
-        ErgoExplorerData ergoExplorerData =  m_tokensList.getErgoTokens().explorerDataProperty().get();
-        
+        ErgoExplorerData ergoExplorerData =  m_tokensList.selectedExplorerData().get();
 
 
         if(ergoExplorerData != null){
@@ -192,17 +189,27 @@ public class ErgoNetworkToken extends PriceCurrency {
 
     @Override
     public PriceQuote getPriceQuote(){
+        
         PriceQuote[] priceQuotes = m_tokensList.priceQuotesProperty().get();
         if(priceQuotes != null){
+            try {
+                Files.writeString(logFile.toPath(), "\ntoken getpricequote: " + priceQuotes.length, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+    
+            }
             for(int i = 0; i < priceQuotes.length ; i ++){
                 PriceQuote priceQuote = priceQuotes[i];
                 if(priceQuote != null){
                     //String currency = priceQuote.getTransactionCurrency();
                     String tokenId = getTokenId();
                     String txId = priceQuote.getTransactionCurrencyId();
-                   
+                
                     if(txId != null && tokenId.equals(txId)){
-                     
+                        try {
+                            Files.writeString(logFile.toPath(), "\ntoken getpricequote: " + priceQuote.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e) {
+                
+                        }
                         return priceQuote;
                     }
                 }
@@ -278,8 +285,7 @@ public class ErgoNetworkToken extends PriceCurrency {
             Runnable updateExplorerBtn = () ->{
                 ErgoExplorers ergoExplorers = (ErgoExplorers) m_tokensList.getErgoTokens().getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
             
-                ErgoExplorerData explorerData = m_tokensList.getErgoTokens().explorerDataProperty().get();
-            
+                ErgoExplorerData explorerData = m_tokensList.selectedExplorerData().get();            
             
                 if(explorerData != null && ergoExplorers != null){
                 
@@ -302,7 +308,7 @@ public class ErgoNetworkToken extends PriceCurrency {
                 ErgoExplorers ergoExplorers = (ErgoExplorers) m_tokensList.getErgoTokens().getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
                 if(ergoExplorers != null){
                     explorerBtn.setId("menuBtn");
-                    ergoExplorers.getErgoExplorersList().getMenu(explorerBtn, m_tokensList.getErgoTokens().explorerDataProperty());
+                    m_tokensList.ergoExplorerListProperty().get().getMenu(explorerBtn, m_tokensList.selectedExplorerData());
                 }else{
                     explorerBtn.getItems().clear();
                     explorerBtn.setId("menuBtnDisabled");

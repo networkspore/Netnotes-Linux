@@ -25,7 +25,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -37,7 +36,8 @@ public class ErgoExplorerList {
     private ArrayList<ErgoExplorerData> m_dataList = new ArrayList<>();
     private SimpleObjectProperty<LocalDateTime> m_doGridUpdate = new SimpleObjectProperty<LocalDateTime>(null);
     private final SimpleStringProperty m_selectedIdProperty = new SimpleStringProperty(null);
-    
+   
+
     private double m_stageWidth = 600;
     private double m_stageHeight = 500;
     private ChangeListener<LocalDateTime> m_nodeUpdateListener = (obs, oldval, newVal) -> save();
@@ -55,7 +55,7 @@ public class ErgoExplorerList {
 
     private void readFile(){
         SecretKey secretKey = m_ergoExplorer.getNetworksData().getAppData().appKeyProperty().get();
-        File dataFile = m_ergoExplorer.getDataFile();
+        File dataFile = m_ergoExplorer.getIdDataFile(ErgoExplorers.NAME);
    
         if (dataFile != null && dataFile.isFile()) {
             try {
@@ -67,11 +67,13 @@ public class ErgoExplorerList {
             }
 
         }else{
-            String friendlyId = FriendlyId.createFriendlyId();
-            m_defaultIdProperty.set(friendlyId);
-            m_dataList.add(new ErgoExplorerData(friendlyId, this));
+            m_defaultIdProperty.set(ErgoPlatformExplorerData.ERGO_PLATFORM_EXPLORER);
+            m_dataList.add(new ErgoPlatformExplorerData(this));
             save();
         }
+    }
+    public int size(){
+        return m_dataList.size();
     }
 
 
@@ -88,14 +90,21 @@ public class ErgoExplorerList {
 
             for (int i = 0; i < dataArray.size(); i++) {
                 JsonElement dataItem = dataArray.get(i);
-                try{
-                    ErgoExplorerData ergoExplorerData = new ErgoExplorerData(dataItem.getAsJsonObject(), this);
-                    m_dataList.add(ergoExplorerData);
-                }catch(Exception e){
-                    try {
-                        Files.writeString(logFile.toPath(), "\nErgoExplorerList: " + e.toString());
-                    } catch (IOException e1) {
-                        
+                JsonObject dataJson = dataItem != null && dataItem.isJsonObject() ? dataItem.getAsJsonObject() : null;
+                
+                if(dataJson != null){
+                    JsonElement dataIdElement = dataJson.get("id");
+                    if(dataIdElement != null && dataIdElement.isJsonPrimitive()){
+                        String dataId = dataIdElement.getAsString();
+                        if(getErgoExplorerData(dataId) == null){
+                            switch(dataId){
+                                case ErgoPlatformExplorerData.ERGO_PLATFORM_EXPLORER:
+                                    
+                                    ErgoPlatformExplorerData ergoExplorerData = new ErgoPlatformExplorerData(this);
+                                    m_dataList.add(ergoExplorerData);
+                                break;
+                            }
+                        }
                     }
                 }
             }
