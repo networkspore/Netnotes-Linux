@@ -37,9 +37,9 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
         //SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD")
         //priceQuoteProperty().set();
         if(marketData != null){
-            SpectrumMarketData data = SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD");
-            
-            priceQuoteProperty().set(data);
+            SpectrumMarketData data = SpectrumFinance.getMarketDataBySymbols(marketData,"SigUSD", "ERG");
+            PriceQuote priceQuote = new PriceQuote(data.getInvertedLastPrice().toString(), "ERG", "SigUSD");
+            priceQuoteProperty().set(priceQuote);
             marketDataProperty().set(marketData);
         }else{
             priceQuoteProperty().set(null);            

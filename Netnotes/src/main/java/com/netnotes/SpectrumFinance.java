@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -27,6 +28,8 @@ import javax.crypto.SecretKey;
 
 import org.reactfx.util.FxTimer;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -246,6 +249,19 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }
 
+    public static int getMarketDataIndexById(ArrayList<SpectrumMarketData> dataList, String id) {
+        if (id != null) {
+            int size = dataList.size();
+            for (int i = 0; i < size; i++) {
+                SpectrumMarketData data = dataList.get(i);
+                if (data.getId().equals(id) ) {
+                    return i;
+                }
+            }
+            
+        }
+        return -1;
+    }
 
  
     public boolean getIsFavorite(String id){
@@ -599,8 +615,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
   
 
 
-
-    private void getMarketsLocal(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/markets";
 
         /*try {
@@ -679,35 +694,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
   
-  private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        
-        long currentTime = System.currentTimeMillis();
-        long lastChecked = m_marketsLastChecked.getAndSet(currentTime);
-        File marketsFile = getIdDataFile(MARKET_DATA_ID);
       
-        if(lastChecked != 0 && (currentTime -lastChecked) < (1000*15) && marketsFile.isFile() && marketsFile.length() > 50 ){
-            
-            try{
-                
-                String fileString = Utils.readStringFile(getAppKey(), marketsFile);
-             
-                Utils.returnObject(new JsonParser().parse(fileString).getAsJsonArray(), onSucceeded, onSucceeded);
-            }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
-                try {
-                    Files.writeString(logFile.toPath(), "\nSpectrumFinance: getMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
-                getMarketsLocal(onSucceeded, onFailed);
-            }
-
-        }else{
-            getMarketsLocal(onSucceeded, onFailed);
-        }
-        
-    }
-    
-    public void getTickersLocal(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/cg/tickers";
 
         Task<JsonArray> task = new Task<JsonArray>() {
@@ -785,6 +773,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         Runnable failed = ()->{
             Platform.runLater(()-> marketDataProperty.set(null));
         };
+    
         getMarkets(success -> {
            
 
@@ -794,7 +783,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 ArrayList<SpectrumMarketData> marketsList = new ArrayList<>();
 
                 JsonArray jsonArray = (JsonArray) sourceObject;
-                
+
+          
                 for (int i = 0; i < jsonArray.size(); i++) {
             
                     JsonElement marketObjectElement = jsonArray.get(i);
@@ -805,7 +795,20 @@ public class SpectrumFinance extends Network implements NoteInterface {
                         try{
                             
                             SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson);
-                            marketsList.add(marketData);
+                            int marketIndex = getMarketDataIndexById(marketsList, marketData.getId());
+                            
+
+                            if(marketIndex != -1){
+                                SpectrumMarketData lastData = marketsList.get(marketIndex);
+                                BigDecimal quoteVolume = lastData.getQuoteVolume();
+                                if(marketData.getQuoteVolume().doubleValue() > quoteVolume.doubleValue()){
+                                    marketsList.set(marketIndex, marketData);
+                                }
+                            }else{
+                                marketsList.add(marketData);
+                            }
+
+                            
                             
                         }catch(Exception e){
                             try {
@@ -826,6 +829,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                         if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
                             JsonArray tickerArray = (JsonArray) tickerSourceObject;
 
+                 
+                            
                             for (int j = 0; j < tickerArray.size(); j++) {
                         
                                 JsonElement tickerObjectElement = tickerArray.get(j);
@@ -906,7 +911,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             failed.run();
         });
     }
-
+    /*
     public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         
         long currentTime = System.currentTimeMillis();
@@ -933,7 +938,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
              getTickersLocal(onSucceeded, onFailed);
         }
         
-    }
+    }*/
     //
     public boolean getPoolChart(String poolId,long from, long to, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from="+from+"&to=" + to;

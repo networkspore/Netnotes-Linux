@@ -1947,8 +1947,7 @@ public class AddressData extends Network {
                         String tokenType = tokenTypeElement.getAsString();
                   
 
-                        ErgoNetworkToken networkToken = tokensList != null ? tokensList.getErgoToken(tokenId) : null;
-    
+                        ErgoNetworkToken networkToken = tokensList != null ? tokensList.getAddErgoToken(tokenId, name, decimals) : null;
 
                         
                         if(networkToken != null){

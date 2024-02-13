@@ -321,13 +321,19 @@ public class ErgoTokensList extends Network {
 
             buttonGrid.getChildren().clear();
             // VBox.setVgrow(m_buttonGrid, Priority.ALWAYS);
-
+            
             for (int i = 0; i < numCells; i++) {
                 ErgoNetworkToken networkToken = m_networkTokenList.get(i);
 
-                IconButton rowButton = networkToken.getButton(IconStyle.ROW);
+                
+                //PriceQuote priceQuote = networkToken.getPriceQuote();
 
-                buttonGrid.getChildren().add(rowButton);
+                IconButton rowButton = networkToken.getButton(IconStyle.ROW);
+           
+
+                HBox rowBox = new HBox(rowButton);
+                
+                buttonGrid.getChildren().add(rowBox);
                 rowButton.prefWidthProperty().bind(buttonGrid.widthProperty());
             }
             
@@ -351,6 +357,18 @@ public class ErgoTokensList extends Network {
             }
         }
         return null;
+    }
+
+    public ErgoNetworkToken getAddErgoToken(String tokenId, String name, int decimals){
+        ErgoNetworkToken networkToken = getErgoToken(tokenId);
+        if(networkToken != null){
+            return networkToken;
+        }
+        ErgoNetworkToken newToken = new ErgoNetworkToken(tokenId, name, decimals, m_networkType, this);
+        addToken(newToken, true);
+        
+
+        return newToken;
     }
 
     public ErgoNetworkToken getTokenByName(String name) {
@@ -672,9 +690,9 @@ public class ErgoTokensList extends Network {
         parentStage.setTitle(title);
         //String type = "Existing token";
 
-        if (token == null) {
-            token = new ErgoNetworkToken("", "", "", "", null, networkType, this);
-        }
+        
+        token = token == null ? new ErgoNetworkToken("", "", "", "", null, networkType, this) : token;
+        
 
 
 

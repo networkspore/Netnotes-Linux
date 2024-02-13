@@ -53,6 +53,7 @@ public class ErgoNetworkToken extends PriceCurrency {
     private Stage m_ergoTokenStage = null;
     private ErgoTokensList m_tokensList = null;
 
+
   
     public ErgoNetworkToken(String name, String tokenId, NetworkType networkType, JsonObject jsonObject, ErgoTokensList tokensList) {
         super(tokenId, name, name, name, 0,  ErgoNetwork.NETWORK_ID, "/assets/unknown-unit.png", networkType.toString(),0, 0);
@@ -108,7 +109,18 @@ public class ErgoNetworkToken extends PriceCurrency {
         updateTokenInfo();
    
     }
+    //tokenId, decimals, name, tokenType
+    public ErgoNetworkToken(String tokenId, String name, int decimals, NetworkType networkType, ErgoTokensList tokensList) {
+       
+        super(tokenId, name, name, name, decimals,  ErgoNetwork.NETWORK_ID, "", networkType.toString(),0, 0);
+        m_tokensList = tokensList;
+        m_urlString = "";
+     
+       setNetworkType(networkType.toString());
 
+       updateTokenInfo();
+  
+   }
 
 
     public void open() {
@@ -192,11 +204,7 @@ public class ErgoNetworkToken extends PriceCurrency {
         
         PriceQuote[] priceQuotes = m_tokensList.priceQuotesProperty().get();
         if(priceQuotes != null){
-            try {
-                Files.writeString(logFile.toPath(), "\ntoken getpricequote: " + priceQuotes.length, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-    
-            }
+          
             for(int i = 0; i < priceQuotes.length ; i ++){
                 PriceQuote priceQuote = priceQuotes[i];
                 if(priceQuote != null){
@@ -205,11 +213,7 @@ public class ErgoNetworkToken extends PriceCurrency {
                     String txId = priceQuote.getTransactionCurrencyId();
                 
                     if(txId != null && tokenId.equals(txId)){
-                        try {
-                            Files.writeString(logFile.toPath(), "\ntoken getpricequote: " + priceQuote.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        } catch (IOException e) {
-                
-                        }
+                        
                         return priceQuote;
                     }
                 }

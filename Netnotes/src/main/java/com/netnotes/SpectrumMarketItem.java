@@ -179,7 +179,7 @@ public class SpectrumMarketItem {
         if (data == null) {
             return null;
         }
-        boolean isInvert = m_dataList.getSortMethod().isTargetSwapped();
+        boolean isInvert = data.getDefaultInvert() ? !m_dataList.getSortMethod().isTargetSwapped() : m_dataList.getSortMethod().isTargetSwapped();
         int height = 30;
         int symbolColWidth = 160;
         String symbolString = String.format("%-18s", getCurrentSymbol(isInvert) );
@@ -252,13 +252,13 @@ public class SpectrumMarketItem {
     }
 
     public boolean isInvert(){
-        return m_marketDataProperty.get().getDefaultInvert() ? !m_dataList.getSortMethod().isTargetSwapped() : m_dataList.getSortMethod().isTargetSwapped();
+        return m_marketDataProperty.get().getDefaultInvert() ? m_dataList.getSortMethod().isTargetSwapped() : !m_dataList.getSortMethod().isTargetSwapped();
     }
 
     public void showStage() {
         if (m_stage == null) {
-         
-            SimpleBooleanProperty isInvertChart = new SimpleBooleanProperty(isInvert());
+            
+            SimpleBooleanProperty isInvertChart = new SimpleBooleanProperty(isInvert() );
 
             double sceneWidth = 750;
             double sceneHeight = 800;
@@ -274,6 +274,13 @@ public class SpectrumMarketItem {
             double chartSizeInterval = 25;
 
             SpectrumFinance exchange = m_dataList.getSpectrumFinance();
+
+            try {
+                Files.writeString(logFile.toPath(), "\n" + m_marketDataProperty.get().getJsonObject().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+  
+            }
+       
 
             m_stage = new Stage();
             m_stage.getIcons().add(SpectrumFinance.getSmallAppIcon());
