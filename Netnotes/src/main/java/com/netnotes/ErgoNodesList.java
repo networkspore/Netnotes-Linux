@@ -921,8 +921,10 @@ public class ErgoNodesList {
             });
 
             Runnable doClose = () -> {
-                m_addStage.close();
-                m_addStage = null;
+                if(m_addStage != null){
+                    m_addStage.close();
+                    m_addStage = null;
+                }
             };
             Runnable showNoneSelect = () -> {
                 Alert a = new Alert(AlertType.NONE, "Select a node.", ButtonType.OK);

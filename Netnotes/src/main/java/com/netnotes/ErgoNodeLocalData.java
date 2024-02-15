@@ -108,7 +108,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private File m_appDir = null;
     private String m_appFileName = null;
     private HashData m_appFileHashData = null;
-    private String m_execParams = "";
+    private String m_execParams = "-Xmx4G";
 
     private long m_spaceRequired = 50L * (1024L * 1024L * 1024L);
     private Stage m_stage = null;
@@ -541,16 +541,19 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         String networkTypeString = namedNodeUrlProperty().get().getNetworkType() == null ? NetworkType.MAINNET.toString() : namedNodeUrlProperty().get().getNetworkType().toString();
 
         String networkTypeFlag = networkTypeString.equals(NetworkType.MAINNET.toString()) ? "--mainnet" : "--testnet";
-
-        String cmdPrefix = "java -jar " + appFile.getName() + " " + networkTypeFlag;
-
-        String cmdPostfix = " -c " + configFile.getName();
+        
         if (m_execParams == null) {
             m_execParams = "";
         }
+
         String params = m_execParams.trim().length() > 0 ? " " + m_execParams.trim() : "";
 
-        return cmdPrefix + params + cmdPostfix;
+        String cmdPrefix = "java" + params + " -jar " + appFile.getName() + " " + networkTypeFlag;
+
+        String cmdPostfix = " -c " + configFile.getName();
+        
+        
+        return cmdPrefix + cmdPostfix;
     }
 
     private void runNode(File appFile, File configFile) {
@@ -1058,7 +1061,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         requiredText.setFont(App.txtFont);
 
         //  final String advSpaceRequiredString = "~100 Mb - >50 Gb";
-        TextField requiredField = new TextField("~2 GB");
+        TextField requiredField = new TextField("~20 GB");
         requiredField.setFont(App.txtFont);
         requiredField.setId("formField");
         requiredField.setEditable(false);
@@ -1516,7 +1519,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             default:
                 
         }*/
-        return 2L * 1024L * 1024L * 1024L;
+        return 20L * 1024L * 1024L * 1024L;
     }
 
     public static void checkDrive(File appDir, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -1708,7 +1711,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             Scene finalSetupScene = getFinalSetupScene(installBtn, backBtn, jarFile, getLatestBoolean,updateBoolean, autoUpdateBoolean, downloadUrl, downloadFileName, m_stage);
 
             m_stage.setScene(finalSetupScene);
-
+            Platform.runLater(()->m_stage.toFront());
             backBtn.setOnAction(e -> {
                 m_stage.setScene(initialScene);
                 m_stage.setHeight(SETUP_STAGE_HEIGHT);
