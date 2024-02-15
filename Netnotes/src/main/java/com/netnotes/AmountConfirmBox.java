@@ -20,7 +20,7 @@ public class AmountConfirmBox extends AmountBox {
     private final long m_confirmAmountLong;
     private final PriceAmount m_feeAmount;
     private final long m_feeAmountLong;
-
+    private final String m_defaultName;
 
 
     public AmountConfirmBox(PriceAmount priceAmount, PriceAmount feeAmount, Scene scene) {
@@ -30,6 +30,7 @@ public class AmountConfirmBox extends AmountBox {
         m_confirmAmountLong = m_confirmAmount.getLongAmount();
         m_feeAmount = feeAmount;
         m_feeAmountLong = feeAmount == null ? 0 : m_feeAmount.getLongAmount();
+        m_defaultName = priceAmount.getCurrency().getDefaultName();
 
         layoutBox(feeAmount != null , scene);
     }
@@ -65,7 +66,7 @@ public class AmountConfirmBox extends AmountBox {
         imgPaddingBox.setAlignment(Pos.CENTER_LEFT);
         imgPaddingBox.minHeightProperty().bind(m_rowHeight);
 
-        TextField currencyName = new TextField(m_confirmAmount.getCurrency().getName());
+        TextField currencyName = new TextField(m_defaultName);
         currencyName.setFont(App.txtFont);
         currencyName.setPadding(new Insets(3, 10, 3, 10));
         currencyName.setPrefWidth(Utils.measureString(currencyName.getText(), new java.awt.Font("OCR A Extended",java.awt.Font.PLAIN, 14))+ 30);;

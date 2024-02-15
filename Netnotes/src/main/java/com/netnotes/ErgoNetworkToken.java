@@ -545,6 +545,9 @@ public class ErgoNetworkToken extends PriceCurrency {
         return m_urlString;
     }
 
+    public void setUrlString(String url){
+        m_urlString = url;
+    }
 
 
     @Override

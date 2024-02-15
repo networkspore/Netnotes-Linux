@@ -3,6 +3,8 @@ package com.netnotes;
 import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -385,4 +387,60 @@ public class Drawing {
         return SwingFXUtils.toFXImage(img, null);
     }
 
+    
+    public static BufferedImage fastScale(BufferedImage src, int w, int h)
+    {
+        BufferedImage img =  new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        int x, y;
+        int ww = src.getWidth();
+        int hh = src.getHeight();
+        int[] ys = new int[h];
+        
+        for (y = 0; y < h; y++){
+            ys[y] = y * hh / h;
+        }
+        
+        for (x = 0; x < w; x++) {
+            int newX = x * ww / w;
+            for (y = 0; y < h; y++) {
+                int col = src.getRGB(newX, ys[y]);
+                img.setRGB(x, y, col);
+            }
+        }
+        
+        return img;
+    }
+
+    public static BufferedImage resizeImage(BufferedImage buf, int width, int height) {
+        final BufferedImage bufImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        final Graphics2D g2 = bufImage.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        g2.drawImage(buf, 0, 0, width, height, null);
+        g2.dispose();
+       
+        return bufImage;
+    }
+
+    public static BufferedImage resizeImage(BufferedImage buf, int width, int height, boolean maintainRatio){
+        if(!maintainRatio){
+            return resizeImage(buf, width, height);  
+        }
+        if(buf.getWidth() == buf.getHeight()){
+            int size = width < height ? width : height;
+
+            return resizeImage(buf, size, size);
+        }else{
+            double wR = buf.getWidth() / width;
+            double hR = buf.getHeight() / height;
+            boolean gT = wR > 1 || hR > 1;
+
+             if(gT ? wR < hR : wR > hR){
+                wR = 1 /wR;
+                return resizeImage(buf, (int)(wR * buf.getWidth()), (int)(wR * buf.getHeight()));
+             }else{
+                hR = 1 / hR;
+                return resizeImage(buf, (int)(hR * buf.getWidth()), (int)(hR * buf.getHeight()));
+             }
+        }  
+    }
 }

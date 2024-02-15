@@ -677,7 +677,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         getAvailableExplorerMenu.run();
         getAvailableNodeMenu.run();
         getAvailableMarketsMenu.run();
-      
+        updateTokensMenu.run();
       
 
         sendBtn.setOnAction((actionEvent) -> {

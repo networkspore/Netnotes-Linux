@@ -36,6 +36,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.utils.Utils;
 
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
@@ -71,6 +72,7 @@ public class ErgoTokens extends Network implements NoteInterface {
     public final static String NETWORK_ID = "ERGO_TOKENS";
 
     public final static String[] TOKEN_MARKETS = new String[] { SpectrumFinance.NETWORK_ID };
+    private final SimpleLongProperty m_timeStampProprety = new SimpleLongProperty(0);
 
 
     private File logFile = new File("netnotes-log.txt");
@@ -781,6 +783,15 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     }
    
+   
+    public SimpleLongProperty timeStampProperty(){
+        return m_timeStampProprety;
+    }
+
+    public void save(JsonObject listJson, NetworkType networkType, long timeStamp) {
+        save(getAppKey(), listJson, networkType);
+        timeStampProperty().set(timeStamp);
+    }
 
     public void save(SecretKey appKey, JsonObject listJson, NetworkType networkType) {
 

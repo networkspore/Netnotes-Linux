@@ -112,6 +112,8 @@ public class AmountBox extends HBox {
 
        ImageView textViewImage = IconButton.getIconView( priceAmount.getCurrency().getIcon(),35);
 
+       
+
         VBox imgPaddingBox = new VBox(textViewImage);
         imgPaddingBox.setPadding(new Insets(0,15,0,10)); 
         imgPaddingBox.setMinHeight(40);
@@ -248,9 +250,9 @@ public class AmountBox extends HBox {
             m_addressesData.isErgoTokensProperty().set(true);
         });
 
-        final String rememberString = "Remember";
+    
         final String viewString = "viewToken";
-        MenuItem addItem = new MenuItem("Add to Ergo Tokens");
+      //  MenuItem addItem = new MenuItem("Add to Ergo Tokens");
         MenuItem viewItem = new MenuItem("Open");
 
         MenuItem currencyUrlItem = new MenuItem("Visit Website");
@@ -263,7 +265,7 @@ public class AmountBox extends HBox {
 
         Runnable updates = () ->{
             
-            
+           
             ErgoTokensList tokensList = m_addressesData.tokensListProperty().get();
 
             boolean isErgoTokens = tokensList != null;
@@ -302,7 +304,7 @@ public class AmountBox extends HBox {
                             });
                             ergoTokensBtn.getItems().add(viewItem);
                         }   
-                    }else{
+                     /*else{
                         if(!tokenOptionsBtnUserData.equals(rememberString)){
                             ergoTokensBtn.setUserData(rememberString);
                             ergoTokensBtn.getItems().clear();
@@ -320,19 +322,16 @@ public class AmountBox extends HBox {
                                 Stage addEditTokenStage =  new Stage();
                                 addEditTokenStage.getIcons().add(ErgoTokens.getAppIcon());
                                 addEditTokenStage.initStyle(StageStyle.UNDECORATED);
+                                Button addEditTokenStageCloseBtn = new Button();
+                                Scene addTokenScene = tokensList.getEditTokenScene(newToken, tokenNetworkType, addEditTokenStage, addEditTokenStageCloseBtn);
                                 
-                                Button stageCloseBtn = new Button();
-
-                             
-                                Scene addTokenScene = tokensList.getEditTokenScene(newToken, tokenNetworkType, addEditTokenStage, stageCloseBtn);
-
                                 addEditTokenStage.setScene(addTokenScene);
                                 addEditTokenStage.show();
-                                stageCloseBtn.setOnAction(e1->{
+                                addEditTokenStageCloseBtn.setOnAction(e1->{
                                     addEditTokenStage.close();
                                 });
                             });
-                        }
+                        }*/
                     }
                 }else{
                     if(!isErgoTokens && m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) != null){
@@ -365,19 +364,27 @@ public class AmountBox extends HBox {
             updateBufferedImage();
         });
         ChangeListener<PriceQuote[]> listPriceListener = (obs,oldval,newval)->updateBufferedImage();
+        ChangeListener<LocalDateTime> updateListener = (obs,oldval,newval)->{
+            PriceAmount currentAmount = m_currentAmount.get();
+            if(currentAmount != null){
+                textViewImage.setImage(currentAmount.getCurrency().getIcon());
+            }
+        };
         m_addressesData.tokensListProperty().addListener((obs,oldval,newval)->{
             updates.run();
             if(oldval != null){
                 oldval.priceQuotesProperty().removeListener(listPriceListener);
+                oldval.getLastUpdated().removeListener(updateListener);
             }
             if(newval != null){
                 newval.priceQuotesProperty().addListener(listPriceListener);
-                
+                newval.getLastUpdated().removeListener(updateListener);
             }
             updateBufferedImage();
         });
         if(m_addressesData.tokensListProperty().get() != null){
             m_addressesData.tokensListProperty().get().priceQuotesProperty().addListener(listPriceListener);
+            m_addressesData.tokensListProperty().get().getLastUpdated().addListener(updateListener);
             updateBufferedImage();
         }
         m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> updates.run());

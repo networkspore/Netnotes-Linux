@@ -26,7 +26,6 @@ import org.reactfx.util.FxTimer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonArray;
 
 import com.utils.Utils;
@@ -185,8 +184,8 @@ public class SpectrumMarketItem {
         String symbolString = String.format("%-18s", getCurrentSymbol(isInvert) );
         String priceString = isInvert ? data.getInvertedLastPrice().toString() : data.getLastPrice().toString();
 
-        boolean positive = false;
-        boolean neutral = true;
+       // boolean positive = false;
+       // boolean neutral = true;
 
         java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 15);
         java.awt.Font txtFont = new java.awt.Font("Deja Vu Sans", java.awt.Font.PLAIN, 15);
@@ -252,7 +251,8 @@ public class SpectrumMarketItem {
     }
 
     public boolean isInvert(){
-        return m_marketDataProperty.get().getDefaultInvert() ? m_dataList.getSortMethod().isTargetSwapped() : !m_dataList.getSortMethod().isTargetSwapped();
+        SpectrumMarketData data = marketDataProperty().get();
+        return data.getDefaultInvert() ? !m_dataList.getSortMethod().isTargetSwapped() : m_dataList.getSortMethod().isTargetSwapped();
     }
 
     public void showStage() {
@@ -336,7 +336,7 @@ public class SpectrumMarketItem {
                 favoriteBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
             });
 
-            Text headingText = new Text(getCurrentSymbol(isInvertChart.get()) + "  - ");
+            Text headingText = new Text(getCurrentSymbol(isInvert()) + "  - ");
             headingText.setFont(App.txtFont);
             headingText.setFill(Color.WHITE);
 
@@ -645,7 +645,7 @@ public class SpectrumMarketItem {
                        
                    
                        
-                        Platform.runLater(()->chartView.setPriceDataList(isInvertChart.get() ? invertPrices(chartArray) : chartArray, currentTime));
+                        Platform.runLater(()->chartView.setPriceDataList(isInvertChart.get() ?  chartArray : invertPrices(chartArray), currentTime));
                         
                         Platform.runLater(()->chartRange.setVisible(true));
 

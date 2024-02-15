@@ -18,7 +18,7 @@ public class PriceCurrency {
     public final static int VALID_TIMEOUT = 1000*60;
     
     private boolean m_priceValid = true;
-   
+    private String m_defaultCurrencyName = ""; 
     private String m_tokenId = null;
     private String m_symbol = null;
     private String m_name = null;
@@ -105,6 +105,14 @@ public class PriceCurrency {
         if (imageStringElement != null && getImgHashData() != null) {
             setImageString(imageStringElement.getAsString());
         }
+    }
+
+    public String getDefaultName(){
+        return m_defaultCurrencyName;
+    }
+
+    public void setDefaultName(String name){
+        m_defaultCurrencyName = name;
     }
 
     public HashData getImgHashData(){

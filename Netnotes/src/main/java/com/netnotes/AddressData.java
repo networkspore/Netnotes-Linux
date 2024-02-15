@@ -33,8 +33,6 @@ import com.utils.Utils;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -42,7 +40,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.collections.ListChangeListener.Change;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
@@ -1948,7 +1945,7 @@ public class AddressData extends Network {
                   
 
                         ErgoNetworkToken networkToken = tokensList != null ? tokensList.getAddErgoToken(tokenId, name, decimals) : null;
-
+                        networkToken.setDefaultName(name);
                         
                         if(networkToken != null){
                             networkToken.setDecimals(decimals);
