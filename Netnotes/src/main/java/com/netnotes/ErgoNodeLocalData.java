@@ -621,11 +621,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             m_executor = Executors.newSingleThreadExecutor();
 
         }
-        try {
-            Files.writeString(logFile.toPath(), "\nrunning node...", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e1) {
-          
-        }
+  
+        
         if ((m_future == null || m_future != null && m_future.isDone()) ) {
 
             String[] cmd = Utils.getShellCmd(getExecCmd(appFile, configFile));
@@ -767,11 +764,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
               
         }
         if (m_isSetupProperty.get() && currentStatus.equals(ErgoMarketsData.STOPPED)) {
-            try {
-                Files.writeString(logFile.toPath(), "\nstarting", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-              
-            }
+      
+            
             Runnable runError = () -> {
                 Platform.runLater(() -> {
                     m_isSetupProperty.set(false);
@@ -782,11 +776,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             Platform.runLater(() -> statusProperty().set(ErgoMarketsData.STARTING));
 
             checkDrive(m_appDir, (onSuccess)->{
-                try {
-                    Files.writeString(logFile.toPath(), "\ndrive checked", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                  
-                }
+                
                 Object sourceValue = onSuccess.getSource().getValue();
 
                 if(sourceValue != null && sourceValue instanceof Boolean && (Boolean) sourceValue){
@@ -803,22 +793,10 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                             if (m_appFileHashData.getHashStringHex().equals(appFileHashData.getHashStringHex())) {
                                 if (m_nodeConfigData.getConfigFileHashData().getHashStringHex().equals(configFileHashData.getHashStringHex())) {
-                                    try {
-                                        Files.writeString(logFile.toPath(), "\nhashdata ok", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                    } catch (IOException e1) {
-                                      
-                                    }
-                                    if(m_update){
-                                        try {
-                                            Files.writeString(logFile.toPath(), "\nlooking for update", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                        } catch (IOException e1) {
-                                          
-                                        }
-                                        checkForupdate(()-> runNode(appFile, configFile));
-                                    }else{
-                                      
-                                        runNode(appFile, configFile);
-                                    }
+                                   
+                                   
+                                    runNode(appFile, configFile);
+                                    
                                 } else {
                                     runError.run();
 
