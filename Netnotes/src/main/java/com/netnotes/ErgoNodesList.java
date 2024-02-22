@@ -19,9 +19,9 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 
 import org.ergoplatform.appkit.NetworkType;
+import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
@@ -30,6 +30,9 @@ import com.google.gson.JsonArray;
 
 import com.utils.Utils;
 
+import javafx.application.Platform;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -43,6 +46,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
@@ -54,6 +58,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
@@ -74,7 +79,7 @@ public class ErgoNodesList {
     private ErgoNodeLocalData m_ergoLocalNode = null;
 
     private double DEFAULT_ADD_STAGE_WIDTH = 600;
-    private double DEFAULT_ADD_STAGE_HEIGHT = 500;
+    private double DEFAULT_ADD_STAGE_HEIGHT = 485;
 
     private final static long EXECUTION_TIME = 500;
     private double m_addStageWidth = DEFAULT_ADD_STAGE_WIDTH;
@@ -107,6 +112,8 @@ public class ErgoNodesList {
             try {
    
                 JsonObject json = Utils.readJsonFile(m_ergoNodes.getNetworksData().getAppData().appKeyProperty().get(), m_ergoNodes.getDataFile());
+                
+           
                 openJson(json);
             } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
@@ -116,15 +123,6 @@ public class ErgoNodesList {
                 a.setTitle("Ergo Nodes: Loading Error");
                 a.show();
             }
-        } else {
-     
-            String localNodeId = FriendlyId.createFriendlyId();
-            m_ergoLocalNode = new ErgoNodeLocalData(localNodeId, this);
-            m_defaultId.set(localNodeId);
-
-            m_ergoLocalNode.lastUpdated().addListener(m_nodeUpdateListener);
-            add(new ErgoNodeData(this, ErgoNodeData.LIGHT_CLIENT, new NamedNodeUrl()), true);
-        
         }
 
     }
@@ -151,16 +149,10 @@ public class ErgoNodesList {
             if (namedNodeUrl != null) {
                 m_ergoLocalNode = new ErgoNodeLocalData(namedNodeUrl, localNodeObject, this);
 
-                m_ergoLocalNode.lastUpdated().addListener(m_nodeUpdateListener);
-            } else {
-                m_ergoLocalNode = new ErgoNodeLocalData(FriendlyId.createFriendlyId(), this);
-                m_ergoLocalNode.lastUpdated().addListener(m_nodeUpdateListener);
-            }
+                m_ergoLocalNode.addUpdateListener(m_nodeUpdateListener);
+            } 
 
-        } else {
-            m_ergoLocalNode = new ErgoNodeLocalData(FriendlyId.createFriendlyId(), this);
-            m_ergoLocalNode.lastUpdated().addListener(m_nodeUpdateListener);
-        }
+        } 
 
         if (nodesElement != null && nodesElement.isJsonArray()) {
             JsonArray jsonArray = nodesElement.getAsJsonArray();
@@ -230,10 +222,10 @@ public class ErgoNodesList {
                 selectedIdProperty().set(null);
             }
             boolean updated = false;
-            if(m_ergoLocalNode.getId().equals(id)){
-                m_ergoLocalNode.remove();
-                m_ergoLocalNode = new ErgoNodeLocalData(FriendlyId.createFriendlyId(), this);
-                m_ergoLocalNode.addUpdateListener(m_nodeUpdateListener);
+            if(m_ergoLocalNode != null && m_ergoLocalNode.getId().equals(id)){
+                m_ergoLocalNode.stop();
+                m_ergoLocalNode.removeUpdateListener();
+                m_ergoLocalNode = null;
                 updated = true;
             }else{
                 if (m_dataList.size() > 0) {
@@ -304,8 +296,9 @@ public class ErgoNodesList {
         if(m_defaultId.get() != null){
             json.addProperty("defaultId", m_defaultId.get());
         }
-        json.add("localNode", m_ergoLocalNode.getJsonObject());
-
+        if(m_ergoLocalNode != null){
+            json.add("localNode", m_ergoLocalNode.getJsonObject());
+        }
         return json;
     }
 
@@ -341,10 +334,13 @@ public class ErgoNodesList {
 
         Runnable updateGrid = () -> {
             gridBox.getChildren().clear();
-
-            HBox fullNodeRowItem = m_ergoLocalNode.getRowItem();
-            fullNodeRowItem.prefWidthProperty().bind(width.subtract(scrollWidth));
-            gridBox.getChildren().add(fullNodeRowItem);
+            
+            if(m_ergoLocalNode != null){
+                HBox fullNodeRowItem = m_ergoLocalNode.getRowItem();
+                fullNodeRowItem.prefWidthProperty().bind(width.subtract(scrollWidth));
+                gridBox.getChildren().add(fullNodeRowItem);
+            }            
+            
             int numCells = m_dataList.size();
 
             for (int i = 0; i < numCells; i++) {
@@ -378,16 +374,19 @@ public class ErgoNodesList {
             });
             menuBtn.getItems().add(noneMenuItem);
 
-            MenuItem localNodeMenuItem = new MenuItem( m_ergoLocalNode.getName());
-            if(m_ergoLocalNode != null && newSelectedNodedata != null && m_ergoLocalNode.getId().equals(newSelectedNodedata.getId())){
-                localNodeMenuItem.setId("selectedMenuItem");
-                localNodeMenuItem.setText(localNodeMenuItem.getText() + " (selected)");
-            }
-            localNodeMenuItem.setOnAction(e->{
-                selectedNode.set(m_ergoLocalNode);
-            });
+            if(m_ergoLocalNode != null){
+                MenuItem localNodeMenuItem = new MenuItem( m_ergoLocalNode.getName());
+                if(m_ergoLocalNode != null && newSelectedNodedata != null && m_ergoLocalNode.getId().equals(newSelectedNodedata.getId())){
+                    localNodeMenuItem.setId("selectedMenuItem");
+                    localNodeMenuItem.setText(localNodeMenuItem.getText() + " (selected)");
+                }
+                localNodeMenuItem.setOnAction(e->{
+                    selectedNode.set(m_ergoLocalNode);
+                });
 
-            menuBtn.getItems().add( localNodeMenuItem );
+                menuBtn.getItems().add( localNodeMenuItem );
+            }            
+            
             int numCells = m_dataList.size();
 
             for (int i = 0; i < numCells; i++) {
@@ -434,9 +433,18 @@ public class ErgoNodesList {
 
     }
 
-    private void setDefaultNodeOption(String option) {
+    /*private void setDefaultNodeOption(String option) {
         m_defaultAddType = option;
         save();
+    }*/
+
+    public void addLocalNode(){
+        if(m_ergoLocalNode == null){
+            m_ergoLocalNode = new ErgoNodeLocalData(FriendlyId.createFriendlyId(), this);
+            m_ergoLocalNode.addUpdateListener(m_nodeUpdateListener);
+            m_doGridUpdate.set(LocalDateTime.now());
+            save();
+        }
     }
 
     public ErgoNodes getErgoNodes() {
@@ -447,7 +455,7 @@ public class ErgoNodesList {
         if (m_addStage == null) {
             String friendlyId = FriendlyId.createFriendlyId();
 
-            SimpleStringProperty nodeOption = new SimpleStringProperty(m_defaultAddType);
+            SimpleStringProperty nodeOption = new SimpleStringProperty(m_ergoLocalNode == null ? ErgoNodeLocalData.LOCAL_NODE : PUBLIC);
 
             // Alert a = new Alert(AlertType.NONE, "updates: " + updatesEnabled, ButtonType.CLOSE);
             //a.show();
@@ -471,7 +479,7 @@ public class ErgoNodesList {
             double minHeight = 500;
 
             Scene addNodeScene = new Scene(layoutBox, m_addStageWidth, m_addStageHeight);
-
+            addNodeScene.setFill(null);
             String heading = "Add Node";
             Button closeBtn = new Button();
 
@@ -507,6 +515,8 @@ public class ErgoNodesList {
             nodeTypeText.setFont(App.txtFont);
 
             MenuButton typeBtn = new MenuButton();
+            typeBtn.setId("bodyRowBox");
+            typeBtn.setMinWidth(300);
             typeBtn.setAlignment(Pos.CENTER_LEFT);
 
             MenuItem defaultClientItem = new MenuItem("Public node (Remote client)");
@@ -523,8 +533,28 @@ public class ErgoNodesList {
                 nodeOption.set(CUSTOM);
 
             });
-
             configureItem.setId("rowBtn");
+
+            MenuItem localNodeItem = new MenuItem("Local Node (Local host)");
+            localNodeItem.setOnAction(e->{});
+            localNodeItem.setId("rowBtn");
+            localNodeItem.setOnAction(e->{
+                nodeOption.set(ErgoNodeLocalData.LOCAL_NODE);
+            });
+            Runnable addLocalNodeOption = ()->{
+                if(m_ergoLocalNode == null){
+                    if(!typeBtn.getItems().contains(localNodeItem)){
+                        typeBtn.getItems().add(0,localNodeItem);
+                    }
+                }else{
+                    if(typeBtn.getItems().contains(localNodeItem)){
+                        typeBtn.getItems().remove(localNodeItem);
+                    }
+                }
+            };
+            addLocalNodeOption.run();
+
+            m_doGridUpdate.addListener((obs,oldval,newval)->addLocalNodeOption.run());            
 
             typeBtn.getItems().addAll(defaultClientItem, configureItem);
 
@@ -564,27 +594,17 @@ public class ErgoNodesList {
             HBox publicNodesBox = new HBox(publicNodesText, btnSpacerRegion, getNodesListBtn);
             publicNodesBox.setAlignment(Pos.CENTER_LEFT);
             publicNodesBox.setMinHeight(40);
+          
 
-            Tooltip defaultTypeBtnTip = new Tooltip("Set default");
-            defaultTypeBtnTip.setShowDelay(new Duration(100));
-            
-            BufferedButton defaultTypeBtn = new BufferedButton(m_defaultAddType.equals(nodeOption.get()) ? "/assets/star-30.png" : "/assets/star-outline-30.png", 20);
-            defaultTypeBtn.setTooltip(defaultTypeBtnTip);
+            HBox nodeTypeBox = new HBox(nodeTypeText, typeBtn);
+            // Binding<Double> viewportWidth = Bindings.createObjectBinding(()->settingsScroll.viewportBoundsProperty().get().getWidth(), settingsScroll.viewportBoundsProperty());
 
-            defaultTypeBtn.setOnAction(e -> {
-                String currentNodeOption = nodeOption.get();
-                if (!m_defaultAddType.equals(currentNodeOption)) {
-                    setDefaultNodeOption(currentNodeOption);
-                    defaultTypeBtn.setImage(new Image("/assets/star-30.png"));
 
-                }
-            });
-
-            HBox nodeTypeBox = new HBox(nodeTypeText, typeBtn, defaultTypeBtn);
+            typeBtn.minWidthProperty().bind(nodeTypeBox.widthProperty().subtract(nodeTypeText.layoutBoundsProperty().get().getWidth()).subtract(5));
             nodeTypeBox.setAlignment(Pos.CENTER_LEFT);
             nodeTypeBox.setPadding(new Insets(0));
             nodeTypeBox.minHeightProperty().bind(rowHeight);
-
+            HBox.setHgrow(nodeTypeBox, Priority.ALWAYS);
             VBox namedNodesGridBox = nodesList.getGridBox();
 
             ScrollPane namedNodesScroll = new ScrollPane(namedNodesGridBox);
@@ -644,7 +664,8 @@ public class ErgoNodesList {
             nodesList.gridWidthProperty().bind(nodesBox.widthProperty().subtract(40).subtract(scrollWidth));
 
             VBox lightClientOptions = new VBox(publicNodesBox, nodeScrollBox, nodesBox);
-
+            lightClientOptions.setId("bodyBox");
+            lightClientOptions.setPadding(new Insets(5,10,10,20));
             /* 
             *
             ***********Custom properties 
@@ -786,9 +807,80 @@ public class ErgoNodesList {
 
             VBox customClientOptionsBox = new VBox(nodeNameBox, networkTypeBox, nodeUrlBox, nodePortBox, apiKeyBox);
             customClientOptionsBox.setPadding(new Insets(15, 0, 0, 15));
+            customClientOptionsBox.setId("bodyBox");
+        
+            Text localNodeHeadingText = new Text("Local Node");
+            localNodeHeadingText.setFont(App.txtFont);
+            localNodeHeadingText.setFill(App.txtColor);
 
-            VBox bodyOptionBox = new VBox(lightClientOptions);
-            bodyOptionBox.setId("bodyBox");
+            HBox localNodeHeadingBox = new HBox(localNodeHeadingText);
+            headingBox.prefHeight(40);
+            headingBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(headingBox, Priority.ALWAYS);
+            headingBox.setPadding(new Insets(10, 10, 10, 10));
+            headingBox.setId("headingBox");
+
+            HBox localNodeHeadingPaddingBox = new HBox(localNodeHeadingBox);
+            localNodeHeadingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
+
+            SimpleObjectProperty<FreeMemory> freeMemoryObject = new SimpleObjectProperty<>(Utils.getFreeMemory());
+
+            TextArea localNodeTextArea = new TextArea(ErgoNodeLocalData.DESCRIPTION);
+            localNodeTextArea.setWrapText(true);
+            localNodeTextArea.setEditable(false);
+            VBox.setVgrow(localNodeTextArea, Priority.ALWAYS);
+
+    
+
+            Runnable updateFreeMemory = () ->{
+                FreeMemory freeMemory = freeMemoryObject.get();
+                String textAreaString = getMemoryInfoString(freeMemory);
+
+                localNodeTextArea.setText(textAreaString);
+            };
+
+            freeMemoryObject.addListener((obs,oldval,newval)->updateFreeMemory.run());
+            
+           
+
+
+
+
+            VBox localNodeTextAreaBox = new VBox(localNodeTextArea);
+            localNodeTextAreaBox.setPadding(new Insets(10));
+            localNodeTextArea.setId("bodyBox");
+            HBox.setHgrow(localNodeTextAreaBox, Priority.ALWAYS);
+            VBox.setVgrow(localNodeTextAreaBox,Priority.ALWAYS);
+
+            final String swapIncreaseUrl = Utils.getIncreseSwapUrl();
+            Tooltip swapIncreaseTooltip = new Tooltip("Open Url: " + swapIncreaseUrl);
+            swapIncreaseTooltip.setShowDelay(new Duration(50));
+
+            BufferedButton swapIncreaseBtn = new BufferedButton("/assets/warning-30.png", 30);
+            swapIncreaseBtn.setTooltip(swapIncreaseTooltip);
+            swapIncreaseBtn.setText("Increase swap size");
+            swapIncreaseBtn.setGraphicTextGap(10);
+            swapIncreaseBtn.setTextAlignment(TextAlignment.RIGHT);
+            swapIncreaseBtn.setOnAction((e)->{
+                m_ergoNodes.getNetworksData().getHostServices().showDocument(swapIncreaseUrl);
+            });
+            HBox swapBox = new HBox(swapIncreaseBtn);
+            HBox.setHgrow(swapBox, Priority.ALWAYS);
+            swapBox.setMinHeight(30);
+            swapBox.setAlignment(Pos.CENTER_RIGHT);
+            swapBox.setPadding(new Insets(0,10,0,10));
+
+            VBox localNodeOptionsBox = new VBox(localNodeHeadingBox, localNodeTextAreaBox);
+            localNodeOptionsBox.setPadding(new Insets(15,0,0,15));
+            VBox.setVgrow(localNodeOptionsBox, Priority.ALWAYS);
+
+            if(getSwapSize(freeMemoryObject.get()) > 0){
+                localNodeTextAreaBox.getChildren().add(swapBox);
+            }
+            
+
+            VBox bodyOptionBox = new VBox(m_ergoLocalNode == null ? localNodeOptionsBox : lightClientOptions);
+            VBox.setVgrow(bodyOptionBox, Priority.ALWAYS);
             bodyOptionBox.setPadding(new Insets(0, 0, 15, 15));
 
             Button nextBtn = new Button("Add");
@@ -803,9 +895,10 @@ public class ErgoNodesList {
             VBox bodyBox = new VBox(nodeTypeBox, bodyOptionBox, nextBox);
             bodyBox.setId("bodyBox");
             bodyBox.setPadding(new Insets(0, 10, 0, 10));
-
+            VBox.setVgrow(bodyBox, Priority.ALWAYS);
             VBox bodyPaddingBox = new VBox(bodyBox);
-            bodyPaddingBox.setPadding(new Insets(5, 5, 5, 5));
+            bodyPaddingBox.setPadding(new Insets(0, 5, 0, 5));
+            VBox.setVgrow(bodyPaddingBox, Priority.ALWAYS);
 
             Region footerSpacer = new Region();
             footerSpacer.setMinHeight(5);
@@ -813,7 +906,7 @@ public class ErgoNodesList {
             VBox footerBox = new VBox(footerSpacer);
 
             layoutBox.getChildren().addAll(headerBox, bodyPaddingBox, footerBox);
-
+        
             namedNodesScroll.prefViewportHeightProperty().bind(m_addStage.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(publicNodesBox.heightProperty()).subtract(nodesBox.heightProperty()));
 
             rowHeight.bind(m_addStage.heightProperty().subtract(headerBox.heightProperty()).subtract(nodeTypeBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(95).divide(5));
@@ -839,8 +932,8 @@ public class ErgoNodesList {
                 bodyOptionBox.getChildren().add(lightClientOptions);
 
                 addNodeScene.focusOwnerProperty().addListener(listFocusListener);
-                typeBtn.setText("Public node (Remote client)");
-                typeBtn.setPrefWidth(150);
+                typeBtn.setText(defaultClientItem.getText());
+       
             };
 
             Runnable setCuston = () -> {
@@ -849,14 +942,32 @@ public class ErgoNodesList {
                 bodyOptionBox.getChildren().add(customClientOptionsBox);
 
                 addNodeScene.focusOwnerProperty().removeListener(listFocusListener);
-                typeBtn.setText("Custom");
-                typeBtn.setPrefWidth(58);
+                typeBtn.setText(configureItem.getText());
+               
+            };
+
+            Runnable setLocal = () -> {
+
+                freeMemoryObject.set(Utils.getFreeMemory());
+
+                bodyOptionBox.getChildren().clear();
+                bodyOptionBox.getChildren().add(localNodeOptionsBox);
+
+                addNodeScene.focusOwnerProperty().removeListener(listFocusListener);
+                typeBtn.setText(localNodeItem.getText());
+                if(m_addStage.isMaximized()){
+                    maximizeBtn.fire();
+                }
+
             };
 
             Runnable switchPublic = () -> {
                 switch (nodeOption.get()) {
                     case CUSTOM:
                         setCuston.run();
+                        break;
+                    case ErgoNodeLocalData.LOCAL_NODE:
+                        setLocal.run();
                         break;
                     default:
                         setPublic.run();
@@ -866,7 +977,7 @@ public class ErgoNodesList {
 
             nodeOption.addListener((obs, oldVal, newVal) -> {
                 switchPublic.run();
-                defaultTypeBtn.getBufferedImageView().setImage(new Image(m_defaultAddType.equals(nodeOption.get()) ? "/assets/star-30.png" : "/assets/star-outline-30.png"));
+              
             });
 
             switchPublic.run();
@@ -932,6 +1043,11 @@ public class ErgoNodesList {
                 a.initOwner(m_addStage);
                 a.show();
             };
+
+            Runnable setupLocalNode = ()->{
+                Platform.runLater(()->m_ergoLocalNode.setup());
+            };
+            
             nextBtn.setOnAction((e) -> {
                 switch (nodeOption.get()) {
                     case CUSTOM:
@@ -939,6 +1055,12 @@ public class ErgoNodesList {
                         m_doGridUpdate.set(LocalDateTime.now());
                         doClose.run();
                         break;
+                    case ErgoNodeLocalData.LOCAL_NODE:
+                        addLocalNode();
+                        FxTimer.runLater(java.time.Duration.ofMillis(100), setupLocalNode );
+                        
+                        doClose.run();
+                    break;
                     default:
                         String nodeId = nodesList.selectedNamedNodeIdProperty().get();
                         if (nodeId != null) {
@@ -968,6 +1090,53 @@ public class ErgoNodesList {
             m_addStage.show();
             m_addStage.toFront();
         }
+    }
+
+    public String getMemoryInfoString(FreeMemory freeMemory){
+        int nodeMemRequired = ErgoNodeLocalData.DEFAULT_MEM_GB_REQUIRED;
+        int memoryFootPrint = (int) ((freeMemory.getMemTotalGB() - freeMemory.getMemFreeGB()) + nodeMemRequired ) ;                
+
+        double required = freeMemory.getMemFreeGB() - nodeMemRequired;
+        required = required > 0 ? 0 : Math.abs(required);
+        String availableMemoryString = String.format("%.1f", freeMemory.getMemAvailableGB()) + " GB";
+        String memoryString = freeMemory == null ? " - " :  String.format("%.1f", freeMemory.getMemFreeGB()) + " GB /  " + String.format("%-8s",availableMemoryString) + " / " + String.format("%.1f",freeMemory.getMemTotalGB())+ " GB";
+        String swapString = freeMemory == null ? " - " : String.format("%.1f",freeMemory.getSwapFreeGB());
+        
+//String.format("%.1f", required)
+
+        String textAreaString = "Memory Requirements";
+        textAreaString += "\n";
+        textAreaString += "\nUsage:       " + nodeMemRequired + " GB / " + memoryFootPrint + " GB";
+        textAreaString += "\n                   (Peak / Total)";
+        textAreaString += "\nSystem:    " + String.format("%-50s",  memoryString) + "Swap: " + swapString + " GB";
+        textAreaString += "\n" + String.format("%-70s","                   (Free / Available / Total)")+"             (Total)";
+        textAreaString += "\n";
+        if(required > 0){
+            textAreaString += "\nWarning: " + String.format("%.1f", freeMemory.getMemFreeGB()) + " GB free memory, " + nodeMemRequired + " GB recommended.";
+            textAreaString += "\nSwap usage: " + String.format("%.2f",required) + " GB";
+            
+            int swapSize = getSwapSize(freeMemory);
+
+            if(swapSize > -1){
+                textAreaString += "\n\n*Recommended: Increase swap file size to:" + swapSize + " GB*";
+            }    
+        }
+        return textAreaString;
+    }
+
+    public int getMemoryFootPrint(FreeMemory freeMemory){
+        int nodeMemRequired = ErgoNodeLocalData.DEFAULT_MEM_GB_REQUIRED;
+        return (int) ((freeMemory.getMemTotalGB() - freeMemory.getMemFreeGB()) + nodeMemRequired ) ;                
+    }
+
+    public int getSwapSize(FreeMemory freeMemory){
+        int memoryFootPrint = getMemoryFootPrint(freeMemory);
+        
+        if(freeMemory.getSwapTotalGB() < (freeMemory.getMemTotalGB() + 2) || (freeMemory.getSwapTotalGB() < memoryFootPrint + 2)){
+            return (Math.ceil(memoryFootPrint + 2) > Math.ceil(freeMemory.getMemTotalGB() + 2) ? (int)Math.ceil(memoryFootPrint + 2) : (int) Math.ceil(freeMemory.getMemTotalGB() + 2)) ;
+        }
+
+        return -1; 
     }
 
     public ErgoNodeLocalData getErgoLocalNode() {

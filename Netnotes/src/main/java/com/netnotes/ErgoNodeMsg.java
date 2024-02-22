@@ -1,5 +1,9 @@
 package com.netnotes;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -13,15 +17,19 @@ import com.utils.Utils;
 public class ErgoNodeMsg {
 
     private final static DateTimeFormatter TIME_FORMATER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-    private final static String NEW_HEIGHT = ". New height ";
+    private final static String NEW_HEADER_HEIGHT = ". New height ";
+    private final static String BEST_BLOCK = "New best block is";
     private final static String SYNC_MSG = "Send message MessageSpec(65";
     private final static String REQUEST_DATA = "Send message MessageSpec(22";
+
+    private final static String WITH_HEIGHT = " with height ";
 
     public class MsgTypes {
 
         public final static String SYNC_MSG = "Syncing";
         public final static String REQUEST_DATA = "Polling";
         public final static String NEW_HEIGHT = "Updated";
+        public final static String NEW_HEADER_HEIGHT = "Updating";
     }
     private String m_line = "";
 
@@ -54,8 +62,8 @@ public class ErgoNodeMsg {
         int firstDoubleSpace = m_line.indexOf("  ", firstSpace);
         int nextSpace = m_line.indexOf(" ", firstDoubleSpace + 2);
         int spaceDashSpace = m_line.indexOf(" - ", nextSpace);
-
-        m_timeStamp = m_line.substring(0, firstSpace);
+        char c  = m_line.length() > 0 ? m_line.charAt(0) : ' ';
+        m_timeStamp = c != ' ' && Character.isDigit(c) ? m_line.substring(0, firstSpace) : "0";
 
         m_typeString = m_line.substring(firstSpace + 1, firstDoubleSpace);
         m_source = m_line.substring(firstDoubleSpace + 2, nextSpace);
@@ -73,13 +81,25 @@ public class ErgoNodeMsg {
             if (requestDataIndex != -1) {
                 m_type = MsgTypes.REQUEST_DATA;
             } else {
-                int newHeightIndex = m_body.indexOf(NEW_HEIGHT);
-                if (newHeightIndex > 90) {
-                    m_type = MsgTypes.NEW_HEIGHT;
-                    int heightEndComma = m_body.indexOf(",", newHeightIndex + NEW_HEIGHT.length());
-                    if (heightEndComma > newHeightIndex) {
-                        String heightString = m_body.substring(newHeightIndex + NEW_HEIGHT.length(), heightEndComma);
+                int index = m_body.indexOf(NEW_HEADER_HEIGHT);
+                if (index > 90) {
+                    m_type = MsgTypes.NEW_HEADER_HEIGHT;
+                    int heightEndComma = m_body.indexOf(",", index + NEW_HEADER_HEIGHT.length());
+                    if (heightEndComma > index) {
+                        String heightString = m_body.substring(index + NEW_HEADER_HEIGHT.length(), heightEndComma);
                         m_height = Long.parseLong(heightString);
+                    }
+                }else{
+                    int bestBlockIndex = m_body.indexOf(BEST_BLOCK);
+                    if (bestBlockIndex > -1) {
+                        m_type = MsgTypes.NEW_HEIGHT;
+                        
+                        int withHeightIndex = m_body.indexOf(WITH_HEIGHT, index);
+                        if (withHeightIndex > bestBlockIndex) {
+                            int endSpaceIndex = m_body.indexOf(" ", withHeightIndex +WITH_HEIGHT.length());
+                            String heightString = m_body.substring(withHeightIndex +WITH_HEIGHT.length(), endSpaceIndex);
+                            m_height = Long.parseLong(heightString);
+                        }
                     }
                 }
             }
@@ -109,6 +129,8 @@ public class ErgoNodeMsg {
     }
 
     public LocalTime getLocalTime() {
+  
+  
         return LocalTime.parse(m_timeStamp, TIME_FORMATER);
     }
 

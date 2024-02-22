@@ -242,7 +242,7 @@ public class ErgoTokens extends Network implements NoteInterface {
 
             double tokensStageWidth = 375;
             double tokensStageHeight = 600;
-            double buttonHeight = 100;
+            double buttonHeight = 70;
 
 
 

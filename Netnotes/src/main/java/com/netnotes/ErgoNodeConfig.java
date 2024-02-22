@@ -38,6 +38,11 @@ public class ErgoNodeConfig {
         public final static String FULL = "Full Node";
     }
 
+    public static class LogLevel {
+        public final static String ERROR = "ERROR";
+        public final static String TRACE = "TRACE";
+    }
+
     private File m_appDir;
     private String m_configFileName = "ergo.conf";
     private HashData m_configFileHashData = null;
@@ -46,6 +51,7 @@ public class ErgoNodeConfig {
     private String m_blockchainMode = BlockchainMode.FULL;
     private String m_stateMode = DigestAccess.ALL;
     private String m_apiKeyHash = "";
+    private String m_logLevel = LogLevel.TRACE;
 
     public SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<LocalDateTime>(null);
 
@@ -312,6 +318,11 @@ public class ErgoNodeConfig {
             configFileString += "\n}";
             configFileString += "\n";
             configFileString += "\nscorex {\n";
+            if(m_logLevel != null){
+                configFileString += "\n  logging {";
+                configFileString += "\n    level = \""+m_logLevel+"\"";
+                configFileString += "\n  }";
+            }
             configFileString += "\n  restApi {";
             configFileString += "\n    bindAddress = \"0.0.0.0:" + ErgoNodes.MAINNET_PORT + "\"";
             if (m_apiKeyHash != null && !m_apiKeyHash.equals("")) {

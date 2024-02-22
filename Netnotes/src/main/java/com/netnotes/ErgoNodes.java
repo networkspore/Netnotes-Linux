@@ -5,7 +5,7 @@ import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -211,7 +211,9 @@ public class ErgoNodes extends Network implements NoteInterface {
         if (m_stage == null) {
             String title = getName();
 
-           // double buttonHeight = 100;
+            double buttonHeight = 70;
+
+      
 
             m_stage = new Stage();
             m_stage.getIcons().add(getIcon());
@@ -229,48 +231,55 @@ public class ErgoNodes extends Network implements NoteInterface {
             scrollPane.setId("bodyBox");
 
         
-
-            BufferedButton addBtn = new BufferedButton("/assets/add-outline-white-40.png", App.MENU_BAR_IMAGE_WIDTH);
-            addBtn.setOnAction((e) -> m_ergoNodesList.showAddNodeStage());
-    
             
-            HBox menuBar = new HBox(addBtn);
-            menuBar.setId("menuBar");
-            menuBar.setAlignment(Pos.CENTER_LEFT);
-            menuBar.setPadding(new Insets(1,5,1,5));
-            HBox.setHgrow(menuBar, Priority.ALWAYS);
-       
-            HBox menuBarPadding = new HBox(menuBar);
-            menuBarPadding.setId("darkBox");
-            HBox.setHgrow(menuBarPadding, Priority.ALWAYS);
-            menuBarPadding.setPadding(new Insets(0,0,4,0));
+        
+            Button addBtn = new Button("Add");
+            addBtn.setId("menuBarBtn");
+            addBtn.setPadding(new Insets(2, 6, 2, 6));
+            addBtn.setPrefWidth(getStageWidth() / 2);
+            addBtn.setPrefHeight(buttonHeight);
+            addBtn.setOnAction(e->{
+                m_ergoNodesList.showAddNodeStage();
+            });
 
-            VBox bodyBox = new VBox(menuBarPadding, scrollPane);
-            bodyBox.setPadding(new Insets(0,3,2,3));
-            VBox layoutBox = new VBox(titleBox, bodyBox);
-  
-            Runnable updateMenuBar = () -> Platform.runLater(() -> {
+
+            Button removeBtn = new Button("Remove");
+            removeBtn.setId("menuBarBtnDisabled");
+            removeBtn.setPadding(new Insets(2, 6, 2, 6));
+            removeBtn.setDisable(true);
+            removeBtn.setPrefWidth(getStageWidth() / 2);
+            removeBtn.setPrefHeight(buttonHeight);
+
+            removeBtn.setOnAction(e->{
                 String selectedId = m_ergoNodesList.selectedIdProperty().get();
-                if (selectedId == null) {
-                    menuBar.getChildren().clear();
-                    menuBar.getChildren().add(addBtn);   
-                    
-                } else {
-                    ErgoNodeData ergNodeData = m_ergoNodesList.getErgoNodeData(selectedId);
+                ErgoNodeData ergoNodeData = m_ergoNodesList.getErgoNodeData(selectedId);
+                ergoNodeData.remove();
+            });
 
-                    if (ergNodeData == null) {
-                        m_ergoNodesList.selectedIdProperty().set(null);
-                    } else {
-                        menuBar.getChildren().clear();
-                        HBox nodeDataBar = ergNodeData.getMenuBar();
-                        menuBar.getChildren().addAll(addBtn, nodeDataBar);
-                        
-                    }
+            HBox menuBox = new HBox(addBtn, removeBtn);
+            menuBox.setId("blackMenu");
+            menuBox.setAlignment(Pos.CENTER_LEFT);
+            menuBox.setPadding(new Insets(5, 5, 5, 5));
+            menuBox.setPrefHeight(buttonHeight);
+            menuBox.setMinHeight(buttonHeight);
+
+            m_ergoNodesList.selectedIdProperty().addListener((obs,oldval,newval)->{
+                if(newval != null){
+                    removeBtn.setDisable(false);
+                    
+                    removeBtn.setId("menuBarBtn");
+
+                }else{
+                    removeBtn.setDisable(true);
+                    removeBtn.setId("menuBarBtnDisabled");
                 }
             });
 
-            m_ergoNodesList.selectedIdProperty().addListener((obs, oldval, newVal) -> updateMenuBar.run());
-            updateMenuBar.run();
+
+            VBox bodyBox = new VBox(scrollPane,menuBox);
+            bodyBox.setPadding(new Insets(0,3,2,3));
+            VBox layoutBox = new VBox(titleBox, bodyBox);
+  
           
             Scene mainScene = new Scene(layoutBox, getStageWidth(), getStageHeight());
             mainScene.setFill(null);
@@ -280,7 +289,7 @@ public class ErgoNodes extends Network implements NoteInterface {
             Rectangle rect = getNetworksData().getMaximumWindowBounds();
 
             scrollPane.prefViewportWidthProperty().bind(mainScene.widthProperty().subtract(4));
-            scrollPane.prefViewportHeightProperty().bind(mainScene.heightProperty().subtract(titleBox.heightProperty()).subtract(menuBarPadding.heightProperty()).subtract(5));
+            scrollPane.prefViewportHeightProperty().bind(mainScene.heightProperty().subtract(titleBox.heightProperty()).subtract(menuBox.heightProperty()));
             scrollPane.setPadding(new Insets(5, 5, 5, 5));
             scrollPane.setOnMouseClicked(e -> {
                 getErgoNodesList().setselectedId(null);
@@ -341,6 +350,10 @@ public class ErgoNodes extends Network implements NoteInterface {
             ResizeHelper.addResizeListener(m_stage, 300, 300, rect.getWidth(), rect.getHeight());
 
             scrollPane.setContent(gridBox);
+
+            addBtn.prefWidthProperty().bind(mainScene.widthProperty().divide(2));
+            removeBtn.prefWidthProperty().bind(mainScene.widthProperty().divide(2));
+
 
             m_stage.setOnCloseRequest(e -> {
                 shutdownNowProperty().set(LocalDateTime.now());

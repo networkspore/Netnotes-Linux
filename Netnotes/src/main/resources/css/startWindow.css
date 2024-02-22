@@ -282,6 +282,42 @@
 
 }
 
+/*
+
+*/
+
+
+
+#darkMenuBtn {
+   -fx-padding: 2 4 2 4;
+    -fx-opacity: .8;
+    -fx-shape: "...";
+    -fx-background-color: #111111;
+    -fx-background-radius: 0 0 0 0;
+    -fx-border-radius: 0 0 0 0;
+  
+
+}
+
+#darkMenuBtn .label {
+    -fx-text-fill: #777777;
+    -fx-font-size: 14px;
+    -fx-font-family: 'OCR A Extended';
+    -fx-padding: 0;
+}
+
+#darkMenuBtn:hover{
+    -fx-opacity: 1;
+    -fx-background-color: #33333350;
+}
+
+#darkMenuBtn .label:hover {
+    -fx-text-fill: #FFFFFF;
+  
+    -fx-opacity: 1;
+   
+
+}
 
 #blackMenu{
     fx-background-color: linear-gradient(to left, #77777790 5%, #00000000, #77777790 95%);

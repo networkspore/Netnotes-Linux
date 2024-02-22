@@ -81,6 +81,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.netnotes.App;
+import com.netnotes.FreeMemory;
 import com.netnotes.HashData;
 import com.netnotes.PriceAmount;
 import com.netnotes.PriceCurrency;
@@ -1439,6 +1440,7 @@ public class Utils {
   
               proc.waitFor();
               if( pids.size() > 0){
+             
                   String[] pidArray = new String[pids.size()];
   
                   pidArray =  pids.toArray(pidArray);
@@ -1460,7 +1462,7 @@ public class Utils {
           }
 
     }
-
+    /*
     public static boolean sendTermSig(String pid){
         try {
             //  File logFile = new File("wmicTerminate-log.txt");
@@ -1499,6 +1501,49 @@ public class Utils {
               return false;
           }
           return false;
+    }*/
+    public static boolean sendTermSig(String jarName) {
+        try {
+          //  File logFile = new File("wmicTerminate-log.txt");
+     
+            //String[] wmicCmd = {"cmd", "/c", "wmic", "Path", "win32_process", "Where", "\"CommandLine", "Like", "'%" + jarName + "%'\"", "Call", "Terminate"};
+            String execString = "kill $(ps -ef | grep -v grep | grep " + jarName + " | awk '{print $2}')";
+
+            String[] cmd = new String[]{ "bash", "-c", execString};
+
+            Process proc = Runtime.getRuntime().exec(cmd);
+
+            BufferedReader stdErr = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+            //String wmicerr = null;
+
+
+            BufferedReader wmicStdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+
+           // String wmicInput = null;
+            boolean gotInput = false;
+
+            while ((wmicStdInput.readLine()) != null) {
+            
+            
+                gotInput = true;
+            }
+            String errStr = "";
+            while ((errStr = stdErr.readLine()) != null) {
+
+                Files.writeString(new File("netnotes-log.txt").toPath(), "\nsig term err: " + errStr, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                gotInput = false;
+            }
+
+            proc.waitFor();
+
+            if (gotInput) {
+                return true;
+            }
+
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
     }
     public static void openDir(File file) throws Exception{
 
@@ -1507,6 +1552,79 @@ public class Utils {
         Runtime.getRuntime().exec(cmd);
   
     }
+
+    public static FreeMemory getFreeMemory() {
+        try{ 
+            String[] cmd = new String[]{ "bash", "-c",  "cat /proc/meminfo | awk '{print $1,$2}'"};
+
+            Process proc = Runtime.getRuntime().exec(cmd);
+
+
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            BufferedReader stdErr = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+        
+
+            long swapTotal = -1;
+            long swapFree = -1;
+            long memFree = -1;
+            long memAvailable = -1;
+            long memTotal = -1;
+
+            String s = null;
+
+            String delimiter = ": ";
+            int delimiterSize = delimiter.length();
+
+            while ((s = stdInput.readLine()) != null) {
+                
+                int spaceIndex = s.indexOf(delimiter);
+                
+                
+                String rowStr = s.substring(0, spaceIndex);
+                long value = Long.parseLong(s.substring(spaceIndex + delimiterSize ));
+                
+                switch(rowStr){
+                    case "SwapTotal":
+                        swapTotal = value;
+                    break;
+                    case "SwapFree":
+                        swapFree = value;
+                    break;
+                    case "MemTotal":
+                        memTotal = value;
+                    break;
+                    case "MemFree":
+                        memFree = value;
+                    break;
+                    case "MemAvailable":
+                        memAvailable = value;
+                    break;
+                }
+
+            }
+
+            String errStr = stdErr.readLine();
+            
+            proc.waitFor();
+
+            if(errStr == null){
+                return new FreeMemory(swapTotal, swapFree, memFree, memAvailable, memTotal);
+            }
+        }catch(IOException | InterruptedException e){
+            try {
+                Files.writeString(new File("netnotes-log.txt").toPath(), "\nUtils getFreeMemory:" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+
+            }
+        }
+
+        return null;
+    }
+
+    public static String getIncreseSwapUrl(){
+        return "https://askubuntu.com/questions/178712/how-to-increase-swap-space";
+    }
+
 
     public static void pingIP(String ip, SimpleStringProperty status, SimpleStringProperty updated, SimpleBooleanProperty available) throws Exception{
         
