@@ -613,7 +613,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         m_networkBlockHeightProperty.set(-1);
         m_nodeHeadersHeightProperty.set(-1);
         m_peerCountProperty.set(-1);
-        
+        m_warningsProperty.set("");
     }
 
     private void runNode(File appFile, File configFile) {
