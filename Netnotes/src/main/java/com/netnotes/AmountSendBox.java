@@ -76,16 +76,19 @@ public class AmountSendBox extends AmountBox {
         maxAmountBtn.setContentDisplay(ContentDisplay.RIGHT);
         maxAmountBtn.setAlignment(Pos.CENTER_RIGHT);
         maxAmountBtn.setPadding(new Insets(0, 0, 0, 0));
-        maxAmountBtn.setGraphic(IconButton.getIconView(new Image("/assets/selectAddress.png"), 172));
 
-        m_maxAmountImage.addListener((obs,oldval,newval)->{
-            Image newImage = newval;
+        Runnable updateImage = ()->{
+        
+            Image newImage = m_maxAmountImage.get();
             if(newImage != null){
                 maxAmountBtn.setGraphic(IconButton.getIconView(newImage,newImage.getWidth()));
             }else{
-                maxAmountBtn.setGraphic(IconButton.getIconView(new Image("/assets/selectAddress.png"), 172));
+                maxAmountBtn.setGraphic(null);
             }
-        });
+        
+        };
+        updateImage.run();
+        m_maxAmountImage.addListener((obs,oldval,newval)->updateImage.run());
 
         String textFieldId = getBoxId() +"TextField";
 

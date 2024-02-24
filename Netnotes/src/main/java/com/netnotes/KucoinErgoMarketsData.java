@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
@@ -56,13 +57,13 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
             if (marketInterface instanceof KucoinExchange) {
                 KucoinExchange exchange = (KucoinExchange) marketInterface;
 
-                switch (getUpdateType()) {
-                    case POLLED:
-                        startPollingKuCoin(exchange);
-                        break;
-                    case REALTIME:
+              //  switch (getUpdateType()) {
+                   // case POLLED:
+                     //   startPollingKuCoin(exchange);
+                   //     break;
+                   // case REALTIME:
                         startKucoinListener(exchange);
-                }
+              //  }
             }
                 
         }
@@ -91,6 +92,8 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
             getShutdownNow().removeListener(getShutdownListener());
         }
     }
+
+    private String m_listenerId = FriendlyId.createFriendlyId();
 
     private void startTicker(String symbol, KucoinExchange exchange) {
         statusProperty().set(STARTING);
@@ -123,7 +126,7 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
             }
 
             public String getId() {
-                return getMarketId();
+                return m_listenerId;
             }
 
             public void onMsgChanged(JsonObject json) {

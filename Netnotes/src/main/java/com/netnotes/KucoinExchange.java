@@ -172,6 +172,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             if (m_msgListeners.size() == 0) {
                 m_websocketClient.close();
+
             }
             return removed;
         }
@@ -537,6 +538,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
         } else {
             m_appStage.show();
+            Platform.runLater(()->m_appStage.requestFocus());
         }
     }
     private SimpleIntegerProperty m_connectionStatus = new SimpleIntegerProperty(0);
@@ -693,17 +695,24 @@ public class KucoinExchange extends Network implements NoteInterface {
         }
     });
 
+    public JsonObject getPingObject(String clientId){
+        JsonObject pingMessageObj = new JsonObject();
+        pingMessageObj.addProperty("id", clientId);
+        pingMessageObj.addProperty("type", "ping");
+        return pingMessageObj;
+    }
+
       public void startPinging(String clientId, long pingInterval) {
 
-            JsonObject pingMessageObj = new JsonObject();
-            pingMessageObj.addProperty("id", clientId);
-            pingMessageObj.addProperty("type", "ping");
 
-            String pingString = pingMessageObj.toString();
+        JsonObject pingMessageObj =    getPingObject(clientId);
 
-
+          final  String pingString = pingMessageObj.toString();
+          //  m_websocketClient.send(pingString);
+            m_future = m_pingTimer.scheduleAtFixedRate (()->{
+                Platform.runLater(()->m_websocketClient.send(pingString));
+            },0, pingInterval, TimeUnit.MILLISECONDS); //(()-> send(pingString), 0, pingInterval);
             
-            m_future = m_pingTimer.schedule(()->m_websocketClient.send(pingString), pingInterval, TimeUnit.MILLISECONDS); //(()-> send(pingString), 0, pingInterval);
     }
 
     private void openKucoinSocket(String tokenString, String endpointURL, int pingInterval) {
@@ -730,6 +739,11 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             @Override
             public void close() {
+                /*try {
+                    Files.writeString(logFile.toPath(), "\nclosing", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+
+                }*/
                 if(m_future != null){
                     m_future.cancel(false);
                 }
@@ -765,7 +779,7 @@ public class KucoinExchange extends Network implements NoteInterface {
                                         relayOnReady();
                                         break;
                                     case "pong":
-
+                                        
                                         // m_webClient.setPong(System.currentTimeMillis());
                                         break;
                                     case "message":

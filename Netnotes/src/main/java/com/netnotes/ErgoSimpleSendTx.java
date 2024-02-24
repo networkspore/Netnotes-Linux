@@ -67,7 +67,8 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         JsonElement recipientAddressElement = json.get("recipientAddress");
 
         if(nanoErgsElement == null || feeAmountElement == null || parentAddress == null){
-            throw new Exception("Invalid arguments");
+            
+            throw new Exception("Invalid arguments: " + (nanoErgsElement == null ? "nanoErgs null" : "") + (feeAmountElement == null ?" feeAmount null" : null) + (parentAddress == null ? " parentAddress null" : ""));
         }
 
         if(timeStampElement != null && timeStampElement.isJsonPrimitive()){

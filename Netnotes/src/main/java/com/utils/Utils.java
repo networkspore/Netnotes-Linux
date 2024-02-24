@@ -561,44 +561,52 @@ public class Utils {
 
         Task<JsonObject> task = new Task<JsonObject>() {
             @Override
-            public JsonObject call() throws JsonParseException, MalformedURLException, IOException {
-                InputStream inputStream = null;
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                String outputString = null;
+            public JsonObject call() {
+                try{
+                    InputStream inputStream = null;
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    String outputString = null;
 
-                URL url = new URL(urlString);
+                    URL url = new URL(urlString);
 
-                URLConnection con = url.openConnection();
+                    URLConnection con = url.openConnection();
 
-                con.setRequestProperty("User-Agent", USER_AGENT);
+                    con.setRequestProperty("User-Agent", USER_AGENT);
 
-                long contentLength = con.getContentLengthLong();
-                inputStream = con.getInputStream();
+                    long contentLength = con.getContentLengthLong();
+                    inputStream = con.getInputStream();
 
-                byte[] buffer = new byte[2048];
+                    byte[] buffer = new byte[2048];
 
-                int length;
-                long downloaded = 0;
+                    int length;
+                    long downloaded = 0;
 
-                while ((length = inputStream.read(buffer)) != -1) {
+                    while ((length = inputStream.read(buffer)) != -1) {
 
-                    outputStream.write(buffer, 0, length);
+                        outputStream.write(buffer, 0, length);
 
-                    if (progressIndicator != null) {
-                        downloaded += (long) length;
-                        updateProgress(downloaded, contentLength);
+                        if (progressIndicator != null) {
+                            downloaded += (long) length;
+                            updateProgress(downloaded, contentLength);
+                        }
                     }
+
+                    outputStream.close();
+                    if(outputStream.size() > 0){
+                        outputString = outputStream.toString();
+
+                        JsonElement jsonElement = new JsonParser().parse(outputString);
+
+                        JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
+
+                        return jsonObject == null ? null : jsonObject;
+                    }else{
+                        return null;
+                    }
+                }catch(Exception err){
+                    
                 }
-
-                outputStream.close();
-                outputString = outputStream.toString();
-
-                JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
-
-                return jsonObject == null ? null : jsonObject;
-
+                return null;
             }
 
         };

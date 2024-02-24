@@ -148,7 +148,7 @@ public class ErgoTransaction {
                 }, (onFailed)->{
                     
                     try {
-                        Files.writeString(logFile.toPath(), "tx doUpdate failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(logFile.toPath(), "\ntx doUpdate failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e) {
         
                     }

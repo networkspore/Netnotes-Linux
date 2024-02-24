@@ -7,13 +7,10 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.concurrent.TimeUnit;
 
 import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.satergo.Wallet;
@@ -24,23 +21,17 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -404,7 +395,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         };
 
         addressesData.selectedNodeData().addListener((obs, oldval, newval)->{
-                updateNodeBtn.run();
+            updateNodeBtn.run();
     
             setNodesId(newval == null ? null : newval.getId());
            
@@ -685,10 +676,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
             AddressData selectedAdr = addressesData.selectedAddressDataProperty().get();
 
             if(selectedAdr != null){
-                JsonObject json = new JsonObject();
-                json.addProperty("cmd", AddressData.AddressNotes.SEND_CMD);
-                selectedAdr.open();
-                selectedAdr.sendNote(json, null,null);
+                selectedAdr.showSendStage();
             }
 
         });
