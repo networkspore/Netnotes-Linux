@@ -1,5 +1,6 @@
 package com.netnotes;
 
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,6 +16,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
+import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
@@ -22,6 +24,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -31,7 +34,9 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -44,6 +49,13 @@ import javafx.stage.StageStyle;
 
 public class ErgoMarketsList {
 
+    
+    String[] MARKET_OPTIONS_AVAILABLE = new String[] { 
+        KucoinExchange.NETWORK_ID, 
+        SpectrumFinance.NETWORK_ID
+    };
+
+
     private File logFile = new File("netnotes-log.txt");
     private String m_id = FriendlyId.createFriendlyId();
     private ArrayList<ErgoMarketsData> m_dataList = new ArrayList<>();
@@ -51,12 +63,21 @@ public class ErgoMarketsList {
     private SimpleObjectProperty<LocalDateTime> m_doGridUpdate = new SimpleObjectProperty<LocalDateTime>(null);
 
     private SimpleStringProperty m_defaultId = new SimpleStringProperty(null);
+    private SimpleStringProperty m_selectedId = new SimpleStringProperty(null);
+
+    private double DEFAULT_ADD_STAGE_WIDTH = 600;
+    private double DEFAULT_ADD_STAGE_HEIGHT = 485;
 
     private Stage m_stage = null;
+    private double m_addStageWidth = DEFAULT_ADD_STAGE_WIDTH;
+    private double m_addStageHeight = DEFAULT_ADD_STAGE_HEIGHT;
+
     private double m_stageWidth = 600;
     private double m_stageHeight = 500;
 
-     public ErgoMarketsList(SecretKey secretKey, ErgoMarkets ergoMarkets) {
+    private long m_lastSave = 0;
+
+    public ErgoMarketsList(SecretKey secretKey, ErgoMarkets ergoMarkets) {
         m_ergoMarkets = ergoMarkets;
         readFile(secretKey);
     }
@@ -65,8 +86,17 @@ public class ErgoMarketsList {
         m_ergoMarkets = ergoMarkets;
         SecretKey secretKey = m_ergoMarkets.getNetworksData().getAppData().appKeyProperty().get();
         readFile(secretKey);
-      
+        m_ergoMarkets.timeStampProperty().addListener((obs,oldval,newval)->{
+            long lastSave = newval.longValue();
+            if(lastSave != m_lastSave){
+                m_lastSave = lastSave;
+                readFile(m_ergoMarkets.getNetworksData().getAppData().appKeyProperty().get());
+                m_doGridUpdate.set(LocalDateTime.now());
+            }
+        });
     }
+
+
 
     public ErgoMarketsData getMarketsData(String id) {
     
@@ -81,6 +111,24 @@ public class ErgoMarketsList {
             }
         }
         return null;
+    }
+
+    public void remove(String id) {
+    
+        if (id != null) {
+            for (int i = 0; i < m_dataList.size(); i++) {
+                ErgoMarketsData marketsData = m_dataList.get(i);
+
+                if (marketsData.getId().equals(id)) {
+                    marketsData.shutdown();
+                    m_dataList.remove(i);
+                    save();
+                    m_doGridUpdate.set(LocalDateTime.now());
+                    break;
+                }
+                
+            }
+        }
     }
 
     public VBox getGridBox(SimpleDoubleProperty width, SimpleDoubleProperty scrollWidth) {
@@ -103,7 +151,6 @@ public class ErgoMarketsList {
         updateGrid.run();
 
         m_doGridUpdate.addListener((obs, oldval, newval) -> updateGrid.run());
-
         return gridBox;
     }
 
@@ -125,6 +172,10 @@ public class ErgoMarketsList {
         }
     }
 
+    public SimpleStringProperty selectedIdProperty(){
+        return m_selectedId;
+    }
+
     public ArrayList<ErgoMarketsData> getMarketsDataList() {
         return m_dataList;
     }
@@ -142,6 +193,7 @@ public class ErgoMarketsList {
     }
 
     private void openJson(JsonObject json) {
+        m_dataList.clear();
 
         JsonElement marketsElement = json.get("data");
         JsonElement stageElement = json.get("stage");
@@ -160,8 +212,12 @@ public class ErgoMarketsList {
                 switch(marketId){
                     case KucoinExchange.NETWORK_ID:
                         try{
-                            KucoinErgoMarketsData kEMData = new KucoinErgoMarketsData(this, marketsDataJson);
-                            m_dataList.add(kEMData);
+                            KucoinErgoMarketsData kuCoinData = new KucoinErgoMarketsData(this, marketsDataJson);
+                            add(kuCoinData);
+                            if(defaultIdProperty().get() == null){
+                                defaultIdProperty().set(marketId);    
+                            }
+                            
                         }catch(NullPointerException e){
                             try {
                                 Files.writeString(logFile.toPath(), "ErgoMarketsList (openJson):" +e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -173,6 +229,10 @@ public class ErgoMarketsList {
                     case SpectrumFinance.NETWORK_ID:
                         try{
                             m_dataList.add(new SpectrumErgoMarketsData(this, marketsDataJson));
+                            if(defaultIdProperty().get() == null){
+                                defaultIdProperty().set(marketId);    
+                            }
+                           
                         }catch(NullPointerException e){
                             try {
                                 Files.writeString(logFile.toPath(), "ErgoMarketsList (openJson):" +e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -200,26 +260,43 @@ public class ErgoMarketsList {
 
     public void add(ErgoMarketsData data) {
         m_dataList.add(data);
+        m_doGridUpdate.set(LocalDateTime.now());
     }
 
     public void showAddStage() {
         if (m_stage == null) {
-            String heading = "Add market";
-            String friendlyId = FriendlyId.createFriendlyId();
+            String heading = "Add Market";
+            //String friendlyId = FriendlyId.createFriendlyId();
+
+            SimpleStringProperty typeOption = new SimpleStringProperty(null);
+
+            Image icon = ErgoMarkets.getSmallAppIcon();
+            String name = m_ergoMarkets.getName();
+            VBox layoutBox = new VBox();
 
             m_stage = new Stage();
-            m_stage.getIcons().add(ErgoMarkets.getSmallAppIcon());
+            m_stage.getIcons().add(icon);
             m_stage.setResizable(false);
             m_stage.initStyle(StageStyle.UNDECORATED);
-            m_stage.setTitle(heading + " - " + ErgoMarkets.NAME);
 
+            double minWidth = 600;
+            double minHeight = 500;
+
+            Scene addScene = new Scene(layoutBox, m_addStageWidth, m_addStageHeight);
+            addScene.setFill(null);
+            addScene.getStylesheets().add("/css/startWindow.css");
+            
             Button closeBtn = new Button();
 
             Button maximizeButton = new Button();
 
-            HBox titleBox = App.createTopBar(ErgoMarkets.getSmallAppIcon(), maximizeButton, closeBtn, m_stage);
+            HBox titleBox = App.createTopBar(icon, maximizeButton, closeBtn, m_stage);
             Region menuSpacer = new Region();
             HBox.setHgrow(menuSpacer, Priority.ALWAYS);
+
+
+            String titleString = heading + " - " + name;
+            m_stage.setTitle(titleString);
 
             Text headingText = new Text(heading);
             headingText.setFont(App.txtFont);
@@ -229,113 +306,191 @@ public class ErgoMarketsList {
             headingBox.prefHeight(40);
             headingBox.setAlignment(Pos.CENTER_LEFT);
             HBox.setHgrow(headingBox, Priority.ALWAYS);
-            headingBox.setPadding(new Insets(10, 15, 10, 15));
+            headingBox.setPadding(new Insets(10, 10, 10, 10));
             headingBox.setId("headingBox");
 
             HBox headingPaddingBox = new HBox(headingBox);
-            headingPaddingBox.setPadding(new Insets(5, 2, 2, 2));
+            headingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
 
-            Text nameText = new Text(String.format("%-15s", "Name"));
-            nameText.setFill(App.txtColor);
-            nameText.setFont(App.txtFont);
+            VBox headerBox = new VBox(titleBox, headingPaddingBox);
+            headerBox.setPadding(new Insets(0, 5, 0, 5));
 
-            TextField nameField = new TextField("Market #" + friendlyId);
-            nameField.setFont(App.txtFont);
-            nameField.setId("formField");
-            HBox.setHgrow(nameField, Priority.ALWAYS);
+            SimpleDoubleProperty rowHeight = new SimpleDoubleProperty(40);
+
+            Text marketTypeText = new Text("Market ");
+            marketTypeText.setFill(App.txtColor);
+            marketTypeText.setFont(App.txtFont);
+
+            MenuButton typeBtn = new MenuButton();
+            typeBtn.setId("bodyRowBox");
+            typeBtn.setMinWidth(300);
+            typeBtn.setAlignment(Pos.CENTER_LEFT);
+
+
+            Runnable typeBtnUpdate = () ->{
+                typeBtn.getItems().clear();
+                for(String marketId : MARKET_OPTIONS_AVAILABLE){
+                    if(getMarketsData(marketId) == null){
+                        final InstallableIcon newInstallableItem = new InstallableIcon(m_ergoMarkets.getNetworksData(), marketId,true);
+                        MenuItem marketItem = new MenuItem(newInstallableItem.getName());
+                        marketItem.setGraphic(IconButton.getIconView(newInstallableItem.getIcon(), App.MENU_BAR_IMAGE_WIDTH));
+                        marketItem.setUserData(marketId);
+                        marketItem.setOnAction(e->{
+                            typeOption.set(marketId);
+                            typeBtn.setText(newInstallableItem.getName());
+                            typeBtn.setGraphic(IconButton.getIconView(newInstallableItem.getIcon(), App.MENU_BAR_IMAGE_WIDTH));
+                        });
+                        
+                        typeBtn.getItems().add(marketItem);
+                    }
+                }
+                if(typeOption.get() == null){
+                    if(typeBtn.getItems().size() > 0){
+                        typeBtn.getItems().get(0).fire();
+                    }else{
+                        typeOption.set(null);
+                        typeBtn.setText("(all markets added)");
+                        typeBtn.setGraphic(null);
+                    }
+                }else{
+                    if(getMarketsData(typeOption.get()) != null){
+                        if(typeBtn.getItems().size() > 0){
+                            typeBtn.getItems().get(0).fire();
+                        }else{
+                            typeOption.set(null);
+                            typeBtn.setText("(none available)");
+                        }
+                    }
+                }
+            };
+
+            typeBtnUpdate.run();
+
+            m_doGridUpdate.addListener((obs,oldval,newval)->typeBtnUpdate.run());
+
+            HBox marketTypeBox = new HBox(marketTypeText, typeBtn);
+            // Binding<Double> viewportWidth = Bindings.createObjectBinding(()->settingsScroll.viewportBoundsProperty().get().getWidth(), settingsScroll.viewportBoundsProperty());
+
+
+            typeBtn.minWidthProperty().bind(marketTypeBox.widthProperty().subtract(marketTypeText.layoutBoundsProperty().get().getWidth()).subtract(5));
+            marketTypeBox.setAlignment(Pos.CENTER_LEFT);
+            marketTypeBox.setPadding(new Insets(0));
+            marketTypeBox.minHeightProperty().bind(rowHeight);
+            HBox.setHgrow(marketTypeBox, Priority.ALWAYS);
+
+            Button marketImg = App.createImageButton(ErgoMarkets.getAppIcon(), "Ergo Markets");
+         
+            HBox marketImgBtnBox = new HBox(marketImg);
+            HBox.setHgrow(marketImgBtnBox,Priority.ALWAYS);
+            marketImgBtnBox.setAlignment(Pos.CENTER);
+
+
+            TextArea marketTextArea = new TextArea();
+            marketTextArea.setWrapText(true);
+            marketTextArea.setEditable(false);
+            VBox.setVgrow(marketTextArea, Priority.ALWAYS);
+        
+            VBox marketTextAreaBox = new VBox(marketTextArea);
+            marketTextAreaBox.setPadding(new Insets(10));
+            HBox.setHgrow(marketTextAreaBox, Priority.ALWAYS);
+            VBox.setVgrow(marketTextAreaBox,Priority.ALWAYS);
+
+
+            VBox marketOptionsBox = new VBox(marketImgBtnBox, marketTextAreaBox);
+            VBox.setVgrow(marketOptionsBox,Priority.ALWAYS);
+
+            VBox bodyOptionsBox = new VBox();
+            bodyOptionsBox.setPadding(new Insets(15,0,0,15));
+            VBox.setVgrow(bodyOptionsBox, Priority.ALWAYS);
+
+            Runnable updateBodyOptions = ()->{
+     
+                if(typeOption.get() != null){
+                    final String optionString = typeOption.get();
+                    final InstallableIcon newInstallableItem = new InstallableIcon(m_ergoMarkets.getNetworksData(), optionString,false);
+                     
+                    marketImg.setGraphic(IconButton.getIconView(newInstallableItem.getIcon(), 135));
+                    marketImg.setText(newInstallableItem.getName());
+                    marketTextArea.setText(newInstallableItem.getDescription());
+
+                    if(!bodyOptionsBox.getChildren().contains(marketOptionsBox)){
+                        bodyOptionsBox.getChildren().add(marketOptionsBox);
+                    }
+                }else{
+                    bodyOptionsBox.getChildren().clear();
+                }
+            
+            };
+
+
+            typeOption.addListener((obs,oldval,newval)->updateBodyOptions.run());
+
+            updateBodyOptions.run();
+
+            Button nextBtn = new Button("Add");
+            nextBtn.setPadding(new Insets(5, 15, 5, 15));
+
+            HBox nextBox = new HBox(nextBtn);
+            nextBox.setPadding(new Insets(0, 0, 0, 0));
+            nextBox.setMinHeight(50);
+            nextBox.setAlignment(Pos.CENTER_RIGHT);
+            HBox.setHgrow(nextBox, Priority.ALWAYS);
 
             
-            HBox nameBox = new HBox(nameText, nameField);
-            nameBox.setAlignment(Pos.CENTER_LEFT);
-            HBox.setHgrow(nameBox, Priority.ALWAYS);
+            VBox bodyBox = new VBox(marketTypeBox, bodyOptionsBox, nextBox);
+            bodyBox.setId("bodyBox");
+            bodyBox.setPadding(new Insets(0, 10, 0, 10));
+            VBox.setVgrow(bodyBox, Priority.ALWAYS);
+            VBox bodyPaddingBox = new VBox(bodyBox);
+            bodyPaddingBox.setPadding(new Insets(0, 5, 0, 5));
+            VBox.setVgrow(bodyPaddingBox, Priority.ALWAYS);
+            
+            layoutBox.getChildren().addAll(headerBox, bodyPaddingBox);
 
+            nextBtn.setOnAction(e->{
+                if(typeOption.get() != null){
+                    final String optionString = typeOption.get();
+                    switch(optionString){
+                        case KucoinExchange.NETWORK_ID:
+                            typeOption.set(null);
+                            KucoinErgoMarketsData kucoinMarketData = new KucoinErgoMarketsData(this);    
+                            add(kucoinMarketData);
+                            
+                            save();
+                       
+                        break;
+                        case SpectrumFinance.NETWORK_ID:
+                            typeOption.set(null);
+                            SpectrumErgoMarketsData spectrumMarketData = new SpectrumErgoMarketsData(this);
+                            add(spectrumMarketData);
+                         
 
-            Text marketText = new Text(String.format("%-15s", "Market"));
-            marketText.setFill(App.txtColor);
-            marketText.setFont(App.txtFont);
-
-          //  SimpleStringProperty selectedMarketId = new SimpleStringProperty(KucoinExchange.NETWORK_ID);
-            SimpleStringProperty selectedMarketType = new SimpleStringProperty(ErgoMarketsData.REALTIME);
-            SimpleStringProperty selectedMarketValue = new SimpleStringProperty(ErgoMarketsData.TICKER);
-
-            MenuButton marketsBtn = new MenuButton(KucoinExchange.NAME);
-            marketsBtn.setFont(App.txtFont);
-            marketsBtn.setTextFill(App.altColor);
-            marketsBtn.setPrefWidth(200);
-
-            MenuItem marketKucoinItem = new MenuItem(KucoinExchange.NAME);
-            marketKucoinItem.setGraphic(IconButton.getIconView(KucoinExchange.getSmallAppIcon(), 30));
-            marketKucoinItem.setOnAction((e) -> {
-
+                            save();
+                         
+                        break;
+                    }
+                }
             });
 
-            //no other options avaialable
-            marketsBtn.getItems().add(marketKucoinItem);
-
-            HBox marketBox = new HBox(marketText, marketsBtn);
-            marketBox.setAlignment(Pos.CENTER_LEFT);
-
-            Text typeText = new Text(String.format("%-15s", "Type"));
-            typeText.setFill(App.txtColor);
-            typeText.setFont(App.txtFont);
-
-            MenuButton typeBtn = new MenuButton("Real-time: Ticker");
-            typeBtn.setPadding(new Insets(4, 5, 0, 5));
-            typeBtn.setFont(Font.font("OCR A Extended", 12));
-
-            MenuItem updatesRealTimeItem = new MenuItem("Real-time: Ticker");
-            updatesRealTimeItem.setOnAction(e -> {
-                typeBtn.setText("Real-time");
-                selectedMarketType.set(ErgoMarketsData.REALTIME);
-                selectedMarketValue.set(ErgoMarketsData.TICKER);
+            closeBtn.setOnAction(e->{
+                if(m_stage != null){
+                    m_stage.close();
+                    m_stage = null;
+                }
             });
 
-            MenuItem updates5secItem = new MenuItem("5s");
-            updates5secItem.setOnAction(e -> {
-                typeBtn.setText(updates5secItem.getText());
-                selectedMarketType.set(ErgoMarketsData.POLLED);
-                selectedMarketValue.set("5");
-            });
+            m_stage.setOnCloseRequest(e->closeBtn.fire());
 
-            MenuItem updates15secItem = new MenuItem("15s");
-            updates15secItem.setOnAction(e -> {
-                typeBtn.setText(updates15secItem.getText());
-                selectedMarketType.set(ErgoMarketsData.POLLED);
-                selectedMarketValue.set("15");
-            });
-
-            MenuItem updates30secItem = new MenuItem("30s");
-            updates30secItem.setOnAction(e -> {
-                typeBtn.setText(updates30secItem.getText());
-                selectedMarketType.set(ErgoMarketsData.POLLED);
-                selectedMarketValue.set("30");
-            });
-
-            typeBtn.getItems().addAll(updates5secItem, updates15secItem, updates30secItem);
-
-            HBox updatesBox = new HBox(typeText, typeBtn);
-
-           // SimpleDoubleProperty rowHeight = new SimpleDoubleProperty(40);
-
-            closeBtn.setOnAction(closeEvent -> {
-                m_stage.close();
-                m_stage = null;
-            });
-            m_ergoMarkets.shutdownNowProperty().addListener((obs, oldVal, newVal) -> {
-                closeBtn.fire();
-            });
-            m_stage.setOnCloseRequest(e -> {
-                m_stage = null;
-            });
-
-            VBox layoutBox = new VBox(titleBox, headingPaddingBox,nameBox, marketBox, updatesBox);
-            Scene addScene = new Scene(layoutBox, m_stageWidth, m_stageHeight);
-            addScene.setFill(null);
             m_stage.setScene(addScene);
-
             m_stage.show();
         } else {
-            m_stage.show();
+            
+            if(m_stage.isIconified()){
+                m_stage.setIconified(false);    
+            }
+            
+            Platform.runLater(()->m_stage.requestFocus());
+            
         }
     }
 
@@ -375,6 +530,7 @@ public class ErgoMarketsList {
     }
 
     public void save() {
+        m_lastSave = System.currentTimeMillis();
         JsonObject fileJson = getDataObject();
         fileJson.add("stage", getStageJson());
         String jsonString = fileJson.toString();
@@ -383,6 +539,7 @@ public class ErgoMarketsList {
         // String fileHexString = Hex.encodeHexString(bytes);
         try {
             Utils.writeEncryptedString(m_ergoMarkets.getNetworksData().getAppData().appKeyProperty().get(), m_ergoMarkets.getDataFile(), jsonString);
+            m_ergoMarkets.timeStampProperty().set(m_lastSave);
         } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
                 | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
                 | IOException e) {
@@ -392,6 +549,8 @@ public class ErgoMarketsList {
 
             }
         }
+
+        
     }
 
       public void getMenu(MenuButton menuBtn, SimpleObjectProperty<ErgoMarketsData> selectedMarketsData){

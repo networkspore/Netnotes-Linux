@@ -98,7 +98,9 @@ public class ErgoTokensList extends Network {
         openFile(secretKey);
         
         ergoTokens.timeStampProperty().addListener((obs,oldval,newval)->{
-            if(newval.longValue() != m_lastSave){
+            long lastSave = newval.longValue();
+            if(lastSave != m_lastSave){
+                m_lastSave = lastSave;
                 openFile(getAppKey());
                 getLastUpdated().set(LocalDateTime.now());
             }
@@ -127,12 +129,16 @@ public class ErgoTokensList extends Network {
         ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoTokens.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
         if(marketId != null && ergoMarkets != null){
             m_ergoMarketsList.set(ergoMarkets.getErgoMarketsList());
+            
             ErgoMarketsData marketData = m_ergoMarketsList.get().getMarketsData(marketId);
-         
-            m_selectedMarketData.set(marketData);
-            marketData.start();
-            m_priceQuotesProperty.bind(marketData.marketDataProperty());
-            setMarketId(marketData.getId());
+            
+            if(marketData != null){
+                m_selectedMarketData.set(marketData);
+                marketData.start();
+                m_priceQuotesProperty.bind(marketData.marketDataProperty());
+                setMarketId(marketData.getId());
+            }
+
         }else{
             if(ergoMarkets != null){
                 m_ergoMarketsList.set(ergoMarkets.getErgoMarketsList());

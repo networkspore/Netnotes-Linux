@@ -4,13 +4,19 @@ import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Optional;
+
+import org.reactfx.util.FxTimer;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -42,6 +48,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
     private File m_appDir = null;
     private Stage m_stage = null;
     
+    private final SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(0);
 
 
     public ErgoMarkets(NoteInterface noteInterface) {
@@ -92,6 +99,10 @@ public class ErgoMarkets extends Network implements NoteInterface {
     @Override
     public void open() {
         showStage();
+    }
+
+    public SimpleLongProperty timeStampProperty(){
+        return m_timeStampProperty;
     }
 
     public static Image getAppIcon() {
@@ -147,14 +158,48 @@ public class ErgoMarkets extends Network implements NoteInterface {
             addButton.setPadding(new Insets(2, 6, 2, 6));
             addButton.setPrefWidth(getStageWidth() / 2);
             addButton.setPrefHeight(buttonHeight);
+            addButton.setOnAction(e->{
+                marketsList.showAddStage();
+            });
 
             Button removeButton = new Button("Remove");
             removeButton.setId("menuBarBtnDisabled");
             removeButton.setPadding(new Insets(2, 6, 2, 6));
-
             removeButton.setDisable(true);
             removeButton.setPrefWidth(getStageWidth() / 2);
             removeButton.setPrefHeight(buttonHeight);
+            removeButton.setOnAction(e->{
+                String selectedId = marketsList.selectedIdProperty().get();
+                if(selectedId != null){
+                    ErgoMarketsData marketData = marketsList.getMarketsData(selectedId);
+                    if(marketData != null){
+                        String info = "Would you like to remove: '" + marketData.getName() + "'\n\n";
+                        Alert a = new Alert(AlertType.NONE, info, ButtonType.YES, ButtonType.NO);
+                        a.initOwner(m_stage);
+                        a.setHeaderText("Remove");
+
+                        Optional<ButtonType> result = a.showAndWait();
+
+                        if(result.isPresent() && result.get() == ButtonType.YES){
+                            marketsList.remove(selectedId);
+                            FxTimer.runLater(Duration.ofMillis(100), ()->Platform.runLater(()->{
+                                m_stage.toBack();
+                                m_stage.toFront();
+                            }));
+                        }
+                    }
+                }
+            });
+
+            marketsList.selectedIdProperty().addListener((obs,oldval,newval)->{
+                if(newval != null){
+                    removeButton.setId("menuBarBtn");
+                    removeButton.setDisable(false);
+                }else{
+                    removeButton.setId("menuBarBtnDisabled");
+                    removeButton.setDisable(true);
+                }
+            });
 
             HBox menuBox = new HBox(addButton, removeButton);
             menuBox.setId("blackMenu");
@@ -182,7 +227,9 @@ public class ErgoMarkets extends Network implements NoteInterface {
             VBox gridBox = marketsList.getGridBox(gridWidth, scrollWidth);
 
             scrollPane.setContent(gridBox);
-
+            scrollPane.setOnMouseClicked(e->{
+                marketsList.selectedIdProperty().set(null);
+            });
             ResizeHelper.addResizeListener(m_stage, 300, 300, rect.getWidth(), rect.getHeight());
             Runnable doClose = ()->{
                 marketsList.shutdown();

@@ -135,12 +135,15 @@ public class AddressesData {
         boolean isTokens= ergoTokens != null && walletData.isErgoTokens();
         m_isErgoTokens.set(isTokens);
 
-        if(isTokens){
+        if(isTokens && ergoTokens != null){
             m_tokensListProperty.set(ergoTokens.getTokensList(networkType));
         }
         m_isErgoTokens.addListener((obs,oldval,newval)->{
             if(newval){
-                m_tokensListProperty.set(ergoTokens.getTokensList(networkType));
+                ErgoTokens ergTokens = (ErgoTokens) ergNetData.getNetwork(ErgoTokens.NETWORK_ID);
+                if(ergTokens != null){
+                    m_tokensListProperty.set(ergTokens.getTokensList(networkType));
+                }
             }else{
                 m_tokensListProperty.set(null);
             }

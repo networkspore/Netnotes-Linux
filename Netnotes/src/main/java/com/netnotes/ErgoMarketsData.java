@@ -7,7 +7,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-
+import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -15,6 +15,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -45,7 +46,7 @@ public class ErgoMarketsData {
 
     private ErgoMarketsList m_marketsList;
 
-    private Font m_priceFont = Font.font("OCR A Extended", FontWeight.BOLD, 30);
+    private Font m_priceFont = Font.font("OCR A Extended", FontWeight.NORMAL, 25);
     private Font m_font = Font.font("OCR A Extended", FontWeight.BOLD, 13);
 
     private Font m_smallFont =Font.font("OCR A Extended", FontWeight.NORMAL, 10);
@@ -412,8 +413,35 @@ public class ErgoMarketsData {
         HBox rowBox = new HBox(leftBox, bodyBox, rightBox);
         rowBox.setAlignment(Pos.CENTER_LEFT);
         rowBox.setId("rowBox");
- 
         
+        rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
+            if(e.getClickCount() == 2){
+                Network market = (Network) m_marketsList.getErgoMarkets().getNetworksData().getNoteInterface(m_id);
+                if(market != null){
+                    Platform.runLater(()->market.open());
+                }
+                e.consume();
+            }else{
+                Platform.runLater(() -> {
+                    m_marketsList.selectedIdProperty().set(getId());
+                    
+                });
+                e.consume();
+            }
+            
+        });
+
+        Runnable updateSelected = () -> {
+            String selectedId = m_marketsList.selectedIdProperty().get();
+            boolean isSelected = selectedId != null && getId().equals(selectedId);
+
+            amountField.setId(isSelected ? "textField" : "priceField");
+
+            rowBox.setId(isSelected ? "selected" : "unSelected");
+        };
+
+        m_marketsList.selectedIdProperty().addListener((obs, oldval, newVal) -> updateSelected.run());
+        updateSelected.run();
         // centerBox.prefWidthProperty().bind(rowBox.widthProperty().subtract(leftBox.widthProperty()).subtract(rightBox.widthProperty()));
         start();
         return rowBox;

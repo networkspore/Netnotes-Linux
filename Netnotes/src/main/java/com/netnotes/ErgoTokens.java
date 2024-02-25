@@ -72,7 +72,7 @@ public class ErgoTokens extends Network implements NoteInterface {
     public final static String NETWORK_ID = "ERGO_TOKENS";
 
     public final static String[] TOKEN_MARKETS = new String[] { SpectrumFinance.NETWORK_ID };
-    private final SimpleLongProperty m_timeStampProprety = new SimpleLongProperty(0);
+    private final SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(0);
 
 
     private File logFile = new File("netnotes-log.txt");
@@ -785,7 +785,7 @@ public class ErgoTokens extends Network implements NoteInterface {
    
    
     public SimpleLongProperty timeStampProperty(){
-        return m_timeStampProprety;
+        return m_timeStampProperty;
     }
 
     public void save(JsonObject listJson, NetworkType networkType, long timeStamp) {
