@@ -9,12 +9,11 @@ import java.net.URL;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.security.NoSuchAlgorithmException;
 
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
-
+import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -33,7 +32,7 @@ import com.utils.GitHubAPI.GitHubAsset;
 import com.utils.Utils;
 import com.utils.Version;
 
-import javafx.application.Platform;
+
 import javafx.beans.property.SimpleObjectProperty;
 
 public class AppData {
@@ -157,9 +156,9 @@ public class AppData {
     
 
 
-    public void checkForUpdates( SimpleObjectProperty<UpdateInformation> updateInformation){
+    public void checkForUpdates(ExecutorService execService, SimpleObjectProperty<UpdateInformation> updateInformation){
         GitHubAPI gitHubAPI = new GitHubAPI(App.GITHUB_USER, App.GITHUB_PROJECT);
-         gitHubAPI.getAssetsLatest((onFinished)->{
+         gitHubAPI.getAssetsLatest(execService, (onFinished)->{
             UpdateInformation tmpInfo = new UpdateInformation();
 
                 Object finishedObject = onFinished.getSource().getValue();
@@ -184,14 +183,14 @@ public class AppData {
                         }
                     }
 
-                    Utils.getUrlJson(tmpInfo.getReleaseUrl(), (onReleaseInfo)->{
+                    Utils.getUrlJson(tmpInfo.getReleaseUrl(), execService, (onReleaseInfo)->{
                         Object sourceObject = onReleaseInfo.getSource().getValue();
                         if(sourceObject != null && sourceObject instanceof com.google.gson.JsonObject){
                             com.google.gson.JsonObject releaseInfoJson = (com.google.gson.JsonObject) sourceObject;
                             UpdateInformation upInfo = new UpdateInformation(tmpInfo.getJarUrl(),tmpInfo.getTagName(),tmpInfo.getJarName(),null,tmpInfo.getReleaseUrl());
                             upInfo.setReleaseInfoJson(releaseInfoJson);
              
-                            Platform.runLater(()->updateInformation.set(upInfo));
+                            updateInformation.set(upInfo);
                         }
                     }, (releaseInfoFailed)->{
 

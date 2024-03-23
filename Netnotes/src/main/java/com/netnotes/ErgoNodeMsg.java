@@ -62,9 +62,9 @@ public class ErgoNodeMsg {
         int firstDoubleSpace = m_line.indexOf("  ", firstSpace);
         int nextSpace = m_line.indexOf(" ", firstDoubleSpace + 2);
         int spaceDashSpace = m_line.indexOf(" - ", nextSpace);
-        char c  = m_line.length() > 0 ? m_line.charAt(0) : ' ';
-        m_timeStamp = c != ' ' && Character.isDigit(c) ? m_line.substring(0, firstSpace) : "0";
-
+        char c  = m_line.length() > 0 ? m_line.charAt(0) : 0;
+        m_timeStamp = c != 0 && Character.isDigit(c) ? m_line.substring(0, firstSpace) : "0";
+        
         m_typeString = m_line.substring(firstSpace + 1, firstDoubleSpace);
         m_source = m_line.substring(firstDoubleSpace + 2, nextSpace);
         m_sourceCtx = m_line.substring(nextSpace + 1, spaceDashSpace);
@@ -124,18 +124,24 @@ public class ErgoNodeMsg {
     }
 
     public String getDateTimeString() {
-        return Utils.formatDateTimeString(getLocalDateTime());
+        LocalDateTime localDateTime = getLocalDateTime();
+        return localDateTime == null ? "" : Utils.formatDateTimeString(localDateTime);
 
     }
 
     public LocalTime getLocalTime() {
-  
-  
-        return LocalTime.parse(m_timeStamp, TIME_FORMATER);
+        try{
+            LocalTime localTime = LocalTime.parse(m_timeStamp, TIME_FORMATER);
+        
+            return localTime;
+        }catch(Exception e){
+            return null;
+        }
     }
 
     public LocalDateTime getLocalDateTime() {
-        return getLocalTime().atDate(LocalDate.now());
+        LocalTime localTime = getLocalTime();
+        return localTime == null ? null : localTime.atDate(LocalDate.now());
     }
 
     public String getBody() {

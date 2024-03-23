@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
 import javafx.beans.property.SimpleBooleanProperty;
@@ -159,11 +158,7 @@ public class RangeBar extends BufferedImageView {
 
         }
     }
-    private boolean m_isMouseEntered = false;
-    public void onMouseEntered(MouseEvent mouseEvent){
-        m_isMouseEntered = true;
-        
-    }
+
 
     public void reset(boolean update) {
         m_settingRange.set(false);
@@ -286,12 +281,23 @@ public class RangeBar extends BufferedImageView {
         return (botValue == m_minBot ? height - (m_btnHeight * 2) : (int) Math.ceil(((height - (m_btnHeight * 2)) - (getScrollScale(height) * botValue)))) + m_btnHeight;
     }
 
+    private BufferedImage m_imgBuf = null;
+
     @Override
     public void updateImage() {
-
-        BufferedImage imgBuf = getBgImage(m_width, m_height);
-        int height = imgBuf.getHeight();
-        int width = imgBuf.getWidth();
+        if(m_imgBuf == null){
+            m_imgBuf = getBgImage(m_width, m_height);
+        }else{
+            int w = (int) Math.ceil(m_width.get());
+            int h = (int) Math.ceil(m_height.get());
+            if(m_imgBuf.getWidth() != w || m_imgBuf.getHeight() != h){
+                m_imgBuf = getBgImage(m_width, m_height);
+            }else{
+                Drawing.fillArea(m_imgBuf, 0x00000000, 0, 0, m_imgBuf.getWidth(), m_imgBuf.getHeight(), false);
+            }
+        }
+        int height = m_imgBuf.getHeight();
+        int width = m_imgBuf.getWidth();
 
         int btnTopX1 = (width / 2) - 2;
         int btnTopY1 = 0;
@@ -312,26 +318,26 @@ public class RangeBar extends BufferedImageView {
         boolean settingRange = m_settingRange.get();
 
         if (!settingRange) {
-            Drawing.fillArea(imgBuf, 0x00000000, 0, 0, width, height);
+            Drawing.fillArea(m_imgBuf, 0x00000000, 0, 0, width, height);
 
-            Drawing.drawBar(1, m_bg1, m_bg2, imgBuf, x1, y1, x2, y2);
-            Drawing.drawBar(m_barRGB1, m_barRGB2, imgBuf, x1, y1, x2, y2);
+            Drawing.drawBar(1, m_bg1, m_bg2, m_imgBuf, x1, y1, x2, y2);
+            Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf, x1, y1, x2, y2);
 
             if (m_topVvalue.get() == 1 && m_bottomVvalue.get() == 0) {
 
-                Drawing.fillArea(imgBuf, 0x50000000, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
+                Drawing.fillArea(m_imgBuf, 0x50000000, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
 
-                Graphics2D g2d = imgBuf.createGraphics();
+               // Graphics2D g2d = m_imgBuf.createGraphics();
 
                 BufferedImage moveableImage = SwingFXUtils.fromFXImage(m_collapseImage, null);
-                int mvImgWidth = width - 2;
+               // int mvImgWidth = width - 2;
                 
-                g2d.drawImage(moveableImage, ((width/2) - (mvImgWidth/2)) + 1 , (height / 2) - (26 / 2), mvImgWidth, 26, null);
-
+                //g2d.drawImage(moveableImage, ((width/2) - (mvImgWidth/2)) + 1 , (height / 2) - (26 / 2), mvImgWidth, 26, null);
+                Drawing.drawImageExact(m_imgBuf, moveableImage, ((width/2) - (moveableImage.getWidth()/2)), (height / 2) - (26 / 2), false);
             }
         } else {
-            Drawing.fillArea(imgBuf, 0x20ffffff, 0, 0, width, height);
-            Drawing.fillArea(imgBuf, 0xff000000, (width / 2) - 1, m_btnHeight + 1, (width / 2) + 1, height - (m_btnHeight + 1));
+            Drawing.fillArea(m_imgBuf, 0x20ffffff, 0, 0, width, height);
+            Drawing.fillArea(m_imgBuf, 0xff000000, (width / 2) - 1, m_btnHeight + 1, (width / 2) + 1, height - (m_btnHeight + 1));
             //OkBtn
             boolean okBtnDown = m_currentSelectionIndex == 0;
             int okShadingRGB1 = m_shadingLightRGB;
@@ -347,14 +353,14 @@ public class RangeBar extends BufferedImageView {
 
             }
 
-            Drawing.drawBar(1, okShadingRGB1, okShadingRGB2, imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
-            Drawing.drawBar(1, okRGB1, okRGB2, imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
-            Drawing.drawBar(0, okRGB3, okRGB4, imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
+            Drawing.drawBar(1, okShadingRGB1, okShadingRGB2, m_imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
+            Drawing.drawBar(1, okRGB1, okRGB2, m_imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
+            Drawing.drawBar(0, okRGB3, okRGB4, m_imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
 
-            Drawing.fillArea(imgBuf, m_btnTopBorderColor2, btnTopX1, btnTopY1, btnTopX1 + 1, btnTopY2);
-            Drawing.fillArea(imgBuf, m_btnTopBorderColor2, btnTopX1, btnTopY1, btnTopX2, btnTopY1 + 1);
-            Drawing.fillArea(imgBuf, m_btnTopBorderColor, btnTopX2 - 1, btnTopY1, btnTopX2, btnTopY2);
-            Drawing.fillArea(imgBuf, m_btnTopBorderColor, btnTopX1 + 1, btnTopY2 - 1, btnTopX2 - 1, btnTopY2);
+            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor2, btnTopX1, btnTopY1, btnTopX1 + 1, btnTopY2);
+            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor2, btnTopX1, btnTopY1, btnTopX2, btnTopY1 + 1);
+            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor, btnTopX2 - 1, btnTopY1, btnTopX2, btnTopY2);
+            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor, btnTopX1 + 1, btnTopY2 - 1, btnTopX2 - 1, btnTopY2);
 
             //Cancel Btn
             boolean cancelBtnDown = m_currentSelectionIndex == 1;
@@ -370,21 +376,21 @@ public class RangeBar extends BufferedImageView {
                 cancelShadingRGB2 = m_shadingRedRGB;
             }
 
-            Drawing.drawBar(1, cancelShadingRGB1, cancelShadingRGB2, imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
-            Drawing.drawBar(1, cancelRGB1, cancelRGB2, imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
-            Drawing.drawBar(0, cancelRGB3, cancelRGB4, imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
+            Drawing.drawBar(1, cancelShadingRGB1, cancelShadingRGB2, m_imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
+            Drawing.drawBar(1, cancelRGB1, cancelRGB2, m_imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
+            Drawing.drawBar(0, cancelRGB3, cancelRGB4, m_imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
 
-            Drawing.fillArea(imgBuf, m_btnBotBorderColor2, btnBotX1, btnBotY1, btnBotX1 + 1, btnBotY2); //left
-            Drawing.fillArea(imgBuf, m_btnBotBorderColor, btnBotX1, btnBotY1, btnBotX2, btnBotY1 + 1); //top
-            Drawing.fillArea(imgBuf, m_btnBotBorderColor, btnBotX2 - 1, btnBotY1, btnBotX2, btnBotY2);
-            Drawing.fillArea(imgBuf, m_btnBotBorderColor2, btnBotX1 + 1, btnBotY2 - 1, btnBotX2 - 1, btnBotY2);
+            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor2, btnBotX1, btnBotY1, btnBotX1 + 1, btnBotY2); //left
+            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor, btnBotX1, btnBotY1, btnBotX2, btnBotY1 + 1); //top
+            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor, btnBotX2 - 1, btnBotY1, btnBotX2, btnBotY2);
+            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor2, btnBotX1 + 1, btnBotY2 - 1, btnBotX2 - 1, btnBotY2);
 
             //RangeBar
-            Drawing.drawBar(1, m_bg1, m_bg2, imgBuf, x1, y1 + 1, x2, y2 - 1);
-            Drawing.drawBar(m_barRGB1, m_barRGB2, imgBuf, x1, y1 + 1, x2, y2 - 1);
+            Drawing.drawBar(1, m_bg1, m_bg2, m_imgBuf, x1, y1 + 1, x2, y2 - 1);
+            Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf, x1, y1 + 1, x2, y2 - 1);
 
         }
 
-        super.updateImage(imgBuf);
+        super.updateImage(m_imgBuf);
     }
 }

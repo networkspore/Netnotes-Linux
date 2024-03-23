@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import javafx.beans.property.SimpleObjectProperty;

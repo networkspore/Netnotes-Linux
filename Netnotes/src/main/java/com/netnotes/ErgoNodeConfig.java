@@ -51,7 +51,7 @@ public class ErgoNodeConfig {
     private String m_blockchainMode = BlockchainMode.FULL;
     private String m_stateMode = DigestAccess.ALL;
     private String m_apiKeyHash = "";
-    private String m_logLevel = LogLevel.TRACE;
+    private String m_logLevel = LogLevel.ERROR;
 
     public SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<LocalDateTime>(null);
 
@@ -188,6 +188,10 @@ public class ErgoNodeConfig {
 
     public void setConfigMode(String configMode) {
         m_configMode = configMode;
+    }
+
+    public void update() throws FileNotFoundException, IOException, Exception{
+        updateConfigFile();
         getLastUpdated().set(LocalDateTime.now());
     }
 
@@ -197,12 +201,10 @@ public class ErgoNodeConfig {
 
     public void seStateMode(String stateMode) {
         m_stateMode = stateMode;
-        getLastUpdated().set(LocalDateTime.now());
     }
 
-    public void blockchainMode(String blockchainMode) {
+    public void blockchainMode(String blockchainMode, boolean update) {
         m_blockchainMode = blockchainMode;
-        getLastUpdated().set(LocalDateTime.now());
     }
 
     public String getBlockchainMode() {
@@ -218,9 +220,7 @@ public class ErgoNodeConfig {
         } else {
             m_apiKeyHash = "";
         }
-
-        updateConfigFile();
-        getLastUpdated().set(LocalDateTime.now());
+        update();
     }
 
     public String getApiKeyHash() {
@@ -262,10 +262,12 @@ public class ErgoNodeConfig {
         return m_configFileName;
     }
 
-    public void setConfigFileName(String name) throws FileNotFoundException, IOException, Exception {
+    public void setConfigFileName(String name, boolean update) throws FileNotFoundException, IOException, Exception {
         m_configFileName = name;
-        updateConfigFile();
-        getLastUpdated().set(LocalDateTime.now());
+        if(update){
+            updateConfigFile();
+            getLastUpdated().set(LocalDateTime.now());
+        }    
     }
 
     public File getConfigFile() {

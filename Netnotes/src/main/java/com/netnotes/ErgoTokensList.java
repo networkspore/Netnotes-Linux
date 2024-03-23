@@ -36,6 +36,7 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
@@ -131,12 +132,16 @@ public class ErgoTokensList extends Network {
             m_ergoMarketsList.set(ergoMarkets.getErgoMarketsList());
             
             ErgoMarketsData marketData = m_ergoMarketsList.get().getMarketsData(marketId);
+            ChangeListener<LocalDateTime> updateListener = (obs,oldval,newval)->{
             
+                marketUpdated().set(newval);
+            };
+    
             if(marketData != null){
                 m_selectedMarketData.set(marketData);
                 marketData.start();
-                m_priceQuotesProperty.bind(marketData.marketDataProperty());
                 setMarketId(marketData.getId());
+                marketData.updatedProperty().addListener(updateListener);
             }
 
         }else{
@@ -179,14 +184,25 @@ public class ErgoTokensList extends Network {
         return m_selectedMarketData;
     }
 
+    private SimpleObjectProperty<LocalDateTime> m_marketUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
+
+    public SimpleObjectProperty<LocalDateTime> marketUpdated(){
+        return m_marketUpdated;
+    }
+
     public boolean updateSelectedMarket(ErgoMarketsData marketsData) {
         ErgoMarketsData previousSelectedMarketsData = m_selectedMarketData.get();
-
+        
         if (marketsData == null && previousSelectedMarketsData == null) {
             return false;
         }
 
         m_selectedMarketData.set(marketsData);
+
+        ChangeListener<LocalDateTime> updateListener = (obs,oldval,newval)->{
+            
+            marketUpdated().set(newval);
+        };
 
         if (previousSelectedMarketsData != null) {
             if (marketsData != null) {
@@ -194,12 +210,15 @@ public class ErgoTokensList extends Network {
                     return false;
                 }
             }
-            m_priceQuotesProperty.unbind();
+           // m_marketUpdated.unbind();
+          //  m_priceQuotesProperty.unbind();
+            marketsData.updatedProperty().removeListener(updateListener);
             previousSelectedMarketsData.shutdown();
 
         }
         marketsData.start();
-        m_priceQuotesProperty.bind(marketsData.marketDataProperty());
+        marketsData.updatedProperty().addListener(updateListener);
+      //  m_priceQuotesProperty.bind(marketsData.marketDataProperty());
         setMarketId(marketsData.getId());
         return true;
 
@@ -208,7 +227,7 @@ public class ErgoTokensList extends Network {
 
     @Override
     public void shutdown(){
-        m_priceQuotesProperty.unbind();
+      //  m_priceQuotesProperty.unbind();
         ErgoMarketsData marketsData = m_selectedMarketData.get();
         if(marketsData != null){
             marketsData.shutdown();
@@ -216,8 +235,22 @@ public class ErgoTokensList extends Network {
         super.shutdown();
     }
 
+    public PriceQuote findPriceQuoteById(String baseId, String quoteId){
+        ErgoMarketsData marketsData = m_selectedMarketData.get();
+        if(marketsData != null){
+            if(marketsData instanceof SpectrumErgoMarketsData){
+                return  marketsData.getPriceQuoteById(baseId, quoteId);
+            }
+        }
+        return null;
+    }
+
     public PriceQuote findPriceQuote(String baseSymbol, String quoteSymbol){
-        PriceQuote[] quotes = priceQuotesProperty().get();
+        ErgoMarketsData marketsData = m_selectedMarketData.get();
+        if(marketsData != null){
+            
+        }
+        /*PriceQuote[] quotes = priceQuotesProperty().get();
         if(quotes != null && baseSymbol != null && quoteSymbol != null){
             for(int i = 0; i < quotes.length ; i++){
                 
@@ -226,13 +259,11 @@ public class ErgoTokensList extends Network {
                     return quote;
                 }
             }
-        }
+        }*/
         return null;
     }
 
-    public SimpleObjectProperty<PriceQuote[]> priceQuotesProperty(){
-        return m_priceQuotesProperty;
-    }
+
 
     public String getMarketId(){
         return m_marketId;

@@ -10,7 +10,6 @@ import java.util.Optional;
 
 import org.reactfx.util.FxTimer;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -182,10 +181,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
 
                         if(result.isPresent() && result.get() == ButtonType.YES){
                             marketsList.remove(selectedId);
-                            FxTimer.runLater(Duration.ofMillis(100), ()->Platform.runLater(()->{
-                                m_stage.toBack();
-                                m_stage.toFront();
-                            }));
+                       
                         }
                     }
                 }

@@ -1,31 +1,28 @@
 package com.netnotes;
 
+import java.time.LocalDateTime;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
 
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
+//import javafx.beans.property.SimpleObjectProperty;
 
-import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-
-import javafx.scene.text.Text;
 
 public class KucoinErgoMarketsData extends ErgoMarketsData {
 
     private MessageInterface m_msgListener;
+
+    //private ScheduledExecutorService m_timeExecutor = null;
+    //private ScheduledFuture<?> m_lastExecution = null;
+    //private final SimpleObjectProperty<LocalDateTime> m_timeCycle = new SimpleObjectProperty<>(LocalDateTime.now());
+    //private long m_cyclePeriod = 7;
+   // private TimeUnit m_cycleTimeUnit = TimeUnit.SECONDS;
     
 
     public KucoinErgoMarketsData(ErgoMarketsList marketsList, JsonObject json) throws NullPointerException{
@@ -78,8 +75,7 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
         }
 
     }
-
-  
+    
 
     private void stopTicker(KucoinExchange exchange) {
     
@@ -197,15 +193,44 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
             }
         }
     }
+    /*/
+      public void setupTimer() {
+
+        if (m_lastExecution != null) {
+            m_lastExecution.cancel(false);
+        }
+
+        if (m_timeExecutor != null) {
+            m_timeExecutor.shutdownNow();
+            m_timeExecutor = null;
+        }
+        
+
+        if (getCyclePeriod() > 0) {
+            m_timeExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
+                public Thread newThread(Runnable r) {
+                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                    t.setDaemon(true);
+                    return t;
+                }
+            });
+      
+        
+        }
+    }*/
+
+    /*
 
     private void startPollingKuCoin(KucoinExchange exchange) {
 
         statusProperty().set(STARTED);
 
       
-        getMarketsList().getErgoMarkets().getNetworksData().timeCycleProperty().addListener((obs,oldval,newval)->{
-            statusProperty().set(POLLING);
+        Runnable doUpdate = () -> {
+                
+            
             exchange.getTicker(getBaseSymbol() + "-" + getQuoteSymbol(), (success) -> {
+                statusProperty().set(POLLING);
                 Object sourceObject = success.getSource().getValue();
                 if (sourceObject != null && sourceObject instanceof PriceQuote) {
                     PriceQuote priceQuote = (PriceQuote) sourceObject;
@@ -214,14 +239,13 @@ public class KucoinErgoMarketsData extends ErgoMarketsData {
             }, (failed) -> {
                 statusProperty().set(ERROR);
             });
-        });
-                
-   
-
         
+        };
+
+        m_lastExecution = m_timeExecutor.scheduleAtFixedRate(doUpdate, 0, getCyclePeriod(), getCycleTimeUnit());
 
     }
-
+    */
     
     
     

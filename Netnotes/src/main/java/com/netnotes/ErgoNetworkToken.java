@@ -176,11 +176,11 @@ public class ErgoNetworkToken extends PriceCurrency {
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject sourceJson = (JsonObject) sourceObject;
          
-                    Platform.runLater(() -> {
-                        setTokenData(sourceJson);
-                        m_explorerVerified.set(true);
-                        getLastUpdated().set(LocalDateTime.now());
-                    });
+                
+                    setTokenData(sourceJson);
+                    m_explorerVerified.set(true);
+                    getLastUpdated().set(LocalDateTime.now());
+                    
                     
                 }
             }, failedEvent -> {
@@ -201,25 +201,9 @@ public class ErgoNetworkToken extends PriceCurrency {
 
     @Override
     public PriceQuote getPriceQuote(){
+ 
+        return m_tokensList.findPriceQuoteById(getTokenId(), SpectrumMarketItem.ERG_ID);            
         
-        PriceQuote[] priceQuotes = m_tokensList.priceQuotesProperty().get();
-        if(priceQuotes != null){
-          
-            for(int i = 0; i < priceQuotes.length ; i ++){
-                PriceQuote priceQuote = priceQuotes[i];
-                if(priceQuote != null){
-                    //String currency = priceQuote.getTransactionCurrency();
-                    String tokenId = getTokenId();
-                    String txId = priceQuote.getTransactionCurrencyId();
-                
-                    if(txId != null && tokenId.equals(txId)){
-                        
-                        return priceQuote;
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     public void visitUrl(){

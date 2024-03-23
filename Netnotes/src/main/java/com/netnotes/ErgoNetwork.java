@@ -14,6 +14,7 @@ import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.utils.Utils;
 
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -25,11 +26,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -218,7 +217,9 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
             m_stage.show();
             Runnable setUpdated = () -> {
-                Platform.runLater(()->getLastUpdated().set(LocalDateTime.now()));
+                Utils.returnObject(LocalDateTime.now(),getNetworksData().getExecService(), (onSucceeded)->{
+                    getLastUpdated().set((LocalDateTime)onSucceeded.getSource().getValue());
+                }, (failed)->{});
 
             };
 
@@ -351,6 +352,10 @@ public class ErgoNetwork extends Network implements NoteInterface {
         };
 
         return iconButton;
+    }
+
+    public NoteInterface getNetwork(String networkId){
+        return m_ergNetData.getNetwork(networkId);
     }
 
     /*

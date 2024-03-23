@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -152,7 +151,7 @@ public class BufferedImageView extends ImageView {
                 setImage(imgUpdate);
 
             } else {
-                Platform.runLater(() -> setImage(m_img));
+                setImage(m_img);
 
             }
         } else {
@@ -178,11 +177,11 @@ public class BufferedImageView extends ImageView {
                 setImage(imgUpdate);
 
             } else {
-                Platform.runLater(() -> setImage(SwingFXUtils.toFXImage(imgBuf, null)));
+                 setImage(SwingFXUtils.toFXImage(imgBuf, null));
 
             }
         } else {
-            Platform.runLater(() -> setImage(SwingFXUtils.toFXImage(imgBuf, null)));
+            setImage(SwingFXUtils.toFXImage(imgBuf, null));
         }
     }
 }

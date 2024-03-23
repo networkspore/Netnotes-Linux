@@ -8,6 +8,7 @@ import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,7 +30,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.netnotes.IconButton.IconStyle;
 import com.satergo.Wallet;
-
 import com.utils.Utils;
 
 import javafx.application.Platform;
@@ -71,9 +71,15 @@ public class ErgoWalletDataList {
     private File logFile = new File("netnotes-log.txt");
     private ArrayList<NoteInterface> m_noteInterfaceList = new ArrayList<>();
     private String m_selectedId;
-    private VBox m_gridBox;
+
+    private SimpleObjectProperty<LocalDateTime> m_doUpdate = new SimpleObjectProperty<>(null);
+    
+
     //  private double m_width = 400;
     // private String m_direction = "column";
+
+  //  private final SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(0);
+
 
     private ErgoWallets m_ergoWallet;
     private File m_dataFile;
@@ -81,11 +87,12 @@ public class ErgoWalletDataList {
     private SimpleStringProperty m_iconStyle;
     private double m_stageWidth = 600;
     private double m_stageHeight = 450;
+    private long m_timeStamp = 0;
 
     public ErgoWalletDataList(double width, String iconStyle, File dataFile, ErgoWallets ergoWallet) {
         m_gridWidth = new SimpleDoubleProperty(width);
         m_iconStyle = new SimpleStringProperty(iconStyle);
-        m_gridBox = new VBox();
+    
         
 
 
@@ -94,6 +101,14 @@ public class ErgoWalletDataList {
         readFile(m_ergoWallet.getNetworksData().getAppData().appKeyProperty().get());
 
         m_iconStyle.addListener((obs, oldval, newval) -> updateGrid());
+
+        m_ergoWallet.timeStampProperty().addListener((obs,oldVal,newVal)->{
+            long newTimestamp = newVal.longValue();
+            if(newTimestamp != m_timeStamp){
+                m_timeStamp = newTimestamp;
+                readFile(m_ergoWallet.getNetworksData().getAppData().appKeyProperty().get());
+            }
+        });
     }
 
      public ErgoWalletDataList(SecretKey secretKey, File dataFile, ErgoWallets ergoWallet) {
@@ -129,6 +144,7 @@ public class ErgoWalletDataList {
 
     public void openJson(JsonObject json) {
         if (json != null) {
+            m_noteInterfaceList.clear();
             JsonElement stageElement = json.get("stage");
             JsonElement walletsElement = json.get("wallets");
 
@@ -173,6 +189,7 @@ public class ErgoWalletDataList {
                 }
 
             }
+            updateGrid();
         }
     }
 
@@ -607,7 +624,7 @@ public class ErgoWalletDataList {
             String seedPhrase = restoreMnemonicStage();
             if (!seedPhrase.equals("")) {
                 Button passBtn = new Button();
-                Stage passwordStage = App.createPassword(m_ergoWallet.getName() + " - Restore wallet: Password", m_ergoWallet.getIcon(), ErgoWallets.getAppIcon(),passBtn, onSuccess -> {
+                Stage passwordStage = App.createPassword(m_ergoWallet.getName() + " - Restore wallet: Password", m_ergoWallet.getIcon(), ErgoWallets.getAppIcon(),passBtn, m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
                     Object sourceObject = onSuccess.getSource().getValue();
 
                     if (sourceObject != null && sourceObject instanceof String) {
@@ -834,7 +851,7 @@ public class ErgoWalletDataList {
             if(result != null && result.isPresent() && result.get() == ButtonType.OK){
 
                  Button closePassBtn = new Button();
-                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, ErgoWallets.getSmallAppIcon(), ErgoWallets.getAppIcon(), closePassBtn, onSuccess -> {
+                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, ErgoWallets.getSmallAppIcon(), ErgoWallets.getAppIcon(), closePassBtn,m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
                     Object sourceObject = onSuccess.getSource().getValue();
 
                     if (sourceObject != null && sourceObject instanceof String) {
@@ -883,8 +900,17 @@ public class ErgoWalletDataList {
              
                 });
                 passwordStage.show();
-                Platform.runLater(()->passwordStage.requestFocus());
-                Platform.runLater(()->passwordStage.toFront());
+
+                Platform.runLater(()->{
+                    passwordStage.toBack();
+                    Platform.runLater(()->{
+                        passwordStage.toFront();
+                        Platform.runLater(()->passwordStage.requestFocus());
+                    });
+                });
+               
+                
+                
             }
         });
 
@@ -1079,59 +1105,115 @@ public class ErgoWalletDataList {
     }
 
     public VBox getButtonGrid() {
-        updateGrid();
-        return m_gridBox;
+        int numCells = m_noteInterfaceList.size();
+        String currentIconStyle = m_iconStyle.get();
+        VBox gridBox = new VBox();
+
+        Runnable updateGridBox = () ->{
+            gridBox.getChildren().clear();
+
+            if (currentIconStyle.equals(IconStyle.ROW)) {
+                for (int i = 0; i < numCells; i++) {
+                    NoteInterface network = m_noteInterfaceList.get(i);
+                    IconButton iconButton = network.getButton(currentIconStyle);
+                    iconButton.prefWidthProperty().bind(m_gridWidth);
+                    gridBox.getChildren().add(iconButton);
+                }
+            } else {
+
+                double width = m_gridWidth.get();
+                double imageWidth = 75;
+                double cellPadding = 15;
+                double cellWidth = imageWidth + (cellPadding * 2);
+
+                int floor = (int) Math.floor(width / cellWidth);
+                int numCol = floor == 0 ? 1 : floor;
+                // currentNumCols.set(numCol);
+                //int numRows = numCells > 0 && numCol != 0 ? (int) Math.ceil(numCells / (double) numCol) : 1;
+
+                ArrayList<HBox> rowsBoxes = new ArrayList<HBox>();
+
+                ItemIterator grid = new ItemIterator();
+                //j = row
+                //i = col
+
+                for (NoteInterface noteInterface : m_noteInterfaceList) {
+                    if(rowsBoxes.size() < (grid.getJ() + 1)){
+                        HBox newHBox = new HBox();
+                        rowsBoxes.add(newHBox);
+                        gridBox.getChildren().add(newHBox);
+                    }
+                    HBox rowBox = rowsBoxes.get(grid.getJ());
+                    rowBox.getChildren().add(noteInterface.getButton(currentIconStyle));
+
+                    if (grid.getI() < numCol) {
+                        grid.setI(grid.getI() + 1);
+                    } else {
+                        grid.setI(0);
+                        grid.setJ(grid.getJ() + 1);
+                    }
+                }
+
+            }
+        };
+        updateGridBox.run();
+        m_doUpdate.addListener((obs,oldval,newval)->updateGridBox.run());
+        
+        return gridBox;
+    }
+
+
+
+    
+    public void getMenu(MenuButton menuBtn, SimpleObjectProperty<ErgoWalletData> selected){
+
+        Runnable updateMenu = () -> {
+
+            menuBtn.getItems().clear();
+            ErgoWalletData newSelectedWallet =  selected.get();
+
+            MenuItem noneMenuItem = new MenuItem("(disabled)");
+            if(selected.get() == null){
+                noneMenuItem.setId("selectedMenuItem");
+            }
+            noneMenuItem.setOnAction(e->{
+                selected.set(null);
+            });
+            menuBtn.getItems().add(noneMenuItem);
+
+            int numCells = m_noteInterfaceList.size();
+
+            for (int i = 0; i < numCells; i++) {
+                
+                ErgoWalletData noteInterface = (ErgoWalletData) m_noteInterfaceList.get(i);
+
+                 MenuItem menuItem = new MenuItem(noteInterface.getName());
+                if(newSelectedWallet != null && newSelectedWallet.getNetworkId().equals(noteInterface.getNetworkId())){
+                    menuItem.setId("selectedMenuItem");
+                  //  menuItem.setText(menuItem.getText());
+                }
+                menuItem.setOnAction(e->{
+                  
+                    selected.set(noteInterface);
+                });
+
+                menuBtn.getItems().add(menuItem);
+            }
+
+
+
+        };
+
+        updateMenu.run();
+
+        selected.addListener((obs,oldval, newval) -> updateMenu.run());
+        m_doUpdate.addListener((obs, oldval, newval) -> updateMenu.run());
+
     }
 
     public void updateGrid() {
 
-        int numCells = m_noteInterfaceList.size();
-        String currentIconStyle = m_iconStyle.get();
-        m_gridBox.getChildren().clear();
-
-        if (currentIconStyle.equals(IconStyle.ROW)) {
-            for (int i = 0; i < numCells; i++) {
-                NoteInterface network = m_noteInterfaceList.get(i);
-                IconButton iconButton = network.getButton(currentIconStyle);
-                iconButton.prefWidthProperty().bind(m_gridWidth);
-                m_gridBox.getChildren().add(iconButton);
-            }
-        } else {
-
-            double width = m_gridWidth.get();
-            double imageWidth = 75;
-            double cellPadding = 15;
-            double cellWidth = imageWidth + (cellPadding * 2);
-
-            int floor = (int) Math.floor(width / cellWidth);
-            int numCol = floor == 0 ? 1 : floor;
-            // currentNumCols.set(numCol);
-            //int numRows = numCells > 0 && numCol != 0 ? (int) Math.ceil(numCells / (double) numCol) : 1;
-
-            ArrayList<HBox> rowsBoxes = new ArrayList<HBox>();
-
-            ItemIterator grid = new ItemIterator();
-            //j = row
-            //i = col
-
-            for (NoteInterface noteInterface : m_noteInterfaceList) {
-                if(rowsBoxes.size() < (grid.getJ() + 1)){
-                    HBox newHBox = new HBox();
-                    rowsBoxes.add(newHBox);
-                    m_gridBox.getChildren().add(newHBox);
-                }
-                HBox rowBox = rowsBoxes.get(grid.getJ());
-                rowBox.getChildren().add(noteInterface.getButton(currentIconStyle));
-
-                if (grid.getI() < numCol) {
-                    grid.setI(grid.getI() + 1);
-                } else {
-                    grid.setI(0);
-                    grid.setJ(grid.getJ() + 1);
-                }
-            }
-
-        }
+        m_doUpdate.set(LocalDateTime.now());
 
     }
 
@@ -1168,6 +1250,8 @@ public class ErgoWalletDataList {
 
             }
         }
+        m_timeStamp = System.currentTimeMillis();
+        m_ergoWallet.timeStampProperty().set(m_timeStamp);
     }
-
+    
 }

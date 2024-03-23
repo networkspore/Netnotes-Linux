@@ -1,7 +1,7 @@
 package com.netnotes;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 
 import com.utils.Utils;
 
@@ -15,18 +15,14 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -73,7 +69,7 @@ public class HashDataDownloader {
         m_dlDir = dir;
     }
 
-    public void start(){
+    public void start(ExecutorService execService){
         if(m_stage == null){
             Stage m_stage = new Stage();
             m_stage.getIcons().add(m_image);
@@ -268,7 +264,7 @@ public class HashDataDownloader {
             if(m_saveFile != null){
                 m_stage.show();
 
-                Utils.getUrlFileHash(m_urlString, m_saveFile, (onSucceeded)->{
+                Utils.getUrlFileHash(m_urlString, m_saveFile, execService, (onSucceeded)->{
                     WorkerStateEvent workerStateEvent = onSucceeded;
                     Object sourceObject = workerStateEvent.getSource().getValue();
 
@@ -284,22 +280,22 @@ public class HashDataDownloader {
                 },progressBar, cancel);
 
             }else{
-                Platform.runLater(()->close());
+                close();
             }
             closeBtn.setOnAction(e->{
                 cancel.set(true);
-                Platform.runLater(()->close());
+                close();
                 
             });
         }else{
             
-            Platform.runLater(()->{ 
+             
                 if(m_stage != null){
                     m_stage.show();
-                    m_stage.toFront();
-                    m_stage.requestFocus();
+               
+                    Platform.runLater(()->m_stage.requestFocus());
                 }
-            });
+            
 
         }
     }

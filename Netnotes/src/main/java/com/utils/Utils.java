@@ -9,12 +9,10 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
@@ -31,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipFile;
 
@@ -51,9 +50,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.net.URLConnection;
+import java.lang.Double;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -537,7 +537,7 @@ public class Utils {
         return bytes != null ? new String(bytes, StandardCharsets.UTF_8) : null;
     }
 
-    public static void returnObject(Object object, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public static void returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<Object> task = new Task<Object>() {
             @Override
@@ -551,13 +551,30 @@ public class Utils {
 
         task.setOnSucceeded(onSucceeded);
 
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
+        execService.submit(task);
+
+    }
+    public static void returnObject(Object object,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() {
+
+                return object;
+            }
+        };
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        Thread thread = new Thread(task);
+        thread.setDaemon(true);
+        thread.start();
 
     }
 
-    public static void getUrlJson(String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public static void getUrlJson(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
 
         Task<JsonObject> task = new Task<JsonObject>() {
             @Override
@@ -619,9 +636,8 @@ public class Utils {
 
         task.setOnSucceeded(onSucceeded);
 
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
+        execService.submit(task);
+
     }
 
     public static String formatedBytes(long bytes, int decimals) {
@@ -1131,10 +1147,10 @@ public class Utils {
                         updateProgress(downloaded, contentLength);
                     }
                 }
-
+                inputStream.close();
                 outputStream.close();
                 outputString = outputStream.toString();
-
+                
                 JsonElement jsonElement = new JsonParser().parse(outputString);
 
                 JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
@@ -1158,7 +1174,64 @@ public class Utils {
         t.start();
     }
 
-    public static void getUrlFileHash(String urlString, File outputFile, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator, SimpleBooleanProperty cancel) {
+    public static void getUrlJsonArray(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+
+        Task<JsonArray> task = new Task<JsonArray>() {
+            @Override
+            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
+                InputStream inputStream = null;
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                String outputString = null;
+
+                URL url = new URL(urlString);
+
+                URLConnection con = url.openConnection();
+
+                con.setRequestProperty("User-Agent", USER_AGENT);
+
+                long contentLength = con.getContentLengthLong();
+                inputStream = con.getInputStream();
+
+                byte[] buffer = new byte[2048];
+
+                int length;
+                long downloaded = 0;
+
+                while ((length = inputStream.read(buffer)) != -1) {
+
+                    outputStream.write(buffer, 0, length);
+
+                    if (progressIndicator != null) {
+                        downloaded += (long) length;
+                        updateProgress(downloaded, contentLength);
+                    }
+                }
+                inputStream.close();
+                outputStream.close();
+                outputString = outputStream.toString();
+                
+                JsonElement jsonElement = new JsonParser().parse(outputString);
+
+                JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
+
+                return jsonArray == null ? null : jsonArray;
+
+            }
+
+        };
+
+        if (progressIndicator != null) {
+            progressIndicator.progressProperty().bind(task.progressProperty());
+        }
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        execService.submit(task);
+    }
+
+    public static void getUrlFileHash(String urlString, File outputFile,ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator, SimpleBooleanProperty cancel) {
 
         Task<HashData> task = new Task<HashData>() {
             @Override
@@ -1227,9 +1300,7 @@ public class Utils {
 
         task.setOnSucceeded(onSucceeded);
 
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
+        execService.submit(task);
     }
 
 
@@ -1538,7 +1609,7 @@ public class Utils {
             String errStr = "";
             while ((errStr = stdErr.readLine()) != null) {
 
-                Files.writeString(new File("netnotes-log.txt").toPath(), "\nsig term err: " + errStr, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(new File("netnotes-log.txt").toPath(), "\nsig term err: " + errStr + "\n'" + execString + "'", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 gotInput = false;
             }
 
@@ -1560,6 +1631,117 @@ public class Utils {
         Runtime.getRuntime().exec(cmd);
   
     }
+
+    public static JsonObject getResourcesObject(String resourceString){
+
+        if(resourceString != null){
+         
+            JsonElement resourceFileElement = new JsonParser().parse(resourceString);
+            
+            if(resourceFileElement != null && resourceFileElement.isJsonObject()){
+                
+                JsonObject json = resourceFileElement.getAsJsonObject();
+                if(json.has("apps")){
+                    if(!json.get("apps").isJsonArray()){
+                        json.remove("apps");
+                        json.add("apps", new JsonArray());
+                    }
+                }else{
+                    json.add("apps", new JsonArray());
+                }
+                return json;
+            }
+            
+        }
+        JsonObject resourceObject = new JsonObject();
+        resourceObject.add("apps", new JsonArray());
+        
+        return resourceObject;
+    }
+
+
+
+    public static int findJsonArrayStringIndex(JsonArray stringJson, String str){
+        
+        int size = stringJson.size();
+
+        for(int i = 0; i < size ; i ++){
+            if(stringJson.get(i).getAsString().equals(str)){
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public static void addAppResource(String appName) {
+        File resourceFile = new File(App.RESOURCES_FILENAME);
+        if(appName == null){
+            return;
+        }
+        
+        String resourceFileString = null;
+        try{
+            resourceFileString = resourceFile.isFile() ?  Files.readString(resourceFile.toPath()) : null ;
+        }catch(IOException e){
+            
+        }
+            
+        JsonObject resourcesObject = getResourcesObject(resourceFileString);
+
+
+        JsonArray appsArray = resourcesObject.get("apps").getAsJsonArray();
+        
+        resourcesObject.remove("apps");
+
+        boolean isAdd = findJsonArrayStringIndex(appsArray, appName) == -1;
+
+        if(isAdd){
+            appsArray.add(appName);
+            resourcesObject.add("apps", appsArray);
+
+            try {
+                Files.writeString(resourceFile.toPath(), resourcesObject.toString());
+            } catch (IOException e) {
+                try {
+                    Files.writeString(App.logFile.toPath(), "\naddAppResource: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+                }
+            }
+        }
+
+
+    }
+
+    public static void removeAppResource(String appName) throws IOException {
+   
+    
+        File resourceFile = new File(App.RESOURCES_FILENAME);
+        if(resourceFile.isFile() && appName != null)
+        {
+            String resourceFileString = null;
+            try{
+                resourceFileString = Files.readString(resourceFile.toPath());
+            }catch(IOException e){
+                
+            }
+            JsonObject resourcesObject = getResourcesObject(resourceFileString);
+             
+            JsonArray appsArray = resourcesObject.get("apps").getAsJsonArray();
+            
+            resourcesObject.remove("apps");
+
+            int index = findJsonArrayStringIndex(appsArray, appName);
+
+            if(index != -1){
+                appsArray.remove(index);
+                resourcesObject.add("apps", appsArray);
+                Files.writeString(resourceFile.toPath(), resourcesObject.toString());
+            
+            }
+        }
+    }
+
 
     public static FreeMemory getFreeMemory() {
         try{ 
@@ -1634,68 +1816,96 @@ public class Utils {
     }
 
 
-    public static void pingIP(String ip, SimpleStringProperty status, SimpleStringProperty updated, SimpleBooleanProperty available) throws Exception{
+   
+
+    public static void pingIP(String ip, SimpleObjectProperty<Ping> pingProperty, ExecutorService execService){
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws IOException {
+
+                String[] cmd = {"bash", "-c", "ping -c 4 " + ip};
+
+
+
+                Process proc = Runtime.getRuntime().exec(cmd);
+
+                BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+
+                List<String> javaOutputList = new ArrayList<String>();
+
+                String s = null;
+
+                boolean available = false;
+                String error = "";
+                int avg = -1;
+
+                while ((s = stdInput.readLine()) != null) {
+                    javaOutputList.add(s);
+
+                    String timeString = "time=";
+                // int indexOftimeString = s.indexOf(timeString);
+
+                    if (s.indexOf("service not known") > -1) {
+                        available = false;
+                        error = "Unreachable";
+                
+                    }
+
+                    if (s.indexOf("timed out") > -1) {
+                        available = false;
+                        error = "Timed out";
+                    }
+
+
+                    /*if (indexOftimeString > 0) {
+                        int lengthOftime = timeString.length();
+
+                        int indexOfms = s.indexOf("ms");
+
+                        available = true;
+
+                        String time = s.substring(indexOftimeString + lengthOftime, indexOfms + 2);
+
+                        //Platform.runLater(()->status.set("Ping: " + time));
         
-        String[] cmd = {"bash", "-c", "ping -c 4 " + ip};
+                    }*/
 
+                    String avgString = "min/avg/max/mdev = ";
+                    int indexOfAvgString = s.indexOf(avgString);
 
+                    if (indexOfAvgString > 0) {
+                            int lengthOfAvg = avgString.length();
 
-            Process proc = Runtime.getRuntime().exec(cmd);
+                            String avgStr = s.substring(indexOfAvgString + lengthOfAvg);
+                            int slashIndex = avgStr.indexOf("/");
 
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+                            avgStr = avgStr.substring(slashIndex+1, avgStr.indexOf("/",slashIndex + 1) );
+                            
+                            avg = (int) Math.ceil(Double.parseDouble(avgStr));
+                            available = true;
+                        }
 
-            List<String> javaOutputList = new ArrayList<String>();
-
-            String s = null;
-
-            while ((s = stdInput.readLine()) != null) {
-                javaOutputList.add(s);
-
-                String timeString = "time=";
-                int indexOftimeString = s.indexOf(timeString);
-
-                if (s.indexOf("service not known") > -1) {
-                    Platform.runLater(()->available.set(false));
-                    Platform.runLater(()->status.set("IP not found"));
-                    Platform.runLater(()->updated.set(Utils.formatDateTimeString(LocalDateTime.now())));
-                }
-
-                if (s.indexOf("timed out") > -1) {
-                    Platform.runLater(()->available.set(false));
-                    Platform.runLater(()->status.set("Timed out"));
-                    Platform.runLater(()->updated.set(Utils.formatDateTimeString(LocalDateTime.now())));
-                }
-
-
-                if (indexOftimeString > 0) {
-                    int lengthOftime = timeString.length();
-
-                    int indexOfms = s.indexOf("ms");
-
-                    Platform.runLater(()->available.set(true));
-
-                    String time = s.substring(indexOftimeString + lengthOftime, indexOfms + 2);
-
-                    Platform.runLater(()->status.set("Ping: " + time));
-                    Platform.runLater(()->updated.set(Utils.formatDateTimeString(LocalDateTime.now())));
-                }
-
-                String avgString = "min/avg/max/mdev = ";
-                int indexOfAvgString = s.indexOf(avgString);
-
-                if (indexOfAvgString > 0) {
-                    int lengthOfAvg = avgString.length();
-
-                    String avg = s.substring(indexOfAvgString + lengthOfAvg);
-
-                    Platform.runLater(()->status.set("min/avg/max/mdev: " + avg));
-
-                    Platform.runLater(()->updated.set(Utils.formatDateTimeString(LocalDateTime.now())));
-
-                }
-
-            }
+                    }
         
+
+                    return new Ping(available, error, avg);
+                }
+            };
+    
+            task.setOnFailed((onFailed)->{
+                pingProperty.set(new Ping(false, "Unavailable", -1));
+            });
+    
+            task.setOnSucceeded((onSucceeded)->{
+                Object returnObject = onSucceeded.getSource().getValue();
+                if(returnObject != null){
+                    pingProperty.set((Ping) returnObject);
+                }else{
+                    pingProperty.set(new Ping(false, "Unavailable", -1));
+                }
+            });
+    
+            execService.submit(task);
             // String[] splitStr = javaOutputList.get(0).trim().split("\\s+");
             //Version jV = new Version(splitStr[1].replaceAll("/[^0-9.]/g", ""));
         

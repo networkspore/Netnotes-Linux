@@ -4,7 +4,6 @@ import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -31,8 +30,6 @@ import com.google.gson.JsonArray;
 import com.utils.Utils;
 
 import javafx.application.Platform;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -334,7 +331,7 @@ public class ErgoNodesList {
 
         Runnable updateGrid = () -> {
             gridBox.getChildren().clear();
-            
+          
             if(m_ergoLocalNode != null){
                 HBox fullNodeRowItem = m_ergoLocalNode.getRowItem();
                 fullNodeRowItem.prefWidthProperty().bind(width.subtract(scrollWidth));
@@ -459,7 +456,7 @@ public class ErgoNodesList {
 
             // Alert a = new Alert(AlertType.NONE, "updates: " + updatesEnabled, ButtonType.CLOSE);
             //a.show();
-            NamedNodesList nodesList = new NamedNodesList(m_ergoNodes.getNetworksData().getAppData().getUpdates());
+            NamedNodesList nodesList = new NamedNodesList( m_ergoNodes.getNetworksData().getAppData().getUpdates(), getErgoNodes().getNetworksData().getExecService());
 
             //private
             SimpleObjectProperty<NetworkType> networkTypeOption = new SimpleObjectProperty<NetworkType>(NetworkType.MAINNET);
@@ -582,7 +579,7 @@ public class ErgoNodesList {
             };
 
             getNodesListBtn.setOnAction((e) -> {
-                nodesList.getGitHubList();
+                nodesList.getGitHubList(getErgoNodes().getNetworksData().getExecService());
             });
 
         
@@ -823,7 +820,6 @@ public class ErgoNodesList {
             HBox localNodeHeadingPaddingBox = new HBox(localNodeHeadingBox);
             localNodeHeadingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
 
-            SimpleObjectProperty<FreeMemory> freeMemoryObject = new SimpleObjectProperty<>(Utils.getFreeMemory());
 
             TextArea localNodeTextArea = new TextArea(ErgoNodeLocalData.DESCRIPTION);
             localNodeTextArea.setWrapText(true);
@@ -832,17 +828,7 @@ public class ErgoNodesList {
 
     
 
-            Runnable updateFreeMemory = () ->{
-                FreeMemory freeMemory = freeMemoryObject.get();
-                String textAreaString = getMemoryInfoString(freeMemory);
-
-                localNodeTextArea.setText(textAreaString);
-            };
-
-            freeMemoryObject.addListener((obs,oldval,newval)->updateFreeMemory.run());
-            
-           
-
+    
 
 
 
@@ -873,10 +859,6 @@ public class ErgoNodesList {
             VBox localNodeOptionsBox = new VBox(localNodeHeadingBox, localNodeTextAreaBox);
             localNodeOptionsBox.setPadding(new Insets(15,0,0,15));
             VBox.setVgrow(localNodeOptionsBox, Priority.ALWAYS);
-
-            if(getSwapSize(freeMemoryObject.get()) > 0){
-                localNodeTextAreaBox.getChildren().add(swapBox);
-            }
             
 
             VBox bodyOptionBox = new VBox(m_ergoLocalNode == null ? localNodeOptionsBox : lightClientOptions);
@@ -948,7 +930,6 @@ public class ErgoNodesList {
 
             Runnable setLocal = () -> {
 
-                freeMemoryObject.set(Utils.getFreeMemory());
 
                 bodyOptionBox.getChildren().clear();
                 bodyOptionBox.getChildren().add(localNodeOptionsBox);
@@ -1045,7 +1026,7 @@ public class ErgoNodesList {
             };
 
             Runnable setupLocalNode = ()->{
-                Platform.runLater(()->m_ergoLocalNode.setup());
+                m_ergoLocalNode.setup();
             };
             
             nextBtn.setOnAction((e) -> {
@@ -1057,7 +1038,7 @@ public class ErgoNodesList {
                         break;
                     case ErgoNodeLocalData.LOCAL_NODE:
                         addLocalNode();
-                        FxTimer.runLater(java.time.Duration.ofMillis(100), setupLocalNode );
+                        setupLocalNode.run();
                         
                         doClose.run();
                     break;
@@ -1088,7 +1069,8 @@ public class ErgoNodesList {
                 m_addStage.setIconified(false);
             }
             m_addStage.show();
-            m_addStage.toFront();
+      
+            
         }
     }
 

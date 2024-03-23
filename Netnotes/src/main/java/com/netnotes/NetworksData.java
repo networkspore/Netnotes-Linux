@@ -20,12 +20,8 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -45,7 +41,6 @@ import com.satergo.extra.AESEncryption;
 
 import javafx.application.HostServices;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
@@ -59,7 +54,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -69,6 +63,7 @@ public class NetworksData implements InstallerInterface {
     public final static long WATCH_INTERVAL = 50;
     public final String INPUT_EXT = ".in";
     public final String OUT_EXT = ".out";
+    public final static long DEFAULT_CYCLE_PERIOD = 7;
 
     public final static String[] INTALLABLE_NETWORK_IDS = new String[]{
         ErgoNetwork.NETWORK_ID,
@@ -77,12 +72,14 @@ public class NetworksData implements InstallerInterface {
         
     };
 
+
+    
+    private ExecutorService m_execService = Executors.newFixedThreadPool(6);
+
     private ArrayList<NoteInterface> m_noteInterfaceList = new ArrayList<>();
     private File m_networksFile;
     private String m_selectedId;
     private VBox m_networksBox;
-
-    
 
     private double m_leftColumnWidth = 175;
 
@@ -114,15 +111,12 @@ public class NetworksData implements InstallerInterface {
     private boolean m_stageMaximized = false;
     private AppData m_appData;
     
-    private ScheduledExecutorService m_timeExecutor = null;
-    private ScheduledFuture<?> m_lastExecution = null;
-    private final SimpleObjectProperty<LocalDateTime> m_timeCycle = new SimpleObjectProperty<>(LocalDateTime.now());
-    private long m_cyclePeriod = 15;
-    private TimeUnit m_cycleTimeUnit = TimeUnit.SECONDS;
+
+
 
     public NetworksData(AppData appData,  HostServices hostServices, File networksFile, boolean isFile) {
         m_appData = appData;
-       
+   
         m_networksFile = networksFile;
         m_networksBox = new VBox();
         m_hostServices = hostServices;
@@ -172,7 +166,7 @@ public class NetworksData implements InstallerInterface {
             }
         }
 
-        try {
+        /* try {
             m_noteWatcher = new NoteWatcher(m_notesDir, new NoteListener() {
                 public void onNoteChange(String fileString) {
                     checkFile(new File(fileString));
@@ -180,11 +174,17 @@ public class NetworksData implements InstallerInterface {
             });
         } catch (IOException e) {
 
-        }
+        }*/
 
-        setupTimer();
+
         m_appData.appKeyProperty().addListener((obs,oldval,newval)->save());
     }
+
+
+    public ExecutorService getExecService(){
+        return m_execService;
+    }
+
 
     private void readFile(SecretKey appKey, Path filePath) {
 
@@ -224,49 +224,9 @@ public class NetworksData implements InstallerInterface {
 
     }
 
-     public void setupTimer() {
+   
 
-        if (m_lastExecution != null) {
-            m_lastExecution.cancel(false);
-        }
 
-        if (m_timeExecutor != null) {
-            m_timeExecutor.shutdownNow();
-            m_timeExecutor = null;
-        }
-
-        if (getCyclePeriod() > 0) {
-            m_timeExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
-                public Thread newThread(Runnable r) {
-                    Thread t = Executors.defaultThreadFactory().newThread(r);
-                    t.setDaemon(true);
-                    return t;
-                }
-            });
-
-            Runnable doUpdate = () -> {
-                 updateTimeCycle();
-            };
-
-            m_lastExecution = m_timeExecutor.scheduleAtFixedRate(doUpdate, 0, getCyclePeriod(), getCycleTimeUnit());
-        }
-    }
-
-    public void updateTimeCycle() {
-        Platform.runLater(() ->m_timeCycle.set(LocalDateTime.now()));
-    }
-
-    public SimpleObjectProperty<LocalDateTime> timeCycleProperty() {
-        return m_timeCycle;
-    }
-
-    public long getCyclePeriod(){
-        return m_cyclePeriod;
-    }
-
-    public TimeUnit getCycleTimeUnit(){
-        return m_cycleTimeUnit;
-    }
 
   
 
@@ -700,17 +660,20 @@ public class NetworksData implements InstallerInterface {
 
             m_addNetworkStage.show();
             updateAvailableLists();
-            FxTimer.runLater(Duration.ofMillis(100), ()->{
-                Platform.runLater(()->m_addNetworkStage.requestFocus());
-                Platform.runLater(()->m_addNetworkStage.toFront());
+            FxTimer.runLater(Duration.ofMillis(20), ()->{
+                    if(m_addNetworkStage != null){
+
+                        Platform.runLater(()->m_addNetworkStage.toBack());
+                        Platform.runLater(()->m_addNetworkStage.toFront());
+                        Platform.runLater(()->m_addNetworkStage.requestFocus());
+
+                    }
+                    
+                
             });
        
         } else {
-             Platform.runLater(()->{
-                m_addNetworkStage.show();
-                m_addNetworkStage.toFront();
-                m_addNetworkStage.requestFocus();
-            });
+             m_addNetworkStage.show();
         }
     }
 
@@ -795,7 +758,7 @@ public class NetworksData implements InstallerInterface {
         }
     }
 
-    private SimpleDoubleProperty m_gridWidth = new SimpleDoubleProperty(200);
+   // private SimpleDoubleProperty m_gridWidth = new SimpleDoubleProperty(200);
     
 
     public void updateNetworksGrid() {
@@ -1097,7 +1060,9 @@ public class NetworksData implements InstallerInterface {
                 show();
 
                 break;
-
+            case App.CMD_SHUTDOWN:
+                shutdown();
+                break;
             default:
                 break;
         }

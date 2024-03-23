@@ -5,6 +5,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -29,7 +31,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.io.FileUtils;
 import org.ergoplatform.appkit.NetworkType;
-import org.reactfx.util.FxTimer;
 
 import com.utils.GitHubAPI;
 import com.utils.Utils;
@@ -37,6 +38,8 @@ import com.utils.Version;
 import com.utils.GitHubAPI.GitHubAsset;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -99,6 +102,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public final static int DEFAULT_MEM_GB_REQUIRED = 6;
 
+    public final static String STARTUP_STRING = "Starting up...";
+
 
     final private List<ErgoNodeMsg> m_nodeMsgBuffer = Collections.synchronizedList(new ArrayList<ErgoNodeMsg>());
 
@@ -138,12 +143,14 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private ErgoNodeConfig m_nodeConfigData = null;
 
     private ExecutorService m_executor = null;
+   
     private Future<?> m_future = null;
+    private ScheduledExecutorService m_schedualedExecutor = null;
     private ScheduledFuture<?> m_scheduledFuture = null;
     private SimpleStringProperty m_consoleOutputProperty = new SimpleStringProperty("");
 
     private final SimpleBooleanProperty m_isSetupProperty = new SimpleBooleanProperty(false);
-    private final SimpleBooleanProperty m_syncedProperty = new SimpleBooleanProperty(false);
+
     private final SimpleLongProperty m_nodeHeadersHeightProperty = new SimpleLongProperty(-1);
     private final SimpleLongProperty m_nodeBlockHeightProperty = new SimpleLongProperty(-1);
     private final SimpleLongProperty m_networkBlockHeightProperty = new SimpleLongProperty(-1);
@@ -166,14 +173,14 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private GitHubAPI m_gitHubAPI = new GitHubAPI("ergoplatform", "ergo");
 
 
-    private final ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
+    /*private final ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
         public Thread newThread(Runnable r) {
             Thread t = Executors.defaultThreadFactory().newThread(r);
             t.setDaemon(true);
 
             return t;
         }
-    });
+    });*/
 
     public ErgoNodeLocalData(String id, ErgoNodesList ergoNodesList) {
         super(ergoNodesList, LOCAL_NODE, new NamedNodeUrl(id, "Not Installed", "127.0.0.1", ErgoNodes.MAINNET_PORT, "", NetworkType.MAINNET));
@@ -192,30 +199,123 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         }
     }
 
+
+
     private void setListeners() {
         
-        getErgoNodesList().getErgoNodes().getNetworksData().shutdownNowProperty().addListener((obs, oldVal, newVal) -> stop());
+        getNetworksData().shutdownNowProperty().addListener((obs, oldVal, newVal) -> stop());
         // m_syncedProperty.bind(Bindings.equal(m_nodeBlockHeightProperty, m_networkBlockHeightProperty).and(m_networkBlockHeightProperty.isNotEqualTo(-1L).and(statusProperty.isNotEqualTo(MarketsData.STOPPED))));
-        statusProperty().addListener((obs, oldval, newVal) -> {
-            if (newVal != null && newVal.equals(ErgoMarketsData.STOPPED)) {
-                Platform.runLater(() -> cmdProperty().set(""));
-                
-            }
-        });
-        Runnable syncUpdate = () -> {
-            long nodeBlockHeight = m_nodeBlockHeightProperty.get();
+
+
+
+        Runnable updateSynced = () -> {
+            String status = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
             long networkBlockHeight = m_networkBlockHeightProperty.get();
-            boolean running = statusProperty().get() != null && !statusProperty().get().equals(ErgoMarketsData.STOPPED);
+            long nodeBlockHeight = m_nodeBlockHeightProperty.get();
+            boolean running = !status.equals(ErgoMarketsData.STOPPED);
+            boolean synced = nodeBlockHeight != -1 && networkBlockHeight != -1 && nodeBlockHeight >= networkBlockHeight && running;
+            
+            isAvailableProperty().set(synced);
 
-            if (nodeBlockHeight != -1 && networkBlockHeight != -1 && nodeBlockHeight == networkBlockHeight && running) {
-                m_syncedProperty.set(true);
-            } 
+            if (running) {
+
+                long headersHeight = m_nodeHeadersHeightProperty.get();
+
+                if (!synced) {
+
+                    //    botMidText.setFill(getSecondaryColor());
+      
+                    if (networkBlockHeight == -1) {
+                        statusString().set(STARTUP_STRING);
+                    } else {
+
+                        if (nodeBlockHeight == -1) {
+                            if(headersHeight > -1){
+                                String headersHeightString = headersHeight == -1 ? "Getting headers..." : headersHeight + "";
+                                String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
+                                statusString().set("Syncing headers: " + headersHeightString + "/" + networkBlockHeightString);
+                                
+                            }else{
+                                //int seconds = (SYNC_TIMEOUT_CYCLE - m_isSyncStuck.get());
+                                statusString().set("Finding next block... " + (m_isSyncStuck.get() > 2 ? (" (Timing out...") : ""));
+                            } 
+                        } else {
+                            String nodeBlockHeightString = nodeBlockHeight == -1 ? "Getting Node Height..." : nodeBlockHeight + "";
+                            String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
+
+                            statusString().set("Syncing: " + nodeBlockHeightString + "/" + networkBlockHeightString);
+                        }
+
+                    }
+
+                    //+ " (" + String.format("%.1f", p * 100) + ")");
+                    // }
+                } else {
+
+                    statusString().set("Ready");
+                  
+                }
+                
+            } else {
+
+                statusString().set(getIsSetup() ? "Offline" : "(Not Installed)");
+
+            }
+
         };
-        m_nodeBlockHeightProperty.addListener((obs, oldVal, newVal) -> Platform.runLater(() -> syncUpdate.run()));
-        m_networkBlockHeightProperty.addListener((obs, oldval, newVal) -> Platform.runLater(() -> syncUpdate.run()));
-        syncUpdate.run();
 
-       
+        m_nodeHeadersHeightProperty.addListener((obs,oldval,newval)->updateSynced.run());
+        m_nodeBlockHeightProperty.addListener((obs, oldVal, newVal) -> updateSynced.run());
+        m_networkBlockHeightProperty.addListener((obs, oldval, newVal) -> updateSynced.run());
+        
+        updateSynced.run();
+
+
+       m_msgInput.addListener((obs,oldval,newval)->{
+            ErgoNodeMsg[] newMsgs = newval;
+            long blockHeight = m_nodeBlockHeightProperty.get();
+            long headersHeight = m_nodeHeadersHeightProperty.get();
+            int size = newMsgs.length;
+           
+            long newNodeHeight = blockHeight;
+            long newheadersHeight = headersHeight;
+
+            for (int i = 0; i < size; i++) {
+                ErgoNodeMsg msg = newMsgs[i];
+    
+                if(msg.getLocalTime() != null){
+                    String body = msg.getBody();
+                    String type = msg.getType();
+                    //  Platform.runLater(() -> {
+                      //  m_nodeMsg.set(msg.getBody());
+                        cmdProperty().set(type);
+        
+                        if (type.equals(ErgoNodeMsg.MsgTypes.NEW_HEIGHT)) {
+                            
+                            long msgBlockHeight = msg.getHeight();
+                            if(msgBlockHeight > newNodeHeight){
+                               // m_nodeBlockHeightProperty.set(msg.getHeight());
+                                newNodeHeight = msgBlockHeight;
+                            }
+                        }
+                        if (type.equals(ErgoNodeMsg.MsgTypes.NEW_HEADER_HEIGHT)) {
+                            long msgheadersHeight = msg.getHeight();
+                            
+                            if(msgheadersHeight > newheadersHeight){
+                                newheadersHeight = msgheadersHeight;
+                            }
+                            //m_nodeHeadersHeightProperty.set(msg.getHeight());
+                        }
+                        
+                        
+                //    });
+                }
+            }
+            ErgoNodeMsg lastMsg = newMsgs[newMsgs.length-1];
+            m_nodeBlockHeightProperty.set(newNodeHeight);
+            m_nodeHeadersHeightProperty.set(newheadersHeight);
+            cmdStatusUpdated().set(String.format("%29s", lastMsg.getDateTimeString()));
+        });
     }
 
     public int getMemGBRequired(){
@@ -373,7 +473,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     }
 
     public SimpleBooleanProperty syncedProperty() {
-        return m_syncedProperty;
+        return isAvailableProperty();    
     }
 
     public SimpleLongProperty nodeBlockHeightProperty() {
@@ -384,10 +484,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         return m_networkBlockHeightProperty;
     }
 
-    @Override
-    public boolean isAvailable() {
-        return statusProperty().get().equals(ErgoMarketsData.STARTED);
-    }
 
     public long getSpaceRequired() {
         return m_spaceRequired;
@@ -430,29 +526,14 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private final void updateCycle() {
         //get Network info
 
+        //long timeoutSeconds = (getNetworksData().getCyclePeriod() * SYNC_TIMEOUT_CYCLE) / 60;
+ 
         final String localApiString = namedNodeUrlProperty().get().getUrlString() + "/info";
         final String prevVersionString = m_appVersion.get() != null ? m_appVersion.get().get() : "0.0.0";
         boolean foundPID = Utils.findPIDs(m_appFileName) != null;
         if(foundPID){
-            if (m_isSyncStuck.get() > -1) {
-                if (m_isSyncStuck.get() > SYNC_TIMEOUT_CYCLE) {
-                    stop();
-
-                    FxTimer.runLater(java.time.Duration.ofMillis(500), () -> {
-                        try {
-                            cleanSync();
-                        } catch (IOException e) {
-
-                        }
-                        Platform.runLater(() -> start());
-                    });
-
-                    m_isSyncStuck.set(-1);
-                }
-                m_isSyncStuck.set(m_isSyncStuck.get() + 1);
-            }
             isGettingInfo.set(true);
-            Utils.getUrlJson(localApiString, (onSucceeded) -> {
+            Utils.getUrlJson(localApiString, getNetworksData().getExecService(), (onSucceeded) -> {
                 Object sourceObject = onSucceeded.getSource().getValue();
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject json = (JsonObject) sourceObject;
@@ -460,7 +541,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     JsonElement fullHeightElement = json.get("fullHeight");
                     JsonElement maxPeerHeightElement = json.get("maxPeerHeight");
                     JsonElement peerCountElement = json.get("peersCount");
-                    //  JsonElement headerHeightElement = json.get("headerHeight");
+                    JsonElement headersHeightElement = json.get("headersHeight");
                     JsonElement appVersionElement = json.get("appVersion");
 
                     try {
@@ -469,36 +550,65 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                     }
 
-                    // long headerHeight = headerHeightElement != null && headerHeightElement.isJsonPrimitive() ? headerHeightElement.getAsLong() : -1;
                     long fullHeight = fullHeightElement != null && fullHeightElement.isJsonPrimitive() ? fullHeightElement.getAsLong() : -1;
-                    final long networkHeight = maxPeerHeightElement != null && maxPeerHeightElement.isJsonPrimitive() ? maxPeerHeightElement.getAsLong() : -1;
-                    final int peerCount = peerCountElement != null && peerCountElement.isJsonPrimitive() ? peerCountElement.getAsInt() : -1;
-                    final String appVersionString = appVersionElement != null && appVersionElement.isJsonPrimitive() ? appVersionElement.getAsString() : null;
+                    long networkHeight = maxPeerHeightElement != null && maxPeerHeightElement.isJsonPrimitive() ? maxPeerHeightElement.getAsLong() : -1;
+                    int peerCount = peerCountElement != null && peerCountElement.isJsonPrimitive() ? peerCountElement.getAsInt() : -1;
+                    String appVersionString = appVersionElement != null && appVersionElement.isJsonPrimitive() ? appVersionElement.getAsString() : null;
+                    long headersHeight = headersHeightElement != null && headersHeightElement.isJsonPrimitive() ? headersHeightElement.getAsLong() : -1;
+
+                    long prevheadersHeight = m_nodeHeadersHeightProperty.get();
                     long prevBlockHeight = m_nodeBlockHeightProperty.get();
                     long prevNetworkHeight = m_networkBlockHeightProperty.get();
 
-                    Platform.runLater(() -> {
-                        cmdStatusUpdated().set(String.format("%29s", Utils.formatDateTimeString(LocalDateTime.now())));
-                        m_peerCountProperty.set(peerCount);
-                        if(fullHeight > prevBlockHeight){
-                            m_nodeBlockHeightProperty.set(fullHeight);
+                  
+                    cmdStatusUpdated().set(String.format("%29s", Utils.formatDateTimeString(LocalDateTime.now())));
+                    m_peerCountProperty.set(peerCount);
+                    if(fullHeight > prevBlockHeight){
+                        m_nodeBlockHeightProperty.set(fullHeight);
+                    }
+                    if(networkHeight > prevNetworkHeight){
+                        m_networkBlockHeightProperty.set(networkHeight);
+                    }
+                    if(headersHeight > prevheadersHeight){
+                        m_nodeHeadersHeightProperty.set(headersHeight);
+                    }
+                    if (appVersionString != null && !prevVersionString.equals(appVersionString)) {
+                        try {
+
+                            m_appVersion.set(new Version(appVersionString));
+                            lastUpdated().set(LocalDateTime.now());
+
+                        } catch (IllegalArgumentException e) {
+
                         }
-                        if(networkHeight > prevNetworkHeight){
-                            m_networkBlockHeightProperty.set(networkHeight);
-                        }
-                        if (appVersionString != null && !prevVersionString.equals(appVersionString)) {
-                            try {
+                    }
 
-                                m_appVersion.set(new Version(appVersionString));
-                                lastUpdated().set(LocalDateTime.now());
-
-                            } catch (IllegalArgumentException e) {
-
-                            }
-                        }
-
-                    });
                     isGettingInfo.set(false);
+                    if (m_isSyncStuck.get() > -1) {
+                        if (m_isSyncStuck.get() > SYNC_TIMEOUT_CYCLE) {
+                            stop();
+                            NamedNodeUrl namedNode = namedNodeUrlProperty().get();
+                            
+                            Alert a = new Alert(AlertType.WARNING, namedNode.getName() +  " has been unable to sync. Would you like to restart the sync process?\n\nNotice: Improper shut down is the primary cuase of a node being unable to sync. It is recommended to use the graphical interface in order to ensure that the node is shut down gracefully.", ButtonType.YES, ButtonType.NO);
+                            a.setTitle("Attention - Node Sync: Timed out");
+                            a.setHeaderText("Attention: Node Sync: Timed out");
+                            
+                            Optional<ButtonType> result = a.showAndWait();
+                            if(result != null && result.isPresent() && result.get() == ButtonType.YES){
+        
+                                try {
+                                    cleanSync();
+                                } catch (IOException e) {
+        
+                                }
+                                start();
+                
+                            }
+                            m_isSyncStuck.set(-1);
+                        }
+                        m_isSyncStuck.set(m_isSyncStuck.get() + 1);
+                    }
+            
                 }
             }, (onFailed) -> {
                 //String errMsg = onFailed.getSource().getException().toString();
@@ -511,12 +621,14 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     }
 
-    final private Runnable m_readNodeInput = () -> {
+    private SimpleObjectProperty<ErgoNodeMsg[]> m_msgInput = new SimpleObjectProperty<>();
+
+    private Runnable m_readNodeInput = () -> {
         
         if ( m_inputCycleIndex.incrementAndGet() == 300) {
          
 
-            Platform.runLater(() -> updateCycle());
+            updateCycle();
             m_inputCycleIndex.set(0);
         }
         if (m_nodeMsgBuffer.size() > 0) {
@@ -544,40 +656,22 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                 }
             }
-            int size = newMsgs.size();
-            if (size > 0) {
+            if(newMsgs.size() > 0){
+                ErgoNodeMsg[] nodeMsgArray = new ErgoNodeMsg[newMsgs.size()];
+                nodeMsgArray = newMsgs.toArray(nodeMsgArray);
 
-                for (int i = 0; i < size; i++) {
+                Utils.returnObject(nodeMsgArray,getNetworksData().getExecService(), (onSucceeded)->{
+                    ErgoNodeMsg[] msgs = (ErgoNodeMsg[]) onSucceeded.getSource().getValue();
+                    m_msgInput.set(msgs);
+                }, (onFailed)->{
 
-                    inputNodeMsg(newMsgs.get(i));
-                }
+                });
             }
         }
     };
+    //private Simpl<String> m_nodeMsg = new AtomicReference<>("");
 
-
-    final private void inputNodeMsg(ErgoNodeMsg msg) {
-        final String type = msg.getType();
-        m_lastNodeMsgId.set(msg.getId());
-        long blockHeight = m_nodeBlockHeightProperty.get();
-        Platform.runLater(() -> {
-            cmdProperty().set(type);
-            statusString().set(msg.getBody());
-            if (type.equals(ErgoNodeMsg.MsgTypes.NEW_HEIGHT)) {
-                
-                long msgBlockHeight = msg.getHeight();
-                if(msgBlockHeight > blockHeight){
-                    m_nodeBlockHeightProperty.set(msg.getHeight());
-                }
-            }
-            if (type.equals(ErgoNodeMsg.MsgTypes.NEW_HEADER_HEIGHT)) {
-               
-                m_nodeHeadersHeightProperty.set(msg.getHeight());
-            }
-            cmdStatusUpdated().set(String.format("%29s", msg.getDateTimeString()));
-        });
-
-    }
+   
 
     public String getExecCmd(File appFile, File configFile) {
 
@@ -608,12 +702,22 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             m_future.cancel(false);
         }
         statusProperty().set(ErgoMarketsData.STOPPED);
-        m_syncedProperty.set(false);
+        isAvailableProperty().set(false);
         m_nodeBlockHeightProperty.set(-1);
         m_networkBlockHeightProperty.set(-1);
         m_nodeHeadersHeightProperty.set(-1);
         m_peerCountProperty.set(-1);
         m_warningsProperty.set("");
+        
+        try {
+            Utils.removeAppResource(m_appFileName);
+        } catch (IOException e) {
+            try {
+                Files.writeString(App.logFile.toPath(), "\nLocalNode reset removeAppResource: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+            }
+        
+        }
     }
 
     private void runNode(File appFile, File configFile) {
@@ -621,14 +725,36 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             m_executor = Executors.newSingleThreadExecutor();
 
         }
+        if(m_schedualedExecutor == null){
+            m_schedualedExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
+                public Thread newThread(Runnable r) {
+                    Thread t = Executors.defaultThreadFactory().newThread(r);
+                    t.setDaemon(true);
+                    return t;
+                }
+            });
+        }
   
         
         if ((m_future == null || m_future != null && m_future.isDone()) ) {
 
             String[] cmd = Utils.getShellCmd(getExecCmd(appFile, configFile));
+        
+           
+            Thread mainThread = Thread.currentThread();
+            //ScheduledFuture<?> future = 
+            
+            m_scheduledFuture = m_schedualedExecutor.scheduleAtFixedRate(()->{
+         
+                getNetworksData().getExecService().submit(()-> updateCycle());
+
+
+            },0, 2000, TimeUnit.MILLISECONDS);
+          
+     
            
             m_future = m_executor.submit(new Runnable() {
-            
+                
                 Process proc;
 
                 /*private final ExecutorService executor = Executors.newCachedThreadPool(
@@ -648,12 +774,12 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
                         BufferedReader stderr = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
 
-                        if (proc.isAlive()) {
-                            Platform.runLater(() -> statusProperty().set(ErgoMarketsData.STARTED));
-                            if (m_scheduledFuture == null || (m_scheduledFuture != null && m_scheduledFuture.isDone())) {
-                                m_scheduledFuture = scheduledExecutor.scheduleAtFixedRate(m_readNodeInput, 0, INPUT_CYCLE_PERIOD, TimeUnit.MILLISECONDS);
-                            }
-
+                        if(proc.isAlive()){
+                            Utils.returnObject(null,getNetworksData().getExecService(), (onSucceeded)->{
+                                Utils.addAppResource(m_appFileName);
+                                statusProperty().set(ErgoMarketsData.STARTED);
+                                statusString().set(STARTUP_STRING);
+                            }, (onFailed)->{});
                         }
 
                         String s = null;
@@ -668,12 +794,13 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         }
 
                         while (s != null) {
-                            try {
+                            s = stdInput.readLine();
+                         /*   try {
 
                                 s = stdInput.readLine();
                                 String str = s;
                                 if (s != null) {
-                                    synchronized (m_nodeMsgBuffer) {
+                                 synchronized (m_nodeMsgBuffer) {
                                         if (m_nodeMsgBuffer.size() > MAX_INPUT_BUFFER_SIZE) {
                                             m_nodeMsgBuffer.remove(0);
                                         }
@@ -698,7 +825,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                                 }
 
-                            }
+                            }*/
 
                         }
                         String errLine = null;
@@ -709,7 +836,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         }
 
                         proc.waitFor();
-                        Platform.runLater(()->reset());
+                        mainThread.join();
+                        reset();
 
                     } catch (Exception e) {
                         try{
@@ -719,7 +847,13 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         }catch(IOException e1){
 
                         }
-                        Platform.runLater(() -> reset());
+                        try {
+                            mainThread.join();
+                        } catch (InterruptedException e1) {
+              
+                        }
+                        
+                        reset();
                     }
 
                     //   m_pid = -1;
@@ -737,7 +871,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     @Override
     public void start() {
         String currentStatus = statusProperty().get();
-        int memRecommended = m_memGBRequired;
+        /*int memRecommended = m_memGBRequired;
         switch(namedNodeUrlProperty().get().getName()){
             case "FULL NODE": 
             default:
@@ -762,18 +896,16 @@ public class ErgoNodeLocalData extends ErgoNodeData {
               
             }
               
-        }
+        }*/
         if (m_isSetupProperty.get() && currentStatus.equals(ErgoMarketsData.STOPPED)) {
       
             
             Runnable runError = () -> {
-                Platform.runLater(() -> {
-                    m_isSetupProperty.set(false);
-                    stop();
-                });
+                m_isSetupProperty.set(false);
+                stop();
             };
 
-            Platform.runLater(() -> statusProperty().set(ErgoMarketsData.STARTING));
+            statusProperty().set(ErgoMarketsData.STARTING);
 
             checkDrive(m_appDir, (onSuccess)->{
                 
@@ -1346,7 +1478,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
         Runnable getLatestUrl = () -> {
 
-            m_gitHubAPI.getAssetsLatest((onSucceded)->{
+            m_gitHubAPI.getAssetsLatest(getNetworksData().getExecService(), (onSucceded)->{
                 Object assetsObject = onSucceded.getSource().getValue();
                 if(assetsObject != null && assetsObject instanceof GitHubAsset[] && ((GitHubAsset[]) assetsObject).length > 0){
                     GitHubAsset[] assets = (GitHubAsset[]) assetsObject;
@@ -1829,8 +1961,16 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         m_stage = null;
 
                         try {
-                            m_nodeConfigData = new ErgoNodeConfig(apiKeyString, configMode, DigestAccess.ALL, BlockchainMode.FULL, configFileName, m_appDir);
-                          
+                            if(m_nodeConfigData == null){
+                                m_nodeConfigData = new ErgoNodeConfig(apiKeyString, configMode, DigestAccess.ALL, BlockchainMode.FULL, configFileName, m_appDir);
+                            }else{
+                                m_nodeConfigData.setConfigMode(configMode);
+                                m_nodeConfigData.setConfigFileName(configFileName, false);
+                                m_nodeConfigData.setAppDir(m_appDir);
+                                //m_nodeConfigData.seStateMode(DigestAccess.ALL);
+                                //m_nodeConfigData.blockchainMode(BlockchainMode.FULL);
+                                m_nodeConfigData.setApiKey(apiKeyString);
+                            }
                             m_isSetupProperty.set(true);
                             setNamedNodeUrl(new NamedNodeUrl(getId(), BlockchainMode.FULL, "127.0.0.1", ErgoNodes.MAINNET_PORT, apiKeyString, NetworkType.MAINNET));
                             start();
@@ -1857,7 +1997,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                             m_stage.setHeight(260);
                             SimpleBooleanProperty cancelDl = new SimpleBooleanProperty(false);
 
-                            Utils.getUrlFileHash(downloadUrl.get(), appFile, (onSucceeded) -> {
+                            Utils.getUrlFileHash(downloadUrl.get(), appFile, getNetworksData().getExecService(), (onSucceeded) -> {
                                 Object sourceObject = onSucceeded.getSource().getValue();
                                 if (sourceObject != null && sourceObject instanceof HashData) {
                                     m_appDir = installDir;
@@ -1991,21 +2131,13 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     public void stop() {
 
         if (!statusProperty().get().equals(ErgoMarketsData.STOPPED)) {
-            /*String[] pids = Utils.findPIDs(m_appFileName);
 
-            if (pids != null) {
-                for (int i = 0; i < pids.length; i++) {
-                    Utils.sendTermSig(pids[i]);
-                }
-            }*/
-          //  if(m_networkBlockHeightProperty.get() != -1){
-                if(!Utils.sendTermSig(m_appFileName)){
-                    reset();
-                }
+            if(!Utils.sendTermSig(m_appFileName)){
+                reset();
+            }else{
+                
+            }
       
-           // }else{
-            //    kill();
-            //}
         }
     }
 
@@ -2036,7 +2168,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     public void resetToDefault() {
     
         m_appFileName = null;
-        m_syncedProperty.set(false);
+        isAvailableProperty().set(false);
         m_nodeBlockHeightProperty.set(-1);
         m_networkBlockHeightProperty.set(-1);
         m_nodeHeadersHeightProperty.set(-1);
@@ -2044,6 +2176,58 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         namedNodeUrlProperty().set(new NamedNodeUrl(namedNodeUrlProperty().get().getId(), "Not Installed", "127.0.0.1", ErgoNodes.MAINNET_PORT, "", NetworkType.MAINNET));
         m_isSetupProperty.set(false);
         lastUpdated().set(LocalDateTime.now());
+    }
+    public String getCurrentStatus(){
+        String currentStatus = "Offline";
+        if (!statusProperty().get().equals(ErgoMarketsData.STOPPED)) {
+
+            boolean synced = isAvailableProperty().get();
+          //  int peerCount = m_peerCountProperty.get();
+            long networkBlockHeight = m_networkBlockHeightProperty.get();
+            long nodeBlockHeight = m_nodeBlockHeightProperty.get();
+            long headersHeight = m_nodeHeadersHeightProperty.get();
+
+            if (!synced) {
+
+                //    botMidText.setFill(getSecondaryColor());
+              
+                if (networkBlockHeight == -1) {
+                    currentStatus = ("Getting status...");
+                } else {
+
+                    if (nodeBlockHeight == -1) {
+                        if(headersHeight > -1){
+                            String headersHeightString = headersHeight == -1 ? "Getting headers..." : headersHeight + "";
+                            String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
+                            currentStatus = ("Syncing headers: " + headersHeightString + "/" + networkBlockHeightString);
+                            
+                        }else{
+                            //int seconds = (SYNC_TIMEOUT_CYCLE - m_isSyncStuck.get());
+                            currentStatus = ("Finding next block... " + (m_isSyncStuck.get() > 2 ? (" (Timing out...") : ""));
+                        } 
+                    } else {
+                        String nodeBlockHeightString = nodeBlockHeight == -1 ? "Getting Node Height..." : nodeBlockHeight + "";
+                        String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
+
+                        currentStatus = ("Syncing: " + nodeBlockHeightString + "/" + networkBlockHeightString);
+                    }
+
+                }
+
+                //+ " (" + String.format("%.1f", p * 100) + ")");
+                // }
+            } else {
+
+                currentStatus = ("Ready");
+             
+            }
+        } else {
+
+            currentStatus = (getIsSetup() ? "Offline" : "(Not Installed)");
+
+        }
+
+        return currentStatus;
     }
 
     @Override
@@ -2092,7 +2276,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         ipText.setFont(getSmallFont());
 
         Text syncText = new Text();
-        syncText.setFill(m_syncedProperty.get() ? getPrimaryColor() : getSecondaryColor());
+        syncText.setFill(isAvailableProperty().get() ? getPrimaryColor() : getSecondaryColor());
         syncText.setFont(getSmallFont());
 
         Region lbotRegion = new Region();
@@ -2122,67 +2306,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         VBox bodyBox = new VBox(topBox, centerBox, bottomBox);
         HBox.setHgrow(bodyBox, Priority.ALWAYS);
 
-        Runnable updateSynced = () -> {
-            String status = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
-
-            if (!status.equals(ErgoMarketsData.STOPPED)) {
-
-                boolean synced = m_syncedProperty.get();
-                int peerCount = m_peerCountProperty.get();
-                long networkBlockHeight = m_networkBlockHeightProperty.get();
-                long nodeBlockHeight = m_nodeBlockHeightProperty.get();
-                long headerHeight = m_nodeHeadersHeightProperty.get();
-
-                if (!synced) {
-
-                    //    botMidText.setFill(getSecondaryColor());
-                    syncText.setText("");
-                    if (networkBlockHeight == -1) {
-                        centerText.setText("Starting up...");
-                    } else {
-
-                        if (nodeBlockHeight == -1) {
-                            if(headerHeight > -1){
-                                String headerHeightString = headerHeight == -1 ? "Getting headers..." : headerHeight + "";
-                                String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
-                                centerText.setText("Syncing headers: " + headerHeightString + "/" + networkBlockHeightString);
-                                
-                            }else{
-                                //int seconds = (SYNC_TIMEOUT_CYCLE - m_isSyncStuck.get());
-                                centerText.setText("Finding next block... " + (m_isSyncStuck.get() > 2 ? (" (Timing out...") : ""));
-                            } 
-                        } else {
-                            String nodeBlockHeightString = nodeBlockHeight == -1 ? "Getting Node Height..." : nodeBlockHeight + "";
-                            String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
-
-                            centerText.setText("Syncing: " + nodeBlockHeightString + "/" + networkBlockHeightString);
-                        }
-
-                    }
-
-                    //+ " (" + String.format("%.1f", p * 100) + ")");
-                    // }
-                } else {
-
-                    centerText.setText("Ready");
-                    syncText.setText("Height: " + nodeBlockHeight);
-                    centerText.setFill(Color.WHITE);
-                }
-                topRightText.setText("Peers: " + (peerCount == -1 ? 0 : peerCount) + " ");
-            } else {
-
-                centerText.setText(getIsSetup() ? "Offline" : "(Not Installed)");
-
-            }
-
-        };
-
-        m_nodeBlockHeightProperty.addListener((obs, oldVal, newVal) -> updateSynced.run());
-        m_networkBlockHeightProperty.addListener((obs, oldval, newVal) -> updateSynced.run());
-        statusProperty().addListener((obs, oldval, newval) -> updateSynced.run());
-        m_syncedProperty.addListener((obs, oldval, newval) -> updateSynced.run());
-        statusString().addListener((obs, oldval, newval) -> updateSynced.run());
-        updateSynced.run();
+        statusString().addListener((obs,oldval,newval)->{
+            centerText.setText(newval);
+        });
 
         namedNodeUrlProperty().addListener((obs, oldval, newval) -> {
             ipText.setText(newval != null ? newval.getUrlString() : "Address unknown");
@@ -2206,7 +2332,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             Alert a = new Alert(AlertType.NONE, "Would you like to remove:\n\n" + namedNode.getName() + "\nhttp://" + namedNode.getUrlString(), ButtonType.NO, ButtonType.YES);
             Optional<ButtonType> btnType = a.showAndWait();
             if(btnType.isPresent() && btnType.get() == ButtonType.YES){
-                super.remove();
+                getErgoNodesList().remove(getId());
                 delete(null,null);
             }
         }else{
@@ -2280,7 +2406,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         botTimeText.setFill(getSecondaryColor());
         botTimeText.textProperty().bind(cmdStatusUpdated());
 
-        TextField centerField = new TextField();
+        TextField centerField = new TextField(statusString().get());
         centerField.setFont(getLargeFont());
         centerField.setId("formField");
         centerField.setEditable(false);
@@ -2288,39 +2414,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         centerField.setPadding(new Insets(0, 10, 0, 0));
 
 
-        Runnable updateCenterFieldString = () -> {
-          
-            String status = statusProperty().get();
-            boolean synced = m_syncedProperty.get();
-            if (status != null) {
-              
-                switch (status) {
-                    case ErgoMarketsData.STOPPED:
-                        centerField.setText(getIsSetup() ? "Offline" : "(Not Installed)");
-                        break;
-                    case ErgoMarketsData.STARTING:
-                        centerField.setText("Starting up...");
-                        break;
-                    case ErgoMarketsData.STARTED:
-                        centerField.setText((synced ? "Ready: " : "Syncing: ") + statusString().get());
-                        break;
-                }
-
-            } else {
-                
-                centerField.setText(getIsSetup() ? "Offline" : "(Not Installed)");
-            }
-
-        };
-        
        
 
-        statusString().addListener((obs, oldval, newval) -> updateCenterFieldString.run());
-        m_syncedProperty.addListener((obs, oldval, newval) -> updateCenterFieldString.run());
-       
-       
-
-        updateCenterFieldString.run();
+    
 
         Text middleTopRightText = new Text();
         middleTopRightText.setFont(getFont());
@@ -2340,8 +2436,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         Tooltip statusBtnTip = new Tooltip("");
         statusBtnTip.setShowDelay(new Duration(100));
         //m_startImgUrl : m_stopImgUrl
-
-        BufferedButton statusBtn = new BufferedButton(statusProperty().get().equals(ErgoMarketsData.STOPPED) ? (getIsSetup() && getAppFile() != null ? getStartImgUrl() : getInstallImgUrl()) : getStopImgUrl(), 15);
+        String statusBtnImg = statusProperty().get().equals(ErgoMarketsData.STOPPED) ? (getIsSetup() && getAppFile() != null ? getStartImgUrl() : getInstallImgUrl()) : getStopImgUrl();
+        BufferedButton statusBtn = new BufferedButton(statusBtnImg, 15);
         statusBtn.setId("statusBtn");
         statusBtn.setPadding(new Insets(0, 10, 0, 10));
         statusBtn.setTooltip(statusBtnTip);
@@ -2382,54 +2478,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         });
 
 
-        Runnable checkStatus = () -> {
-            itemMenuBtn.getItems().clear();
-            String value = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
-
-            if (value.equals(ErgoMarketsData.STOPPED)) {
-                String stoppedString = getIsSetup() ? "Start" : "Setup";
-                startItem.setText(stoppedString);
-                statusBtnTip.setText(stoppedString);
-
-                centerField.setAlignment(Pos.CENTER);
-                statusString().set(getIsSetup() ? "Offline" : "(Not Installed)");
-                statusBtn.setImage(new Image(getIsSetup() && getAppFile() != null ? getStartImgUrl() : getInstallImgUrl()));
-                
-               
-            } else {
-                
-                String stoppedString = getIsSetup() ? "Stop" : "Setup";
-                startItem.setText(stoppedString);
-                statusBtnTip.setText(stoppedString);
-
-                statusBtn.setImage(new Image(getStopImgUrl()));
-                statusString().set(value);
-
-                centerField.setAlignment(Pos.CENTER_LEFT);
-                /*if (!m_syncedProperty.get()) {
-                        powerBtn.setGraphic(IconButton.getIconView(new Image(getPowerInitUrl()), 15));
-                    }*/
-
-            }
-            if(getIsSetup()){
-                
-                itemMenuBtn.getItems().addAll( settingsItem, openInBrowserItem, removeItem,new SeparatorMenuItem(), startItem);
-            }else{
-                
-                itemMenuBtn.getItems().add(startItem);
-            }
-            topRightText.setText(m_appFileName != null ? m_appFileName : "");
-        };
-
-
-
-        statusProperty().addListener((obs, oldVal, newVal) -> {
-            checkStatus.run();
-            updateCenterFieldString.run();
-
-        });
-        isSetupProperty().addListener((obs,oldval,newval)->checkStatus.run());
-        checkStatus.run();
         HBox topSpacer = new HBox();
         HBox bottomSpacer = new HBox();
 
@@ -2451,23 +2499,27 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         ipText.setFill(getPrimaryColor());
         ipText.setFont(getSmallFont());
 
-        Text syncText = new Text();
-        syncText.setFill(m_syncedProperty.get() ? getPrimaryColor() : getSecondaryColor());
-        syncText.setFont(getSmallFont());
+        TextField bottomMiddleText = new TextField();
+        bottomMiddleText.setId("formFieldSmall");
+        bottomMiddleText.setPadding(new Insets(0,0,0,0));
+        bottomMiddleText.setAlignment(Pos.CENTER);
+        HBox.setHgrow(bottomMiddleText, Priority.ALWAYS);
 
-        Region lbotRegion = new Region();
-        lbotRegion.setMinWidth(5);
-        HBox.setHgrow(lbotRegion, Priority.ALWAYS);
+        Binding<String> peerBinding = Bindings.createObjectBinding(()->m_peerCountProperty.get() > -1 ? " Peers: " + m_peerCountProperty.get() + " " : "", m_peerCountProperty);
 
-        Region rbotRegion = new Region();
-        rbotRegion.setMinWidth(5);
-        HBox.setHgrow(rbotRegion, Priority.ALWAYS);
+        Binding<String> networkHeightBinding = Bindings.createObjectBinding(()->m_nodeBlockHeightProperty.get() > -1 ? " Height: " + m_nodeBlockHeightProperty.get() + " " : "", m_nodeBlockHeightProperty);
 
-        HBox bottomBox = new HBox(ipText, lbotRegion, syncText, rbotRegion, botTimeText);
+        
+        Binding<String> syncPercent = Bindings.createObjectBinding(()->m_nodeBlockHeightProperty.get() != -1 && m_networkBlockHeightProperty.get() != -1 ? " Sync: " + String.format("%.2f",(new BigDecimal(m_nodeBlockHeightProperty.get()).divide(new BigDecimal(m_networkBlockHeightProperty.get()), 4, RoundingMode.HALF_UP)).multiply(new BigDecimal(100))) + "% " : "", m_nodeBlockHeightProperty, m_networkBlockHeightProperty);
+
+       
+        bottomMiddleText.textProperty().bind(Bindings.concat(networkHeightBinding, syncPercent, peerBinding));
+
+        HBox bottomBox = new HBox(ipText, bottomMiddleText,  botTimeText);
         bottomBox.setId("darkBox");
         bottomBox.setAlignment(Pos.CENTER_LEFT);
 
-        //syncText.prefWidthProperty().bind(bottomBox.widthProperty().subtract(ipText.layoutBoundsProperty().get().getWidth()).subtract(botTimeText.layoutBoundsProperty().get().getWidth()));
+        //bottomMiddleText.prefWidthProperty().bind(bottomBox.widthProperty().subtract(ipText.layoutBoundsProperty().get().getWidth()).subtract(botTimeText.layoutBoundsProperty().get().getWidth()));
         HBox.setHgrow(bottomBox, Priority.ALWAYS);
 
         VBox bodyBox = new VBox(topSpacer, topBox, centerBox, bottomBox, bottomSpacer);
@@ -2485,84 +2537,54 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         HBox.setHgrow(rowBox, Priority.ALWAYS);
         // rowBox.setId("rowBox");
 
-        checkStatus.run();
+        statusString().addListener((obs,oldval,newval)->{
+            centerField.setText(newval);
+        });
         
-        Runnable updateSynced = () -> {
-            String status = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
+        Runnable checkStatus = () -> {
+            itemMenuBtn.getItems().clear();
+            String value = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
 
-            if (!status.equals(ErgoMarketsData.STOPPED)) {
-
-                Platform.runLater(() -> {
-                    boolean synced = m_syncedProperty.get();
-                    int peerCount = m_peerCountProperty.get();
-                    long networkBlockHeight = m_networkBlockHeightProperty.get();
-                    long nodeBlockHeight = m_nodeBlockHeightProperty.get();
-                    long headerHeight = m_nodeHeadersHeightProperty.get();
-
-                    if (!synced) {
-                        //  double p = (networkBlockHeight / nodeBlockHeight);
-                        //if (networkBlockHeight == -1 || nodeBlockHeight == -1) {
-                        //    syncText.setText("Updating sync status...");
-                        //  } else {
-
-                        if (nodeBlockHeight == -1 && networkBlockHeight == -1) {
-                            syncText.setText("Getting information..." + (peerCount > 0 ? "   Peers: " + peerCount : ""));
-                        } else {
-                            if (nodeBlockHeight == -1 && headerHeight == -1) {
-                                int seconds = (SYNC_TIMEOUT_CYCLE - m_isSyncStuck.get());
-                                syncText.setText((m_isSyncStuck.get() > 2 ? ("Sync timing out: " + seconds) : "") + (peerCount > 0 ? "   Peers: " + peerCount : ""));
-                              
-                            } else {
-                                m_isSyncStuck.set(-1);
-                                if(headerHeight != -1 && nodeBlockHeight == -1){
-                                    m_warningsProperty.set("Initializing");
-                                    String headerHeightString = headerHeight == -1 ? "Getting block headers..." : + headerHeight + "";
-                                    String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
-                                    syncText.setText("Block headers: " + headerHeightString + " / " + networkBlockHeightString + (peerCount > 0 ? "   Peers: " + peerCount : ""));
-                               
-                                }else{
-                                    m_warningsProperty.set("");
-                                    String nodeBlockHeightString = nodeBlockHeight == -1 ? "Getting Node Height..." : nodeBlockHeight + "";
-                                    String networkBlockHeightString = networkBlockHeight == -1 ? "Getting Network Height..." : networkBlockHeight + "";
-                                    syncText.setText(nodeBlockHeightString + " / " + networkBlockHeightString + (peerCount > 0 ? "   Peers: " + peerCount : ""));
-                                }
-                            }
-
-                        }
-                    } else {
-                        m_warningsProperty.set("");
-                        syncText.setText("Synchronized: " + nodeBlockHeight + (peerCount > 0 ? "   Peers: " + peerCount : ""));
-                    }
-                });
+            if (value.equals(ErgoMarketsData.STOPPED)) {
+                String stoppedString = getIsSetup() ? "Start" : "Setup";
+                startItem.setText(stoppedString);
+                statusBtnTip.setText(stoppedString);
+                statusBtn.setImage(new Image(getIsSetup() && getAppFile() != null ? getStartImgUrl() : getInstallImgUrl()));
+                
             } else {
-                Platform.runLater(() -> {
-                    syncText.setText("");
-                });
+                String stoppedString = getIsSetup() ? "Stop" : "Setup";
+                startItem.setText(stoppedString);
+                statusBtnTip.setText(stoppedString);
+                statusBtn.setImage(new Image(getStopImgUrl()));
             }
-
+            if(getIsSetup()){
+                
+                itemMenuBtn.getItems().addAll( settingsItem, openInBrowserItem, removeItem,new SeparatorMenuItem(), startItem);
+            }else{
+                
+                itemMenuBtn.getItems().add(startItem);
+            }
+            topRightText.setText(m_appFileName != null ? m_appFileName : "");
         };
 
-        m_nodeBlockHeightProperty.addListener((obs, oldVal, newVal) -> updateSynced.run());
-        m_networkBlockHeightProperty.addListener((obs, oldval, newVal) -> updateSynced.run());
-        m_nodeHeadersHeightProperty.addListener((obs,oldVal, newVal)->updateSynced.run());
-        statusProperty().addListener((obs, oldval, newval) -> updateSynced.run());
-        m_syncedProperty.addListener((obs, oldVal, newVal) -> {
-
-        syncText.setFill(newVal ? getPrimaryColor() : getSecondaryColor());
-        // powerBtn.setGraphic(IconButton.getIconView(new Image(newVal ? getPowerOnUrl() : (statusProperty.get().equals(ErgoMarketsData.STOPPED) ? getPowerOffUrl() : getPowerInitUrl())), 15));
-
+        checkStatus.run();
+        isSetupProperty().addListener((obs,oldval,newval)->{
+            checkStatus.run();
         });
-        updateSynced.run();
+        statusProperty().addListener((obs, oldval, newval) -> {
+            checkStatus.run();
+        });
+        
 
         rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
             if(e.getClickCount() == 2){
                 open();
                 e.consume();
             }else{
-                Platform.runLater(() -> {
-                    getErgoNodesList().selectedIdProperty().set(getId());
-                    e.consume();
-                });
+        
+                getErgoNodesList().selectedIdProperty().set(getId());
+                e.consume();
+                
             }
             
         });
@@ -2671,12 +2693,12 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                     //final Version fileNameVersion = Utils.getFileNameVersion(coreFileName);
 
-                    Platform.runLater(() -> {
+                  //  Platform.runLater(() -> {
                         m_appFileHashData = hashData;
                         m_appFileName = coreFileName;
                         lastUpdated().set(LocalDateTime.now());
                         onSuccess.run();
-                    });
+                  //  });
 
                 } catch (Exception e1) {
                     Alert a = new Alert(AlertType.NONE, errorString + ":\n\n" + e1, ButtonType.OK);
@@ -2684,8 +2706,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     a.setTitle("Error Opening - Settings - Local Node - Ergo Nodes");
                     a.initOwner(m_stage);
                     a.show();
-
-                    Platform.runLater(() -> onFailed.run());
+                    onFailed.run();
+                    //Platform.runLater(() -> onFailed.run());
 
                 }
 
@@ -2695,8 +2717,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                 a.setTitle("Error Opening - Settings - Local Node - Ergo Nodes");
                 a.initOwner(m_stage);
                 a.show();
-                Platform.runLater(() -> onFailed.run());
-
+                //Platform.runLater(() -> onFailed.run());
+                onFailed.run();
             }
         }
     }
@@ -2704,7 +2726,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     public void checkForupdate(Runnable next){
         if(!m_checking.get()){
             m_checking.set( true);
-            m_gitHubAPI.getAssetsLatest((onFinished)->{
+            m_gitHubAPI.getAssetsLatest(getNetworksData().getExecService(), (onFinished)->{
                 Object finishedObject = onFinished.getSource().getValue();
                 if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
             
@@ -2856,7 +2878,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                 stage.setY((rect.getHeight() / 2) - (stage.getHeight() / 2));
             }
             SimpleBooleanProperty cancel = new SimpleBooleanProperty(false);
-            Utils.getUrlFileHash(url, appFile, (onDlSucceeded) -> {
+            Utils.getUrlFileHash(url, appFile, getNetworksData().getExecService(), (onDlSucceeded) -> {
                 Object dlObject = onDlSucceeded.getSource().getValue();
                 if (dlObject != null && dlObject instanceof HashData) {
                     m_appFileHashData = (HashData) dlObject;
@@ -3507,7 +3529,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         });
 
         downloadAppBtn.setOnAction(e -> {
-            m_gitHubAPI.getAssetsLatest((onFinished)->{
+            m_gitHubAPI.getAssetsLatest(getNetworksData().getExecService(), (onFinished)->{
                 Object finishedObject = onFinished.getSource().getValue();
                     if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
                 

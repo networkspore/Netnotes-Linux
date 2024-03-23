@@ -1,15 +1,9 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.time.LocalDateTime;
 
-import org.apache.commons.math3.exception.NullArgumentException;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.time.LocalDateTime;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

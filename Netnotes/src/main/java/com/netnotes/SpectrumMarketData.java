@@ -3,17 +3,15 @@ package com.netnotes;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
-import java.io.File;
+import javafx.beans.property.SimpleObjectProperty;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
 
 import com.google.gson.JsonElement;
 
 public class SpectrumMarketData extends PriceQuote {
-
-    private File logFile = new File("netnotes-log.txt");
 
     private String m_id;
     private String m_baseId; 
@@ -29,6 +27,10 @@ public class SpectrumMarketData extends PriceQuote {
     private BigDecimal m_liquidityUSD = BigDecimal.ZERO;
 
     private boolean m_defaultInvert = false;
+
+    
+
+    private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
     
     public SpectrumMarketData(JsonObject json) throws Exception{
        // JsonElement idElement = json.get("id");
@@ -110,6 +112,12 @@ public class SpectrumMarketData extends PriceQuote {
         }else{
             return bigAmount;
         }
+    }
+
+    public PriceQuote getPriceQuote(){
+        boolean invert = getDefaultInvert();
+        String price = invert ? getInvertedLastPrice().toString() : lastPriceString();
+        return new PriceQuote(price, invert ? getQuoteSymbol() : getBaseSymbol(), invert ? getBaseSymbol() : getQuoteSymbol());
     }
     
 
@@ -300,5 +308,22 @@ public class SpectrumMarketData extends PriceQuote {
         public SpectrumWindow getWindow(){
             return m_window;
         }
+    }
+    public String getCurrentSymbol(boolean swapped){
+        return swapped ? (getQuoteSymbol() + "-" + getBaseSymbol()) : getSymbol();
+    }
+
+    public void update(SpectrumMarketData updateData){
+        m_lastPrice = updateData.getLastPrice();
+        m_invertedPrice = updateData.getInvertedLastPrice();
+        m_baseVolume = updateData.getBaseVolume();
+        m_quoteVolume = updateData.getQuoteVolume();
+        m_liquidityUSD = updateData.getLiquidityUSD();
+        
+        m_lastUpdated.set(LocalDateTime.now());
+    }
+
+    public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
+        return m_lastUpdated;
     }
 }

@@ -7,7 +7,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -69,11 +68,11 @@ public class ErgoMarketsData {
     private String m_value = null;
     private SimpleObjectProperty<LocalDateTime> m_shutdownNow = new SimpleObjectProperty<>(LocalDateTime.now());
     private ChangeListener<LocalDateTime> m_shutdownListener = null;
-
+    private SimpleObjectProperty<LocalDateTime> m_updated = new SimpleObjectProperty<>(LocalDateTime.now());
     private SimpleObjectProperty<PriceQuote> m_priceQuoteProperty = new SimpleObjectProperty<PriceQuote>(null);
     private SimpleStringProperty m_statusProperty = new SimpleStringProperty(STOPPED);
 
-    private SimpleObjectProperty<PriceQuote[]> m_marketDataProperty = new SimpleObjectProperty<>(new PriceQuote[0]);
+  
 
     public ErgoMarketsData(ErgoMarketsList marketsList, JsonObject json) throws NullPointerException {
         m_marketsList = marketsList;
@@ -138,6 +137,10 @@ public class ErgoMarketsData {
         return m_statusProperty;
     }
 
+    public SimpleObjectProperty<LocalDateTime> updatedProperty(){
+        return m_updated;
+    }
+
     public String getName(){
         return m_name;
     }
@@ -165,9 +168,6 @@ public class ErgoMarketsData {
     }
 
 
-    public SimpleObjectProperty<PriceQuote[]> marketDataProperty(){
-        return m_marketDataProperty;
-    }
 
     public String getUpdateType() {
         return m_updateType;
@@ -247,7 +247,9 @@ public class ErgoMarketsData {
         return m_marketsList;
     }
 
-
+    public PriceQuote getPriceQuoteById(String baseId, String quoteId){
+        return null;
+    }
 
       
     public void start(){
@@ -418,14 +420,14 @@ public class ErgoMarketsData {
             if(e.getClickCount() == 2){
                 Network market = (Network) m_marketsList.getErgoMarkets().getNetworksData().getNoteInterface(m_id);
                 if(market != null){
-                    Platform.runLater(()->market.open());
+                    market.open();
                 }
                 e.consume();
             }else{
-                Platform.runLater(() -> {
-                    m_marketsList.selectedIdProperty().set(getId());
+              
+                m_marketsList.selectedIdProperty().set(getId());
                     
-                });
+                
                 e.consume();
             }
             

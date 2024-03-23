@@ -6,35 +6,28 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-//import java.io.File;
-import java.sql.Time;
+
 import java.time.LocalDateTime;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.utils.Utils;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
-
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
-
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -42,10 +35,9 @@ import javafx.scene.layout.Priority;
 
 public class SpectrumChartView {
 
-   private final static File logFile = new File("netnotes-log.txt");
-
-   public final static int DECIMAL_PRECISION = 4;
-   public final static int MAX_BARS = 250;
+    
+   public final static int DECIMAL_PRECISION = 6;
+   public final static int MAX_BARS = 150;
 
 
    private TimeSpan m_timeSpan = new TimeSpan("30min");
@@ -54,19 +46,18 @@ public class SpectrumChartView {
 
     private ArrayList<SpectrumPriceData> m_priceList = new ArrayList<>();
 
-    private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>();
-    private ChangeListener<LocalDateTime> m_changeListener = null;
 
     private SimpleDoubleProperty m_topVvalue = new SimpleDoubleProperty(1);
     private SimpleDoubleProperty m_bottomVvalue = new SimpleDoubleProperty(0);
     private boolean m_settingRange = false;
     private SimpleBooleanProperty m_active = new SimpleBooleanProperty(false);
 
+
     private int m_valid = 0;
     private Font m_headingFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 18);
-
+    private Font m_labelFont = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 12);
     private Color m_backgroundColor = new Color(1f, 1f, 1f, 0f);
-    private SimpleObjectProperty<Font> m_labelFont = new SimpleObjectProperty< Font>(new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 12));
+
 
     private double m_scale = 0;
     private int m_defaultCellWidth = 20;
@@ -88,7 +79,20 @@ public class SpectrumChartView {
     private int m_labelAscent = 0;
     private FontMetrics m_fm = null;
 
+    private BufferedImage m_img = null;
+    private Graphics2D m_g2d = null;
+    private int m_imgWidth = -1;
+    private int m_imgHeight = -1;
+    private Color m_defaultColor = new Color(0f, 0f, 0f, 0.01f);
+
     private long m_lastTimeStamp = 0;
+
+    //private double m_lastClose = 0;
+    private int m_labelSpacingSize = 150;
+    private Color m_labelColor = new Color(0xc0ffffff);
+
+    private double m_topRangePrice = 0;
+    private double m_botRangePrice = 0;
 
     private SimpleIntegerProperty m_isPositive = new SimpleIntegerProperty(0);
 
@@ -99,8 +103,9 @@ public class SpectrumChartView {
         m_chartHeight = height;
         m_timeSpan = timeSpan;
         updateLabelFont();
-        updateBufferedImage();
+        //updateBufferedImage();
     }
+
 
     public long getLastTimestamp(){
         return m_lastTimeStamp;
@@ -138,63 +143,75 @@ public class SpectrumChartView {
     public boolean isSettingRange(){
         return m_settingRange;
     }
+    public SimpleLongProperty m_doUpdate = new SimpleLongProperty();
 
     public void setIsSettingRange(boolean isRangeSetting) {
         m_settingRange = isRangeSetting;
-        updateBufferedImage();
+        m_doUpdate.set(System.currentTimeMillis());
+
+        //updateBufferedImage();
     }
+
+    private BufferedImage m_labelImg = null;
+    private Graphics2D m_labelG2d = null;
 
     public void updateLabelFont() {
 
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
-        g2d.setFont(m_labelFont.get());
-        g2d.setColor(m_labelColor);
-        m_fm = g2d.getFontMetrics();
+        m_labelImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_labelG2d = m_labelImg.createGraphics();
+        m_labelG2d.setFont(m_labelFont);
+        m_labelG2d.setColor(m_labelColor);
+        m_fm = m_labelG2d.getFontMetrics();
         String measureString = "0.00000000";
         int stringWidth = m_fm.stringWidth(measureString);
         m_amStringWidth = m_fm.stringWidth(" a.m. ");
         m_labelAscent = m_fm.getAscent();
         m_labelHeight = m_fm.getHeight();
         m_scaleColWidth = stringWidth + 25;
-
+        m_labelG2d.dispose();
+        m_labelG2d = null;
+        m_labelImg = null;
     }
 
-    private SimpleObjectProperty<Image> m_imageBuffer = new SimpleObjectProperty<>(null);
+    
+    
 
     public HBox getChartBox() {
 
-        m_labelFont.addListener((obs, oldVal, newVal) -> {
-            updateLabelFont();
-            m_lastUpdated.set(LocalDateTime.now());
-        });
-        
-        updateBufferedImage();
+
         ImageView imgView = new ImageView();
         imgView.setPreserveRatio(true);
+        
 
-        m_imageBuffer.addListener((obs,oldval,newval)->{
-            if(newval != null){
-                imgView.setImage(newval);
-                imgView.setFitWidth(newval.getWidth());
+        Runnable updateImg = ()->{
+            Image img = updateBufferedImage();
+            if(img != null){
+                imgView.setFitWidth(img.getWidth());
+                imgView.setImage(img);
             }
-        });
+        };
+
+        updateImg.run();
+
+        m_doUpdate.addListener((obs,oldval,newval)->updateImg.run());
 
 
-
-        m_chartHeight.addListener((obs, oldVal, newVal) -> updateBufferedImage());
+        m_chartHeight.addListener((obs, oldVal, newVal) -> updateImg.run());
 
         //  m_chartWidth.addListener((obs, oldVal, newVal) -> updateImage.run());
-        m_lastUpdated.addListener((obs, oldVal, newVal) -> updateBufferedImage());
 
+
+        rangeBottomVvalueProperty().addListener((obs, oldVal, newVal) -> updateImg.run());
+        rangeTopVvalueProperty().addListener((obs, oldVal, newVal) -> updateImg.run());
+
+
+        rangeActiveProperty().addListener((obs, oldVal, newVal) -> updateImg.run());
+
+        
         m_chartHbox.getChildren().clear();
-        m_chartHbox.getChildren().add(imgView);
-
-        rangeBottomVvalueProperty().addListener((obs, oldVal, newVal) -> updateBufferedImage());
-        rangeTopVvalueProperty().addListener((obs, oldVal, newVal) -> updateBufferedImage());
-
-
-        rangeActiveProperty().addListener((obs, oldVal, newVal) -> updateBufferedImage());
+        m_chartHbox.getChildren().addAll(imgView);
+        
+      
 
         return m_chartHbox;
     }
@@ -204,7 +221,7 @@ public class SpectrumChartView {
         m_valid = 0;
         m_priceList.clear();
         m_msg = "Loading";
-        m_lastUpdated.set(LocalDateTime.now());
+        m_doUpdate.set(System.currentTimeMillis());
     }
 
     /*
@@ -294,9 +311,7 @@ public class SpectrumChartView {
            
             m_valid = 1;
             m_msg = "Loading";
-            SpectrumNumbers numberClass = new SpectrumNumbers();
-
-   
+         
             JsonElement oldestElement = jsonArray.get(0);
             JsonElement newestElement = jsonArray.get(jsonArray.size() - 1);
 
@@ -348,8 +363,6 @@ public class SpectrumChartView {
                                 long newestEpochTime = epochEnd.get() > currentTime ? currentTime : epochEnd.get();
                                 SpectrumPriceData data = new SpectrumPriceData(newestEpochTime, epochEnd.get(), lastClose.get());
                                 m_priceList.add(data);
-                                numberClass.setSum(numberClass.getSum().add(data.getClose()));
-                                numberClass.setCount(numberClass.getCount() + 1);
                                 epochEnd.set(epochEnd.get() + timeSpanMillis);
                             }
 
@@ -360,18 +373,7 @@ public class SpectrumChartView {
 
                                 lastClose.set(priceData.getClose());
 
-                                if (numberClass.getLow().equals(BigDecimal.ZERO)) {
-                                    numberClass.setLow(priceData.getLow());
-                                }
-
-                                numberClass.setSum(numberClass.getSum().add(priceData.getClose()));
                             
-
-                                numberClass.setHigh(priceData.getHigh().max(numberClass.getHigh()));
-
-                                numberClass.setLow(priceData.getLow().equals(BigDecimal.ZERO) ? numberClass.getLow() : priceData.getLow().min(numberClass.getLow()));
-                                
-                                numberClass.setCount(numberClass.getCount() + 1);
                                 m_priceList.add(priceData);
                                 m_currentPrice = priceData.getClose();
                                 
@@ -385,7 +387,7 @@ public class SpectrumChartView {
                     }catch(Exception priceException){
                         
                         try {
-                            Files.writeString(logFile.toPath(), "\nSpectrum setPriceData: " + priceException.toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            Files.writeString(App.logFile.toPath(), "\nSpectrum setPriceData: " + priceException.toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         } catch (IOException e) {
              
                         }
@@ -396,27 +398,28 @@ public class SpectrumChartView {
                     
                 }
                 
+                if(m_priceList.size() > 0){
+                    SpectrumPriceData lastPriceData = m_priceList.get(m_priceList.size() -1);
+                    updateMarketData(System.currentTimeMillis(), lastPriceData.getClose());
+                }else{
+                    m_doUpdate.set(System.currentTimeMillis());
+                }
         
             } else {
                 m_valid = 2;
                 m_msg = "Received no data.";
+                m_doUpdate.set(System.currentTimeMillis());
             }
-            BigDecimal min =  numberClass.getLow();
-            
-            
-            int decimals = min.doubleValue() > 0 ? (min.doubleValue() > 100 ? 2 : (min.scale() > DECIMAL_PRECISION ? DECIMAL_PRECISION : min.scale())) : (getZeros(min.toString()) + DECIMAL_PRECISION);
-            
-            numberClass.setDecimals(decimals);
-
-
+        
           
-            m_numberClass = numberClass;
+   
            
         } else {
             m_valid = 2;
             m_msg = "Received no data.";
+            m_doUpdate.set(System.currentTimeMillis());
         }
-        m_lastUpdated.set(LocalDateTime.now());
+        
     }
 
     private static void addPrices(SimpleIntegerProperty index, SpectrumPriceData priceData, long epochEnd, JsonArray jsonArray){
@@ -437,7 +440,7 @@ public class SpectrumChartView {
                         nextSpectrumPrice.set(new SpectrumPrice(jsonArray.get(index.get() + 1).getAsJsonObject()));
                     }catch(Exception whileNextException){
                         try{
-                            Files.writeString(logFile.toPath(), "Spectrum nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            Files.writeString(App.logFile.toPath(), "Spectrum nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         }catch(IOException npioe){
 
                         }
@@ -449,7 +452,7 @@ public class SpectrumChartView {
                 }
             }catch(Exception nextPriceException){
                 try{
-                    Files.writeString(logFile.toPath(), "Spectrum nextPriceException: " + nextPriceException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(App.logFile.toPath(), "Spectrum nextPriceException: " + nextPriceException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 }catch(IOException npioe){
 
                 } 
@@ -458,6 +461,86 @@ public class SpectrumChartView {
                 }
             }
         }
+    }
+
+    public boolean updateMarketData(long timeStamp, BigDecimal price){
+        int size = m_priceList.size();
+        if(size == 0){
+            return false;
+        }
+
+        long timeSpanMillis = m_timeSpan.getMillis();
+        
+
+        SpectrumPriceData lastPriceData = m_priceList.get(size-1);
+
+        long currentEpochEnd = lastPriceData.getEpochEnd();
+
+        if(currentEpochEnd >= timeStamp){
+            if(timeStamp > (currentEpochEnd - timeSpanMillis)){
+                
+                lastPriceData.addPrice(timeStamp, price);
+      
+                
+            }
+        }else{
+
+            long nextEpochStart = currentEpochEnd + 1;
+            long nextEpochEnd = currentEpochEnd + timeSpanMillis;
+
+            while(timeStamp > nextEpochEnd){
+                SpectrumPriceData emptyPriceData = new SpectrumPriceData(nextEpochStart, m_currentPrice, m_currentPrice, m_currentPrice, m_currentPrice, nextEpochEnd);
+                m_priceList.add(emptyPriceData);
+                nextEpochStart += timeSpanMillis;
+                nextEpochEnd += timeSpanMillis;
+           
+            }
+            
+            SpectrumPriceData nextPriceData = new SpectrumPriceData(timeStamp, nextEpochEnd, price);
+            m_priceList.add(nextPriceData);
+            
+
+        }
+        setIsPositive(price.compareTo(m_currentPrice));
+        m_currentPrice = price;
+        updateNumbers();
+        m_doUpdate.set(System.currentTimeMillis());
+        return true;
+    }
+
+    public void updateNumbers(){
+        int size = m_priceList.size();
+        while(size > MAX_BARS){
+            m_priceList.remove(0);
+            size = m_priceList.size();
+        }
+        
+        SpectrumNumbers numberClass = new SpectrumNumbers();
+
+        for(int i = 0; i < size ; i++){
+            SpectrumPriceData priceData = m_priceList.get(i);
+            
+            if (numberClass.getLow().equals(BigDecimal.ZERO)) {
+                numberClass.setLow(priceData.getLow());
+            }
+
+            numberClass.setSum(numberClass.getSum().add(priceData.getClose()));
+        
+            numberClass.setHigh(priceData.getHigh().max(numberClass.getHigh()));
+
+            numberClass.setLow(priceData.getLow().equals(BigDecimal.ZERO) ? numberClass.getLow() : priceData.getLow().min(numberClass.getLow()));
+            
+                       
+        }
+        numberClass.setCount(size);
+        BigDecimal min =  numberClass.getLow();
+            
+        int decimals = min.doubleValue() > 0 ? (min.doubleValue() > 100 ? 2 : (min.scale() > DECIMAL_PRECISION ? DECIMAL_PRECISION : min.scale())) : (getZeros(min.toString()) + DECIMAL_PRECISION);
+        
+        numberClass.setDecimals(decimals);
+        
+
+        m_numberClass = numberClass;
     }
 
     public JsonObject getPriceDataJson(){
@@ -472,7 +555,7 @@ public class SpectrumChartView {
 
         return json;
     }
-
+    /*
     public void updatePriceData(JsonArray jsonArray, long lastestTimeStamp) {
          int size = jsonArray.size();
 
@@ -538,7 +621,7 @@ public class SpectrumChartView {
                         spectrumPrice.set(new SpectrumPrice(jsonArray.get(index.get()).getAsJsonObject()));
                     }catch(Exception whileNextException){
                         try{
-                            Files.writeString(logFile.toPath(), "Spectrum updatePriceData nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            Files.writeString(App.logFile.toPath(), "Spectrum updatePriceData nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         }catch(IOException npioe){
 
                         }
@@ -602,7 +685,7 @@ public class SpectrumChartView {
                                     nextSpectrumPrice.set(new SpectrumPrice(jsonArray.get(index.get() + 1).getAsJsonObject()));
                                 }catch(Exception whileNextException){
                                     try{
-                                        Files.writeString(logFile.toPath(), "Spectrum nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                        Files.writeString(App.logFile.toPath(), "Spectrum nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                     }catch(IOException npioe){
 
                                     }
@@ -612,7 +695,7 @@ public class SpectrumChartView {
                             }
                         }catch(Exception nextPriceException){
                             try{
-                                Files.writeString(logFile.toPath(), "Spectrum nextPriceException: " + nextPriceException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                Files.writeString(App.logFile.toPath(), "Spectrum nextPriceException: " + nextPriceException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             }catch(IOException npioe){
 
                             }
@@ -643,7 +726,7 @@ public class SpectrumChartView {
                 }catch(Exception priceException){
                     
                     try {
-                        Files.writeString(logFile.toPath(), "\nSpectrum invalid price.", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(App.logFile.toPath(), "\nSpectrum invalid price.", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e) {
             
                     }
@@ -666,7 +749,9 @@ public class SpectrumChartView {
             
             setPriceDataList(jsonArray, lastestTimeStamp);
         }
-    }
+    }*/
+
+   
 
     public BigDecimal getCurrentPrice() {
         return m_currentPrice;
@@ -698,18 +783,6 @@ public class SpectrumChartView {
 
     public void setScale(double scale) {
         m_scale = scale;
-    }
-
-    public void setLabelFont(Font font) {
-        m_labelFont.set(font);
-    }
-
-    public Font getLabelFont() {
-        return m_labelFont.get();
-    }
-
-    public SimpleObjectProperty<Font> labelFontProperty() {
-        return m_labelFont;
     }
 
     public void setBackgroundColor(Color color) {
@@ -750,16 +823,13 @@ public class SpectrumChartView {
     }
 
     public String getTimeStampString() {
-        LocalDateTime time = m_lastUpdated.get();
-
-        DateTimeFormatter formater = DateTimeFormatter.ofPattern("hh:mm:ss a");
-
-        return formater.format(time);
+        long lastUpdated = m_doUpdate.get();
+        return Utils.formatTimeString(Utils.milliToLocalTime(lastUpdated));
     }
 
     public void setMsg(String msg) {
         m_msg = msg;
-        m_lastUpdated.set(LocalDateTime.now());
+        m_doUpdate.set(System.currentTimeMillis());
     }
 
     public String getMsg() {
@@ -770,19 +840,18 @@ public class SpectrumChartView {
         return m_cellPadding + m_cellWidth;
     }
 
-    private double m_lastClose = 0;
-    private int m_labelSpacingSize = 150;
-    private Color m_labelColor = new Color(0xc0ffffff);
 
-    private double m_topRangePrice = 0;
-    private double m_botRangePrice = 0;
 
     private int getRowHeight() {
         return m_labelHeight + 7;
     }
 
-    public void updateBufferedImage() {
+
+
+    public Image updateBufferedImage() {
         LocalDateTime now = LocalDateTime.now();
+     
+       
         int greenHighlightRGB = 0x504bbd94;
       //  int greenHighlightRGB2 = 0x80028a0f;
         int redRGBhighlight = 0x50e96d71;
@@ -798,28 +867,39 @@ public class SpectrumChartView {
         boolean rangeActive = rangeActiveProperty().get() && !isRangeSetting;
 
         int cellWidth = m_cellWidth;
-        int width = m_priceList.size() == 0 ? (int) m_chartWidth.get() : m_scaleColWidth + (m_priceList.size() * totalCellWidth);
-        width = width < m_chartWidth.get() ? (int) m_chartWidth.get() : width;
+        
+        int currentWidth = m_priceList.size() == 0 ? (int) m_chartWidth.get() : m_scaleColWidth + (m_priceList.size() * totalCellWidth);
+        currentWidth = currentWidth < m_chartWidth.get() ? (int) m_chartWidth.get() : currentWidth;
 
-        int height = (int) Math.ceil(m_chartHeight.get());
+        int currentHeight = (int) Math.ceil(m_chartHeight.get());
 
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+       
+        if(m_img == null || (currentWidth != m_imgWidth || currentHeight != m_imgHeight)){
+            if(m_g2d != null){
+                m_g2d.dispose();
+            }
+            m_imgWidth = currentWidth;
+            m_imgHeight = currentHeight;
 
-        g2d.setColor(new Color(0f, 0f, 0f, 0.01f));
-        g2d.fillRect(0, 0, width, height);
+            m_img = new BufferedImage(m_imgWidth, m_imgHeight, BufferedImage.TYPE_INT_ARGB);
+            m_g2d = m_img.createGraphics();
+            m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+            m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        }
 
-        g2d.setFont(getLabelFont());
-        g2d.setColor(m_labelColor);
+        Drawing.fillArea(m_img, m_defaultColor.getRGB(), 0, 0, m_img.getWidth(), m_img.getHeight(), false);
+     
+
+        m_g2d.setFont(m_labelFont);
+        m_g2d.setColor(m_labelColor);
+
         if (m_valid == 1 && m_priceList.size() > 0) {
 
-            int chartWidth = width - m_scaleColWidth;
-            int chartHeight = height - (2 * (m_labelHeight + 5)) - 10;
+            int chartWidth = m_imgWidth - m_scaleColWidth;
+            int chartHeight = m_imgHeight - (2 * (m_labelHeight + 5)) - 10;
 
-            int numCells = (int) Math.floor((width - m_scaleColWidth) / totalCellWidth);
+            int numCells = (int) Math.floor((m_imgWidth - m_scaleColWidth) / totalCellWidth);
 
             int i = numCells > priceListSize ? 0 : priceListSize - numCells;
             /*
@@ -836,7 +916,7 @@ public class SpectrumChartView {
                 nc.setCount(nc.getCount() + 1);
                 nc.setHigh(priceData.getHigh().max(nc.getHigh()));
                 
-               
+            
                 nc.setLow(priceData.getLow().min(nc.getLow()));
                 
                 int decimals = getDecimals(priceData.getCloseString());
@@ -852,11 +932,11 @@ public class SpectrumChartView {
 
             double scale = (.6d * ((double) chartHeight)) / highValue;
 
-      
+    
             double topRangePrice = (topVvalue * (Math.floor(chartHeight / getRowHeight()) * getRowHeight())) / scale;
             double botRangePrice = (bottomVvalue * (Math.floor(chartHeight / getRowHeight()) * getRowHeight())) / scale;
 
-       
+    
 
             if (isRangeSetting) {
                 m_topRangePrice = topRangePrice;
@@ -868,7 +948,7 @@ public class SpectrumChartView {
 
             double scale2 = (double) chartHeight / (topRangePrice - botRangePrice);
 
-            Drawing.fillArea(img, 0xff111111, 0, 0, chartWidth, chartHeight);
+            Drawing.fillArea(m_img, 0xff111111, 0, 0, chartWidth, chartHeight);
 
             int j = 0;
 
@@ -885,7 +965,7 @@ public class SpectrumChartView {
             int halfCellWidth = cellWidth / 2;
 
             int items = m_priceList.size() - i;
-            int colLabelSpacing = (int) Math.floor(items / ((items * cellWidth) / m_labelSpacingSize));
+            int colLabelSpacing = items == 0 ? m_labelSpacingSize : (int) Math.floor(items / ((items * cellWidth) / m_labelSpacingSize));
 
             int rowHeight = getRowHeight();
 
@@ -897,12 +977,12 @@ public class SpectrumChartView {
 
                 int y = chartHeight - (j * rowHeight);
                 if (j % rowLabelSpacing == 0) {
-                    Drawing.fillAreaDotted(2, img, 0x10ffffff, 0, y, chartWidth, y + 1);
+                    Drawing.fillAreaDotted(2, m_img, 0x10ffffff, 0, y, chartWidth, y + 1);
                     if (j != 0) {
-                        Drawing.fillArea(img, 0xc0ffffff, chartWidth, y, chartWidth + 6, y + 2);
+                        Drawing.fillArea(m_img, 0xc0ffffff, chartWidth, y, chartWidth + 6, y + 2);
                     }
                 }
-                Drawing.fillArea(img, 0xff000000, chartWidth, y, chartWidth + 6, y + 1);
+                Drawing.fillArea(m_img, 0xff000000, chartWidth, y, chartWidth + 6, y + 1);
 
                 double scaleLabeldbl = rangeActive ? (double) ((j * rowHeight) / scale2) + botRangePrice : (double) (j * rowHeight) / scale;
 
@@ -912,7 +992,7 @@ public class SpectrumChartView {
                 int x1 = (chartWidth + (m_scaleColWidth / 2)) - (amountWidth / 2);
                 int y1 = (y - (m_labelHeight / 2)) + m_labelAscent;
 
-                g2d.drawString(scaleAmount, x1, y1);
+                m_g2d.drawString(scaleAmount, x1, y1);
 
             }
             j = 0;
@@ -969,7 +1049,7 @@ public class SpectrumChartView {
 
                 }
 
-                boolean positive = !((height - closeY) > (height - openY));
+                boolean positive = !((m_imgHeight - closeY) > (m_imgHeight - openY));
                 boolean neutral = open == nextOpen && open == close;
 
                 LocalDateTime localTimestamp = priceData.getLocalDateTime();
@@ -977,8 +1057,8 @@ public class SpectrumChartView {
                 if (localTimestamp != null) {
                     if (i % colLabelSpacing == 0) {
 
-                        Drawing.fillAreaDotted(2, img, 0x10ffffff, x + halfCellWidth - 1, 0, x + halfCellWidth, chartHeight);
-                        Drawing.fillArea(img, 0x80000000, x + halfCellWidth - 1, chartHeight, x + halfCellWidth + 1, chartHeight + 4);
+                        Drawing.fillAreaDotted(2, m_img, 0x10ffffff, x + halfCellWidth - 1, 0, x + halfCellWidth, chartHeight);
+                        Drawing.fillArea(m_img, 0x80000000, x + halfCellWidth - 1, chartHeight, x + halfCellWidth + 1, chartHeight + 4);
 
                         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("hh:mm a");
 
@@ -986,7 +1066,7 @@ public class SpectrumChartView {
                         int timeStringWidth = m_fm.stringWidth(timeString);
 
                         int timeStringX = x - ((timeStringWidth - m_amStringWidth) / 2);
-                        g2d.drawString(timeString, timeStringX, chartHeight + 4 + (m_labelHeight / 2) + m_labelAscent);
+                        m_g2d.drawString(timeString, timeStringX, chartHeight + 4 + (m_labelHeight / 2) + m_labelAscent);
 
                         if (!(localTimestamp.getDayOfYear() == now.getDayOfYear() && localTimestamp.getYear() == now.getYear())) {
 
@@ -998,7 +1078,7 @@ public class SpectrumChartView {
 
                             timeStringX = x - ((timeStringWidth - m_amStringWidth) / 2);
 
-                            g2d.drawString(timeString, timeStringX, chartHeight + 4 + m_labelHeight + 4 + (m_labelHeight / 2) + m_labelAscent);
+                            m_g2d.drawString(timeString, timeStringX, chartHeight + 4 + m_labelHeight + 4 + (m_labelHeight / 2) + m_labelAscent);
 
                         }
                     }
@@ -1006,12 +1086,12 @@ public class SpectrumChartView {
                 }
 
                 if (highY != lowY) {
-                    Drawing.fillArea(img, 0xffffffff, x + halfCellWidth - 1, chartHeight - highY, x + halfCellWidth, chartHeight - lowY);
+                    Drawing.fillArea(m_img, 0xffffffff, x + halfCellWidth - 1, chartHeight - highY, x + halfCellWidth, chartHeight - lowY);
                 }
 
                 if (neutral) {
 
-                    Drawing.drawBar(1, Color.lightGray, Color.gray, img, x, chartHeight - openY - 1, x + cellWidth, chartHeight - closeY + 1);
+                    Drawing.drawBar(1, Color.lightGray, Color.gray, m_img, x, chartHeight - openY - 1, x + cellWidth, chartHeight - closeY + 1);
 
                 } else {
                     if (positive) {
@@ -1020,33 +1100,33 @@ public class SpectrumChartView {
                         int y2 = (chartHeight - openY) + 1;
 
                         int x2 = x + cellWidth;
-                        Drawing.drawBar(1, 0xff000000, 0xff111111, img, x, y1, x2, y2);
-                        Drawing.drawBar(1, greenHighlightRGB, 0xff000000, img, x, y1, x2, y2);
-                        Drawing.drawBar(0, 0x104bbd94, 0x004bbd94, img, x, y1, x2, y2);
+                        Drawing.drawBar(1, 0xff000000, 0xff111111, m_img, x, y1, x2, y2);
+                        Drawing.drawBar(1, greenHighlightRGB, 0xff000000, m_img, x, y1, x2, y2);
+                        Drawing.drawBar(0, 0x104bbd94, 0x004bbd94, m_img, x, y1, x2, y2);
 
                         int RGBhighlight = highlightGreen.getRGB();
 
-                        Drawing.fillArea(img, 0x804bbd94, x + 1, y1, x2, y1 + 1);
+                        Drawing.fillArea(m_img, 0x804bbd94, x + 1, y1, x2, y1 + 1);
 
-                        Drawing.drawBar(0x80555555, RGBhighlight, img, x2, y1 + 3, x2 - 2, y2);
+                        Drawing.drawBar(0x80555555, RGBhighlight, m_img, x2, y1 + 3, x2 - 2, y2);
 
-                        Drawing.fillArea(img, 0x30000000, x, y2 - 1, x2, y2);
+                        Drawing.fillArea(m_img, 0x30000000, x, y2 - 1, x2, y2);
 
                     } else {
 
                         int y1 = chartHeight - openY;
                         int y2 = chartHeight - closeY;
 
-                        Drawing.drawBar(1, garnetRed, highlightRed, img, x, y1, x + cellWidth, y2);
-                        Drawing.drawBar(0, overlayRed, overlayRedHighlight, img, x, y1, x + cellWidth, y2);
+                        Drawing.drawBar(1, garnetRed, highlightRed, m_img, x, y1, x + cellWidth, y2);
+                        Drawing.drawBar(0, overlayRed, overlayRedHighlight, m_img, x, y1, x + cellWidth, y2);
 
                         int RGBhighlight = overlayRedHighlight.getRGB();
 
-                        Drawing.fillArea(img, RGBhighlight, x, y1, x + 1, y2);
-                        Drawing.fillArea(img, RGBhighlight, x, y1, x + cellWidth, y1 + 1);
-                        Drawing.fillArea(img, garnetRed.getRGB(), x + cellWidth - 1, y1, x + cellWidth, y2);
+                        Drawing.fillArea(m_img, RGBhighlight, x, y1, x + 1, y2);
+                        Drawing.fillArea(m_img, RGBhighlight, x, y1, x + cellWidth, y1 + 1);
+                        Drawing.fillArea(m_img, garnetRed.getRGB(), x + cellWidth - 1, y1, x + cellWidth, y2);
 
-                        Drawing.fillArea(img, garnetRed.getRGB(), x + 1, y2 - 1, x + cellWidth - 1, y2);
+                        Drawing.fillArea(m_img, garnetRed.getRGB(), x + 1, y2 - 1, x + cellWidth - 1, y2);
                     }
                 }
 
@@ -1081,7 +1161,7 @@ public class SpectrumChartView {
 
             m_direction = m_isPositive.get() > -1;
 
-            m_lastClose = getCurrentPrice().doubleValue();
+        // m_lastClose = getCurrentPrice().doubleValue();
             int y1 = y - (halfLabelHeight + 7);
             int y2 = y + (halfLabelHeight + 5);
             int halfScaleColWidth = (m_scaleColWidth / 2);
@@ -1097,15 +1177,15 @@ public class SpectrumChartView {
                 RGBhighlight = redRGBhighlight;
             }
 
-            Drawing.drawBar(1, 0xff000000, 0xff111111, img, x1, y1, width, y2);
-            Drawing.drawBar(1, RGBhighlight, 0xff000000, img, x1, y1, width, y2);
+            Drawing.drawBar(1, 0xff000000, 0xff111111, m_img, x1, y1, m_imgWidth, y2);
+            Drawing.drawBar(1, RGBhighlight, 0xff000000, m_img, x1, y1, m_imgWidth, y2);
 
             y2 = y2 + 1;
 
-            Drawing.drawBar(1, 0x90000000, RGBhighlight, img, x1, y1 - 1, x2, y1 + 3);
-            Drawing.drawBar(0x80555555, RGBhighlight, img, x1 - 2, y1 + 3, x1 + 1, y2 - 1);
-            Drawing.drawBar(0x80555555, RGBhighlight, img, x2, y1 + 4, x2 - 2, y2);
-            Drawing.drawBar(1, 0x50ffffff, RGBhighlight, img, x1, y2 - 1, x2, y2);
+            Drawing.drawBar(1, 0x90000000, RGBhighlight, m_img, x1, y1 - 1, x2, y1 + 3);
+            Drawing.drawBar(0x80555555, RGBhighlight, m_img, x1 - 2, y1 + 3, x1 + 1, y2 - 1);
+            Drawing.drawBar(0x80555555, RGBhighlight, m_img, x2, y1 + 4, x2 - 2, y2);
+            Drawing.drawBar(1, 0x50ffffff, RGBhighlight, m_img, x1, y2 - 1, x2, y2);
 
             Color stringColor = new java.awt.Color(0xffffffff, true);
 
@@ -1115,33 +1195,33 @@ public class SpectrumChartView {
             int stringY = (y - halfLabelHeight) + m_labelAscent;
             int stringX = (x1 + halfScaleColWidth) - (stringWidth / 2);
 
-            g2d.setColor(stringColor);
-            g2d.drawString(closeString, stringX, stringY);
+            m_g2d.setColor(stringColor);
+            m_g2d.drawString(closeString, stringX, stringY);
             if (!outOfBounds) {
-                g2d.setColor(m_direction ? KucoinExchange.POSITIVE_HIGHLIGHT_COLOR : KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR);
-                g2d.setFont(new Font("Arial", Font.PLAIN, 12));
-                g2d.drawString("◄", chartWidth - 9, stringY);
+                m_g2d.setColor(m_direction ? KucoinExchange.POSITIVE_HIGHLIGHT_COLOR : KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR);
+                m_g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+                m_g2d.drawString("◄", chartWidth - 9, stringY);
             }
             stringX = chartWidth - 9;
             if (m_direction) {
-                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffffffff, img, stringX, y - (m_labelHeight / 2) - 1, chartWidth + m_scaleColWidth, y + 4 - (m_labelHeight / 2));
-                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xff4bbd94, img, stringX, y + 4 - (m_labelHeight / 2), chartWidth + m_scaleColWidth, y + (m_labelHeight / 2));
+                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffffffff, m_img, stringX, y - (m_labelHeight / 2) - 1, chartWidth + m_scaleColWidth, y + 4 - (m_labelHeight / 2));
+                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xff4bbd94, m_img, stringX, y + 4 - (m_labelHeight / 2), chartWidth + m_scaleColWidth, y + (m_labelHeight / 2));
             } else {
-                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffffffff, img, stringX, y - (m_labelHeight / 2) - 1, chartWidth + m_scaleColWidth, y + 4 - (m_labelHeight / 2));
-                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffe96d71, img, stringX, y + 4 - (m_labelHeight / 2), chartWidth + m_scaleColWidth, y + (m_labelHeight / 2));
+                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffffffff, m_img, stringX, y - (m_labelHeight / 2) - 1, chartWidth + m_scaleColWidth, y + 4 - (m_labelHeight / 2));
+                Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffe96d71, m_img, stringX, y + 4 - (m_labelHeight / 2), chartWidth + m_scaleColWidth, y + (m_labelHeight / 2));
             }
             int borderColor = 0xFF000000;
 
-            Drawing.fillArea(img, borderColor, 0, chartHeight, chartWidth, chartHeight + 1);
+            Drawing.fillArea(m_img, borderColor, 0, chartHeight, chartWidth, chartHeight + 1);
 
-            Drawing.fillArea(img, borderColor, chartWidth, 0, chartWidth + 1, chartHeight);//(width - scaleColWidth, 0, width - 1, chartHeight - 1);
+            Drawing.fillArea(m_img, borderColor, chartWidth, 0, chartWidth + 1, chartHeight);//(m_imgWidth - scaleColWidth, 0, m_imgWidth - 1, chartHeight - 1);
             if (!outOfBounds) {
-                for (int x = 0; x < width - m_scaleColWidth - 7; x++) {
-                    int p = img.getRGB(x, y);
+                for (int x = 0; x < m_imgWidth - m_scaleColWidth - 7; x++) {
+                    int p = m_img.getRGB(x, y);
 
                     p = (0xFFFFFF - p) | 0xFF000000;
 
-                    img.setRGB(x, y, p);
+                    m_img.setRGB(x, y, p);
                 }
             }
             if (isRangeSetting) {
@@ -1149,13 +1229,13 @@ public class SpectrumChartView {
                 x1 = x1 + 1;
                 Color blackColor = new java.awt.Color(0xff000000, true);
 
-                g2d.setFont(getLabelFont());
+                m_g2d.setFont(m_labelFont);
 
                 int topRangeY = (int) Math.ceil(chartHeight - (topVvalue * (rows * rowHeight)));
                 int botRangeY = (int) Math.ceil(chartHeight - (bottomVvalue * ((rows * rowHeight))));
 
-                Drawing.fillArea(img, 0x40ffffff, 0, 0, width, topRangeY);
-                Drawing.fillArea(img, 0x40ffffff, 0, botRangeY, width, chartHeight);
+                Drawing.fillArea(m_img, 0x40ffffff, 0, 0, m_imgWidth, topRangeY);
+                Drawing.fillArea(m_img, 0x40ffffff, 0, botRangeY, m_imgWidth, chartHeight);
 
                 String topRangeString = String.format("%." + m_numberClass.getDecimals() + "f", topRangePrice);
                 int topRangeStringWidth = m_fm.stringWidth(topRangeString);
@@ -1166,15 +1246,11 @@ public class SpectrumChartView {
                 int fillTopRangeY2 = topRangeY + (m_labelHeight / 2) + 3;
 
                 fillTopRangeY1 = fillTopRangeY1 < 1 ? 1 : fillTopRangeY1;
-                fillTopRangeY2 = fillTopRangeY2 >= img.getHeight() -1 ? img.getHeight() -1 : fillTopRangeY2;
-                /*try {
-                    Files.writeString(logFile.toPath(), "\nimgWidth: " + img.getWidth() + " imgHeight: " + img.getHeight() + "\ntopRY1: " + fillTopRangeY1 + " topRY2: " + fillTopRangeY2 + "\nx1: " + x1 + " x2: " + x2 + "\n" , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-             
-                }*/
-                Drawing.fillArea(img, 0xffffffff, x1,fillTopRangeY1 , x2, fillTopRangeY2);
-                g2d.setColor(blackColor);
-                g2d.drawString(topRangeString, topRangeStringX, topRangeStringY);
+                fillTopRangeY2 = fillTopRangeY2 >= m_img.getHeight() -1 ? m_img.getHeight() -1 : fillTopRangeY2;
+                
+                Drawing.fillArea(m_img, 0xffffffff, x1,fillTopRangeY1 , x2, fillTopRangeY2);
+                m_g2d.setColor(blackColor);
+                m_g2d.drawString(topRangeString, topRangeStringX, topRangeStringY);
 
                 String botRangeString = String.format("%." + m_numberClass.getDecimals() + "f", botRangePrice);
                 int botRangeStringWidth = m_fm.stringWidth(botRangeString);
@@ -1182,26 +1258,26 @@ public class SpectrumChartView {
                 int botRangeStringX = (chartWidth + (m_scaleColWidth / 2)) - (botRangeStringWidth / 2);
                 int botRangeStringY = (botRangeY - (m_labelHeight / 2)) + m_labelAscent;
 
-                Drawing.fillArea(img, 0xffffffff, x1, botRangeY - (m_labelHeight / 2) - 3, x2, botRangeY + (m_labelHeight / 2) + 3);
-                g2d.drawString(botRangeString, botRangeStringX, botRangeStringY);
+                Drawing.fillArea(m_img, 0xffffffff, x1, botRangeY - (m_labelHeight / 2) - 3, x2, botRangeY + (m_labelHeight / 2) + 3);
+                m_g2d.drawString(botRangeString, botRangeStringX, botRangeStringY);
 
             }
 
-            g2d.dispose();
+     
 
         } else {
 
-            g2d.setFont(m_headingFont);
-            FontMetrics fm = g2d.getFontMetrics();
+            m_g2d.setFont(m_headingFont);
+            FontMetrics fm = m_g2d.getFontMetrics();
             String text = m_msg;
 
             int stringWidth = fm.stringWidth(text);
             int fmAscent = fm.getAscent();
-            int x = (width / 2) - (stringWidth/2);
-            int y = ((height - fm.getHeight()) / 2) + fmAscent;
-            g2d.setColor(Color.WHITE);
-            g2d.drawString(text, x, y);
-            g2d.dispose();
+            int x = (m_imgWidth / 2) - (stringWidth/2);
+            int y = ((m_imgHeight - fm.getHeight()) / 2) + fmAscent;
+            m_g2d.setColor(Color.WHITE);
+            m_g2d.drawString(text, x, y);
+  
         }
 
         /*   File outputfile = new File("image.png");
@@ -1210,24 +1286,18 @@ public class SpectrumChartView {
         } catch (IOException e) {
 
         } */
-        m_imageBuffer.set( SwingFXUtils.toFXImage(img,null));
+        return SwingFXUtils.toFXImage(m_img,null);
+      
     }
 
-    public SimpleObjectProperty<LocalDateTime> getLastUpdated() {
-        return m_lastUpdated;
-    }
-
-    public void addUpdateListener(ChangeListener<LocalDateTime> changeListener) {
-        m_changeListener = changeListener;
-        if (m_changeListener != null) {
-            m_lastUpdated.addListener(changeListener);
-
-        } else {
-            removeUpdateListener();
+    public void shutdown(){
+        if(m_g2d != null){
+            m_g2d.dispose();
+            m_g2d = null;
         }
-        // m_lastUpdated.addListener();
-
+        m_img = null;
     }
+
 
     public SimpleIntegerProperty isPositiveProperty(){
         return m_isPositive;
@@ -1241,21 +1311,11 @@ public class SpectrumChartView {
         return m_isPositive.get();
     }
 
-    public void removeUpdateListener() {
-        if (m_changeListener != null) {
-            m_lastUpdated.removeListener(m_changeListener);
-        }
-    }
-
-    public void remove() {
-        removeUpdateListener();
-    }
-
     
 }
 
 /*           for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
+                for (int x = 0; x < m_imgWidth; x++) {
                     int p = img.getRGB(x, y);
 
                       int a = (p >> 24) & 0xff;

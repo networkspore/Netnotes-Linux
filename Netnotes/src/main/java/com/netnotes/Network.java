@@ -31,7 +31,7 @@ import javafx.scene.text.TextAlignment;
 
 public class Network extends IconButton {
 
-    private File logFile = new File("Network-log");
+
     private String m_networkId;
     private NetworksData m_networksData;
     private File m_dataDir = null;
@@ -310,7 +310,7 @@ public class Network extends IconButton {
                    Files.createDirectory(m_dataDir.toPath());
                 } catch (IOException e) {
                     try {
-                        Files.writeString(logFile.toPath(), "\nNetwork could not create directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(App.logFile.toPath(), "\nNetwork could not create directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e1) {
                  
                     }
@@ -352,7 +352,7 @@ public class Network extends IconButton {
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {
             try {
-                Files.writeString(logFile.toPath(), "SpectrumFinance (saveIndexFile): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(App.logFile.toPath(), "SpectrumFinance (saveIndexFile): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }
@@ -373,7 +373,7 @@ public class Network extends IconButton {
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {
             try {
-                Files.writeString(logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(App.logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }
@@ -395,7 +395,7 @@ public class Network extends IconButton {
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {
             try {
-                Files.writeString(logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(App.logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }

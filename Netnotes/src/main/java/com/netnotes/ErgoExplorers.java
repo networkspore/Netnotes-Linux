@@ -90,7 +90,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
             try {
                 JsonObject json = Utils.readJsonFile(getAppKey(), dataFile);
 
-                Utils.returnObject(json, onSucceeded, onFailed);
+                Utils.returnObject(json, getNetworksData().getExecService(), onSucceeded, onFailed);
             } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                     | IOException e) {
@@ -102,13 +102,13 @@ public class ErgoExplorers extends Network implements NoteInterface {
 
             }
         }else{
-            Utils.getUrlJson(urlString, (urlJson)->{
+            Utils.getUrlJson(urlString, getNetworksData().getExecService(), (urlJson)->{
                 Object sourceObject = urlJson.getSource().getValue();
                 if(sourceObject != null && sourceObject instanceof JsonObject){
                     try {
                         JsonObject json = (JsonObject) sourceObject;
                         Utils.saveJson(getAppKey(), json, dataFile );
-                        Utils.returnObject(sourceObject, onSucceeded, onFailed);
+                        Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
                     } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
                             | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                             | IOException e) {
@@ -119,7 +119,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
                         }
                     }
                 }else{
-                    Utils.returnObject(null, onSucceeded, onFailed);
+                    Utils.returnObject(null,getNetworksData().getExecService(), onSucceeded, onFailed);
                 }
             }, onFailed, null);
         }
@@ -337,7 +337,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
                 m_stage.setIconified(false);
             }
             m_stage.show();
-            m_stage.toFront();
+   
         }
 
     }

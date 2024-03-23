@@ -678,10 +678,15 @@ public class ErgoTransaction {
             if(m_stage.isIconified()){
                 m_stage.setIconified(false);
                 m_stage.show();
-                m_stage.toFront();
-            }else{
-                Platform.runLater(()-> m_stage.requestFocus());
+                
+                
             }
+            Platform.runLater(()->{
+                m_stage.toBack();
+                m_stage.toFront();
+            });
+            Platform.runLater(()-> m_stage.requestFocus());
+            
         }
     }
 

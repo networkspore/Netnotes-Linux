@@ -1,12 +1,12 @@
 package com.netnotes;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
 
 import com.devskiller.friendly_id.FriendlyId;
 
 import com.google.gson.JsonObject;
+
+import javafx.beans.value.ChangeListener;
 
 public class SpectrumErgoMarketsData extends ErgoMarketsData{
     
@@ -33,21 +33,7 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
 
     
    
-    public void updateMarkets(SpectrumMarketData[] marketData){
-        //SpectrumFinance.getMarketDataBySymbols(marketData, "ERG", "SigUSD")
-        //priceQuoteProperty().set();
-        if(marketData != null){
-            SpectrumMarketData data = SpectrumFinance.getMarketDataBySymbols(marketData,"SigUSD", "ERG");
-            PriceQuote priceQuote = new PriceQuote(data.getInvertedLastPrice().toString(), "ERG", "SigUSD");
-            priceQuoteProperty().set(priceQuote);
-            marketDataProperty().set(marketData);
-        }else{
-            priceQuoteProperty().set(null);            
-            marketDataProperty().set(null);
-        }
-     
 
-    }
     SpectrumMarketInterface m_msgListener;
 
     /*public void getMarketArray(SpectrumFinance exchange){
@@ -61,34 +47,68 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
 
     }*/
     private String m_exchangeId = FriendlyId.createFriendlyId();
+    private SpectrumMarketData m_marketData = null;
+    
     public void connectToExchange(SpectrumFinance spectrum){
         statusProperty().set(ErgoMarketsData.STARTED);
-       
-        
+
+        Runnable getQuote = ()->{
+            if(m_marketData != null){
+                PriceQuote priceQuote = m_marketData.getPriceQuote();
+                priceQuoteProperty().set(priceQuote);
+               
+            }else{
+                priceQuoteProperty().set(null);            
+                
+            }
+            updatedProperty().set(LocalDateTime.now());
+        };
+
+
+        ChangeListener<LocalDateTime> marketDataChanged = (obs,oldval,newval)->{ 
+            getQuote.run();  
+            
+        };
+
+        Runnable setMarketData = ()->{
+            if(m_marketData != null){
+                m_marketData.getLastUpdated().removeListener(marketDataChanged);
+            }
+            m_marketData = spectrum.getMarketDataBySymbols("SigUSD", "ERG");
+
+            if(m_marketData != null){
+                m_marketData.getLastUpdated().addListener(marketDataChanged);
+            }
+            getQuote.run();
+
+        };
+
+        ChangeListener<LocalDateTime> updateListener = (obs,oldval,newval)->{
+            setMarketData.run();
+        };
+
+
         m_msgListener = new SpectrumMarketInterface() {
             
-            
-          
             public String getId() {
                 return m_exchangeId;
             }
-        
-            public void marketArrayChange(SpectrumMarketData[] dataArray) {
-                
-                if(dataArray != null){
-                    updateMarkets(dataArray);
-                }else{
-                    priceQuoteProperty().set(null);
-                }
-            }
-
 
         };
 
         spectrum.addMsgListener(m_msgListener);
         
+
+        //updateMarkets(spectrum);
+
+        spectrum.listUpdated().addListener(updateListener);
+        
+        setMarketData.run();
+
+       
         setShutdownListener((obs, oldval, newVal) -> {
-          
+            
+            spectrum.listUpdated().removeListener(updateListener);
             spectrum.removeMsgListener(m_msgListener);
             statusProperty().set(ErgoMarketsData.STOPPED);
             getShutdownNow().removeListener(getShutdownListener());
@@ -98,5 +118,27 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
         
     }
 
+    public SpectrumFinance getSpectrumFinance(){
+        if (getMarketId() != null) {
+            NoteInterface marketInterface = getMarketsList().getErgoMarkets().getNetworksData().getNoteInterface(getMarketId());
+        
+            if (marketInterface instanceof SpectrumFinance) {
+                return (SpectrumFinance) marketInterface;
+               
+            }
+                
+        }
+        return null;
+    }
 
+    @Override
+    public PriceQuote getPriceQuoteById(String baseId, String quoteId){
+        SpectrumFinance exchange = getSpectrumFinance();
+ 
+        if(exchange != null){
+
+            return exchange.getPriceQuoteById(baseId, quoteId);
+        }
+        return null;
+    }
 }

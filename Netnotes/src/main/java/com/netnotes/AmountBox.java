@@ -4,16 +4,12 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 
-import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.utils.Utils;
@@ -36,19 +32,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
+
 
 public class AmountBox extends HBox {
 
-    private long m_quoteTimeout = AddressData.QUOTE_TIMEOUT;
+    private long m_quoteTimeout = AddressesData.QUOTE_TIMEOUT;
     private final SimpleObjectProperty<PriceAmount> m_currentAmount = new SimpleObjectProperty<PriceAmount>(null);
     private String m_id = FriendlyId.createFriendlyId();
     private final SimpleObjectProperty<Image> m_imgBuffer = new SimpleObjectProperty<Image>(null);
@@ -60,8 +50,8 @@ public class AmountBox extends HBox {
     
 
   //  private Color m_secondaryColor = new Color(.4, .4, .4, .9);
-    private Color m_primaryColor = new Color(.7, .7, .7, .9); 
-    private Font m_smallFont = Font.font("OCR A Extended", FontWeight.NORMAL, 10);
+    //private Color m_primaryColor = new Color(.7, .7, .7, .9); 
+    //private Font m_smallFont = Font.font("OCR A Extended", FontWeight.NORMAL, 10);
 
     public AmountBox(){
         super();
@@ -189,7 +179,7 @@ public class AmountBox extends HBox {
             getChildren().add( 2, amountField);
 
             Platform.runLater(()-> amountField.requestFocus());
-            Platform.runLater(()-> amountField.requestFocus());
+  
         });
 
  
@@ -363,7 +353,29 @@ public class AmountBox extends HBox {
             updates.run();
             updateBufferedImage();
         });
-        ChangeListener<PriceQuote[]> listPriceListener = (obs,oldval,newval)->updateBufferedImage();
+
+        Runnable updatePriceQuote = ()->{
+            
+            PriceAmount currentAmount = m_currentAmount.get();
+            if(currentAmount != null){
+                PriceCurrency priceCurrency = currentAmount.getCurrency();
+                if(priceCurrency != null && priceCurrency instanceof ErgoNetworkToken){
+                    
+                    ErgoNetworkToken networkToken = (ErgoNetworkToken) priceCurrency;
+                    PriceQuote quote = networkToken.getPriceQuote();
+                    
+                    
+                    m_priceQuoteProperty.set( quote);    
+                }else{
+                    updateBufferedImage();
+                }
+            }else{
+                updateBufferedImage();
+            }
+        
+        };
+
+        ChangeListener<LocalDateTime> listPriceListener = (obs,oldval,newval)->updatePriceQuote.run();
         ChangeListener<LocalDateTime> updateListener = (obs,oldval,newval)->{
             PriceAmount currentAmount = m_currentAmount.get();
             if(currentAmount != null){
@@ -373,23 +385,23 @@ public class AmountBox extends HBox {
         m_addressesData.tokensListProperty().addListener((obs,oldval,newval)->{
             updates.run();
             if(oldval != null){
-                oldval.priceQuotesProperty().removeListener(listPriceListener);
+                oldval.marketUpdated().removeListener(listPriceListener);
                 oldval.getLastUpdated().removeListener(updateListener);
             }
             if(newval != null){
-                newval.priceQuotesProperty().addListener(listPriceListener);
+                newval.marketUpdated().addListener(listPriceListener);
                 newval.getLastUpdated().removeListener(updateListener);
             }
             updateBufferedImage();
         });
         if(m_addressesData.tokensListProperty().get() != null){
-            m_addressesData.tokensListProperty().get().priceQuotesProperty().addListener(listPriceListener);
+            m_addressesData.tokensListProperty().get().marketUpdated().addListener(listPriceListener);
             m_addressesData.tokensListProperty().get().getLastUpdated().addListener(updateListener);
-            updateBufferedImage();
+
         }
         m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> updates.run());
-        
         updateBufferedImage();
+        updatePriceQuote.run();
         updates.run();
     }
 
@@ -443,7 +455,12 @@ public class AmountBox extends HBox {
         m_minImgWidth = width;
     }
    
+    private BufferedImage m_img = null;
+    private Graphics2D m_g2d = null;
     
+    private java.awt.Font m_font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 30);
+    private java.awt.Font m_smallFont = new java.awt.Font("SANS-SERIF", java.awt.Font.PLAIN, 12);
+    private java.awt.Color m_txtColor = new java.awt.Color(.9f, .9f, .9f, .9f);
    
     public void updateBufferedImage() {
         PriceAmount priceAmount = m_currentAmount.get();
@@ -455,15 +472,15 @@ public class AmountBox extends HBox {
         int decimalPlaces = priceCurrency != null ? priceCurrency.getFractionalPrecision() : 0;
         String currencySymbol =  priceCurrency != null ? priceCurrency.getSymbol() : "UKNOWN";
 
-        PriceQuote priceQuote = priceCurrency != null && priceCurrency instanceof ErgoNetworkToken ? ((ErgoNetworkToken) priceCurrency).getPriceQuote() : m_priceQuoteProperty.get();
+        PriceQuote priceQuote = m_priceQuoteProperty.get();
         //PriceQuote priceQuote = priceQuoteBase != null ? priceQuoteBase.getPriceQuote(quantityValid ? priceAmount.getTokenId() : null) : null;
      
         //String tokenId = priceAmount != null ? priceAmount.getTokenId() : null;
 
         //PriceQuote priceQuote =  (priceQuoteBase != null && tokenId != null ? priceQuoteBase.getPriceQuote(tokenId): null);
 
-        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
-        
+        boolean priceValid = priceQuote != null; //&& priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
+    
         
         BigDecimal priceQuoteBigDecimal = priceValid  && priceQuote != null ? priceQuote.getBigDecimalAmount() : BigDecimal.valueOf(0);
         
@@ -477,8 +494,7 @@ public class AmountBox extends HBox {
 
         String currencyPrice = priceValid && priceQuote != null ? priceQuote.toString() : "-.--";
 
-        java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 30);
-        java.awt.Font smallFont = new java.awt.Font("SANS-SERIF", java.awt.Font.PLAIN, 12);
+
 
         //   Image ergoBlack25 = new Image("/assets/ergo-black-25.png");
         //   SwingFXUtils.fromFXImage(ergoBlack25, null);
@@ -490,19 +506,19 @@ public class AmountBox extends HBox {
         totalPrice = totalPrice + "   ";
         currencyPrice = "(" + currencyPrice + ")   ";
     
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
+        m_img  = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_img.createGraphics();
         
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
+        m_g2d.setFont(m_font);
+        FontMetrics fm = m_g2d.getFontMetrics();
         int padding = 5;
         int stringWidth = fm.stringWidth(amountString);
        
         int height = fm.getHeight() + 10;
 
-        g2d.setFont(smallFont);
+        m_g2d.setFont(m_smallFont);
 
-        fm = g2d.getFontMetrics();
+        fm = m_g2d.getFontMetrics();
         int priceWidth = fm.stringWidth(totalPrice);
         int currencyWidth = fm.stringWidth(currencyPrice);
         int priceLength = (priceWidth > currencyWidth ? priceWidth : currencyWidth);
@@ -526,22 +542,22 @@ public class AmountBox extends HBox {
        
         int currencySymbolStringX = decimalsX + 2;
 
-        g2d.dispose();
+        m_g2d.dispose();
         
         BufferedImage unitImage = SwingFXUtils.fromFXImage(priceAmount != null ? priceAmount.getCurrency().getIcon() : new Image("/assets/unknown-unit.png"), null);
         Drawing.setImageAlpha(unitImage, 0x40);
         //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        //   g2d.setComposite(AlphaComposite.Clear);
+        m_img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_img.createGraphics();
+        m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        //   m_g2d.setComposite(AlphaComposite.Clear);
 
         /* for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
@@ -549,62 +565,65 @@ public class AmountBox extends HBox {
 
                 Color c2 = new Color(c.getRed(), c.getGreen(), c.getBlue(), 35);
 
-                img.setRGB(x, y, c2.getRGB());
+                m_img.setRGB(x, y, c2.getRGB());
             }
         }
          */
-        g2d.drawImage(unitImage, 200 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        m_g2d.drawImage(unitImage, 200 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
 
-        //g2d.setFont(smallFont);
-      //  g2d.setColor(new java.awt.Color(0x777777, false));
+        //m_g2d.setFont(m_smallFont);
+      //  m_g2d.setColor(new java.awt.Color(0x777777, false));
         
-     //   g2d.drawString(currencyName,0, smallAscent);
+     //   m_g2d.drawString(currencyName,0, smallAscent);
 
 
-        g2d.setFont(font);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(java.awt.Color.WHITE);
+        m_g2d.setFont(m_font);
+        fm = m_g2d.getFontMetrics();
+        m_g2d.setColor(java.awt.Color.WHITE);
 
         
 
-        g2d.drawString(amountString, integersX, fm.getAscent() + 5);
+        m_g2d.drawString(amountString, integersX, fm.getAscent() + 5);
 
-        g2d.setFont(smallFont);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
+        m_g2d.setFont(m_smallFont);
+        fm = m_g2d.getFontMetrics();
+        m_g2d.setColor(m_txtColor);
 
        
         if(decimalPlaces > 0){
             //decimalsX = widthIncrease > 0 ? decimalsX + widthIncrease : decimalsX;
-            g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
+            m_g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
         }
 
         
-        g2d.drawString(currencySymbol, currencySymbolStringX, height - 10);
+        m_g2d.drawString(currencySymbol, currencySymbolStringX, height - 10);
 
-        g2d.setFont(smallFont);
-        g2d.setColor(java.awt.Color.WHITE);
-        fm = g2d.getFontMetrics();
-        g2d.drawString(totalPrice, padding, fm.getHeight() + 2);
+        m_g2d.setFont(m_smallFont);
+        m_g2d.setColor(java.awt.Color.WHITE);
+        fm = m_g2d.getFontMetrics();
+        m_g2d.drawString(totalPrice, padding, fm.getHeight() + 2);
 
-        g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
-        g2d.drawString(currencyPrice, padding, height - 10);
+        m_g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
+        m_g2d.drawString(currencyPrice, padding, height - 10);
 
         /*try {
             Files.writeString(logFile.toPath(), amountString + decs);
         } catch (IOException e) {
 
         }*/
-        g2d.dispose();
+        
 
        /* try {
-            ImageIO.write(img, "png", new File("outputImage.png"));
+            ImageIO.write(m_img, "png", new File("outputImage.png"));
         } catch (IOException e) {
 
         }*/
 
-        m_imgBuffer.set(SwingFXUtils.toFXImage(img, null));
-        
+        m_imgBuffer.set(SwingFXUtils.toFXImage(m_img, null));
+        m_g2d.dispose();
+        m_g2d = null;
+        m_img = null;
+
     }
 
 

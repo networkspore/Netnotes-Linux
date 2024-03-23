@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.awt.event.MouseEvent;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,8 +15,6 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-
-import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
@@ -35,14 +33,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -279,8 +275,8 @@ public class ErgoMarketsList {
             m_stage.setResizable(false);
             m_stage.initStyle(StageStyle.UNDECORATED);
 
-            double minWidth = 600;
-            double minHeight = 500;
+            //double minWidth = 600;
+            //double minHeight = 500;
 
             Scene addScene = new Scene(layoutBox, m_addStageWidth, m_addStageHeight);
             addScene.setFill(null);
@@ -488,8 +484,13 @@ public class ErgoMarketsList {
             if(m_stage.isIconified()){
                 m_stage.setIconified(false);    
             }
-            
-            Platform.runLater(()->m_stage.requestFocus());
+            if(!m_stage.isShowing()){
+                m_stage.show();
+            }else{
+                Platform.runLater(()->m_stage.toBack());
+                
+                Platform.runLater(()->m_stage.toFront());
+            }
             
         }
     }

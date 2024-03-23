@@ -53,6 +53,7 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 
@@ -80,6 +81,8 @@ public class ErgoWallets extends Network implements NoteInterface {
 
     private ErgoNetworkData m_ergNetData;
     private ErgoNetwork m_ergoNetwork;
+    private final SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(0);
+
 
     public ErgoWallets(ErgoNetworkData ergNetData, ErgoNetwork ergoNetwork) {
         super(getAppIcon(), NAME, NETWORK_ID, ergoNetwork);
@@ -123,6 +126,10 @@ public class ErgoWallets extends Network implements NoteInterface {
 
     public ErgoNetworkData getErgoNetworkData() {
         return m_ergNetData;
+    }
+
+    public SimpleLongProperty timeStampProperty(){
+        return m_timeStampProperty;
     }
 
     public JsonObject getDirectoriesJson() {
@@ -749,6 +756,9 @@ public class ErgoWallets extends Network implements NoteInterface {
             }
     }
 
+    public File getDataFile(){
+        return m_dataFile;
+    }
     
     private boolean isFriendlyId(String friendlyId, JsonObject dataFileJson) {
         if(dataFileJson != null){
@@ -790,4 +800,5 @@ public class ErgoWallets extends Network implements NoteInterface {
         }
         return false;
     }
+
 }

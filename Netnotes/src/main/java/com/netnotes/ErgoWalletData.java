@@ -23,15 +23,20 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -185,6 +190,112 @@ public class ErgoWalletData extends Network implements NoteInterface {
     }
     private Stage m_walletStage = null;
 
+    
+    public void getWallet(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+            if(!m_walletFile.isFile()){
+                String walletFileString = m_walletFile != null ? m_walletFile.getAbsolutePath() : "Requires setup";
+                
+                Alert a = new Alert(AlertType.NONE, "File location: " + walletFileString, ButtonType.OK);
+                a.setTitle("Wallet: File not found");
+                a.setHeaderText("Wallet: File not found");
+                a.showAndWait();
+                Utils.returnObject(null, getNetworksData().getExecService(), onSucceeded, onFailed);
+                return;
+            }
+
+            double sceneWidth = 600;
+            double sceneHeight = 305;
+
+            Stage stage = new Stage();
+            stage.getIcons().add(ErgoWallets.getSmallAppIcon());
+            stage.initStyle(StageStyle.UNDECORATED);
+            stage.setTitle("Wallet file: Enter password");
+
+            Button closeBtn = new Button();
+
+            HBox titleBox = App.createTopBar(ErgoWallets.getSmallAppIcon(), getName() + " - Enter password", closeBtn, stage);
+            closeBtn.setOnAction(event -> {
+                stage.close();
+                Utils.returnObject(null, getNetworksData().getExecService(), onSucceeded, onFailed);
+            });
+
+            Button imageButton = App.createImageButton(ErgoWallets.getAppIcon(), "Wallet");
+            imageButton.setGraphicTextGap(10);
+            HBox imageBox = new HBox(imageButton);
+            imageBox.setAlignment(Pos.CENTER);
+            imageBox.setPadding(new Insets(0, 0, 15, 0));
+
+            Text passwordTxt = new Text("> Enter password:");
+            passwordTxt.setFill(App.txtColor);
+            passwordTxt.setFont(App.txtFont);
+
+            PasswordField passwordField = new PasswordField();
+            passwordField.setFont(App.txtFont);
+            passwordField.setId("passField");
+            HBox.setHgrow(passwordField, Priority.ALWAYS);
+
+            Platform.runLater(() -> passwordField.requestFocus());
+
+            HBox passwordBox = new HBox(passwordTxt, passwordField);
+            passwordBox.setAlignment(Pos.CENTER_LEFT);
+
+            Button clickRegion = new Button();
+            clickRegion.setPrefWidth(Double.MAX_VALUE);
+            clickRegion.setId("transparentColor");
+            clickRegion.setPrefHeight(40);
+
+            clickRegion.setOnAction(e -> {
+                passwordField.requestFocus();
+
+            });
+
+            VBox.setMargin(passwordBox, new Insets(5, 10, 0, 20));
+
+            VBox layoutVBox = new VBox(titleBox, imageBox, passwordBox, clickRegion);
+            VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+
+            Scene passwordScene = new Scene(layoutVBox, sceneWidth, sceneHeight);
+            passwordScene.setFill(null);
+            passwordScene.getStylesheets().add("/css/startWindow.css");
+            stage.setScene(passwordScene);
+          
+            passwordField.setOnKeyPressed(e -> {
+
+                KeyCode keyCode = e.getCode();
+
+                if (keyCode == KeyCode.ENTER) {
+                    
+                    try {
+
+                        Wallet wallet = Wallet.load(m_walletFile.toPath(), passwordField.getText());
+                        
+                        Utils.returnObject(new AddressesData(FriendlyId.createFriendlyId(), wallet, this, m_networkType), getNetworksData().getExecService(), onSucceeded, onFailed);
+                        stage.close();
+                    } catch (Exception e1) {
+
+                        passwordField.setText("");
+                        try {
+                            Files.writeString(logFile.toPath(), "Password error: " + getName() + " \n" +e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e2) {
+                            
+                        }
+                        
+                    }
+
+                }
+            });
+
+            stage.show();
+            stage.setOnCloseRequest(e -> {
+                closeBtn.fire();
+            });
+
+
+    }
+
+
+
     public void openWallet() {
         if (m_walletStage == null) {
        
@@ -321,7 +432,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
         SimpleBooleanProperty isShrunk = new SimpleBooleanProperty(false);
 
-        HBox titleBox = App.createShrinkTopBar(ErgoWallets.getSmallAppIcon(), title, maximizeBtn, shrinkBtn, closeBtn, walletStage, isShrunk, getNetworksData().getAppData());
+        HBox titleBox = App.createShrinkTopBar(ErgoWallets.getSmallAppIcon(), title, maximizeBtn, shrinkBtn, closeBtn, walletStage, isShrunk, getNetworksData().getAppData(), getNetworksData().getExecService());
 
      
 

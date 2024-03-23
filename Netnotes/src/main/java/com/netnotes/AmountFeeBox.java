@@ -11,7 +11,6 @@ import org.ergoplatform.appkit.NetworkType;
 import com.devskiller.friendly_id.FriendlyId;
 
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
@@ -24,7 +23,6 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
 public class AmountFeeBox extends HBox {
@@ -190,10 +188,10 @@ public class AmountFeeBox extends HBox {
             m_feeAmountImage.set(null);
             return;
         }
-        PriceQuote priceQuote = priceQuoteProperty().get();
+        //PriceQuote priceQuote = priceQuoteProperty().get();
 
-        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < AddressData.QUOTE_TIMEOUT;
-        BigDecimal priceQuoteBigDecimal = priceValid  && priceQuote != null ? priceQuote.getBigDecimalAmount() : BigDecimal.valueOf(0);
+        //boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < AddressesData.QUOTE_TIMEOUT;
+        //BigDecimal priceQuoteBigDecimal = priceValid  && priceQuote != null ? priceQuote.getBigDecimalAmount() : BigDecimal.valueOf(0);
 
         java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 12);
 

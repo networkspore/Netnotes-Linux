@@ -312,6 +312,18 @@ public class AddressBox extends HBox {
         return m_networkType;
     }
 
+    private BufferedImage m_img = null;
+    private Graphics2D m_imgG2d = null;
+
+    private BufferedImage m_txtImg = null;
+    private Graphics2D m_txtG2d = null;
+    private FontMetrics m_txtFm = null;
+
+    private int m_imgHeight = 40;
+
+    private java.awt.Font m_font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 14);
+    private BufferedImage m_unitImage = null;
+
     public void updateBufferedImage() {
 
         final int padding = 10;
@@ -322,90 +334,83 @@ public class AddressBox extends HBox {
         NetworkType adrNetworkType = adrInfo.getNetworkType();
         String adrType = adrInfo.getAddressType();
         String adrString = adrInfo.getAddressString();
-
-   
     
         final String promptString =(adr != null && adrNetworkType != null && adrNetworkType == m_networkType && adrType != null) ? adrType + " (" + adrNetworkType.toString() + ")" : "Enter address";
-
-
        
         String textNetType = adrNetworkType == null ? " [Address Invalid]" : (adrNetworkType != m_networkType ? " [Invalid network type: "+ adrNetworkType.toString() + "]" : "");
         String textAdrType = adrType == null || adr == null ? " [Address Invalid]" : "";
         final String errortext = adrString.length() > 0 ? ((textAdrType.equals("") ? textNetType : textAdrType)) : "" ;
 
-
-        int height = 40;
+       
+        m_txtImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_txtG2d = m_txtImg.createGraphics();
+        m_txtG2d.setFont(m_font);
+        m_txtFm = m_txtG2d.getFontMetrics();    
         
-
-        //    java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 30);
-        java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 14);
-
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
-
-        
-        int errorSize = errortext.length() > 0 ? fm.stringWidth(errortext) : 0;
-        int promptSize = fm.stringWidth(promptString);
+        int errorSize = errortext.length() > 0 ? m_txtFm.stringWidth(errortext) : 0;
+        int promptSize = m_txtFm.stringWidth(promptString);
         int topTextSize = promptSize + 10 + errorSize;
-        int adrSize = 25 + adrString.length() > 0 ? fm.stringWidth(adrString) : 0;
-
-        g2d.dispose();
+        int adrSize = 25 + adrString.length() > 0 ? m_txtFm.stringWidth(adrString) : 0;
 
         int stringSize = topTextSize >  bottomIndent + adrSize ? padding + topTextSize : padding + bottomIndent + adrSize;
         int width = stringSize + 40;
        
-
-        // BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        BufferedImage unitImage = adr != null ? SwingFXUtils.fromFXImage(getUnitImage(), null) : SwingFXUtils.fromFXImage(getUnknownUnitImage(), null);
+        m_unitImage = adr != null ? SwingFXUtils.fromFXImage(getUnitImage(), null) : SwingFXUtils.fromFXImage(getUnknownUnitImage(), null);
         
         if(adrInfo.getNetworkType() != null && adrInfo.getNetworkType() == NetworkType.TESTNET){
-            InvertEffect.invertRGB(unitImage, 1);
+            InvertEffect.invertRGB(m_unitImage, 1);
         }
         
-        Drawing.setImageAlpha(unitImage, 0x20);
+        Drawing.setImageAlpha(m_unitImage, 0x20);
 
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        m_img = new BufferedImage(width, m_imgHeight, BufferedImage.TYPE_INT_ARGB);
+        m_imgG2d = m_img.createGraphics();
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_imgG2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
-        g2d.drawImage(unitImage, 75, (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        m_imgG2d.drawImage(m_unitImage, 75, (m_imgHeight / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
 
-        g2d.setFont(font);
-        g2d.setColor(java.awt.Color.WHITE);
-        
-        // rect.y + ((rect.height - metrics.getHeight()) / 2) + metrics.getAscent();
-        
+        m_imgG2d.setFont(m_font);
+        m_imgG2d.setColor(java.awt.Color.WHITE);
         
         if(errortext.length() > 0){
         
-            g2d.drawString(errortext, padding, fm.getHeight() + 2);
+            m_imgG2d.drawString(errortext, padding, m_txtFm.getHeight() + 2);
         }else{
-            g2d.drawString(promptString, padding, adrString.length() > 0 ? fm.getHeight() + 2 : ((height - fm.getHeight()) / 2) + fm.getAscent());
+            m_imgG2d.drawString(promptString, padding, adrString.length() > 0 ? m_txtFm.getHeight() + 2 : ((m_imgHeight - m_txtFm.getHeight()) / 2) + m_txtFm.getAscent());
         }
         if(adrString.length() > 0){ 
-            g2d.setColor(new java.awt.Color(.8f, .8f, .8f, .8f));
-            g2d.drawString(adrString, padding + bottomIndent , height - 8);
+            m_imgG2d.setColor(new java.awt.Color(.8f, .8f, .8f, .8f));
+            m_imgG2d.drawString(adrString, padding + bottomIndent , m_imgHeight - 8);
         }
-        g2d.dispose();
-        
+
+
         /*
        try {
-            ImageIO.write(img, "png", new File("outputImage.png"));
+            ImageIO.write(m_img, "png", new File("outputImage.png"));
         } catch (IOException e) {
 
         } */
 
 
-        m_imgBuffer.set(SwingFXUtils.toFXImage(img, null));
+        m_imgBuffer.set(SwingFXUtils.toFXImage(m_img, null));
+        
+        m_txtG2d.dispose();
+        m_txtG2d = null;
+        m_txtImg = null;
+        m_txtFm = null;
+     
+        m_imgG2d.dispose();
+        m_imgG2d = null;
+        m_img = null;
+
+        m_unitImage = null;
     }
 
 

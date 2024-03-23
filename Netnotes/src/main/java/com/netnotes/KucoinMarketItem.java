@@ -36,12 +36,9 @@ import javafx.scene.control.Button;
 
 import javafx.scene.control.ContentDisplay;
 
-import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
@@ -55,7 +52,7 @@ import javafx.stage.StageStyle;
 
 public class KucoinMarketItem {
 
-    private File logFile = new File("netnotes-log.txt");
+
     private String m_id;
     private String m_symbol;
     private String m_name;

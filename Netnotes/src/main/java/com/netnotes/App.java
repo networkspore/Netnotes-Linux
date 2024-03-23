@@ -11,7 +11,6 @@ import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 
@@ -51,6 +50,7 @@ import javafx.scene.input.KeyCode;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -61,19 +61,18 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.reactfx.util.FxTimer;
 
 import com.netnotes.IconButton.IconStyle;
 import com.google.gson.JsonParseException;
-import com.utils.GitHubAPI.GitHubAsset;
-import com.utils.GitHubAPI;
 import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
@@ -86,6 +85,7 @@ public class App extends Application {
     public static final String GITHUB_USER = "networkspore";
     public static final String GITHUB_PROJECT = "Netnotes-Linux";
     public static final String CMD_SHOW_APPSTAGE = "SHOW_APPSTAGE";
+    public static final String CMD_SHUTDOWN = "EXIT";
     public static final long NOTE_EXECUTION_TIME = 100;
     public static final String notesFileName = "notes.dat";
 
@@ -97,13 +97,16 @@ public class App extends Application {
 
     public final static String AUTORUN_WARNING = "The autorun feature requires an encrypted version of your private key to be saved to disk.\n\nNotice: In order to minimize the security risk the key will be encrypted using platform specific information. Updating or changing base system hardware, such as your motherboard or bios, may invalidate the key and require the autorun feature to be re-enabled in Netnotes settings.\n\n";
     
-    private File logFile = new File("netnotes-log.txt");
+    public final static String RESOURCES_FILENAME = "resources.dat";
+    public final static File logFile = new File("netnotes-log.txt");
 
 
     //public members
     public static Font mainFont;
     public static Font txtFont;
     public static Font titleFont;
+    
+    public final static int DEFAULT_RGBA = 0x00000000;
     
     public static Color txtColor = Color.web("#cdd4da");
     public static Color altColor = Color.web("#777777");
@@ -145,9 +148,6 @@ public class App extends Application {
     
     
     private ScheduledFuture<?> m_lastExecution = null;
-
-
-
 
     @Override
     public void start(Stage appStage) {
@@ -387,24 +387,6 @@ public class App extends Application {
 
         m_networksData = new NetworksData(appData, m_networkServices, networksFile, isNetworksFile);    
 
-        m_networksData.cmdSwitchProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null) {
-                com.grack.nanojson.JsonObject cmdObject = m_networksData.cmdSwitchProperty().get();
-                String type = cmdObject.getString("type");
-
-                if (type != null) {
-                    if (type.equals("CMD")) {
-                        String cmd = cmdObject.getString("cmd");
-                        
-                        switch (cmd) {
-
-                            default:
-                        }
-                        
-                    }
-                }
-            }
-        });
 
       
 
@@ -415,7 +397,7 @@ public class App extends Application {
        
     }
 
-    public static HBox createShrinkTopBar(Image iconImage, String titleString, Button maximizeBtn,  Button shrinkBtn, Button closeBtn, Stage theStage, SimpleBooleanProperty isShrunk, AppData appData) {
+    public static HBox createShrinkTopBar(Image iconImage, String titleString, Button maximizeBtn,  Button shrinkBtn, Button closeBtn, Stage theStage, SimpleBooleanProperty isShrunk, AppData appData, ExecutorService execService) {
       
 
         ImageView barIconView = new ImageView(iconImage);
@@ -449,7 +431,7 @@ public class App extends Application {
                 ResizeHelper.addResizeListener(theStage,passSceneWidth,passSceneHeight, passSceneWidth,passSceneHeight);
       
                 theStage.setHeight(passSceneHeight);
-                verifyAppKey(theStage, appData, (onSucceeded)->{
+                verifyAppKey(theStage, appData,execService, (onSucceeded)->{
    
                     theStage.setScene(originalScene);
                     isShrunk.set(false);
@@ -626,11 +608,13 @@ public class App extends Application {
             }
         });
              passwordStage.show();
-            passwordStage.toFront();
+            
         Platform.runLater(() ->{
-       
-        
-            passwordField.requestFocus();}
+
+            passwordStage.toBack();
+            passwordStage.toFront();
+            
+        }
         );
     }
 
@@ -764,7 +748,7 @@ public class App extends Application {
 
     
     
-    public static void verifyAppKey(Stage passwordStage, AppData appData, EventHandler<WorkerStateEvent> onSucceeded, Runnable onAbort) {
+    public static void verifyAppKey(Stage passwordStage, AppData appData, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, Runnable onAbort) {
        
         String title = "Enter Password - Netnotes";
 
@@ -832,7 +816,7 @@ public class App extends Application {
                 } else {
                    
                     statusStage.show();
-
+                    
                     FxTimer.runLater(Duration.ofMillis(100), () -> {
                         String password = passwordField.getText();
                         BCrypt.Result result = BCrypt.verifyer(BCrypt.Version.VERSION_2A, LongPasswordStrategies.hashSha512(BCrypt.Version.VERSION_2A)).verify(password.toCharArray(), appData.getAppKeyBytes());
@@ -840,7 +824,8 @@ public class App extends Application {
                             passwordField.setText("");
                             
                             if (result.verified) {
-                                Utils.returnObject((Object)password, onSucceeded, (onFailed)->{});
+                            
+                                Utils.returnObject((Object)password, execService, onSucceeded, (onFailed)->{});
                           
                                 
                             }
@@ -1106,7 +1091,7 @@ public class App extends Application {
         passwordBtn.setOnAction(e -> {
             Button closeBtn = new Button();
             verifyAppKey(()->{
-                Stage passwordStage = createPassword("Netnotes - Password", logo, logo, closeBtn, (onSuccess) -> {
+                Stage passwordStage = createPassword("Netnotes - Password", logo, logo, closeBtn,m_networksData.getExecService(), (onSuccess) -> {
                     Object sourceObject = onSuccess.getSource().getValue();
 
                     if (sourceObject != null && sourceObject instanceof String) {
@@ -1117,7 +1102,7 @@ public class App extends Application {
                             Stage statusStage = getStatusStage("Netnotes - Saving...", "Saving...");
                             statusStage.show();
                             FxTimer.runLater(Duration.ofMillis(100), () -> {
-                                String hash = Utils.getBcryptHashString(newPassword);
+                                final String hash = Utils.getBcryptHashString(newPassword);
                                 Platform.runLater(()->{
                                     try {
 
@@ -1343,7 +1328,7 @@ public class App extends Application {
         Button getInfoBtn = new Button("Update");
         getInfoBtn.setId("checkBtn");
         getInfoBtn.setOnAction(e->{
-            m_networksData.getAppData().checkForUpdates(updateInfoProperty);         
+            m_networksData.getAppData().checkForUpdates(m_networksData.getExecService(), updateInfoProperty);         
         });
         downloadLatestBtn.setOnAction(e->{
             SimpleObjectProperty<UpdateInformation> downloadInformation = new SimpleObjectProperty<>();
@@ -1356,7 +1341,7 @@ public class App extends Application {
                 String urlString = updateInfo.getJarUrl();
              
                 HashDataDownloader dlder = new HashDataDownloader(logo, urlString, appName, appDir, appHashData, HashDataDownloader.Extensions.getJarFilter());
-                dlder.start();
+                dlder.start(m_networksData.getExecService());
 
             }else{
                 downloadInformation.addListener((obs,oldval,newval)->{
@@ -1367,11 +1352,11 @@ public class App extends Application {
                         if(urlString.startsWith("http")){  
                             HashData latestHashData = newval.getJarHashData();
                             HashDataDownloader dlder = new HashDataDownloader(logo, urlString, latestNameField.getText(),appDir, latestHashData, HashDataDownloader.Extensions.getJarFilter());
-                            dlder.start();
+                            dlder.start(m_networksData.getExecService());
                         }
                     }
                 });
-                m_networksData.getAppData().checkForUpdates(downloadInformation);
+                m_networksData.getAppData().checkForUpdates(m_networksData.getExecService(), downloadInformation);
             }
         });
 
@@ -1515,7 +1500,7 @@ public class App extends Application {
     }
 
     
-    public static Stage createPassword(String topTitle, Image windowLogo, Image mainLogo, Button closeBtn, EventHandler<WorkerStateEvent> onSucceeded) {
+    public static Stage createPassword(String topTitle, Image windowLogo, Image mainLogo, Button closeBtn, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded) {
         Stage passwordStage = new Stage();
         passwordStage.initStyle(StageStyle.UNDECORATED);
        
@@ -1608,7 +1593,7 @@ public class App extends Application {
 
                         if (passStr.equals(createPassField2.getText())) {
 
-                            Utils.returnObject(passStr, onSucceeded, e -> {
+                            Utils.returnObject(passStr,execService, onSucceeded, e -> {
                                 closeBtn.fire();
                             });
                         } else {
@@ -2288,7 +2273,8 @@ public class App extends Application {
             m_trayIcon.setActionCommand("show");
 
             m_trayIcon.addActionListener(event -> Platform.runLater(() -> {
-                if (event.getActionCommand().equals("show")) {
+                ActionEvent aEv = event;
+                if (aEv.getActionCommand().equals("show")) {
                     m_networksData.show();
                 }
               
@@ -2409,5 +2395,10 @@ public class App extends Application {
         // bodyTopRegion.minHeightProperty().bind(stage.heightProperty().subtract(30).divide(2).subtract(progressAlignmentBox.heightProperty()).subtract(fileNameProgressBox.heightProperty().divide(2)));
         bodyBox.prefHeightProperty().bind(stage.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(10));
         return scene;
+    }
+
+    public static String getShutdownCmdObject(String id) {
+
+        return "{\"id\": \"" + id + "\", \"type\": \"CMD\", \"cmd\": \"" + CMD_SHUTDOWN + "\", \"timeStamp\": " + System.currentTimeMillis() + "}";
     }
 }

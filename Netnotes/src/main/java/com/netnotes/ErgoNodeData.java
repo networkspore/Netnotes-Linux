@@ -1,21 +1,20 @@
 package com.netnotes;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.ergoplatform.appkit.NetworkType;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.utils.Ping;
 import com.utils.Utils;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -76,7 +75,6 @@ public class ErgoNodeData {
 
     private String m_startImgUrl = "/assets/play-30.png";
     private String m_stopImgUrl = "/assets/stop-30.png";
-
    
     private final SimpleStringProperty m_statusProperty = new SimpleStringProperty(ErgoMarketsData.STOPPED);
     private final SimpleStringProperty m_statusString = new SimpleStringProperty("");
@@ -96,12 +94,13 @@ public class ErgoNodeData {
     private String m_clientType = LIGHT_CLIENT;
 
     private final SimpleBooleanProperty m_availableProperty = new SimpleBooleanProperty(false);
+    private final SimpleObjectProperty<Ping> m_pingProperty = new SimpleObjectProperty<>(null);
 
     public ErgoNodeData(ErgoNodesList nodesList, JsonObject jsonObj) {
         m_ergoNodesList = nodesList;
 
         openJson(jsonObj);
-
+        m_pingProperty.addListener(m_pingListener);
     }
 
     public ErgoNodeData(ErgoNodesList ergoNodesList, String clientType, NamedNodeUrl namedNodeUrl) {
@@ -109,7 +108,7 @@ public class ErgoNodeData {
         m_clientType = clientType;
 
         m_namedNodeUrlProperty.set(namedNodeUrl == null ? new NamedNodeUrl() : namedNodeUrl);
-
+        m_pingProperty.addListener(m_pingListener);
     }
 
     public SimpleObjectProperty< NamedNodeUrl> namedNodeUrlProperty(){
@@ -355,8 +354,19 @@ public class ErgoNodeData {
 
     public void remove(){
         stop();
-        m_ergoNodesList.remove(getId());
-       
+        NamedNodeUrl namedNode = m_namedNodeUrlProperty.get();
+        if(namedNode != null){
+        
+            Alert a = new Alert(AlertType.NONE, "Would you like to remove:\n\n" + namedNode.getName() + "\nhttp://" + namedNode.getUrlString(), ButtonType.NO, ButtonType.YES);
+            Optional<ButtonType> btnType = a.showAndWait();
+            
+            if(btnType.isPresent() && btnType.get() == ButtonType.YES){
+                m_ergoNodesList.remove(getId());
+            }
+
+        }else{
+            m_ergoNodesList.remove(getId());
+        }
     }
 
     
@@ -520,17 +530,38 @@ public class ErgoNodeData {
         Region topMiddleRegion = new Region();
         HBox.setHgrow(topMiddleRegion, Priority.ALWAYS);
 
-        HBox topBox = new HBox(topInfoStringText, topMiddleRegion, topRightText);
+        Region topRightMiddleRegion = new Region();
+        HBox.setHgrow(topRightMiddleRegion, Priority.ALWAYS);
+
+        TextField topMiddleField = new TextField();
+        topMiddleField.setFont(App.titleFont);
+        topMiddleField.setId("smallPrimaryColor");
+        topMiddleField.setAlignment(Pos.CENTER);
+        HBox.setHgrow(topMiddleField, Priority.ALWAYS);
+
+
+        HBox topBox = new HBox(topInfoStringText, topMiddleField,  topRightText);
         topBox.setId("darkBox");
 
         Text ipText = new Text(m_namedNodeUrlProperty.get() != null ? (m_namedNodeUrlProperty.get().getUrlString() == null ? "IP INVALID" : m_namedNodeUrlProperty.get().getUrlString()) : "Configure node");
         ipText.setFill(m_primaryColor);
         ipText.setFont(m_smallFont);
 
-        Region bottomMiddleRegion = new Region();
-        HBox.setHgrow(bottomMiddleRegion, Priority.ALWAYS);
+        TextField bottomMiddleField = new TextField();
+        bottomMiddleField.setFont(App.titleFont);
+        bottomMiddleField.setId("formFieldSmall");
+        bottomMiddleField.setAlignment(Pos.CENTER);
+        bottomMiddleField.setPadding(new Insets(0));
+        HBox.setHgrow(bottomMiddleField, Priority.ALWAYS);
 
-        HBox bottomBox = new HBox(ipText, bottomMiddleRegion, botTimeText);
+        Binding<String> lastPingBinding = Bindings.createObjectBinding(()->m_pingProperty.get() == null ? "" : "    Ping: " + (m_pingProperty.get().getAvailable() ? m_pingProperty.get().getPing() + " ms" : m_pingProperty.get().getError()), m_pingProperty);
+
+        bottomMiddleField.textProperty().bind(Bindings.concat(lastPingBinding, "       "));
+        
+        HBox bottomMiddleBox = new HBox(bottomMiddleField);
+        HBox.setHgrow(bottomMiddleBox, Priority.ALWAYS);
+
+        HBox bottomBox = new HBox(ipText, bottomMiddleBox, botTimeText);
         bottomBox.setId("darkBox");
         bottomBox.setAlignment(Pos.CENTER_LEFT);
 
@@ -552,10 +583,10 @@ public class ErgoNodeData {
         HBox.setHgrow(rowBox, Priority.ALWAYS);
 
         rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-            Platform.runLater(() -> {
+           
                 getErgoNodesList().selectedIdProperty().set(getId());
                 e.consume();
-            });
+           
         });
 
         Runnable updateSelected = () -> {
@@ -582,51 +613,69 @@ public class ErgoNodeData {
         start();
         return rowBox;
     }
+    public boolean isStopped(){
+        return statusProperty().get().equals(ErgoMarketsData.STOPPED);
+    }
+   
+    private ChangeListener<Ping> m_pingListener = (obs,oldval,newval) ->{
+        
+        Runnable setOffline = ()->{
+            m_statusString.set(newval != null ? newval.getError() : "Ping unavailable");
+            m_cmdStatusUpdated.set(Utils.formatDateTimeString(LocalDateTime.now()));
+            m_cmdProperty.set("");
+            m_availableProperty.set(false);
+        };
 
+        if (newval == null) {
+            setOffline.run();
+        } else {
+            if(newval.getAvailable()){
+                m_cmdProperty.set("");
+                if(m_clientType != null && m_clientType.equals( LIGHT_CLIENT)){
+                    m_availableProperty.set(true);
+                }
+                m_cmdStatusUpdated.set(Utils.formatDateTimeString(LocalDateTime.now()));
+                m_statusString.set("Online");
+            
+            }else{
+                setOffline.run();
+            }
+           
+        }
+        m_statusProperty.set(ErgoMarketsData.STOPPED);
+
+    };
+
+    public NetworksData getNetworksData(){
+        return getErgoNodesList().getErgoNodes().getNetworksData();
+    }
+    
     public void start() {
         NamedNodeUrl namedNodeUrl = m_namedNodeUrlProperty.get();
-        if (namedNodeUrl != null && namedNodeUrl.getIP() != null) {
-            Runnable r = () -> {
-                Platform.runLater(() -> m_statusProperty.set(ErgoMarketsData.STARTED));
-                Platform.runLater(()->m_statusString.set("Pinging..."));
-                try{
-                    Platform.runLater(()->m_cmdProperty.set("PING"));
-                    
-                    Utils.pingIP(namedNodeUrl.getIP(), m_statusString, m_cmdStatusUpdated, m_availableProperty);
-
-                    if (!m_availableProperty.get()) {
-                        
-                        Platform.runLater(()-> m_statusString.set("Offline"));
-                        Platform.runLater(()-> m_cmdStatusUpdated.set(Utils.formatDateTimeString(LocalDateTime.now())));
-                        Platform.runLater(()-> m_cmdProperty.set(""));
-                        Platform.runLater(()-> m_availableProperty.set(false));
-                    
-                    } else {
-                        Platform.runLater(()->m_cmdProperty.set(""));
-                        Platform.runLater(()-> m_availableProperty.set(true));
-                        Thread.sleep(2000);
-                        Platform.runLater(()-> m_statusString.set("Online"));
+        if (namedNodeUrl != null && namedNodeUrl.getIP() != null &&  m_statusProperty.get().equals(ErgoMarketsData.STOPPED)) {
             
-        
-                    }
-                } catch (Exception e) {
-                    Platform.runLater(()->m_cmdProperty.set(""));
-                    Platform.runLater(()-> m_statusString.set(e.toString()));
-                    Platform.runLater(()->m_cmdStatusUpdated.set(Utils.formatDateTimeString(LocalDateTime.now())));
-                    
-                    try {
-                        Files.writeString(logFile.toPath(), "\nErgoNodeData (ping): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e1) {
+
+
+            m_statusProperty.set(ErgoMarketsData.STARTED);
+            m_statusString.set("Pinging...");
                 
-                    }
-                }
-                Platform.runLater(() -> m_statusProperty.set(ErgoMarketsData.STOPPED));
-            };
-            Thread t = new Thread(r);
-            t.setDaemon(true);
-            t.start();
+            m_cmdProperty.set("PING");
+                    
+            Utils.pingIP(namedNodeUrl.getIP(), m_pingProperty, m_ergoNodesList.getErgoNodes().getNetworksData().getExecService());
+
+                    
+            
+
+            
+            //Thread t = new Thread(r);
+           // t.setDaemon(true);
+           // t.start();
         }
 
+    }
+
+    public String getCurrentStatus(){
+        return statusString().get() != null  && statusString().get() != "" ? statusString().get() : (isAvailable() ? "Online" : "Offline");
     }
 
     public void addUpdateListener(ChangeListener<LocalDateTime> changeListener) {
@@ -988,8 +1037,13 @@ public class ErgoNodeData {
                 if (m_settingsStage.isIconified()) {
                     m_settingsStage.setIconified(false);
                 }
-                m_settingsStage.show();
-                Platform.runLater(()->m_settingsStage.toFront());
+                if(!m_settingsStage.isShowing()){
+                    m_settingsStage.show();
+                }else{
+                    Platform.runLater(()->m_settingsStage.toBack());
+                    Platform.runLater(()->m_settingsStage.toFront());
+                }
+                
             }
      
 
@@ -1012,10 +1066,10 @@ public class ErgoNodeData {
         return menuBar;
     }
 
-    private boolean m_available = false;
+
 
     public boolean isAvailable(){
-        return m_available;
+        return m_availableProperty.get();
     }
 
 

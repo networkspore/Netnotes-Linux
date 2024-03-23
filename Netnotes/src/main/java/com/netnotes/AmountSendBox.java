@@ -7,10 +7,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.io.File;
-import java.io.IOException;
 import java.text.DecimalFormat;
 
 import com.utils.Utils;
@@ -322,7 +318,8 @@ public class AmountSendBox extends AmountBox {
         return m_feeBox.feeAmountProperty();
     }
    
-
+    private BufferedImage m_amountImg = null;
+    private Graphics2D m_amountG2d = null;
     public void updateAmountImage() {
         final int padding = 5;
         
@@ -354,19 +351,19 @@ public class AmountSendBox extends AmountBox {
         decs = quantityValid ? decs.substring(1, decs.length()) : "";
    
     
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
+        m_amountImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_amountG2d = m_amountImg.createGraphics();
         
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
+        m_amountG2d.setFont(font);
+        FontMetrics fm = m_amountG2d.getFontMetrics();
  
         int stringWidth = fm.stringWidth(amountString);
 
       
 
-        g2d.setFont(smallFont);
+        m_amountG2d.setFont(smallFont);
 
-        fm = g2d.getFontMetrics();
+        fm = m_amountG2d.getFontMetrics();
         int maxWidth = fm.stringWidth(maxString);
 
 
@@ -384,22 +381,22 @@ public class AmountSendBox extends AmountBox {
 
         int currencyNameStringX = decimalsX + 2;
 
-        g2d.dispose();
+        m_amountG2d.dispose();
         int height = 45;
         BufferedImage unitImage = SwingFXUtils.fromFXImage(maxAmount != null ? maxAmount.getCurrency().getIcon() : new Image("/assets/unknown-unit.png"), null);
         Drawing.setImageAlpha(unitImage, 0x40);
         //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        //   g2d.setComposite(AlphaComposite.Clear);
+        m_amountImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        m_amountG2d = m_amountImg.createGraphics();
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_amountG2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        //   m_amountG2d.setComposite(AlphaComposite.Clear);
 
         /* for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
@@ -407,47 +404,47 @@ public class AmountSendBox extends AmountBox {
 
                 Color c2 = new Color(c.getRed(), c.getGreen(), c.getBlue(), 35);
 
-                img.setRGB(x, y, c2.getRGB());
+                m_amountImg.setRGB(x, y, c2.getRGB());
             }
         }
          #ffffff05, #66666680, #ffffff05*/
-         Drawing.fillArea(img, 0xff000000, 0, 0, width,height);
-        Drawing.drawBar(1, 0x30ffffff, 0x60666666,img, 0, 0, width, height/2);
+         Drawing.fillArea(m_amountImg, 0xff000000, 0, 0, width,height);
+        Drawing.drawBar(1, 0x30ffffff, 0x60666666,m_amountImg, 0, 0, width, height/2);
 
   
 
-        g2d.drawImage(unitImage, width - unitImage.getWidth() - (maxWidth /2) , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        m_amountG2d.drawImage(unitImage, width - unitImage.getWidth() - (maxWidth /2) , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
 
        
 
 
 
-        g2d.setFont(font);
-        fm = g2d.getFontMetrics();
+        m_amountG2d.setFont(font);
+        fm = m_amountG2d.getFontMetrics();
 
 
-        g2d.setColor(java.awt.Color.WHITE);
+        m_amountG2d.setColor(java.awt.Color.WHITE);
 
-        g2d.drawString(amountString, integersX, fm.getAscent() + 5);
+        m_amountG2d.drawString(amountString, integersX, fm.getAscent() + 5);
 
-        g2d.setFont(smallFont);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
+        m_amountG2d.setFont(smallFont);
+        fm = m_amountG2d.getFontMetrics();
+        m_amountG2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
 
        
         if(decimalPlaces > 0){
             //decimalsX = widthIncrease > 0 ? decimalsX + widthIncrease : decimalsX;
-            g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
+            m_amountG2d.drawString(decs, decimalsX , fm.getHeight() + 2);
         }
 
         
-        g2d.drawString(currencyName, currencyNameStringX, height - 10);
+        m_amountG2d.drawString(currencyName, currencyNameStringX, height - 10);
         // ((height - fm.getHeight()) / 2) + fm.getAscent())
-        g2d.setColor(Color.WHITE);
-        g2d.drawString(maxString, width - ((padding*2) + maxWidth),  ((height - fm.getHeight()) / 2) + fm.getAscent());
-       // g2d.setFont(smallFont);
+        m_amountG2d.setColor(Color.WHITE);
+        m_amountG2d.drawString(maxString, width - ((padding*2) + maxWidth),  ((height - fm.getHeight()) / 2) + fm.getAscent());
+       // m_amountG2d.setFont(smallFont);
    
-     //   fm = g2d.getFontMetrics();
+     //   fm = m_amountG2d.getFontMetrics();
 
 
         
@@ -456,16 +453,18 @@ public class AmountSendBox extends AmountBox {
         } catch (IOException e) {
 
         }*/
-        g2d.dispose();
 
        /* try {
-            ImageIO.write(img, "png", new File("outputImage.png"));
+            ImageIO.write(m_amountImg, "png", new File("outputImage.png"));
         } catch (IOException e) {
 
         }*/
 
-        m_maxAmountImage.set(SwingFXUtils.toFXImage(img, null));
+        m_maxAmountImage.set(SwingFXUtils.toFXImage(m_amountImg, null));
         
+        m_amountG2d.dispose();
+        m_amountG2d = null;
+        m_amountImg = null; 
     }
 
     public SimpleBooleanProperty isFeeProperty(){

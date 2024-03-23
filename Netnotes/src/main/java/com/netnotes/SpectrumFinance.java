@@ -1,14 +1,9 @@
 package com.netnotes;
 
 import java.awt.Rectangle;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
@@ -17,36 +12,32 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 
 import org.reactfx.util.FxTimer;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonParseException;
 import com.utils.Utils;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ListChangeListener.Change;
-import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -80,7 +71,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public static String API_URL = "https://api.spectrum.fi";
 
-    private static File logFile = new File("netnotes-log.txt");
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
@@ -88,6 +78,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static java.awt.Color NEGATIVE_COLOR = new java.awt.Color(0xff9A2A2A, true);
     public static java.awt.Color NEGATIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xffe96d71, true);
     public static java.awt.Color NEUTRAL_COLOR = new java.awt.Color(0x111111);
+
+    
 
     public static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     public static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
@@ -103,9 +95,35 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private SimpleObjectProperty<JsonObject> m_cmdObjectProperty = new SimpleObjectProperty<>(null);
 
     private ArrayList<String> m_favoriteIds = new ArrayList<>();
-    private List<SpectrumMarketItem> m_marketsList = Collections.synchronizedList(new ArrayList<SpectrumMarketItem>());
-    private AtomicLong m_marketsLastChecked = new AtomicLong(0);
-    private AtomicLong m_tickersLastChecked = new AtomicLong(0);
+    private ArrayList<SpectrumMarketData> m_marketsList = new ArrayList<>();
+
+    private SimpleObjectProperty<LocalDateTime> m_listUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
+    private SimpleObjectProperty<LocalDateTime> m_listChanged = new SimpleObjectProperty<>(null);
+//    private AtomicLong m_marketsLastChecked = new AtomicLong(0);
+//    private AtomicLong m_tickersLastChecked = new AtomicLong(0);
+
+    
+    private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
+    private ScheduledFuture<?> m_scheduledFuture = null;
+
+
+    private int m_listenerSize = 0;
+
+    //private SimpleObjectProperty<JsonArray> m_marketJson = new SimpleObjectProperty<>(null);
+
+
+    public ArrayList<SpectrumMarketData> marketsList(){
+        return m_marketsList;
+    }
+
+    public SimpleObjectProperty<LocalDateTime> listUpdated(){
+        return m_listUpdated;
+    }
+
+    public SimpleObjectProperty<LocalDateTime> listChanged(){
+        return m_listChanged;
+    }
+    
 
     public SpectrumFinance(NetworksData networksData) {
         this(null, networksData);
@@ -142,7 +160,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                                     | IOException e) {
                                 try {
-                                    Files.writeString(logFile.toPath(), "SpectrumFinance (addListenersr): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                    Files.writeString(App.logFile.toPath(), "SpectrumFinance (addListenersr): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                 } catch (IOException e1) {
                                 
                                 }
@@ -152,6 +170,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 }
             }     
         });
+     
     }
 
     public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
@@ -222,11 +241,18 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return m_appStage;
     }
 
+    public SpectrumMarketData[] getMarketDataArray(){
+        SpectrumMarketData[] dataArray = new SpectrumMarketData[m_marketsList.size()];
+        return dataArray = m_marketsList.toArray(dataArray);
+    }
 
-    public static SpectrumMarketData getMarketDataBySymbols(SpectrumMarketData[] dataArray,  String baseSymbol, String quoteSymbol) {
-        if (dataArray != null && baseSymbol != null && quoteSymbol != null) {
+
+    public SpectrumMarketData getMarketDataBySymbols(String baseSymbol, String quoteSymbol) {
+        
+        if (m_marketsList.size() > 0 && baseSymbol != null && quoteSymbol != null) {
+            SpectrumMarketData[] dataArray = getMarketDataArray();
+
             for (SpectrumMarketData data : dataArray) {
-
            
                 if (data.getBaseSymbol().equals(baseSymbol) && data.getQuoteSymbol().equals(quoteSymbol) ) {
                     return data;
@@ -237,6 +263,22 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }
 
+    public PriceQuote getPriceQuoteById(String baseId, String quoteId){
+        if (m_marketsList.size() > 0 && baseId != null && quoteId != null) {
+            SpectrumMarketData[] dataArray = getMarketDataArray();
+            
+            for (int i = 0; i < dataArray.length ; i++) {
+                SpectrumMarketData data = m_marketsList.get(i);
+
+                if (data.getBaseId().equals(baseId) && data.getQuoteId().equals(quoteId)) {
+                    
+                    return data;
+                }
+            }
+            
+        }
+        return null;
+    }
     public static SpectrumMarketData getMarketDataById(ArrayList<SpectrumMarketData> dataList, String id) {
         if (id != null) {
             for (SpectrumMarketData data : dataList) {
@@ -288,7 +330,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
     
-    public SpectrumMarketItem getMarketItem(String id) {
+    /*public SpectrumMarketItem getMarketItem(String id) {
         if (id != null) {
             
             for (SpectrumMarketItem item : m_marketsList) {
@@ -299,7 +341,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             
         }
         return null;
-    }
+    }*/
 
 
 
@@ -331,6 +373,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             };
 
             closeBtn.setOnAction(closeEvent -> {
+
                 m_appStage.close();
                 runClose.run();
             });
@@ -613,304 +656,167 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
   
+    public ExecutorService getExecService(){
+        return getNetworksData().getExecService();
+    }
 
-
-    private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    private void getMarkets() {
         String urlString = API_URL + "/v1/price-tracking/markets";
 
-        /*try {
-            Files.writeString(logFile.toPath(), "\ngetting url: " + urlString, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
+        Utils.getUrlJsonArray(urlString, getExecService(), success -> {
 
-        }*/
-        
-        Task<JsonArray> task = new Task<JsonArray>() {
-            @Override
-            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
-                InputStream inputStream = null;
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                String outputString = null;
 
-                URL url = new URL(urlString);
-
-                URLConnection con = url.openConnection();
-
-                con.setRequestProperty("User-Agent", Utils.USER_AGENT);
-
-                inputStream = con.getInputStream();
-
-                byte[] buffer = new byte[2048];
-
-                int length;
-
-                while ((length = inputStream.read(buffer)) != -1) {
-
-                    outputStream.write(buffer, 0, length);
-
-            
-                }
-
-                outputStream.close();
-                outputString = outputStream.toString();
-
-                JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
-              
-                if(jsonArray != null){
-                    Platform.runLater(()->{
-                        File marketsFile = getIdDataFile(MARKET_DATA_ID);
-                        try {
-                            Utils.writeEncryptedString(getAppKey(), marketsFile, jsonArray.toString());
-                        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
-                                | IOException e) {
-                            try {
-                                Files.writeString(logFile.toPath(), "SpectrumFinance (CMCmarketsLocal): " + e.toString(),StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e1) {
-                  
-                            }
-                        }
-                  
-                    });
-                    
-                }
-
-                return jsonArray == null ? null : jsonArray;
-
-            }
-
-        };
-
-        task.setOnFailed(onFailed);
-
-        task.setOnSucceeded(onSucceeded);
-
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
+            Object sourceObject = success.getSource().getValue();
+            if (sourceObject != null && sourceObject instanceof JsonArray) {
+                JsonArray marketJsonArray = (JsonArray) sourceObject;
+             
+                getMarketUpdate(marketJsonArray);
+            } 
+        }, (onfailed)->{
+            try {
+                Files.writeString(App.logFile.toPath(), "getMarketsDataArray failed:" + onfailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
                 
-              
-
+            }
+        }, null);
+                        
     }
   
       
     public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/cg/tickers";
 
-        Task<JsonArray> task = new Task<JsonArray>() {
-            @Override
-            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
-                InputStream inputStream = null;
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                String outputString = null;
-
-                URL url = new URL(urlString);
-
-                URLConnection con = url.openConnection();
-
-                con.setRequestProperty("User-Agent", Utils.USER_AGENT);
-
-                inputStream = con.getInputStream();
-
-                byte[] buffer = new byte[2048];
-
-                int length;
-
-                while ((length = inputStream.read(buffer)) != -1) {
-
-                    outputStream.write(buffer, 0, length);
-
-            
-                }
-
-                outputStream.close();
-                outputString = outputStream.toString();
-
-                JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
-
-                if(jsonArray != null){
-                    Platform.runLater(()->{
-                        File tickerFile = getIdDataFile(TICKER_DATA_ID);
-                        try {
-                            Utils.writeEncryptedString(getAppKey(), tickerFile, jsonArray.toString());
-                        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
-                                | IOException e) {
-                            try {
-                                Files.writeString(logFile.toPath(), "SpectrumFinance (CMCmarketsLocal): " + e.toString(),StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e1) {
-                  
-                            }
-                        }
-                  
-                    });
-                    
-                }
-
-                return jsonArray == null ? null : jsonArray;
-
-            }
-
-        };
-
-        task.setOnFailed(onFailed);
-
-        task.setOnSucceeded(onSucceeded);
-
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
-                
+        Utils.getUrlJsonArray(urlString, getNetworksData().getExecService(), onSucceeded, onFailed, null);                
 
     }
 
- 
     
-    private void getMarketArray(SimpleObjectProperty<SpectrumMarketData[]> marketDataProperty) {
-        Runnable failed = ()->{
-            Platform.runLater(()-> marketDataProperty.set(null));
-        };
-    
-        getMarkets(success -> {
-           
 
-            Object sourceObject = success.getSource().getValue();
-            if (sourceObject != null && sourceObject instanceof JsonArray) {
+    private void getMarketUpdate(JsonArray jsonArray){
+        
+        ArrayList<SpectrumMarketData> tmpMarketsList = new ArrayList<>();
+
+        SimpleBooleanProperty isChanged = new SimpleBooleanProperty(false);
+        for (int i = 0; i < jsonArray.size(); i++) {
+    
+            JsonElement marketObjectElement = jsonArray.get(i);
+            if (marketObjectElement != null && marketObjectElement.isJsonObject()) {
+
+                JsonObject marketDataJson = marketObjectElement.getAsJsonObject();
                 
-                ArrayList<SpectrumMarketData> marketsList = new ArrayList<>();
+                try{
+                    
+                    SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson);
+                    int marketIndex = getMarketDataIndexById(tmpMarketsList, marketData.getId());
+                    
 
-                JsonArray jsonArray = (JsonArray) sourceObject;
-
-          
-                for (int i = 0; i < jsonArray.size(); i++) {
-            
-                    JsonElement marketObjectElement = jsonArray.get(i);
-                    if (marketObjectElement != null && marketObjectElement.isJsonObject()) {
-
-                        JsonObject marketDataJson = marketObjectElement.getAsJsonObject();
-                        
-                        try{
-                            
-                            SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson);
-                            int marketIndex = getMarketDataIndexById(marketsList, marketData.getId());
-                            
-
-                            if(marketIndex != -1){
-                                SpectrumMarketData lastData = marketsList.get(marketIndex);
-                                BigDecimal quoteVolume = lastData.getQuoteVolume();
-                                if(marketData.getQuoteVolume().doubleValue() > quoteVolume.doubleValue()){
-                                    marketsList.set(marketIndex, marketData);
-                                }
-                            }else{
-                                marketsList.add(marketData);
-                            }
-
-                            
-                            
-                        }catch(Exception e){
-                            try {
-                                Files.writeString(logFile.toPath(), "\nSpectrumFinance(updateMarkets): " + e.toString() + " " + marketDataJson.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e1) {
-                            
-                            }
+                    if(marketIndex != -1){
+                        SpectrumMarketData lastData = tmpMarketsList.get(marketIndex);
+                        BigDecimal quoteVolume = lastData.getQuoteVolume();
+                        if(marketData.getQuoteVolume().doubleValue() > quoteVolume.doubleValue()){
+                            tmpMarketsList.set(marketIndex, marketData);
                         }
-                        
+                    }else{
+                        isChanged.set(true);
+                        tmpMarketsList.add(marketData);
                     }
 
+                    
+                    
+                }catch(Exception e){
+                    try {
+                        Files.writeString(App.logFile.toPath(), "\nSpectrumFinance(updateMarkets): " + e.toString() + " " + marketDataJson.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e1) {
+                    
+                    }
                 }
-              
                 
-                if(marketsList.size() != 0){
-                    getTickers((onTickerArray)->{
-                        Object tickerSourceObject = onTickerArray.getSource().getValue();
-                        if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
-                            JsonArray tickerArray = (JsonArray) tickerSourceObject;
+            }
 
-                 
-                            
-                            for (int j = 0; j < tickerArray.size(); j++) {
+        }
+      
+        
+        if(tmpMarketsList.size() != 0){
+            getTickers((onTickerArray)->{
+                Object tickerSourceObject = onTickerArray.getSource().getValue();
+                if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
+                    JsonArray tickerArray = (JsonArray) tickerSourceObject;
+
+         
+                    
+                    for (int j = 0; j < tickerArray.size(); j++) {
+                
+                        JsonElement tickerObjectElement = tickerArray.get(j);
+                        if (tickerObjectElement != null && tickerObjectElement.isJsonObject()) {
+
+                            JsonObject tickerDataJson = tickerObjectElement.getAsJsonObject();
+
+                            JsonElement tickerIdElement = tickerDataJson.get("ticker_id");
+                            String tickerId = tickerIdElement != null && tickerIdElement.isJsonPrimitive() ? tickerIdElement.getAsString() : null;
+
+                            if(tickerId != null){
                         
-                                JsonElement tickerObjectElement = tickerArray.get(j);
-                                if (tickerObjectElement != null && tickerObjectElement.isJsonObject()) {
-
-                                    JsonObject tickerDataJson = tickerObjectElement.getAsJsonObject();
-
-                                    JsonElement tickerIdElement = tickerDataJson.get("ticker_id");
-                                    String tickerId = tickerIdElement != null && tickerIdElement.isJsonPrimitive() ? tickerIdElement.getAsString() : null;
-
-                                    if(tickerId != null){
-                                
-                                        SpectrumMarketData marketData = getMarketDataById(marketsList, tickerId);
+                                SpectrumMarketData marketData = getMarketDataById(tmpMarketsList, tickerId);
+                            
+                                if(marketData != null){
                                     
-                                        if(marketData != null){
-                                            
+                                
+                                    JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
+                                    JsonElement poolIdElement = tickerDataJson.get("pool_id");
+                                    if(
+                                    
+                                        liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() &&
+                                        poolIdElement != null && poolIdElement.isJsonPrimitive()
+                                    ){
                                         
-                                            JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
-                                            JsonElement poolIdElement = tickerDataJson.get("pool_id");
-                                            if(
-                                            
-                                                liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() &&
-                                                poolIdElement != null && poolIdElement.isJsonPrimitive()
-                                            ){
-                                                
-                                            
-                                                marketData.setLiquidityUSD(liquidityUsdElement.getAsBigDecimal());
-                                                marketData.setPoolId(poolIdElement.getAsString());
-                                                
-                                            }
-                                        }
-
-                                    }
-                                
                                     
+                                        marketData.setLiquidityUSD(liquidityUsdElement.getAsBigDecimal());
+                                        marketData.setPoolId(poolIdElement.getAsString());
+                                        
+                                    }
                                 }
 
                             }
                         
-                            SpectrumMarketData[] dataArray = new SpectrumMarketData[marketsList.size()];
-                            dataArray = marketsList.toArray(dataArray);
-                            final SpectrumMarketData[] completeDataArray = dataArray;
-                            Platform.runLater(()->marketDataProperty.set(completeDataArray));
+                            
+                        }
 
-                        }else{
-                            SpectrumMarketData[] dataArray = new SpectrumMarketData[marketsList.size()];
-                            dataArray = marketsList.toArray(dataArray);
-                            final SpectrumMarketData[] completeDataArray = dataArray;
-                            Platform.runLater(()->marketDataProperty.set(completeDataArray));
-                        }
-                    }, (onTickersFailed)->{
-                        try {
-                            Files.writeString(logFile.toPath(), "\nSpectrumFinance (onTickersFailed): " + onTickersFailed.getSource().getException().toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        } catch (IOException e) {
-                           
-                        }
-                        SpectrumMarketData[] dataArray = new SpectrumMarketData[marketsList.size()];
-                        dataArray = marketsList.toArray(dataArray);
-                        final SpectrumMarketData[] completeDataArray = dataArray;
-                        Platform.runLater(()->marketDataProperty.set(completeDataArray));
-                    });
-                }else{
-                
-                    Platform.runLater(()->marketDataProperty.set(null));
+                    }
+                    updateMarketList(tmpMarketsList);
+                   // Platform.runLater(()->updateMarketArray(completeDataArray));
+
                 }
-            
-               
-           
-            } else {
-                failed.run();
-            }
-        }, (onfailed)->{
-            try {
-                Files.writeString(logFile.toPath(), "getMarketsDataArray failed:" + onfailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-                
-            }
-            failed.run();
-        });
+            }, (onTickersFailed)->{
+                try {
+                    Files.writeString(App.logFile.toPath(), "\nSpectrumFinance (onTickersFailed): " + onTickersFailed.getSource().getException().toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+                   
+                }
+             
+            });
+        }
     }
+    
+    private void updateMarketList(ArrayList<SpectrumMarketData> data){
+        int size = data.size();
+
+        if(m_marketsList.size() == 0){
+            for(int i = 0; i < size; i++){
+                SpectrumMarketData marketData = data.get(i);
+                m_marketsList.add(marketData);
+            }
+            data.clear();
+            listUpdated().set(LocalDateTime.now());
+        }else{
+            for(int i = 0; i < size; i++){
+                SpectrumMarketData newMarketData = data.get(i);
+                SpectrumMarketData marketData = getMarketDataById(m_marketsList, newMarketData.getId());
+                marketData.update(newMarketData);
+            }
+            data.clear();
+        }
+    }
+    
     /*
     public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         
@@ -927,7 +833,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
                 try {
-                    Files.writeString(logFile.toPath(), "\nSpectrumFinance: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(App.logFile.toPath(), "\nSpectrumFinance: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e1) {
 
                 }
@@ -940,14 +846,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
         
     }*/
     //
-    public boolean getPoolChart(String poolId,long from, long to, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from="+from+"&to=" + to;
-        /*try {
-            Files.writeString(logFile.toPath(), "\ngetting url: " + urlString, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-
-        }*/
-        Utils.getUrlJsonArray(urlString, onSucceeded, onFailed, null);
+    public boolean getPoolChart(String poolId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart";
+   
+        
+        Utils.getUrlJsonArray(urlString,getExecService(), onSucceeded, onFailed, null);
 
         return false;
     }
@@ -959,63 +862,109 @@ public class SpectrumFinance extends Network implements NoteInterface {
         if (!m_msgListeners.contains(item)) {
 
             if (m_connectionStatus.get() == 0) {
-                startUpdating();
+                start();
             }
-            
             m_msgListeners.add(item);
+        }else{
+          
         }
 
     }
-    private ChangeListener<LocalDateTime> m_timeCycleListener = null;
-    private int m_listenerSize = 0;
-    public void startUpdating(){
-        SimpleObjectProperty<SpectrumMarketData[]> dataArrayObject = new SimpleObjectProperty<>(null);
 
-        m_connectionStatus.set(1);
-       
-        Runnable doUpdate = ()-> {
-         
-            getMarketArray(dataArrayObject);
-        };
-        m_timeCycleListener = (obs,oldval,newval)-> doUpdate.run();
-        getNetworksData().timeCycleProperty().addListener(m_timeCycleListener);
-
-            
-        ChangeListener<SpectrumMarketData[]> dataChangeListener = (obs,oldval,newval)->{
-    
-            for(SpectrumMarketInterface msgListener : m_msgListeners){
-                msgListener.marketArrayChange(newval);
+    public void stop(){
+        m_connectionStatus.set(0);
+        
+        if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
+            m_scheduledFuture.cancel(false);
+            try {
+                Files.writeString(App.logFile.toPath(), "Update spf stopped", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+                
             }
+        }
+
+    }
+ 
+    private static volatile int m_counter = 0;
+
+    public void start(){
+        if(m_connectionStatus.get() == 0){
+
+            m_connectionStatus.set(1);
+                    
+
+            ExecutorService executor = getNetworksData().getExecService();
             
-        };
-        dataArrayObject.addListener(dataChangeListener);
-        doUpdate.run();
-    
-        m_msgListeners.addListener((ListChangeListener.Change<? extends SpectrumMarketInterface> c) ->{
-            int newSize = m_msgListeners.size();
-            boolean added = newSize > m_listenerSize;
-            
-            if(added){
+            Runnable exec = ()->{
+                FreeMemory freeMem = Utils.getFreeMemory();
                 
-                SpectrumMarketInterface lastInterface = m_msgListeners.get(newSize-1);
-                lastInterface.marketArrayChange(dataArrayObject.get());
-                
-            }else{
-                if(newSize == 0){
-                 
-                    shutdown();
+                getMarkets();
+                try {
+                    Files.writeString(App.logFile.toPath(), "\nfreeMem: " + freeMem.getMemFreeGB() + " GB", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+                    
                 }
-            }
 
-            m_listenerSize = newSize;
-        });
-        addShutdownListener((obs,oldval,newval)->{
-           
-            getNetworksData().timeCycleProperty().removeListener(m_timeCycleListener);
-            m_connectionStatus.set(0);
-            dataArrayObject.removeListener(dataChangeListener);
-            removeShutdownListener();
-        });
+               
+                int counter = m_counter;
+ 
+                if(counter >= 10){
+                    System.gc();
+                    try {
+                        Files.writeString(App.logFile.toPath(), "\nGarbage Collected", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+                        
+                    }
+                    m_counter = 0;
+                }else{
+                    m_counter++;
+                }
+                
+            };
+
+            Runnable submitExec = ()->executor.submit(exec);
+
+            m_scheduledFuture = m_schedualedExecutor.scheduleAtFixedRate(submitExec, 0, 7000, TimeUnit.MILLISECONDS);
+
+                
+            /*ChangeListener<SpectrumMarketData[]> dataChangeListener = (obs,oldval,newval)->{
+        
+                for(SpectrumMarketInterface msgListener : m_msgListeners){
+                    msgListener.marketArrayChange(newval);
+                }
+                
+            };*/
+        // dataArrayObject.addListener(dataChangeListener);
+         //   getMarkets();
+        
+            m_msgListeners.addListener((ListChangeListener.Change<? extends SpectrumMarketInterface> c) ->{
+                int newSize = m_msgListeners.size();
+                boolean added = newSize > m_listenerSize;
+                
+                if(added){
+                    
+                //   SpectrumMarketInterface lastInterface = m_msgListeners.get(newSize-1);
+                // lastInterface.marketArrayChange(dataArrayObject.get());
+                    
+                }else{
+                    if(newSize == 0){
+                    
+                        shutdown();
+                    }
+                }
+
+                m_listenerSize = newSize;
+            });
+       
+            addShutdownListener((obs,oldval,newval)->{
+            
+                stop();
+               
+            // dataArrayObject.removeListener(dataChangeListener);
+                removeShutdownListener();
+          
+            });
+        }
     }
 
     public SpectrumMarketInterface getListener(String id) {
@@ -1031,19 +980,16 @@ public class SpectrumFinance extends Network implements NoteInterface {
   
 
     public boolean removeMsgListener(SpectrumMarketInterface item) {
-        /*try {
-            Files.writeString(logFile.toPath(), "removing listener:" + item.getId(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
+   
 
-        }*/
         SpectrumMarketInterface listener = getListener(item.getId());
+        
         if (listener != null) {
             boolean removed = m_msgListeners.remove(listener);
-
-     
+            
+            
             if (m_msgListeners.size() == 0) {
                 shutdown();
-              
             }
             return removed;
         }

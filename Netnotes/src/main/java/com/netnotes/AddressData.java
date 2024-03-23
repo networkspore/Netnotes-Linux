@@ -49,7 +49,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -84,11 +83,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -96,10 +91,6 @@ import java.math.BigDecimal;
 
 public class AddressData extends Network {
 
-    public static class AddressNotes{
-         public final static String SEND_CMD = "SEND";
-    }
-   
 
     public static class AddressTabs {
         public final static String TRANSACTIONS = "Transactions";
@@ -107,7 +98,7 @@ public class AddressData extends Network {
     }
     
     public final static int UPDATE_LIMIT = 10;
-    public final static long QUOTE_TIMEOUT = 1000*60;
+
   
     private int m_index;
     private Address m_address;
@@ -117,7 +108,6 @@ public class AddressData extends Network {
 
     private final ObservableList<ErgoTransaction> m_watchedTransactions = FXCollections.observableArrayList();
     private final SimpleObjectProperty<ErgoTransaction> m_selectedTransaction = new SimpleObjectProperty<>(null);
-    private long m_quoteTimeout = QUOTE_TIMEOUT;
     private long m_unconfirmedNanoErgs = 0;
     private String m_priceBaseCurrency = "ERG";
     private String m_priceTargetCurrency = "USDT";
@@ -125,7 +115,6 @@ public class AddressData extends Network {
     private Stage m_addressStage = null;
     private File logFile = new File("netnotes-log.txt");
     private AddressesData m_addressesData;
-    private int m_minImgWidth = 250;
     private int m_apiIndex = 0;
     private SimpleStringProperty m_selectedTab = new SimpleStringProperty("Balances");
     private SimpleObjectProperty<LocalDateTime> m_fieldsUpdated = new SimpleObjectProperty<>();
@@ -133,6 +122,8 @@ public class AddressData extends Network {
     private final String m_addressString;
     private ScheduledFuture<?> m_lastExecution = null;
     private Wallet m_wallet = null;
+
+
     
     public AddressData(String name, int index, Address address, Wallet wallet, NetworkType networktype, AddressesData addressesData) {
         super(null, name, address.toString(), addressesData.getWalletData());
@@ -157,7 +148,10 @@ public class AddressData extends Network {
         setAlignment(Pos.CENTER_LEFT);
         setTextAlignment(TextAlignment.LEFT);
        
-        ChangeListener<PriceQuote> quoteChangeListener = (obs,oldval,newval)->updateBufferedImage();
+        ChangeListener<PriceQuote> quoteChangeListener = (obs,oldval,newval)->{
+            m_imgBuffer.set(m_addressesData.updateBufferedImage(this));
+            
+        };
 
         m_addressesData.selectedMarketData().addListener((obs, oldval, newVal) -> {
             if (oldval != null) {
@@ -166,27 +160,27 @@ public class AddressData extends Network {
             }
             if (newVal != null) {
                 newVal.priceQuoteProperty().addListener(quoteChangeListener);
-                updateBufferedImage();
+                m_imgBuffer.set(m_addressesData.updateBufferedImage(this));
             }
         });
 
         if(m_addressesData.selectedMarketData().get() != null){
             m_addressesData.selectedMarketData().get().priceQuoteProperty().addListener(quoteChangeListener);
-            updateBufferedImage();
+            m_imgBuffer.set(m_addressesData.updateBufferedImage(this));
         }
         
-        getNetworksData().timeCycleProperty().addListener((obs, oldval, newval)->{
-            update();
-        });
+
 
         getAddressInfo();
        
-        m_ergoAmountProperty.addListener((obs,oldval,newval)->updateBufferedImage());
+        m_ergoAmountProperty.addListener((obs,oldval,newval)-> m_imgBuffer.set(m_addressesData.updateBufferedImage(this)));
      
 
         update();
-        updateBufferedImage();
+        m_imgBuffer.set(m_addressesData.updateBufferedImage(this));
     }
+
+   
 
 
     public void getAddressInfo(){
@@ -316,8 +310,7 @@ public class AddressData extends Network {
         Button closeBtn = new Button();
 
         addShutdownListener((obs, oldVal, newVal) -> {
-            Platform.runLater(()->closeBtn.fire());
-       
+            closeBtn.fire();
         });
 
         VBox layoutBox = new VBox();
@@ -1472,7 +1465,7 @@ public class AddressData extends Network {
         
         };
 
-        getNetworksData().timeCycleProperty().addListener((obs,oldval,newval)->updateWatchedTxs.run());
+        //getNetworksData().timeCycleProperty().addListener((obs,oldval,newval)->updateWatchedTxs.run());
 
         updateWatchedTxs.run();
 
@@ -1579,21 +1572,21 @@ public class AddressData extends Network {
                         JsonObject txsJson = (JsonObject) sourceObject;
 
                         ErgoTransaction[] txArray = getTxArray(txsJson);
-                        Platform.runLater(()-> {
-                            txsProperty.set(txArray);
-                            updateAllTxList.run();
-                        });
+                      
+                        txsProperty.set(txArray);
+                        updateAllTxList.run();
+                        
                     }else{
-                        Platform.runLater(()->{
-                            txsProperty.set(new ErgoTransaction[0]);
-                            updateAllTxList.run();
-                        });
-                    }
-                }, (onFailed)->{
-                    Platform.runLater(()->{
+                
                         txsProperty.set(new ErgoTransaction[0]);
                         updateAllTxList.run();
-                    });
+                        
+                    }
+                }, (onFailed)->{
+                    
+                    txsProperty.set(new ErgoTransaction[0]);
+                    updateAllTxList.run();
+                  
                 }, progressBar);
             }else{
                 Alert a = new Alert(AlertType.NONE, "Select an Ergo explorer", ButtonType.OK);
@@ -1625,7 +1618,7 @@ public class AddressData extends Network {
             Button closeBtn = new Button();
 
             addShutdownListener((obs, oldVal, newVal) -> {
-                Platform.runLater(()->closeBtn.fire());
+                closeBtn.fire();
            
             });
 
@@ -2604,19 +2597,20 @@ public class AddressData extends Network {
 
     public HBox getAddressBox(){
 
-        Button addressBtn = new Button();
-        addressBtn.setId("transparentColor");
-        addressBtn.setContentDisplay(ContentDisplay.LEFT);
-        addressBtn.setAlignment(Pos.CENTER_LEFT);
-        addressBtn.setPadding(new Insets(0));
-        addressBtn.setMouseTransparent(true);
+        ImageView addressImageView = new ImageView();
+        addressImageView.setPreserveRatio(true);
+        addressImageView.setMouseTransparent(true);
+        addressImageView.setFitWidth(AddressesData.ADDRESS_IMG_WIDTH);
+
         if(m_imgBuffer.get() != null){
             Image icon = m_imgBuffer.get();
-            addressBtn.setGraphic(IconButton.getIconView(icon, icon.getWidth()));
+            addressImageView.setFitWidth(icon.getWidth());
+            addressImageView.setImage(icon);
         }
         m_imgBuffer.addListener((obs, oldval, newval)->{
             if(newval != null){
-                addressBtn.setGraphic(IconButton.getIconView(newval, newval.getWidth()));
+                addressImageView.setFitWidth(newval.getWidth());
+                addressImageView.setImage(newval);
             }
         });
 
@@ -2678,7 +2672,7 @@ public class AddressData extends Network {
         addressInformationBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(addressInformationBox, Priority.ALWAYS);
 
-        HBox addressBox = new HBox(addressBtn, addressInformationBox);
+        HBox addressBox = new HBox(addressImageView, addressInformationBox);
         addressBox.setId("rowBox");
         addressBox.setFocusTraversable(true);
         addressBox.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
@@ -2705,146 +2699,8 @@ public class AddressData extends Network {
         return addressBox;
     }
 
-    public void updateBufferedImage() {
-        ErgoAmount priceAmount = m_ergoAmountProperty.get();
-        boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
-        double priceAmountDouble = priceAmount != null && quantityValid ? priceAmount.getDoubleAmount() : 0;
 
-        PriceQuote priceQuote = getValid() ? m_addressesData.selectedMarketData().get().priceQuoteProperty().get() : null;
-        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < m_quoteTimeout;
-        double priceQuoteDouble = priceValid  && priceQuote != null ? priceQuote.getDoubleAmount() : 0;
-        
-        String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( priceQuoteDouble * priceAmountDouble, priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  quantityValid && priceValid) : " -.--";
-        int integers = priceAmount != null ? (int) priceAmount.getDoubleAmount() : 0;
-        double decimals = priceAmount != null ? priceAmount.getDoubleAmount() - integers : 0;
-        int decimalPlaces = priceAmount != null ? priceAmount.getCurrency().getFractionalPrecision() : 0;
-        String cryptoName = priceAmount != null ? priceAmount.getCurrency().getSymbol() : "UKNOWN";
-        int space = cryptoName.indexOf(" ");
-        cryptoName = space != -1 ? cryptoName.substring(0, space) : cryptoName;
-
-        String currencyPrice = priceValid && priceQuote != null ? priceQuote.toString() : "-.--";
-
-        java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 30);
-        java.awt.Font smallFont = new java.awt.Font("SANS-SERIF", java.awt.Font.PLAIN, 12);
-
-        //   Image ergoBlack25 = new Image("/assets/ergo-black-25.png");
-        //   SwingFXUtils.fromFXImage(ergoBlack25, null);
-        
-        String amountString = quantityValid ? String.format("%d", integers) : " -";
-        String decs = String.format("%." + decimalPlaces + "f", decimals);
-
-        decs = quantityValid ? decs.substring(1, decs.length()) : "";
-        totalPrice = totalPrice + "   ";
-        currencyPrice = "(" + currencyPrice + ")   ";
-    
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
-        
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
-        int padding = 5;
-        int stringWidth = fm.stringWidth(amountString);
-       
-        int height = fm.getHeight() + 10;
-
-        g2d.setFont(smallFont);
-
-        fm = g2d.getFontMetrics();
-        
-        int priceWidth = fm.stringWidth(totalPrice);
-        int currencyWidth = fm.stringWidth(currencyPrice);
-        int decsWidth = fm.stringWidth(decs);
-
-
-        int priceLength = (priceWidth > currencyWidth ? priceWidth : currencyWidth);
-
-        //  int priceAscent = fm.getAscent();
-        int integersX = priceLength + 10;
-        integersX = integersX < 130 ? 130 : integersX;
-        int decimalsX = integersX + stringWidth + 1;
-
-       // int cryptoNameStringWidth = fm.stringWidth(cryptoName);
-       
-
-        int width = decimalsX + decsWidth + (padding * 2);
    
-        width = width < m_minImgWidth ? m_minImgWidth : width;
-
-        int cryptoNameStringX = decimalsX + 2;
-
-        g2d.dispose();
-        
-        BufferedImage unitImage = SwingFXUtils.fromFXImage(priceAmount != null ? priceAmount.getCurrency().getIcon() : new Image("/assets/unknown-unit.png"), null);
-        Drawing.setImageAlpha(unitImage, 0x40);
-        //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        //   g2d.setComposite(AlphaComposite.Clear);
-
-        /* for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                Color c = new Color(adrBuchImg.getRGB(x, y), true);
-
-                Color c2 = new Color(c.getRed(), c.getGreen(), c.getBlue(), 35);
-
-                img.setRGB(x, y, c2.getRGB());
-            }
-        }
-         */
-        g2d.drawImage(unitImage,75, (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
-
-       
-
-
-
-        g2d.setFont(font);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(java.awt.Color.WHITE);
-
-        
-
-        g2d.drawString(amountString, integersX, fm.getAscent() + 5);
-
-        g2d.setFont(smallFont);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
-
-       
-        if(decimalPlaces > 0){
-            //decimalsX = widthIncrease > 0 ? decimalsX + widthIncrease : decimalsX;
-            g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
-        }
-
-        
-        g2d.drawString(cryptoName, cryptoNameStringX, height - 10);
-
-        g2d.setFont(smallFont);
-        g2d.setColor(java.awt.Color.WHITE);
-        fm = g2d.getFontMetrics();
-        g2d.drawString(totalPrice, padding, fm.getHeight() + 2);
-
-        g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
-        g2d.drawString(currencyPrice, padding, height - 10);
-
-        /*try {
-            Files.writeString(logFile.toPath(), amountString + decs);
-        } catch (IOException e) {
-
-        }*/
-        g2d.dispose();
-
-        m_imgBuffer.set(SwingFXUtils.toFXImage(img, null));
-
-  
-    }
 
     public SimpleObjectProperty<Image> getImageProperty() {
         return m_imgBuffer;
@@ -2874,7 +2730,7 @@ public class AddressData extends Network {
                 JsonObject jsonObject = (JsonObject) sourceObject;
          
                 
-                Platform.runLater(() ->setBalance(jsonObject));  
+                setBalance(jsonObject);  
             }},
             failed -> {
                     try {
@@ -2930,8 +2786,7 @@ public class AddressData extends Network {
     }*/
     
     public void setBalance(JsonObject jsonObject){
-        if (jsonObject != null) {
-       
+        if (jsonObject != null) {       
 
             JsonElement confirmedElement = jsonObject != null ? jsonObject.get("confirmed") : null;
             JsonElement unconfirmedElement = jsonObject.get("unconfirmed");
@@ -3008,6 +2863,7 @@ public class AddressData extends Network {
                 }
             } 
         } 
+        getLastUpdated().set(LocalDateTime.now());
     }
 
 

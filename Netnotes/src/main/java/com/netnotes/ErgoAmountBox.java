@@ -171,7 +171,6 @@ public class ErgoAmountBox extends HBox {
             getChildren().add( 2, amountField);
 
             Platform.runLater(()-> amountField.requestFocus());
-            Platform.runLater(()-> amountField.requestFocus());
         });
 
  

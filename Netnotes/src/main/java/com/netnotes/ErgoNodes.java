@@ -394,8 +394,13 @@ public class ErgoNodes extends Network implements NoteInterface {
             if (m_stage.isIconified()) {
                 m_stage.setIconified(false);
             }
-            m_stage.show();
-            m_stage.toFront();
+            if(!m_stage.isShowing()){
+                m_stage.show();
+            }else{
+                Platform.runLater(()->m_stage.toBack());
+                Platform.runLater(()->m_stage.toFront());
+            }
+         
         }
 
     }

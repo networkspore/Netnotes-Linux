@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.io.File;
+
 //import java.io.File;
 import java.time.LocalDateTime;
 
@@ -13,7 +13,6 @@ import com.google.gson.JsonArray;
 
 import com.utils.Utils;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -98,13 +97,15 @@ public class ErgoExplorerData {
           }
      }
 
-
+     public NetworksData getNetworksData(){
+          return m_explorerList.getErgoExplorer().getNetworksData();
+     }
   
      public void getLatestBlocks(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
 
         String urlString = namedUrl.getUrlString() + "/api/v1/blocks/";
-        Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString, getNetworksData().getExecService(), onSucceeded, onFailed, null);
     }
 
 
@@ -124,7 +125,7 @@ public class ErgoExplorerData {
 
           String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
    
-          Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+          Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
      }
 
      public void getTransaction(String txId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -133,7 +134,7 @@ public class ErgoExplorerData {
 
           String urlString = namedUrl.getUrlString() + "/api/v1/transactions/" + txId;
    
-          Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+          Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
      }
 
       public void getAddressTransactions(String address,int startIndex, int limit,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
@@ -142,7 +143,7 @@ public class ErgoExplorerData {
 
           String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/transactions?offset=" + (startIndex < 0 ? 0 : startIndex ) + "&limit=" + (limit < 1 ? 500 : (limit > 500 ? 500 : limit));          
    
-          Utils.getUrlJson(urlString, onSucceeded, onFailed, progressIndicator);
+          Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, progressIndicator);
      }
 
      public String getWebsiteTxLink(String txId) {
@@ -245,10 +246,10 @@ public class ErgoExplorerData {
           statusProperty.addListener((obs, oldVal, newVal) -> {
                switch (newVal) {
                     case ErgoMarketsData.STOPPED:
-                    Platform.runLater(()->statusBtn.setImage(new Image(m_startImgUrl)));
+                         statusBtn.setImage(new Image(m_startImgUrl));
                     break;
                     default:
-                    Platform.runLater(()->statusBtn.setImage(new Image(m_stopImgUrl)));
+                         statusBtn.setImage(new Image(m_stopImgUrl));
                     break;
                }
           });
@@ -309,10 +310,10 @@ public class ErgoExplorerData {
           rowBox.setId("rowBox");
 
           rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-            Platform.runLater(() -> {
-                m_explorerList.selectedIdProperty().set(getId());
-                e.consume();
-            });
+            
+               m_explorerList.selectedIdProperty().set(getId());
+               e.consume();
+           
         });
 
           // centerBox.prefWidthProperty().bind(rowBox.widthProperty().subtract(leftBox.widthProperty()).subtract(rightBox.widthProperty()));
@@ -373,10 +374,10 @@ public class ErgoExplorerData {
                     }else{
                         
                     }
-                    Platform.runLater(()-> statusProperty.set(ErgoMarketsData.STOPPED));
+                    statusProperty.set(ErgoMarketsData.STOPPED);
                }, (onFailed)->{
                     displayTextProperty.set("Error: " + onFailed.getSource().getException().toString());
-                    Platform.runLater(()-> statusProperty.set(ErgoMarketsData.STOPPED));
+                    statusProperty.set(ErgoMarketsData.STOPPED);
                });
           };
           updateBlockInfo.run();

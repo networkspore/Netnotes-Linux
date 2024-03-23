@@ -2,6 +2,9 @@ package com.utils;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import java.util.concurrent.ExecutorService;
+
 import com.google.gson.JsonArray;
 
 import javafx.concurrent.WorkerStateEvent;
@@ -74,7 +77,7 @@ public class GitHubAPI {
     }
 
 
-    public void getAssetsAllLatest(EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
+    public void getAssetsAllLatest(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
         Utils.getUrlJsonArray(getUrlAll(), (onSucceeded)->{
             Object sourceObject = onSucceeded.getSource().getValue();
              if (sourceObject != null && sourceObject instanceof JsonArray) {
@@ -115,25 +118,25 @@ public class GitHubAPI {
                                     }
                                 }
                             }
-                            Utils.returnObject((Object) assetArray, onFinished, null); 
+                            Utils.returnObject((Object) assetArray,execService, onFinished, null); 
                         }else{
-                            Utils.returnObject(null, onFinished, null);
+                            Utils.returnObject(null,execService, onFinished, null);
                         }
                     }else{
-                        Utils.returnObject(null, onFinished, null);
+                        Utils.returnObject(null,execService, onFinished, null);
                     }
                 }else{
-                    Utils.returnObject(null, onFinished, null);
+                    Utils.returnObject(null,execService, onFinished, null);
                 }
             }else{
-                Utils.returnObject(null, onFinished, null);
+                Utils.returnObject(null,execService, onFinished, null);
             }
         }, onFailed, null);
     }
 
 
-    public void getAssetsLatest(EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
-         Utils.getUrlJson(getUrlLatest(), (onSucceeded) -> {
+    public void getAssetsLatest(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
+         Utils.getUrlJson(getUrlLatest(),execService, (onSucceeded) -> {
                 Object sourceObject = onSucceeded.getSource().getValue();
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject gitHubApiJson = (JsonObject) sourceObject;
@@ -170,16 +173,16 @@ public class GitHubAPI {
                                     }
                                 }
                             }
-                            Utils.returnObject((Object)assetArray, onFinished, null);
+                            Utils.returnObject((Object)assetArray,execService, onFinished, null);
                         }else{
-                            Utils.returnObject(null, onFinished, null);
+                            Utils.returnObject(null,execService, onFinished, null);
                         }
                     }else{
-                        Utils.returnObject(null, onFinished, null);
+                        Utils.returnObject(null,execService, onFinished, null);
                     }
 
                 }else{
-                    Utils.returnObject(null, onFinished, null);
+                    Utils.returnObject(null,execService, onFinished, null);
                 }
             }, onFailed, null);
         }

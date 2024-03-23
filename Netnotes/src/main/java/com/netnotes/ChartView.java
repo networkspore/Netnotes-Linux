@@ -119,7 +119,7 @@ public class ChartView {
         m_labelAscent = m_fm.getAscent();
         m_labelHeight = m_fm.getHeight();
         m_scaleColWidth = stringWidth + 25;
-
+        g2d.dispose();
     }
 
     private SimpleObjectProperty<Image> m_imageBuffer = new SimpleObjectProperty<>(null);
@@ -543,7 +543,8 @@ public class ChartView {
             int halfCellWidth = cellWidth / 2;
 
             int items = m_priceList.size() - i;
-            int colLabelSpacing = (int) Math.floor(items / ((items * cellWidth) / m_labelSpacingSize));
+            
+            int colLabelSpacing = items == 0 ? m_labelSpacingSize : (int) Math.floor(items / ((items * cellWidth) / m_labelSpacingSize));
 
             int rowHeight = getRowHeight();
 

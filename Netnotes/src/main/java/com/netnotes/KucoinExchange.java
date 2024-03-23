@@ -11,8 +11,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -39,7 +37,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener.Change;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
-import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -57,7 +54,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
@@ -100,6 +96,8 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     private ArrayList<MessageInterface> m_msgListeners = new ArrayList<>();
     private SimpleObjectProperty<JsonObject> m_socketMsg = new SimpleObjectProperty<>(null);
+
+   //private AtomicInteger m_reconnectTries = new AtomicInteger(0);
 
     public KucoinExchange(NetworksData networksData) {
         this(null, networksData);
@@ -710,7 +708,13 @@ public class KucoinExchange extends Network implements NoteInterface {
           final  String pingString = pingMessageObj.toString();
           //  m_websocketClient.send(pingString);
             m_future = m_pingTimer.scheduleAtFixedRate (()->{
-                Platform.runLater(()->m_websocketClient.send(pingString));
+
+                Platform.runLater(()->{
+                    if(m_websocketClient.isOpen()){
+                        m_websocketClient.send(pingString);
+                    }
+                });
+
             },0, pingInterval, TimeUnit.MILLISECONDS); //(()-> send(pingString), 0, pingInterval);
             
     }
@@ -744,10 +748,7 @@ public class KucoinExchange extends Network implements NoteInterface {
                 } catch (IOException e1) {
 
                 }*/
-                if(m_future != null){
-                    m_future.cancel(false);
-                }
-                m_openTunnels.clear();
+           
                 super.close();
             }
 
@@ -805,9 +806,14 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             @Override
             public void onClose(int i, String s, boolean b) {
-             
+                if(m_future != null){
+                    m_future.cancel(false);
+                }
+                m_openTunnels.clear();
+
                 m_socketMsg.set(Utils.getCmdObject("close"));
                 m_connectionStatus.set(0);
+            
                 /*ArrayList<WebClientListener> listeners = getMessageListeners();
                 for (WebClientListener messagelistener : listeners) {
 
@@ -875,7 +881,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString, onSuccess, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSuccess, onFailed, null);
 
     }
 
@@ -886,7 +892,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
 
         return false;
     }
@@ -898,7 +904,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
 
         return false;
     }
@@ -910,7 +916,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
 
         return false;
     }
@@ -922,7 +928,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
 
         return false;
     }

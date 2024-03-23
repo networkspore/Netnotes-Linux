@@ -2,6 +2,7 @@ package com.netnotes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
 
 import com.google.gson.JsonObject;
 import com.utils.Utils;
@@ -31,12 +32,12 @@ public class NamedNodesList {
 
     private long m_updateTimeStamp = -1;
 
-    public NamedNodesList(boolean updates) {
+    public NamedNodesList(boolean updates, ExecutorService execService) {
 
         m_updates = updates;
 
         if (updates) {
-            getGitHubList();
+            getGitHubList(execService);
         } else {
             setDefaultList();
         }
@@ -60,8 +61,8 @@ public class NamedNodesList {
         return m_optionsUpdated;
     }
 
-    public void getGitHubList() {
-        Utils.getUrlJson(NODES_LIST_URL, (onSucceeded) -> {
+    public void getGitHubList(ExecutorService execService) {
+        Utils.getUrlJson(NODES_LIST_URL, execService, (onSucceeded) -> {
             Object sourceObject = onSucceeded.getSource().getValue();
             if (sourceObject != null && sourceObject instanceof JsonObject) {
                 openNodeJson((JsonObject) sourceObject);
