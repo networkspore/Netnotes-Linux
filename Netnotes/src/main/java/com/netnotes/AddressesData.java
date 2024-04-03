@@ -435,9 +435,12 @@ public class AddressesData {
 
         stop();
         m_shuttingDown = true;
+        
+        if(m_g2d != null){
+            m_g2d.dispose();
+            m_g2d = null;
+        }
         m_img = null;
-        m_g2d.dispose();
-        m_g2d = null;
     }
 
 

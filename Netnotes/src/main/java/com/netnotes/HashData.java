@@ -16,16 +16,17 @@ public class HashData {
 
     public static String DEFAULT_HASH = "Blake2b-256";
 
-    private String m_id = FriendlyId.createFriendlyId();
+    private String m_id;
     private String m_name = DEFAULT_HASH;
     private byte[] m_hashBytes = null;
 
     public HashData(File file) throws  IOException{
-      
+        m_id = FriendlyId.createFriendlyId();
         m_hashBytes = Utils.digestFile(file);
     }
 
     public HashData(byte[] bytes) {
+        m_id = FriendlyId.createFriendlyId();
         m_hashBytes = bytes;
     }
 

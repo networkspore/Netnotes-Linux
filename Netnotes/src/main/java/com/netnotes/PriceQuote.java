@@ -1,11 +1,7 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
+import java.math.BigDecimal;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 

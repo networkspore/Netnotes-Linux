@@ -2717,6 +2717,16 @@ public class AddressData extends Network {
                 }
             }
         }
+        if(m_addressesData.isErgoTokensProperty().get()){
+            ErgoTokens ergoTokens = (ErgoTokens) m_addressesData.getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID);
+            ErgoTokensList tokensList = ergoTokens != null ?  m_addressesData.tokensListProperty().get() : null;
+            if(tokensList != null){
+                ErgoNetworkToken currency = tokensList.getErgoToken(tokenId);
+                if(currency != null){
+                    return new PriceAmount(0L, currency);
+                }
+            }
+        }
         return null;
     }
 

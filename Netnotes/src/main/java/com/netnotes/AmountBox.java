@@ -40,7 +40,7 @@ public class AmountBox extends HBox {
 
     private long m_quoteTimeout = AddressesData.QUOTE_TIMEOUT;
     private final SimpleObjectProperty<PriceAmount> m_currentAmount = new SimpleObjectProperty<PriceAmount>(null);
-    private String m_id = FriendlyId.createFriendlyId();
+    private String m_id = null;
     private final SimpleObjectProperty<Image> m_imgBuffer = new SimpleObjectProperty<Image>(null);
     private final SimpleObjectProperty<PriceQuote> m_priceQuoteProperty = new SimpleObjectProperty<>(null);
 
@@ -55,14 +55,14 @@ public class AmountBox extends HBox {
 
     public AmountBox(){
         super();
-        
+        m_id = FriendlyId.createFriendlyId();
     }
 
     private AddressesData m_addressesData;
 
     public AmountBox(PriceAmount priceAmount, Scene scene, AddressesData addressesData) {
         super();
-       
+        m_id = FriendlyId.createFriendlyId();
         setId("darkRowBox");
         setMinHeight(45);
         setMaxHeight(45);

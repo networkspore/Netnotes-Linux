@@ -1958,6 +1958,16 @@ public class Utils {
         return false;
     }
 
+    public static boolean onlyZero(String str) {
+        
+        for (int i = 0 ; i < str.length() ; i++){
+            String c = str.substring(i, i+1);
+            if(!(c.equals("0") || c.equals("."))){
+                return false;
+            }
+        }
+        return true;
+    }
     
     public static URL getLocation(final Class<?> c) {
 

@@ -846,13 +846,86 @@ public class SpectrumFinance extends Network implements NoteInterface {
         
     }*/
     //
-    public boolean getPoolChart(String poolId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+    //https://api.spectrum.fi/v1/history/mempool
+    /*
+     * POST JsonArray [address]
+     */
+    public void getMemPoolHistory(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        String urlString = API_URL + "/v1/history/mempool";
+        
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+
+    }
+
+    //https://api.spectrum.fi/v1/history/order
+    /* POST
+        "addresses": 
+        [
+
+            "9gEwsJePmqhCXwdtCWVhvoRUgNsnpgWkFQ2kFhLwYhRwW7tMc61"
+
+        ],
+        "orderType": "Swap",
+        "orderStatus": "Evaluated",
+        "txId": "00000111ba9e273590f73830aaeb9ccbb7e75fb57d9d2d3fb1b6482013b2c38f",
+        "tokenIds": 
+        [
+
+            "0000000000000000000000000000000000000000000000000000000000000000"
+
+        ],
+        "tokenPair": 
+        {
+
+            "x": "0000000000000000000000000000000000000000000000000000000000000000",
+            "y": "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04"
+
+        }
+     */
+    public void getOrderHistory(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        String urlString = API_URL + "/v1/history/order";
+        
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+
+    }
+
+
+    // https://api.spectrum.fi/v1/history/addresses?offset=0&limit=100
+    /*
+        offset	
+        integer <int32> >= 0
+        limit	
+        integer <int32> [ 1 .. 100 ] 
+    
+    */
+    public void getAddressesHistory(int offset, int limit, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        String urlString = API_URL + "/v1/history/addresses?offset="+offset + "&limit=" + limit;
+        
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+
+    }
+
+
+    /*https://api.spectrum.fi/v1/lm/pools/stats
+        "poolId": "9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec",
+        "compoundedReward": 75,
+        "yearProfit": 3700
+    */
+    public void getPoolStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+            String urlString = API_URL + "/v1/lm/pools/stats";
+       
+            
+            Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+    
+    }
+
+    public void getPoolChart(String poolId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart";
    
         
-        Utils.getUrlJsonArray(urlString,getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
 
-        return false;
     }
     
     private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();

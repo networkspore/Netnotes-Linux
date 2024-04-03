@@ -27,17 +27,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 
 public class ErgoAmountBox extends HBox {
 
     
     private final SimpleObjectProperty<PriceAmount> m_currentAmount = new SimpleObjectProperty<PriceAmount>(null);
-    private String m_id = FriendlyId.createFriendlyId();
+    private String m_id = null;
     private final SimpleObjectProperty<Image> m_imgBuffer = new SimpleObjectProperty<Image>(null);
     private final SimpleObjectProperty<PriceQuote> m_priceQuoteProperty = new SimpleObjectProperty<>(null);
   // private final SimpleObjectProperty<ErgoNetworkData> m_ergoNetworkData = new SimpleObjectProperty<>(null);
@@ -47,17 +43,19 @@ public class ErgoAmountBox extends HBox {
     
 
  //   private Color m_secondaryColor = new Color(.4, .4, .4, .9);
-    private Color m_primaryColor = new Color(.7, .7, .7, .9); 
-    private Font m_smallFont = Font.font("OCR A Extended", FontWeight.NORMAL, 10);
+ //   private Color m_primaryColor = new Color(.7, .7, .7, .9); 
+  //  private Font m_smallFont = Font.font("OCR A Extended", FontWeight.NORMAL, 10);
 
     public ErgoAmountBox(){
         super();
+        m_id = FriendlyId.createFriendlyId();
     }
 
 
 
     public ErgoAmountBox(PriceAmount priceAmount, Scene scene, HostServices hostServices) {
         super();
+        m_id = FriendlyId.createFriendlyId();
         setId("darkRowBox");
         setMinHeight(45);
         setMaxHeight(45);

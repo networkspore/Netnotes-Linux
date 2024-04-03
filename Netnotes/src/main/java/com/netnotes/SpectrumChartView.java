@@ -65,7 +65,7 @@ public class SpectrumChartView {
     private SimpleDoubleProperty m_chartHeight;
     private SimpleDoubleProperty m_chartWidth;
 
-    private boolean m_direction = false;
+
 
     private String m_msg = "Loading";
 
@@ -87,6 +87,8 @@ public class SpectrumChartView {
 
     private long m_lastTimeStamp = 0;
 
+    public final SimpleLongProperty m_doUpdate = new SimpleLongProperty(0);
+
     //private double m_lastClose = 0;
     private int m_labelSpacingSize = 150;
     private Color m_labelColor = new Color(0xc0ffffff);
@@ -94,7 +96,7 @@ public class SpectrumChartView {
     private double m_topRangePrice = 0;
     private double m_botRangePrice = 0;
 
-    private SimpleIntegerProperty m_isPositive = new SimpleIntegerProperty(0);
+    private boolean m_isPositive = true;
 
     public SpectrumChartView(SimpleDoubleProperty width, SimpleDoubleProperty height, TimeSpan timeSpan) {
         HBox.setHgrow(m_chartHbox, Priority.ALWAYS);
@@ -143,7 +145,7 @@ public class SpectrumChartView {
     public boolean isSettingRange(){
         return m_settingRange;
     }
-    public SimpleLongProperty m_doUpdate = new SimpleLongProperty();
+
 
     public void setIsSettingRange(boolean isRangeSetting) {
         m_settingRange = isRangeSetting;
@@ -302,6 +304,16 @@ public class SpectrumChartView {
         }
     }*/
     
+    private void updateDirection(BigDecimal lastPrice, BigDecimal newPrice){
+       
+        int direction = newPrice.compareTo(lastPrice);
+        if(direction != 0){
+            m_isPositive = direction == 1;
+        }
+        
+    }
+
+    
     public void setPriceDataList(JsonArray jsonArray, long latestTime) {
         m_priceList.clear();
 
@@ -342,20 +354,19 @@ public class SpectrumChartView {
    
                 SimpleLongProperty epochEnd = new SimpleLongProperty(startTimeStamp);
 
-                try{
-                    SpectrumPrice lastPrice =  new SpectrumPrice(jsonArray.get(size -1).getAsJsonObject());
-                    BigDecimal secondLastPrice = size > 1 ? new SpectrumPrice(jsonArray.get(size -2).getAsJsonObject()).getPrice() : m_currentPrice;
-                
-                    setIsPositive(lastPrice.getPrice().compareTo(secondLastPrice));
-                }catch(Exception jsonException){
-                    setIsPositive(0);
-                }
+                lastClose.addListener((obs,oldval,newval)->{
+                    updateDirection(oldval, newval);
+                });
                 
                 while (index.get() < size) {
-                   
+                    
                     try{
                         SimpleObjectProperty<SpectrumPrice> spectrumPrice = new SimpleObjectProperty<>( new SpectrumPrice( jsonArray.get(index.get()).getAsJsonObject()));
-                                      
+                        
+                    
+                       
+                     
+
                         if(spectrumPrice.get().getTimeStamp() > startTimeStamp - timeSpanMillis  ){
 
                             while(spectrumPrice.get().getTimeStamp() > epochEnd.get()){
@@ -371,17 +382,20 @@ public class SpectrumChartView {
                             
                                 addPrices(index, priceData, epochEnd.get(), jsonArray);
 
+                                
+
                                 lastClose.set(priceData.getClose());
 
                             
                                 m_priceList.add(priceData);
-                                m_currentPrice = priceData.getClose();
+                                setCurrentPrice(priceData.getClose());
                                 
                                 
                                 epochEnd.set(epochEnd.get() + timeSpanMillis);
                                
                             
                         }else{
+                           
                             lastClose.set(spectrumPrice.get().getPrice());
                         }
                     }catch(Exception priceException){
@@ -422,6 +436,11 @@ public class SpectrumChartView {
         
     }
 
+    private void setCurrentPrice(BigDecimal newPrice){
+      
+        m_currentPrice = newPrice;
+    }
+
     private static void addPrices(SimpleIntegerProperty index, SpectrumPriceData priceData, long epochEnd, JsonArray jsonArray){
         int size = jsonArray.size();
 
@@ -431,6 +450,7 @@ public class SpectrumChartView {
     
                 while(nextSpectrumPrice.get().getTimeStamp() <= epochEnd){
                     priceData.addPrice(nextSpectrumPrice.get().getTimeStamp(), nextSpectrumPrice.get().getPrice());
+       
                     index.set(index.get() + 1);
 
                     if((index.get() +1) == size){
@@ -468,6 +488,7 @@ public class SpectrumChartView {
         if(size == 0){
             return false;
         }
+        updateDirection(m_currentPrice, price);
 
         long timeSpanMillis = m_timeSpan.getMillis();
         
@@ -501,11 +522,17 @@ public class SpectrumChartView {
             
 
         }
-        setIsPositive(price.compareTo(m_currentPrice));
-        m_currentPrice = price;
+        //setIsPositive(price.compareTo(m_currentPrice));
+
+        setCurrentPrice(price);
+
         updateNumbers();
         m_doUpdate.set(System.currentTimeMillis());
         return true;
+    }
+
+    public SimpleLongProperty updatedTimeStampProperty(){
+        return m_doUpdate;
     }
 
     public void updateNumbers(){
@@ -1159,7 +1186,7 @@ public class SpectrumChartView {
 
             y = y < 0 ? 0 : y > chartHeight ? chartHeight : y;
 
-            m_direction = m_isPositive.get() > -1;
+           // m_direction = m_isPositive.get() > -1;
 
         // m_lastClose = getCurrentPrice().doubleValue();
             int y1 = y - (halfLabelHeight + 7);
@@ -1171,7 +1198,9 @@ public class SpectrumChartView {
             int x1 = chartWidth + 1;
             int x2 = chartWidth + m_scaleColWidth;
 
-            if (m_direction) {
+            boolean isLastPositive = m_isPositive;
+
+            if (isLastPositive) {
                 RGBhighlight = greenHighlightRGB;
             } else {
                 RGBhighlight = redRGBhighlight;
@@ -1198,12 +1227,12 @@ public class SpectrumChartView {
             m_g2d.setColor(stringColor);
             m_g2d.drawString(closeString, stringX, stringY);
             if (!outOfBounds) {
-                m_g2d.setColor(m_direction ? KucoinExchange.POSITIVE_HIGHLIGHT_COLOR : KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR);
+                m_g2d.setColor(isLastPositive ? KucoinExchange.POSITIVE_HIGHLIGHT_COLOR : KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR);
                 m_g2d.setFont(new Font("Arial", Font.PLAIN, 12));
                 m_g2d.drawString("◄", chartWidth - 9, stringY);
             }
             stringX = chartWidth - 9;
-            if (m_direction) {
+            if (isLastPositive) {
                 Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xffffffff, m_img, stringX, y - (m_labelHeight / 2) - 1, chartWidth + m_scaleColWidth, y + 4 - (m_labelHeight / 2));
                 Drawing.drawBarFillColor(1, false, stringColor.getRGB(), 0xffffffff, 0xff4bbd94, m_img, stringX, y + 4 - (m_labelHeight / 2), chartWidth + m_scaleColWidth, y + (m_labelHeight / 2));
             } else {
@@ -1299,16 +1328,10 @@ public class SpectrumChartView {
     }
 
 
-    public SimpleIntegerProperty isPositiveProperty(){
+
+
+    public boolean isPositive(){
         return m_isPositive;
-    }
-
-    public void setIsPositive(int isPositive){
-        m_isPositive.set(isPositive);
-    }
-
-    public int isPositive(){
-        return m_isPositive.get();
     }
 
     

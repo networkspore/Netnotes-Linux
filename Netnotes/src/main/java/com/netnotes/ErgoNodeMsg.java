@@ -33,7 +33,7 @@ public class ErgoNodeMsg {
     }
     private String m_line = "";
 
-    private String m_id = FriendlyId.createFriendlyId();
+    private String m_id;
     private String m_type = "";
 
     private String m_timeStamp = "";
@@ -47,7 +47,7 @@ public class ErgoNodeMsg {
     private Exception m_exception = null;
 
     public ErgoNodeMsg(String line) {
-     
+        m_id = FriendlyId.createFriendlyId();
         m_line = line;
         try {
             parseLine();

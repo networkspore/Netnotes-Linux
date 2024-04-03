@@ -73,11 +73,17 @@ public class AmountSendBox extends AmountBox {
         maxAmountBtn.setAlignment(Pos.CENTER_RIGHT);
         maxAmountBtn.setPadding(new Insets(0, 0, 0, 0));
 
+        ImageView maxAmountBtnImageView = new ImageView();
+        maxAmountBtnImageView.setPreserveRatio(true);
+        
+        maxAmountBtn.setGraphic(maxAmountBtnImageView);
+
         Runnable updateImage = ()->{
         
             Image newImage = m_maxAmountImage.get();
             if(newImage != null){
-                maxAmountBtn.setGraphic(IconButton.getIconView(newImage,newImage.getWidth()));
+                maxAmountBtnImageView.setFitWidth(newImage.getWidth());
+                maxAmountBtnImageView.setImage(newImage);
             }else{
                 maxAmountBtn.setGraphic(null);
             }

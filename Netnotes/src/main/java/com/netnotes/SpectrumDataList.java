@@ -86,12 +86,12 @@ public class SpectrumDataList extends Network implements NoteInterface {
     
     private java.awt.Font m_font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 15);
     private java.awt.Font m_txtFont = new java.awt.Font("Deja Vu Sans", java.awt.Font.PLAIN, 15);
-
+    private final String m_exchangeId;
 
     public SpectrumDataList(String id, SpectrumFinance spectrumFinance) {
         super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
         m_spectrumFinance = spectrumFinance;
-
+        m_exchangeId= FriendlyId.createFriendlyId();
         setup(m_spectrumFinance.getNetworksData().getAppData().appKeyProperty().get());
         
         
@@ -100,8 +100,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SecretKey oldval, SecretKey newval ) {
         super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
+        m_exchangeId= FriendlyId.createFriendlyId();
         m_spectrumFinance = spectrumFinance;
-
+        
         updateFile(oldval, newval);
     }
 
@@ -111,7 +112,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
     }
 
     SpectrumMarketInterface m_msgListener;
-    private final String m_exchangeId = FriendlyId.createFriendlyId();
+    
     public void updateMarkets(ArrayList<SpectrumMarketData> marketsArray) {
         
         if(marketsArray != null){
@@ -613,8 +614,14 @@ public class SpectrumDataList extends Network implements NoteInterface {
     @Override
     public void shutdown(){
         m_shuttingDown = true;
-        m_g2d.dispose();
-        m_symbolGraphics.dispose();
+        if(m_g2d != null){
+            m_g2d.dispose();
+           
+        }
+        if(m_symbolGraphics != null){
+            m_symbolGraphics.dispose();
+        }
+        
         m_symbolImage = null;
         m_imgCache = null;
         m_g2d = null;

@@ -1,5 +1,11 @@
 package com.netnotes;
 
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,6 +14,7 @@ import java.time.LocalDateTime;
 import com.utils.Utils;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 
 import com.google.gson.JsonElement;
@@ -207,6 +214,86 @@ public class PriceCurrency {
         } else {
             return getUnknownUnitImage();
         }
+    }
+
+    private static BufferedImage m_bgImg = null;
+    private static Graphics2D m_g2d = null;
+
+    public static Image getBlankBgIcon(double height, String symbol){
+        java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 10);
+
+        
+        m_bgImg = new BufferedImage(1,1,BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_bgImg.createGraphics();
+        m_g2d.setFont(font);
+        FontMetrics fontMetrics = m_g2d.getFontMetrics();
+        //int fontHeight = fontMetrics.getHeight();
+        //int fontAscent = fontMetrics.getAscent();
+        int symbolStringWidth = fontMetrics.stringWidth(symbol) + 10;
+
+        m_bgImg = new BufferedImage(symbolStringWidth,(int) height, BufferedImage.TYPE_INT_ARGB);
+
+        m_g2d = m_bgImg.createGraphics();
+        m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
+        m_g2d.setColor(new Color(0xcdd4da));
+        m_g2d.drawString(symbol, 5, (int)height - fontMetrics.getDescent());
+
+        Image img =  SwingFXUtils.toFXImage(m_bgImg, null);
+        m_g2d.dispose();
+        m_bgImg = null;
+        return img;
+    }
+
+    public Image getBackgroundIcon(double height){
+        String symbol = getSymbol();
+        java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 10);
+
+        
+        BufferedImage unitImage = SwingFXUtils.fromFXImage( getIcon(), null);
+        Drawing.setImageAlpha(unitImage, 0x30);
+
+        int imgWidth = unitImage.getWidth();
+        int imgHeight = unitImage.getHeight();
+        
+        Dimension scaledDimension = Drawing.getScaledDimension(new Dimension(imgWidth, imgHeight),new Dimension((int)(height + (height*.5)), (int)(height + (height*.5))));
+        
+        m_bgImg = new BufferedImage(1,1,BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_bgImg.createGraphics();
+        m_g2d.setFont(font);
+        FontMetrics fontMetrics = m_g2d.getFontMetrics();
+        //int fontHeight = fontMetrics.getHeight();
+        //int fontAscent = fontMetrics.getAscent();
+        int symbolStringWidth = fontMetrics.stringWidth(symbol) + 10;
+
+        m_bgImg = new BufferedImage(imgWidth < symbolStringWidth ? symbolStringWidth : imgWidth,(int) height, BufferedImage.TYPE_INT_ARGB);
+
+        m_g2d = m_bgImg.createGraphics();
+        m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
+        m_g2d.drawImage(unitImage, (int)-Math.ceil(imgWidth *.2)  , (int) ((height / 2) - (scaledDimension.getHeight() / 2)), (int) scaledDimension.getWidth(), (int) scaledDimension.getHeight(), null);
+
+        m_g2d.setColor(new Color(0xcdd4da));
+        m_g2d.drawString(symbol, 5, (int)height - fontMetrics.getDescent());
+
+        Image img =  SwingFXUtils.toFXImage(m_bgImg, null);
+        m_g2d.dispose();
+        m_bgImg = null;
+        return img;
     }
 
     public static Image getUnknownUnitImage() {

@@ -1,11 +1,5 @@
 package com.netnotes;
 
-import java.time.LocalDateTime;
-
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

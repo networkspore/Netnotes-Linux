@@ -226,7 +226,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     //    botMidText.setFill(getSecondaryColor());
       
                     if (networkBlockHeight == -1) {
-                        statusString().set(STARTUP_STRING);
+                        statusString().set("Getting block height...");
                     } else {
 
                         if (nodeBlockHeight == -1) {
@@ -836,9 +836,10 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         }
 
                         proc.waitFor();
-                        mainThread.join();
+                        
+                        
                         reset();
-
+                       
                     } catch (Exception e) {
                         try{
 
@@ -847,11 +848,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         }catch(IOException e1){
 
                         }
-                        try {
-                            mainThread.join();
-                        } catch (InterruptedException e1) {
               
-                        }
                         
                         reset();
                     }
