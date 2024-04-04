@@ -33,7 +33,7 @@ public class SpectrumMarketData extends PriceQuote {
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
     
     public SpectrumMarketData(JsonObject json) throws Exception{
-       // JsonElement idElement = json.get("id");
+        super(json.get("lastPrice").getAsString(), json.get("baseSymbol").getAsString(), json.get("quoteSymbol").getAsString(), System.currentTimeMillis());
         JsonElement baseIdElement = json.get("baseId");
         JsonElement baseSymbolElement = json.get("baseSymbol");
         JsonElement quoteIdElement = json.get("quoteId");
@@ -319,7 +319,7 @@ public class SpectrumMarketData extends PriceQuote {
         m_baseVolume = updateData.getBaseVolume();
         m_quoteVolume = updateData.getQuoteVolume();
         m_liquidityUSD = updateData.getLiquidityUSD();
-        
+        updateTimeStamp();
         m_lastUpdated.set(LocalDateTime.now());
     }
 

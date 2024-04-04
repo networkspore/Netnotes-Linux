@@ -207,7 +207,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
         
     }
 
-    private static volatile boolean m_shuttingDown = false;
 
     public boolean getIsFavorite(String id){
         return m_favoriteIds.contains(id);
@@ -613,7 +612,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     @Override
     public void shutdown(){
-        m_shuttingDown = true;
+
         if(m_g2d != null){
             m_g2d.dispose();
            
@@ -631,10 +630,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
 
     public Image getButtonImage(SpectrumMarketData data) {
-        if(m_shuttingDown){
-            return null;
-        }
-        
+     
         boolean isInvert = data.getDefaultInvert() ? ! getSortMethod().isTargetSwapped() : getSortMethod().isTargetSwapped();
         
         String symbolString = String.format("%-18s", data.getCurrentSymbol(isInvert) );

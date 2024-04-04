@@ -121,6 +121,10 @@ public class PriceQuote {
         return (Utils.getNowEpochMillis() - m_timestamp);
     }
 
+    public void updateTimeStamp(){
+        m_timestamp = System.currentTimeMillis();
+    }
+
     public long getTimeStamp() {
         return m_timestamp;
     }

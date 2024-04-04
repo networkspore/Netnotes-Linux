@@ -190,6 +190,7 @@ public class SpectrumChartView {
             if(img != null){
                 imgView.setFitWidth(img.getWidth());
                 imgView.setImage(img);
+
             }
         };
 
@@ -497,29 +498,32 @@ public class SpectrumChartView {
 
         long currentEpochEnd = lastPriceData.getEpochEnd();
 
+       
+        
+        long nextEpochStart = currentEpochEnd + 1;
+        long nextEpochEnd = currentEpochEnd + timeSpanMillis;
+
         if(currentEpochEnd >= timeStamp){
             if(timeStamp > (currentEpochEnd - timeSpanMillis)){
                 
                 lastPriceData.addPrice(timeStamp, price);
-      
                 
+        
             }
         }else{
 
-            long nextEpochStart = currentEpochEnd + 1;
-            long nextEpochEnd = currentEpochEnd + timeSpanMillis;
 
             while(timeStamp > nextEpochEnd){
                 SpectrumPriceData emptyPriceData = new SpectrumPriceData(nextEpochStart, m_currentPrice, m_currentPrice, m_currentPrice, m_currentPrice, nextEpochEnd);
                 m_priceList.add(emptyPriceData);
                 nextEpochStart += timeSpanMillis;
                 nextEpochEnd += timeSpanMillis;
-           
+                
             }
             
             SpectrumPriceData nextPriceData = new SpectrumPriceData(timeStamp, nextEpochEnd, price);
             m_priceList.add(nextPriceData);
-            
+       
 
         }
         //setIsPositive(price.compareTo(m_currentPrice));
@@ -527,7 +531,7 @@ public class SpectrumChartView {
         setCurrentPrice(price);
 
         updateNumbers();
-        m_doUpdate.set(System.currentTimeMillis());
+        m_doUpdate.set(timeStamp);
         return true;
     }
 
@@ -1308,7 +1312,9 @@ public class SpectrumChartView {
             m_g2d.drawString(text, x, y);
   
         }
-
+        m_g2d.setColor(new Color(0xffcdd4da, true));
+        m_g2d.setFont(m_labelFont);
+        m_g2d.drawString(Utils.formatTimeString(Utils.milliToLocalTime(m_doUpdate.get())), m_imgWidth-85, m_img.getHeight());
         /*   File outputfile = new File("image.png");
         try {
             ImageIO.write(img, "png", outputfile);

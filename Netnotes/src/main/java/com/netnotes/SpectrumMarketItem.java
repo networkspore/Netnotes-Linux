@@ -337,26 +337,6 @@ public class SpectrumMarketItem {
             
             Region headingBoxSpacerR = new Region();
             HBox.setHgrow(headingBoxSpacerR,Priority.ALWAYS);
-      
-            int statusFieldsWidth = 180;
-
-            
-            TextField chartStatusFieldTopLine2 = new TextField();
-            chartStatusFieldTopLine2.setPrefWidth(statusFieldsWidth);
-            chartStatusFieldTopLine2.setId("smallSecondaryColor");
-            chartStatusFieldTopLine2.setEditable(false);
-            chartStatusFieldTopLine2.setAlignment(Pos.CENTER_RIGHT);
-
-            Runnable setStatusText = () ->{
-                SpectrumMarketData marketData = m_marketData;
-                if(marketData != null){
-                    long timestamp = marketData.getTimeStamp();
-
-                   // chartStatusFieldTop.setText(m_isInvertChart.get() ? marketData.getInvertedLastPrice().toString() : marketData.getLastPrice().toString());
-                    chartStatusFieldTopLine2.setText(Utils.formatDateTimeString(marketData.getLastUpdated().get())+ " (" +timestamp + ")");
-                }
-            };
-            setStatusText.run();
 
   
 
@@ -591,10 +571,14 @@ public class SpectrumMarketItem {
                 if (marketData != null) {
                    // m_isInvertChart.get() ? newVal.getInvertedLastPrice() : newVal.getLastPrice();
                     m_stage.setTitle(exchange.getName() + " - " + m_marketData.getCurrentSymbol(m_isInvertChart.get())+ (marketData != null ? " - " + (m_isInvertChart.get() ? marketData.getInvertedLastPrice() : marketData.getLastPrice()) + "" : ""));
-                    long timeStamp = marketData .getTimeStamp();
+                    
                     BigDecimal price =  m_isInvertChart.get() ? marketData.getInvertedLastPrice() : marketData.getLastPrice();;
-                    chartView.updateMarketData(timeStamp, price);
-                    setStatusText.run();
+                    marketData.getTimeStamp();
+             
+                    chartView.updateMarketData(marketData.getTimeStamp(), price);
+                    
+                
+                  
                    //Utils.formatDateTimeString(Utils.milliToLocalTime(timeStamp);
                    
                     //chartStatusField.setText(timeStamp);
@@ -610,8 +594,7 @@ public class SpectrumMarketItem {
 
             m_marketData.getLastUpdated().addListener(marketDataListener);
 
-           
-            updateMarketData.run();
+   
 
             closeBtn.setOnAction(e -> {
                 m_marketData.getLastUpdated().removeListener(marketDataListener);

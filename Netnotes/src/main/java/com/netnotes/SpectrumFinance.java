@@ -969,10 +969,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
             ExecutorService executor = getNetworksData().getExecService();
             
             Runnable exec = ()->{
-                FreeMemory freeMem = Utils.getFreeMemory();
+                //FreeMemory freeMem = Utils.getFreeMemory();
                 
                 getMarkets();
-                try {
+                /*try {
                     Files.writeString(App.logFile.toPath(), "\nfreeMem: " + freeMem.getMemFreeGB() + " GB", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
                     
@@ -991,7 +991,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     m_counter = 0;
                 }else{
                     m_counter++;
-                }
+                }*/
                 
             };
 
