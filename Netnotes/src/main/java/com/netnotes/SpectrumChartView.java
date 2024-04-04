@@ -72,7 +72,7 @@ public class SpectrumChartView {
     private BigDecimal m_currentPrice = BigDecimal.ZERO;
     // private BufferedImage m_img = null;
     private int m_cellPadding = 3;
-    private HBox m_chartHbox = new HBox();
+
     private int m_scaleColWidth = 0;
     private int m_labelHeight = 0;
     private int m_amStringWidth = 0;
@@ -99,8 +99,7 @@ public class SpectrumChartView {
     private boolean m_isPositive = true;
 
     public SpectrumChartView(SimpleDoubleProperty width, SimpleDoubleProperty height, TimeSpan timeSpan) {
-        HBox.setHgrow(m_chartHbox, Priority.ALWAYS);
-        m_chartHbox.setAlignment(Pos.CENTER);
+
         m_chartWidth = width;
         m_chartHeight = height;
         m_timeSpan = timeSpan;
@@ -211,12 +210,9 @@ public class SpectrumChartView {
         rangeActiveProperty().addListener((obs, oldVal, newVal) -> updateImg.run());
 
         
-        m_chartHbox.getChildren().clear();
-        m_chartHbox.getChildren().addAll(imgView);
-        
-      
-
-        return m_chartHbox;
+        HBox chartBox = new HBox(imgView);
+    
+        return chartBox;
     }
 
     public void reset() {
@@ -902,7 +898,9 @@ public class SpectrumChartView {
         int currentWidth = m_priceList.size() == 0 ? (int) m_chartWidth.get() : m_scaleColWidth + (m_priceList.size() * totalCellWidth);
         currentWidth = currentWidth < m_chartWidth.get() ? (int) m_chartWidth.get() : currentWidth;
 
-        int currentHeight = (int) Math.ceil(m_chartHeight.get());
+        boolean init = m_chartHeight.get() < 300;
+
+        int currentHeight = m_chartHeight.get() < 300 ? 300 : (int) Math.ceil(m_chartHeight.get()) ;
 
        
         if(m_img == null || (currentWidth != m_imgWidth || currentHeight != m_imgHeight)){
@@ -925,7 +923,7 @@ public class SpectrumChartView {
         m_g2d.setFont(m_labelFont);
         m_g2d.setColor(m_labelColor);
 
-        if (m_valid == 1 && m_priceList.size() > 0) {
+        if (m_valid == 1 && m_priceList.size() > 0 &&  (m_imgHeight - (2 * (m_labelHeight + 5)) - 10) > 100) {
 
             int chartWidth = m_imgWidth - m_scaleColWidth;
             int chartHeight = m_imgHeight - (2 * (m_labelHeight + 5)) - 10;
@@ -1001,8 +999,15 @@ public class SpectrumChartView {
             int rowHeight = getRowHeight();
 
             int rows = (int) Math.floor(chartHeight / rowHeight);
+            
+            ////////////////////////////TODO: handle chart too small
 
-            int rowLabelSpacing = (int) (rows / ((rows * rowHeight) / m_labelSpacingSize));
+            rows = rows == 0 ? 1 : rows;
+
+            int rowsHeight = rows * rowHeight;
+            
+
+            int rowLabelSpacing = (int) (rows / (rowsHeight / m_labelSpacingSize));
 
             for (j = 0; j < rows; j++) {
 
@@ -1302,7 +1307,7 @@ public class SpectrumChartView {
 
             m_g2d.setFont(m_headingFont);
             FontMetrics fm = m_g2d.getFontMetrics();
-            String text = m_msg;
+            String text = init ? "Initializing..." : m_msg;
 
             int stringWidth = fm.stringWidth(text);
             int fmAscent = fm.getAscent();

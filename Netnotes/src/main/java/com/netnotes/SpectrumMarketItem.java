@@ -325,7 +325,7 @@ public class SpectrumMarketItem {
             Region headingSpacerL = new Region();
 
             SpectrumChartView chartView = new SpectrumChartView(chartWidth, chartHeight, new TimeSpan("1day"));
-            HBox chartBox = chartView.getChartBox();
+      
 
   
 
@@ -349,7 +349,8 @@ public class SpectrumMarketItem {
 
             headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(favoriteBtn.widthProperty()).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
 
-            ScrollPane chartScroll = new ScrollPane(chartBox);
+            ScrollPane chartScroll = new ScrollPane(chartView.getChartBox());
+
             Platform.runLater(()-> chartScroll.setVvalue(chartScrollVvalue));
 
             Region headingPaddingRegion = new Region();
@@ -458,21 +459,19 @@ public class SpectrumMarketItem {
     
             updateShowSwap.run();
 
-            chartScroll.maxHeightProperty().bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
+   //         chartScroll.maxHeightProperty().bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
             chartScroll.prefViewportWidthProperty().bind(marketScene.widthProperty().subtract(45));
             chartScroll.prefViewportHeightProperty().bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
 
             rangeHeight.bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(50));
 
-            marketScene.heightProperty().addListener((obs, oldVal, newVal) -> {
-                chartHeight.set(newVal.doubleValue() - headerVBox.heightProperty().get() - 30 + chartHeightOffset.get());
-
-            });
+            chartHeight.bind(Bindings.createObjectBinding(() ->chartScroll.viewportBoundsProperty().get().getHeight(), chartScroll.viewportBoundsProperty()));
+            
             chartWidth.bind(marketScene.widthProperty().subtract(50));
 
-            chartHeightOffset.addListener((obs, oldVal, newVal) -> {
+           /* chartHeightOffset.addListener((obs, oldVal, newVal) -> {
                 chartHeight.set(newVal.doubleValue() - headerVBox.heightProperty().get() - 30 + marketScene.getHeight());
-            });
+            });*/
 
             ResizeHelper.addResizeListener(m_stage, 200, 200, rect.getWidth(), rect.getHeight());
             m_stage.show();
@@ -606,7 +605,7 @@ public class SpectrumMarketItem {
 
             m_stage.setOnCloseRequest(e -> closeBtn.fire());
 
-            chartBox.requestFocus();
+           // chartBox.requestFocus();
 
             Runnable increaseChartHeight = () -> {
 
@@ -660,7 +659,7 @@ public class SpectrumMarketItem {
                 increaseChartHeight.run();
             });
 
-            chartBox.setOnKeyPressed(keyEventHandler);
+           // chartBox.setOnKeyPressed(keyEventHandler);
 
      
             chartView.setLastTimeStamp(System.currentTimeMillis());
@@ -751,7 +750,7 @@ public class SpectrumMarketItem {
                 menuItm.setUserData(timeSpan);
 
                 menuItm.setOnAction(action -> {
-                    chartBox.requestFocus();
+                  
                     resetChartHeightOffset.run();
 
                     Object item = menuItm.getUserData();
