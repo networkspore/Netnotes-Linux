@@ -28,7 +28,7 @@ public class RangeBar extends ImageView{
     public final static int MIN_WIDTH = 10;
     public final static int MIN_HEIGHT = 5;
 
-    public final static int BG_RGB = 0x00010101;
+    public final static int BG_RGB = 0xff000000;
 
     private double m_maxTop = 1;
     private SimpleDoubleProperty m_topVvalue = new SimpleDoubleProperty(1);
@@ -198,6 +198,8 @@ public class RangeBar extends ImageView{
         m_pW = m_imgBuf.getPixelWriter();
         m_pR = m_imgBuf.getPixelReader();
         Drawing.fillArea(m_imgBuf, m_pR, m_pW, BG_RGB, 0, 0, width, height, false);
+        setImage(m_imgBuf);
+        setFitWidth(m_imgBuf.getWidth());
     }
 
     public void setBgImage(SimpleDoubleProperty w, SimpleDoubleProperty h) {
@@ -412,7 +414,7 @@ public class RangeBar extends ImageView{
         
         if(m_imgBuf == null){
             setBgImage(m_width, m_height);
-        }else{
+        }/*else{
             int w = (int) m_width.get();
             int h = (int) m_height.get();
             w = w < 1 ? 1 : w;
@@ -422,8 +424,8 @@ public class RangeBar extends ImageView{
             }else{
                 Drawing.fillArea(m_imgBuf, m_pR, m_pW, BG_RGB, 0, 0, w , h, false);
             }
-        }
-        
+        }*/
+      
         int width = (int) m_imgBuf.getWidth();
         int height = (int) m_imgBuf.getHeight();
 
@@ -440,7 +442,7 @@ public class RangeBar extends ImageView{
         int x1 = 2;
         int y1 = getY1(height);
 
-        int x2 = width-2;
+        int x2 = width-4;
         int y2 = getY2(height);
         boolean settingRange = m_settingRange.get();
 
@@ -452,13 +454,13 @@ public class RangeBar extends ImageView{
 
             if (m_topVvalue.get() == 1 && m_bottomVvalue.get() == 0) {
 
-             //   Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50000000, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
+                Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50000000, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
 
                 Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2)),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), false);
             }
         } else {
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x20ffffff, 2, 0, width-2, height, true);
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0xff000000, 2, 0, width-2, height, true);
+            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x20ffffff, 2, 0, width-3, height, true);
+            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0xff000000, 2, 0, width-3, height, true);
             //OkBtn
            /* boolean okBtnDown = m_currentSelectionIndex == 0;
             int okShadingRGB1 = m_shadingLightRGB;
@@ -511,6 +513,6 @@ public class RangeBar extends ImageView{
             Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
 
         }
-        setImage(m_imgBuf);
+       
     }
 }
