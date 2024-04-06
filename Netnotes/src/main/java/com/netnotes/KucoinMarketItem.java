@@ -6,7 +6,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.time.Duration;
 
 import org.reactfx.util.FxTimer;
@@ -173,7 +172,7 @@ public class KucoinMarketItem {
 
         FontMetrics fm = g2d.getFontMetrics();
 
-        int symbolWidth = fm.stringWidth(symbolString);
+       // int symbolWidth = fm.stringWidth(symbolString);
         int lastWidth = fm.stringWidth(lastString);
         int fontAscent = fm.getAscent();
         int fontHeight = fm.getHeight();
@@ -262,21 +261,20 @@ public class KucoinMarketItem {
 
             BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
 
-            HBox menuBar = new HBox(menuButton);
+            HBox menuAreaBox = new HBox();
+            HBox.setHgrow(menuAreaBox, Priority.ALWAYS);
+            menuAreaBox.setAlignment(Pos.CENTER_LEFT);
+
+            HBox menuBar = new HBox(menuButton, menuAreaBox);
             HBox.setHgrow(menuBar, Priority.ALWAYS);
             menuBar.setAlignment(Pos.CENTER_LEFT);
             menuBar.setId("menuBar");
             menuBar.setPadding(new Insets(1, 0, 1, 5));
 
-            MenuItem setChartRangeItem = new MenuItem("Set price range     [ R ]");
+            MenuItem setChartRangeItem = new MenuItem("Set price range   ");
             setChartRangeItem.setId("urlMenuItem");
-            MenuItem zoomIn = new MenuItem("Zoom in             [ + ]");
-            zoomIn.setId("urlMenuItem");
-            MenuItem zoomOut = new MenuItem("Zoom out            [ - ]");
-            zoomOut.setId("urlMenuItem");
-            MenuItem resetZoom = new MenuItem("Reset zoom  [ Backspace ]");
-            resetZoom.setId("urlMenuItem");
-            menuButton.getItems().addAll(setChartRangeItem, zoomIn, zoomOut, resetZoom);
+  
+            menuButton.getItems().addAll(setChartRangeItem);
 
             Button favoriteBtn = new Button();
             favoriteBtn.setId("menuBtn");
@@ -417,14 +415,54 @@ public class KucoinMarketItem {
             VBox headerVBox = new VBox(titleBox, paddingBox);
             chartScroll.setPadding(new Insets(0));
 
+            
+
             RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight);
             chartRange.setId("menuBtn");
             chartRange.setVisible(false);
 
+            BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
+            setRangeBtn.getBufferedImageView().setFitWidth(15);
+            setRangeBtn.setOnAction(e->chartRange.start());
+            setRangeBtn.setId("menuBarCircleBtn");
+            setRangeBtn.setMaxWidth(20);
+            setRangeBtn.setMaxHeight(20);
+
+            Region btnSpacer = new Region();
+            btnSpacer.setMinWidth(5);
+
+            BufferedButton cancelRangeBtn = new BufferedButton("/assets/close-outline-white.png");
+            cancelRangeBtn.getBufferedImageView().setFitWidth(15);
+            cancelRangeBtn.setId("menuBarCircleBtn");
+            cancelRangeBtn.setOnAction(e->chartRange.stop());
+            cancelRangeBtn.setMaxWidth(20);
+            cancelRangeBtn.setMaxHeight(20);
+
+            Text rangeText = new Text(String.format("%-14s", "Price range"));
+            rangeText.setFont(App.titleFont);
+            rangeText.setFill(App.txtColor);
+
+            HBox chartRangeToolbox = new HBox(rangeText, setRangeBtn, btnSpacer, cancelRangeBtn);
+            chartRangeToolbox.setId("bodyBox");
+            chartRangeToolbox.setAlignment(Pos.CENTER_LEFT);
+            chartRangeToolbox.setPadding(new Insets(0,5,0,5));
+
             chartView.rangeActiveProperty().bind(chartRange.activeProperty());
             chartView.rangeTopVvalueProperty().bind(chartRange.topVvalueProperty());
             chartView.rangeBottomVvalueProperty().bind(chartRange.bottomVvalueProperty());
-            chartView.isSettingRangeProperty().bind(chartRange.settingRangeProperty());
+            
+            chartRange.settingRangeProperty().addListener((obs,oldval,newval)->{
+                chartView.isSettingRangeProperty().set(newval);
+                if(newval){
+                    if(!menuAreaBox.getChildren().contains(chartRangeToolbox)){
+                        menuAreaBox.getChildren().add(chartRangeToolbox);
+                    }
+                }else{
+                    if(menuAreaBox.getChildren().contains(chartRangeToolbox)){
+                        menuAreaBox.getChildren().remove(chartRangeToolbox);
+                    }
+                }
+            });
 
             HBox bodyBox = new HBox(chartRange, chartScroll);
             bodyBox.setAlignment(Pos.TOP_LEFT);
@@ -685,13 +723,7 @@ public class KucoinMarketItem {
                 }
             };
             setChartRangeItem.setOnAction((action) -> chartRange.toggleSettingRange());
-            zoomOut.setOnAction((action) -> {
-                decreaseChartHeight.run();
-            });
-            zoomIn.setOnAction((action) -> {
-                increaseChartHeight.run();
-            });
-
+  
             chartBox.setOnKeyPressed(keyEventHandler);
 
             marketScene.focusOwnerProperty().addListener((e) -> {
