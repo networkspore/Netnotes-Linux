@@ -1,7 +1,6 @@
 package com.netnotes;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 
 import com.google.gson.JsonObject;
 

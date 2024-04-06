@@ -5,15 +5,12 @@ import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.Transparency;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelReader;
+import javafx.scene.image.PixelWriter;
+import javafx.scene.image.WritableImage;
 
 
 public class Drawing {
@@ -120,6 +117,10 @@ public class Drawing {
         }
     }
 
+    public static void drawBar(int rgb1, int rgb2, WritableImage img,PixelReader pR, PixelWriter pW, int x1, int y1, int x2, int y2) {
+        drawBar(0, rgb1, rgb2, img, pR, pW, x1, y1, x2, y2);
+    }
+
     public static void drawBar(int rgb1, int rgb2, BufferedImage img, int x1, int y1, int x2, int y2) {
         drawBar(0, rgb1, rgb2, img, x1, y1, x2, y2);
     }
@@ -211,6 +212,91 @@ public class Drawing {
         }
     }
 
+    
+    public static void drawBar(int direction, int RGB1, int RGB2, WritableImage img, PixelReader pR, PixelWriter pW, int x1, int y1, int x2, int y2) {
+
+        int a1 = (RGB1 >> 24) & 0xff;
+        int r1 = (RGB1 >> 16) & 0xff;
+        int g1 = (RGB1 >> 8) & 0xff;
+        int b1 = RGB1 & 0xff;
+
+        int a2 = (RGB1 >> 24) & 0xff;
+        int r2 = (RGB2 >> 16) & 0xff;
+        int g2 = (RGB2 >> 8) & 0xff;
+        int b2 = RGB2 & 0xff;
+
+        int i = 0;
+        int width;
+        int height;
+        double scaleA;
+        double scaleR;
+        double scaleG;
+        double scaleB;
+
+        switch (direction) {
+            case 1:
+                height = (y2 - y1) - 1;
+                height = height < 1 ? 1 : height;
+                // double middle = height / 2;
+                //(0.6d * (double) height) / High
+
+                scaleA = (double) (a2 - a1) / (double) height;
+                scaleR = (double) (r2 - r1) / (double) height;
+                scaleG = (double) (g2 - g1) / (double) height;
+                scaleB = (double) (b2 - b1) / (double) height;
+
+                i = 0;
+                for (int x = x1; x < x2; x++) {
+                    for (int y = y1; y < y2; y++) {
+                        
+                        int oldRGB = pR.getArgb(x, y);
+
+                        int a = (int) (a1 + (i * scaleA));
+                        int r = (int) (r1 + (i * scaleR));
+                        int g = (int) (g1 + (i * scaleG));
+                        int b = (int) (b1 + (i * scaleB));
+
+                        int p = (a << 24) | (r << 16) | (g << 8) | b;
+                        pW.setArgb(x, y, blendRGBA(oldRGB, p));
+                        
+                        i++;
+                    }
+                    i = 0;
+                }
+                break;
+            default:
+                width = (x2 - x1) - 1;
+                width = width < 1 ? 1 : width;
+                // double middle = width / 2;
+                //(0.6d * (double) height) / High
+
+                scaleA = (double) (a2 - a1) / (double) width;
+                scaleR = (double) (r2 - r1) / (double) width;
+                scaleG = (double) (g2 - g1) / (double) width;
+                scaleB = (double) (b2 - b1) / (double) width;
+
+                i = 0;
+                for (int x = x1; x < x2; x++) {
+                    for (int y = y1; y < y2; y++) {
+
+                        int oldRGB = pR.getArgb(x, y);
+                        int a = (int) (a1 + (i * scaleA));
+                        int r = (int) (r1 + (i * scaleR));
+                        int g = (int) (g1 + (i * scaleG));
+                        int b = (int) (b1 + (i * scaleB));
+
+                        int p = (a << 24) | (r << 16) | (g << 8) | b;
+                        
+                        pW.setArgb(x, y, blendRGBA(oldRGB, p));
+
+                    }
+                    i++;
+                }
+                break;
+        }
+    }
+
+
     public static void fillArea(BufferedImage img, int RGB, int x1, int y1, int x2, int y2) {
         fillArea(img, RGB, x1, y1, x2, y2, true);
     }
@@ -235,12 +321,37 @@ public class Drawing {
         }
     }
 
+    public static void fillArea(WritableImage img, PixelReader pR, PixelWriter pW,  int RGB, int x1, int y1, int x2, int y2, boolean blend) {
+        x1 = x1 < 0 ? 0 : x1;
+        y1 = y1 < 0 ? 0 : y1;
+        x2 = x2 > img.getWidth() ? (int) img.getWidth() : x2;
+        y2 = y2 > img.getHeight() ? (int) img.getHeight(): y2;
+        
+        blend = pR == null ? false : blend;
+     
+        
+        for (int x = x1; x < x2; x++) {
+            for (int y = y1; y < y2; y++) {
+                if (blend) {
+                    int oldRGB = pR.getArgb(x, y);
+                                        
+                    pW.setArgb(x, y, blendRGBA(oldRGB, RGB));
+                } else {
+                    pW.setArgb(x, y, RGB);
+                }
+            }
+        }
+    }
+
     public static void drawImageExact(BufferedImage img, BufferedImage img2, int x1, int y1, boolean blend) {
         int x2 = x1 + img2.getWidth();
         int y2 = y1 + img2.getHeight();
 
         x2 = x2 > img.getWidth() -1 ? img.getWidth() -1 : x2;
         y2 = y2 > img.getHeight() -1 ? img.getHeight() -1 : y2;
+
+        x1 = x1 < 0 ? 0 : x1;
+        y1 = y1 < 0 ? 0 : y1;        
 
         for (int x = x1; x < x2; x++) {
             for (int y = y1; y < y2; y++) {
@@ -259,6 +370,40 @@ public class Drawing {
                     img.setRGB(x, y, blendRGBA(oldRGB, newRGB));
                 } else {
                     img.setRGB(x, y, newRGB);
+                }
+            }
+        }
+    }
+
+    public static void drawImageExact(WritableImage img,PixelReader pR1, PixelWriter pW, Image img2, int x1, int y1, boolean blend) {
+        int x2 = x1 + (int) img2.getWidth();
+        int y2 = y1 + (int) img2.getHeight();
+
+        PixelReader pR2 = img2.getPixelReader();
+
+        x2 = x2 > (int) img.getWidth() -1 ? (int) img.getWidth() -1 : x2;
+        y2 = y2 > (int) img.getHeight() -1 ? (int) img.getHeight() -1 : y2;
+
+        x1 = x1 < 0 ? 0 : x1;
+        y1 = y1 < 0 ? 0 : y1;        
+
+        for (int x = x1; x < x2; x++) {
+            for (int y = y1; y < y2; y++) {
+                int img2x = x - x1;
+                int img2y = y - y1;
+
+                img2x = img2x < 0 ? 0 : (img2x > (int) img2.getWidth() -1 ? (int) img2.getWidth() - 1 : img2x);
+                img2y = img2y < 0 ? 0 : (img2y > (int) img2.getHeight() - 1 ? (int) img2.getHeight() -1 : img2y);
+                
+                int newRGB = pR2.getArgb(img2x, img2y);
+                
+                if (blend) {
+                    int oldRGB = pR1.getArgb(x, y);
+                   
+
+                    pW.setArgb(x, y, blendRGBA(oldRGB, newRGB));
+                } else {
+                    pW.setArgb(x, y, newRGB);
                 }
             }
         }

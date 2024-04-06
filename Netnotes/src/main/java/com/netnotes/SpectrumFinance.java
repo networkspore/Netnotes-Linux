@@ -958,7 +958,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
  
-    private static volatile int m_counter = 0;
+    //private static volatile int m_counter = 0;
 
     public void start(){
         if(m_connectionStatus.get() == 0){

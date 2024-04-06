@@ -12,7 +12,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.WorkerStateEvent;
-import javafx.embed.swing.SwingFXUtils;
 
 import java.security.spec.InvalidKeySpecException;
 import java.security.NoSuchAlgorithmException;
@@ -50,8 +49,6 @@ import javafx.scene.input.KeyCode;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -67,7 +64,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.reactfx.util.FxTimer;
 
@@ -141,8 +137,8 @@ public class App extends Application {
     private NetworksData m_networksData;
 
     private HostServices m_networkServices = getHostServices();
-    private java.awt.SystemTray m_tray;
-    private java.awt.TrayIcon m_trayIcon;
+    //private java.awt.SystemTray m_tray;
+    //private java.awt.TrayIcon m_trayIcon;
     private final static long EXECUTION_TIME = 500;
     //private Stage m_stage;
     
@@ -2260,7 +2256,7 @@ public class App extends Application {
         return passwordField.getText().equals("") ? null : passwordField.getText();
     }
 
-    private void addAppToTray() {
+    /*private void addAppToTray() {
         try {
 
             java.awt.Toolkit.getDefaultToolkit();
@@ -2311,7 +2307,7 @@ public class App extends Application {
             
         }
 
-    }
+    }*/
 
     public static Scene getProgressScene(Image icon, String headingString, String titleContextString, String fileName, ProgressBar progressBar, Stage stage, Button closeBtn) {
 

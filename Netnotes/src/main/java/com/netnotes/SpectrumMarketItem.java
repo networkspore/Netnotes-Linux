@@ -67,7 +67,6 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import scala.collection.mutable.Stack;
 
 public class SpectrumMarketItem {
     public class StageKeyPress{
@@ -256,10 +255,10 @@ public class SpectrumMarketItem {
             SimpleDoubleProperty chartWidth = new SimpleDoubleProperty(sceneWidth - 50);
             SimpleDoubleProperty chartHeight = new SimpleDoubleProperty(sceneHeight - 170);
             SimpleDoubleProperty chartHeightOffset = new SimpleDoubleProperty(0);
-            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(35);
+            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(10);
             SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
 
-            double chartSizeInterval = 25;
+          //  double chartSizeInterval = 25;
 
             SpectrumFinance exchange = m_dataList.getSpectrumFinance();
 
@@ -281,24 +280,29 @@ public class SpectrumMarketItem {
                 m_isInvertChart.set(!m_isInvertChart.get());
             });
 
-            Region menuSpacer = new Region();
-            HBox.setHgrow(menuSpacer, Priority.ALWAYS);
 
-            HBox menuBar = new HBox(menuButton, menuSpacer,  invertBtn);
+
+            HBox menuAreaBox = new HBox();
+            HBox.setHgrow(menuAreaBox, Priority.ALWAYS);
+            menuAreaBox.setAlignment(Pos.CENTER_LEFT);
+
+            HBox menuBar = new HBox(menuButton, menuAreaBox,  invertBtn);
             HBox.setHgrow(menuBar, Priority.ALWAYS);
             menuBar.setAlignment(Pos.CENTER_LEFT);
             menuBar.setId("menuBar");
             menuBar.setPadding(new Insets(1, 0, 1, 5));
 
-            MenuItem setChartRangeItem = new MenuItem("Set price range     [ R ]");
+            MenuItem setChartRangeItem = new MenuItem("Set price range");
+
             setChartRangeItem.setId("urlMenuItem");
-            MenuItem zoomIn = new MenuItem("Zoom in             [ + ]");
+            /*MenuItem zoomIn = new MenuItem("Zoom in             [ + ]");
             zoomIn.setId("urlMenuItem");
             MenuItem zoomOut = new MenuItem("Zoom out            [ - ]");
             zoomOut.setId("urlMenuItem");
             MenuItem resetZoom = new MenuItem("Reset zoom  [ Backspace ]");
             resetZoom.setId("urlMenuItem");
-            menuButton.getItems().addAll(setChartRangeItem, zoomIn, zoomOut, resetZoom);
+             */
+            menuButton.getItems().addAll(setChartRangeItem);
 
             Button favoriteBtn = new Button();
             favoriteBtn.setId("menuBtn");
@@ -363,9 +367,38 @@ public class SpectrumMarketItem {
             VBox headerVBox = new VBox(titleBox, paddingBox);
             chartScroll.setPadding(new Insets(0, 0, 0, 0));
 
+            
+     
+
             RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight);
-           // chartRange.setId("menuBtn");
-            chartRange.setVisible(false);
+
+            setChartRangeItem.setOnAction((e)->chartRange.toggleSettingRange());
+
+            BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
+            setRangeBtn.getBufferedImageView().setFitWidth(15);
+            setRangeBtn.setOnAction(e->chartRange.start());
+            setRangeBtn.setId("menuBarCircleBtn");
+            setRangeBtn.setMaxWidth(20);
+            setRangeBtn.setMaxHeight(20);
+
+            Region btnSpacer = new Region();
+            btnSpacer.setMinWidth(5);
+
+            BufferedButton cancelRangeBtn = new BufferedButton("/assets/close-outline-white.png");
+            cancelRangeBtn.getBufferedImageView().setFitWidth(15);
+            cancelRangeBtn.setId("menuBarCircleBtn");
+            cancelRangeBtn.setOnAction(e->chartRange.stop());
+            cancelRangeBtn.setMaxWidth(20);
+            cancelRangeBtn.setMaxHeight(20);
+
+            Text rangeText = new Text(String.format("%-14s", "Price range"));
+            rangeText.setFont(App.titleFont);
+            rangeText.setFill(App.txtColor);
+
+            HBox chartRangeToolbox = new HBox(rangeText, setRangeBtn, btnSpacer, cancelRangeBtn);
+            chartRangeToolbox.setId("bodyBox");
+            chartRangeToolbox.setAlignment(Pos.CENTER_LEFT);
+            chartRangeToolbox.setPadding(new Insets(0,5,0,5));
 
             chartView.rangeActiveProperty().bind(chartRange.activeProperty());
             chartView.rangeTopVvalueProperty().bind(chartRange.topVvalueProperty());
@@ -373,6 +406,15 @@ public class SpectrumMarketItem {
         
             chartRange.settingRangeProperty().addListener((obs,oldval,newval)->{
                 chartView.setIsSettingRange(newval);
+                if(newval){
+                    if(!menuAreaBox.getChildren().contains(chartRangeToolbox)){
+                        menuAreaBox.getChildren().add(chartRangeToolbox);
+                    }
+                }else{
+                    if(menuAreaBox.getChildren().contains(chartRangeToolbox)){
+                        menuAreaBox.getChildren().remove(chartRangeToolbox);
+                    }
+                }
             });
                         //⯈🗘
             Button toggleSwapBtn = new Button("⯈");
@@ -463,10 +505,11 @@ public class SpectrumMarketItem {
             chartScroll.prefViewportWidthProperty().bind(marketScene.widthProperty().subtract(45));
             chartScroll.prefViewportHeightProperty().bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
 
-            rangeHeight.bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(50));
+            
 
             chartHeight.bind(Bindings.createObjectBinding(() ->chartScroll.viewportBoundsProperty().get().getHeight(), chartScroll.viewportBoundsProperty()));
-            
+            rangeHeight.bind(chartHeight.subtract(45));
+
             chartWidth.bind(marketScene.widthProperty().subtract(50));
 
            /* chartHeightOffset.addListener((obs, oldVal, newVal) -> {
@@ -607,6 +650,12 @@ public class SpectrumMarketItem {
 
            // chartBox.requestFocus();
 
+   
+            Runnable resetChartHeightOffset = () -> {
+                chartHeightOffset.set(0);
+                chartScroll.setVvalue(chartScrollVvalue);
+            };
+            /*
             Runnable increaseChartHeight = () -> {
 
                 chartHeightOffset.set((chartHeightOffset.get() + chartSizeInterval));
@@ -624,10 +673,6 @@ public class SpectrumMarketItem {
 
             };
 
-            Runnable resetChartHeightOffset = () -> {
-                chartHeightOffset.set(0);
-                chartScroll.setVvalue(chartScrollVvalue);
-            };
             EventHandler<javafx.scene.input.KeyEvent> keyEventHandler = (keyEvent) -> {
                 
                 switch (keyEvent.getCode()) {
@@ -651,13 +696,13 @@ public class SpectrumMarketItem {
                         break;
                 }
             };
-            setChartRangeItem.setOnAction((action) -> chartRange.toggleSettingRange());
+            
             zoomOut.setOnAction((action) -> {
                 decreaseChartHeight.run();
             });
             zoomIn.setOnAction((action) -> {
                 increaseChartHeight.run();
-            });
+            });*/
 
            // chartBox.setOnKeyPressed(keyEventHandler);
 
@@ -708,8 +753,8 @@ public class SpectrumMarketItem {
                        
                         chartView.setPriceDataList(m_isInvertChart.get() ?  chartArray : invertPrices(chartArray), currentTime);
                         
-                        Platform.runLater(()->chartRange.setVisible(true));
-
+                        //Platform.runLater(()->);
+                        chartRange.setVisible(true);
                         FxTimer.runLater(Duration.ofMillis(200), setChartScrollRight);
                     }else{
                         
@@ -1234,6 +1279,7 @@ public class SpectrumMarketItem {
         StackPane orderPriceStackBox = new StackPane(orderPriceStatusBox, orderPriceImageView, orderPriceTextField);
         HBox.setHgrow(orderPriceStackBox, Priority.ALWAYS);
         orderPriceStackBox.setAlignment(Pos.CENTER_LEFT);
+        orderPriceStackBox.setId("darkBox");
 
         HBox orderPriceBox = new HBox(orderPriceText, orderPriceStackBox);
         HBox.setHgrow(orderPriceBox, Priority.ALWAYS);
@@ -1459,7 +1505,7 @@ public class SpectrumMarketItem {
         swapBox.setMinWidth(SWAP_BOX_MIN_WIDTH);
       //  swapBox.setPadding(new Insets(5,0,5,0));
 
-        SimpleObjectProperty<ChangeListener<LocalDateTime>> orderPriceListener = new SimpleObjectProperty<>(null);
+     //   SimpleObjectProperty<ChangeListener<LocalDateTime>> orderPriceListener = new SimpleObjectProperty<>(null);
        
        
 

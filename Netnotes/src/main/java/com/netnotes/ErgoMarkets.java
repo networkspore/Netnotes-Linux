@@ -4,16 +4,13 @@ import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.concurrent.WorkerStateEvent;

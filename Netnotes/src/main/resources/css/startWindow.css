@@ -608,6 +608,26 @@
    
 }
 
+#menuBarCircleBtn {
+    -fx-background-color: #111111;
+    -fx-border-color: black;
+    -fx-border-width: 1 1 1 1;
+    -fx-border-style: solid;
+    -fx-border-radius: 30;
+    -fx-background-radius: 30;
+    -fx-padding: 1;
+    -fx-opacity: .8;
+}
+#menuBarCircleBtn:hover{
+    -fx-opacity:1;
+}
+#menuBarCircleBtn:pressed{
+    -fx-background-color:  linear-gradient(to bottom,
+    black, #33333350);
+    -fx-border-color: black;
+}
+
+
 #availableBtn {
     -fx-background-color: #ffffffAA;
     -fx-border-color: white;
@@ -625,7 +645,7 @@
     -fx-background-color:  linear-gradient(to bottom,
     #777777,
     #ffffffA0);
-    -fx-border-color: #009925;
+    -fx-border-color: white;
 }
 /**/
 

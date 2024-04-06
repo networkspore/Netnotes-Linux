@@ -27,17 +27,16 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.Pos;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 
 public class SpectrumChartView {
 
     
    public final static int DECIMAL_PRECISION = 6;
    public final static int MAX_BARS = 150;
+   public final static int MIN_CHART_HEIGHT = 300;
 
 
    private TimeSpan m_timeSpan = new TimeSpan("30min");
@@ -898,9 +897,9 @@ public class SpectrumChartView {
         int currentWidth = m_priceList.size() == 0 ? (int) m_chartWidth.get() : m_scaleColWidth + (m_priceList.size() * totalCellWidth);
         currentWidth = currentWidth < m_chartWidth.get() ? (int) m_chartWidth.get() : currentWidth;
 
-        boolean init = m_chartHeight.get() < 300;
+        boolean init = m_chartHeight.get() < 1;
 
-        int currentHeight = m_chartHeight.get() < 300 ? 300 : (int) Math.ceil(m_chartHeight.get()) ;
+        int currentHeight = m_chartHeight.get() < MIN_CHART_HEIGHT ? MIN_CHART_HEIGHT : (int) Math.ceil(m_chartHeight.get()) ;
 
        
         if(m_img == null || (currentWidth != m_imgWidth || currentHeight != m_imgHeight)){
