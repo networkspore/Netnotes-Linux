@@ -343,6 +343,8 @@ public class Drawing {
         }
     }
 
+
+
     public static void drawImageExact(BufferedImage img, BufferedImage img2, int x1, int y1, boolean blend) {
         int x2 = x1 + img2.getWidth();
         int y2 = y1 + img2.getHeight();
@@ -373,6 +375,12 @@ public class Drawing {
                 }
             }
         }
+    }
+
+    public static void drawImageExact(WritableImage img, Image img2, int x1, int y1, boolean blend){
+        PixelReader px = img.getPixelReader();
+        PixelWriter pW = img.getPixelWriter();
+        drawImageExact(img, px, pW, img2, x1,y1,blend);
     }
 
     public static void drawImageExact(WritableImage img,PixelReader pR1, PixelWriter pW, Image img2, int x1, int y1, boolean blend) {

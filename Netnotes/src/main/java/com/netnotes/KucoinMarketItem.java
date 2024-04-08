@@ -3,7 +3,6 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.time.Duration;
@@ -14,7 +13,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-import com.utils.Utils;
 
 import javafx.application.Platform;
 
@@ -417,7 +415,7 @@ public class KucoinMarketItem {
 
             
 
-            RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight);
+            RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight, m_dataList.getNetworksData().getExecService());
             chartRange.setId("menuBtn");
             chartRange.setVisible(false);
 
@@ -472,8 +470,6 @@ public class KucoinMarketItem {
 
             VBox layoutBox = new VBox(headerVBox, bodyPaddingBox);
 
-            Rectangle rect = m_dataList.getNetworksData().getMaximumWindowBounds();
-
             Scene marketScene = new Scene(layoutBox, sceneWidth, sceneHeight);
             marketScene.setFill(null);
             marketScene.getStylesheets().add("/css/startWindow.css");
@@ -495,25 +491,10 @@ public class KucoinMarketItem {
                 chartHeight.set(newVal.doubleValue() - headerVBox.heightProperty().get() - 30 + marketScene.getHeight());
             });
 
-            ResizeHelper.addResizeListener(m_stage, 200, 200, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_stage, 200, 200, Double.MAX_VALUE, Double.MAX_VALUE);
             m_stage.show();
 
-            EventHandler<MouseEvent> toggleHeader = (mouseEvent) -> {
-                double mouseY = mouseEvent.getY();
-                if (mouseY < 10) {
-                    if (!headerVBox.getChildren().contains(titleBox)) {
-                        headerVBox.getChildren().addAll(titleBox, paddingBox);
-                        chartHeightOffset.set(chartHeightOffset.get() == headerVBox.getHeight() ? 0 : chartHeightOffset.get());
-                    }
-                } else {
-                    if (headerVBox.getChildren().contains(titleBox)) {
-                        if (mouseY > headerVBox.heightProperty().get()) {
-                            headerVBox.getChildren().clear();
-                            chartHeightOffset.set(chartHeightOffset.get() == 0 ? headerVBox.getHeight() : chartHeightOffset.get());
-                        }
-                    }
-                }
-            };
+
             Runnable resetScroll = () ->{
                 
                 Platform.runLater(()-> chartScroll.setVvalue(chartScrollVvalue));
@@ -521,67 +502,11 @@ public class KucoinMarketItem {
             };
 
             maximizeBtn.setOnAction((e) -> {
-                if (m_prevHeight == -1) {
-
-                    headerVBox.getChildren().clear();
-                    chartHeightOffset.set(chartHeightOffset.get() == 0 ? headerVBox.getHeight() : chartHeightOffset.get());
-                    marketScene.setOnMouseMoved(toggleHeader);
-                    m_prevHeight = m_stage.getHeight();
-                    m_prevWidth = m_stage.getWidth();
-                    m_prevX = m_stage.getX();
-                    m_prevY = m_stage.getY();
-
-                    m_stage.setWidth(rect.getWidth());
-                    m_stage.setHeight(rect.getHeight());
-                    m_stage.setX(0);
-                    m_stage.setY(0);
-
-                } else {
-                    m_stage.setWidth(m_prevWidth);
-                    m_stage.setHeight(m_prevHeight);
-                    m_stage.setX(m_prevX);
-                    m_stage.setY(m_prevY);
-
-                    m_prevHeight = -1;
-                    m_prevWidth = -1;
-                    m_prevX = -1;
-                    m_prevY = -1;
-                    if (!headerVBox.getChildren().contains(titleBox)) {
-                        headerVBox.getChildren().addAll(titleBox, paddingBox);
-                        chartHeightOffset.set(chartHeightOffset.get() == headerVBox.getHeight() ? 0 : chartHeightOffset.get());
-                    }
-                    marketScene.setOnMouseMoved(null);
-                }
-                FxTimer.runLater(Duration.ofMillis(100), resetScroll);
+               
             });
 
             fillRightBtn.setOnAction(e -> {
 
-                if (exchange.getAppStage() != null) {
-                    Stage exStage = exchange.getAppStage();
-                    if (exStage.getWidth() != m_stage.getX()) {
-                        exchange.cmdObjectProperty().set(Utils.getCmdObject("MAXIMIZE_STAGE_LEFT"));
-
-                        m_prevHeight = m_stage.getHeight();
-                        m_prevWidth = m_stage.getWidth();
-                        m_prevX = m_stage.getX();
-                        m_prevY = m_stage.getY();
-
-                        m_stage.setX(exStage.getWidth());
-                        m_stage.setY(0);
-                        m_stage.setWidth(rect.getWidth() - exStage.getWidth());
-                        m_stage.setHeight(rect.getHeight());
-                        FxTimer.runLater(Duration.ofMillis(200), () -> {
-
-                           Platform.runLater(()->chartScroll.setVvalue(chartScrollVvalue));
-                           Platform.runLater(()-> chartScroll.setHvalue(chartScrollHvalue));
-                        });
-                    } else {
-                        maximizeBtn.fire();
-                    }
-                } else {
-                    maximizeBtn.fire();
-                }
 
             });
 

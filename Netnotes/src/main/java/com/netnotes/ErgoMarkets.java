@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -206,10 +206,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
             mainScene.setFill(null);
             mainScene.getStylesheets().add("/css/startWindow.css");
             m_stage.setScene(mainScene);
-
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
-
-            scrollPane.prefViewportWidthProperty().bind(mainScene.widthProperty());
+           scrollPane.prefViewportWidthProperty().bind(mainScene.widthProperty());
             scrollPane.prefViewportHeightProperty().bind(mainScene.heightProperty().subtract(140));
             scrollPane.setPadding(new Insets(5, 5, 5, 5));
 
@@ -223,7 +220,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
             scrollPane.setOnMouseClicked(e->{
                 marketsList.selectedIdProperty().set(null);
             });
-            ResizeHelper.addResizeListener(m_stage, 300, 300, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_stage, 300, 300, Double.MAX_VALUE, Double.MAX_VALUE);
             Runnable doClose = ()->{
                 marketsList.shutdown();
                 m_stage = null;

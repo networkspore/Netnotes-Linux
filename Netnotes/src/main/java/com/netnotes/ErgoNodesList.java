@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +20,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 import org.ergoplatform.appkit.NetworkType;
-import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
@@ -29,7 +28,6 @@ import com.google.gson.JsonArray;
 
 import com.utils.Utils;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -963,7 +961,7 @@ public class ErgoNodesList {
 
             switchPublic.run();
 
-            Rectangle maxRect = m_ergoNodes.getNetworksData().getMaximumWindowBounds();
+    
 
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
                 public Thread newThread(Runnable r) {
@@ -997,7 +995,7 @@ public class ErgoNodesList {
                 m_lastExecution = executor.schedule(setUpdated, EXECUTION_TIME, TimeUnit.MILLISECONDS);
             });
 
-            ResizeHelper.addResizeListener(m_addStage, minWidth, minHeight, maxRect.getWidth(), maxRect.getHeight());
+            ResizeHelper.addResizeListener(m_addStage, minWidth, minHeight, Double.MAX_VALUE, Double.MAX_VALUE);
 
             maximizeBtn.setOnAction(maxEvent -> {
                 boolean maximized = m_addStage.isMaximized();

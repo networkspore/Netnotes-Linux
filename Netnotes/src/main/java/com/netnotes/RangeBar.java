@@ -1,7 +1,6 @@
 package com.netnotes;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -63,7 +62,7 @@ public class RangeBar extends ImageView{
 
     private Image m_collapseImage = new Image("/assets/collapse-20.png");
 
-    private int m_bg1 = 0xA0ffffff;
+    private int m_bg1 = 0xC0ffffff;
     private int m_bg2 = 0x50000000;
 
     private int m_barRGB1 = 0x55333333;
@@ -75,19 +74,17 @@ public class RangeBar extends ImageView{
     private PixelWriter m_pW = null;
     private PixelReader m_pR = null;
 
-    private boolean m_mouseDown = false;
-   // private AtomicDouble m_atomicDbl = new AtomicDouble();
     private AtomicReference<Double> m_mouseLocation = new AtomicReference<Double>(0.0);
     private Future<?> m_lastExecution = null;
     
     public final static long EXECUTION_TIME = 200;
 
-    public RangeBar(SimpleDoubleProperty width, SimpleDoubleProperty height) {
+    public RangeBar(SimpleDoubleProperty width, SimpleDoubleProperty height,  ExecutorService executor) {
         super();
         m_width = width;
         m_height = height;
     
-        ExecutorService executor = Executors.newFixedThreadPool(1);
+
         
         Runnable updateMouseY =()->{
             Utils.returnObject(null, executor, (onSucceeded)->{
@@ -103,7 +100,14 @@ public class RangeBar extends ImageView{
                 
                 if (m_lastExecution == null || (m_lastExecution != null && m_lastExecution.isDone())) {
 
-                    m_lastExecution = executor.submit(updateMouseY);
+                    m_lastExecution = executor.submit(()->{
+                        updateMouseY.run();
+                        try {
+                            Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                    
+                        }
+                    });
                 }
 
                 
@@ -120,7 +124,7 @@ public class RangeBar extends ImageView{
                 
                 onMousePressed(mouseEvent);
                 if(m_settingRange.get()){
-                    m_mouseDown = true;
+               
                     addEventFilter(MouseEvent.MOUSE_DRAGGED, mouseMoveEventHandler);
                 }
             }
@@ -130,10 +134,9 @@ public class RangeBar extends ImageView{
         setOnMouseReleased((mouseEvent) -> {
 
             onMouseReleased(mouseEvent);
-            if(m_mouseDown){
-                m_mouseDown = false;
-                removeEventFilter(MouseEvent.MOUSE_DRAGGED, mouseMoveEventHandler);
-            }
+        
+            removeEventFilter(MouseEvent.MOUSE_DRAGGED, mouseMoveEventHandler);
+            
             
         });
         setId("rangeBar");

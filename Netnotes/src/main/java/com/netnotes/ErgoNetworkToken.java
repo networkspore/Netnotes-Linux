@@ -2,7 +2,6 @@ package com.netnotes;
 
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +15,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.ListChangeListener;
@@ -420,13 +418,9 @@ public class ErgoNetworkToken extends PriceCurrency {
               
    
             m_ergoTokenStage.setScene(tokenScene);
-            NetworksData netData = m_tokensList.getErgoTokens().getNetworksData();
-  
 
-            Rectangle rect = netData.getMaximumWindowBounds();
-            
  
-            ResizeHelper.addResizeListener(m_ergoTokenStage, 300, 600, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_ergoTokenStage, 300, 600, Double.MAX_VALUE, Double.MAX_VALUE);
 
            
    

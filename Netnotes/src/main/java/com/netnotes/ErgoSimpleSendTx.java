@@ -1,10 +1,5 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.time.LocalDateTime;
 
 import org.ergoplatform.appkit.NetworkType;
 
@@ -16,11 +11,10 @@ import com.google.gson.JsonElement;
 
 public class ErgoSimpleSendTx extends ErgoTransaction  {
 
-    private static File logFile = new File("netnotes-log.txt");
+
     
 
     private AddressInformation m_receipientAddress;
-    private final static long FAILED_MILLIS = (1000*60*35);
 
    
     private String m_explorerUrl = "";
@@ -399,7 +393,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
             amountBoxes.minHeightProperty().bind(scrollPane.prefViewportHeightProperty().subtract(60));
             amountBoxes.prefWidthProperty().bind(txScene.widthProperty().subtract(60));
 
-            java.awt.Rectangle rect = getParentAddress().getAddressesData().getWalletData().getNetworksData().getMaximumWindowBounds();
+            java.awt.Rectangle rect = getParentAddress().getAddressesData().getWalletData().getNetworksData().getDefaultWindowBounds();
 
             ResizeHelper.addResizeListener(stage, 200, 250, rect.getWidth(), rect.getHeight());
             

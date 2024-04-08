@@ -2,11 +2,9 @@ package com.netnotes;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.utils.Utils;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;

@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -37,7 +36,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -76,8 +74,9 @@ public class SpectrumMarketItem {
             m_keyCode = keyCode;
             m_timeStamp = System.currentTimeMillis();
         }
-
+        
         public KeyCode getKeyCode(){
+    
             return m_keyCode;
         }
 
@@ -107,6 +106,7 @@ public class SpectrumMarketItem {
 
     private final SimpleBooleanProperty m_isInvertChart = new SimpleBooleanProperty( );
 
+    private int m_positionIndex = 0;
     private double m_prevWidth = -1;
     private double m_prevHeight = -1;
     private double m_prevX = -1;
@@ -254,8 +254,8 @@ public class SpectrumMarketItem {
 
             SimpleDoubleProperty chartWidth = new SimpleDoubleProperty(sceneWidth - 50);
             SimpleDoubleProperty chartHeight = new SimpleDoubleProperty(sceneHeight - 170);
-            SimpleDoubleProperty chartHeightOffset = new SimpleDoubleProperty(0);
-            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(10);
+            //SimpleDoubleProperty chartHeightOffset = new SimpleDoubleProperty(0);
+            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(12);
             SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
 
           //  double chartSizeInterval = 25;
@@ -370,14 +370,14 @@ public class SpectrumMarketItem {
             
      
 
-            RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight);
+            RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight, getNetworksData().getExecService());
 
             setChartRangeItem.setOnAction((e)->chartRange.toggleSettingRange());
 
             BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
             setRangeBtn.getBufferedImageView().setFitWidth(15);
             setRangeBtn.setOnAction(e->chartRange.start());
-            setRangeBtn.setId("menuBarCircleBtn");
+            setRangeBtn.setId("circleGoBtn");
             setRangeBtn.setMaxWidth(20);
             setRangeBtn.setMaxHeight(20);
 
@@ -440,6 +440,7 @@ public class SpectrumMarketItem {
             swapButtonBox.setAlignment(Pos.CENTER);
             swapButtonBox.setId("darkBox");
 
+            
             HBox bodyBox = new HBox(chartRange, chartScroll, swapButtonBox);
             bodyBox.setId("bodyBox");
             bodyBox.setAlignment(Pos.TOP_LEFT);
@@ -457,7 +458,6 @@ public class SpectrumMarketItem {
 
             VBox layoutBox = new VBox(headerVBox, bodyPaddingBox);
 
-            Rectangle rect = m_dataList.getNetworksData().getMaximumWindowBounds();
 
             Scene marketScene = new Scene(layoutBox, sceneWidth, sceneHeight);
             marketScene.setFill(null);
@@ -501,14 +501,14 @@ public class SpectrumMarketItem {
     
             updateShowSwap.run();
 
+            
+
    //         chartScroll.maxHeightProperty().bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
             chartScroll.prefViewportWidthProperty().bind(marketScene.widthProperty().subtract(45));
             chartScroll.prefViewportHeightProperty().bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
 
-            
-
             chartHeight.bind(Bindings.createObjectBinding(() ->chartScroll.viewportBoundsProperty().get().getHeight(), chartScroll.viewportBoundsProperty()));
-            rangeHeight.bind(chartHeight.subtract(45));
+            rangeHeight.bind(marketScene.heightProperty().subtract(headerVBox.heightProperty()).subtract(65));
 
             chartWidth.bind(marketScene.widthProperty().subtract(50));
 
@@ -516,94 +516,130 @@ public class SpectrumMarketItem {
                 chartHeight.set(newVal.doubleValue() - headerVBox.heightProperty().get() - 30 + marketScene.getHeight());
             });*/
 
-            ResizeHelper.addResizeListener(m_stage, 200, 200, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_stage, 200, 200, Double.MAX_VALUE, Double.MAX_VALUE);
             m_stage.show();
 
-            EventHandler<MouseEvent> toggleHeader = (mouseEvent) -> {
+            /*EventHandler<MouseEvent> toggleHeader = (mouseEvent) -> {
                 double mouseY = mouseEvent.getY();
-                if (mouseY < 10) {
-                    if (!headerVBox.getChildren().contains(titleBox)) {
-                        headerVBox.getChildren().addAll(titleBox, paddingBox);
-                        chartHeightOffset.set(chartHeightOffset.get() == headerVBox.getHeight() ? 0 : chartHeightOffset.get());
+                if (mouseY < (titleBox.getLayoutBounds().getHeight() + 10)) {
+                    if (!headerVBox.getChildren().contains(paddingBox)) {
+                        headerVBox.getChildren().addAll( paddingBox);
+                       // chartHeightOffset.set(chartHeightOffset.get() == headerVBox.getHeight() ? 0 : chartHeightOffset.get());
                     }
                 } else {
                     if (headerVBox.getChildren().contains(titleBox)) {
                         if (mouseY > headerVBox.heightProperty().get()) {
-                            headerVBox.getChildren().clear();
-                            chartHeightOffset.set(chartHeightOffset.get() == 0 ? headerVBox.getHeight() : chartHeightOffset.get());
+                            headerVBox.getChildren().remove(paddingBox);
+                         //   chartHeightOffset.set(chartHeightOffset.get() == 0 ? headerVBox.getHeight() : chartHeightOffset.get());
                         }
                     }
                 }
-            };
+            };*/
             
             Runnable setChartScrollRight = () ->{
                 Platform.runLater(()->chartScroll.setVvalue(chartScrollVvalue));
                 Platform.runLater(()->chartScroll.setHvalue(chartScrollHvalue));
             };
-
-            maximizeBtn.setOnAction((e) -> {
-                if (m_prevHeight == -1) {
-
-                    headerVBox.getChildren().clear();
-                    chartHeightOffset.set(chartHeightOffset.get() == 0 ? headerVBox.getHeight() : chartHeightOffset.get());
-                    marketScene.setOnMouseMoved(toggleHeader);
-                    m_prevHeight = m_stage.getHeight();
-                    m_prevWidth = m_stage.getWidth();
-                    m_prevX = m_stage.getX();
-                    m_prevY = m_stage.getY();
-
-                    m_stage.setWidth(rect.getWidth());
-                    m_stage.setHeight(rect.getHeight());
-                    m_stage.setX(0);
-                    m_stage.setY(0);
-
-                } else {
+   
+            Runnable resetPosition = () ->{
+            
+                if(m_prevX != -1){
+                    m_stage.setY(m_prevY);
+                    m_stage.setX(m_prevX);
                     m_stage.setWidth(m_prevWidth);
                     m_stage.setHeight(m_prevHeight);
-                    m_stage.setX(m_prevX);
-                    m_stage.setY(m_prevY);
-
-                    m_prevHeight = -1;
-                    m_prevWidth = -1;
                     m_prevX = -1;
                     m_prevY = -1;
-                    if (!headerVBox.getChildren().contains(titleBox)) {
-                        headerVBox.getChildren().addAll(titleBox, paddingBox);
-                        chartHeightOffset.set(chartHeightOffset.get() == headerVBox.getHeight() ? 0 : chartHeightOffset.get());
-                    }
-                    marketScene.setOnMouseMoved(null);
+                    m_prevWidth = -1;
+                    m_prevHeight = -1;
+                    m_positionIndex = 0;
                 }
-                 setChartScrollRight.run();
+               
+                
+            };
+
+            maximizeBtn.setOnAction((e) -> {
+               
+                if(m_positionIndex == 0){
+                    
+                    m_prevHeight = m_stage.getScene().getHeight();
+                    m_prevWidth = m_stage.getScene().getWidth();
+                    m_prevX = m_stage.getX();
+                    m_prevY = m_stage.getY();
+                    m_stage.setMaximized(true);
+                    setChartScrollRight.run();
+                    m_positionIndex = 1;
+                }else{
+                    if(m_positionIndex == 1){
+                        m_stage.setMaximized(false);
+                        resetPosition.run();
+                        setChartScrollRight.run();
+                    }else{
+                        resetPosition.run();
+                        FxTimer.runLater(Duration.ofMillis(100), ()->{
+                            m_stage.setMaximized(true);
+                            setChartScrollRight.run();
+                            m_positionIndex = 1;
+                        });
+                        
+                    }
+                     
+                }
+               
             });
 
-         
+            Runnable fillRight = () ->{
+                Stage exStage = exchange.getAppStage();
+                m_prevHeight = m_stage.getScene().getHeight();
+                m_prevWidth = m_stage.getScene().getWidth();
+                m_prevX = m_stage.getX();
+                m_prevY = m_stage.getY();
+                m_positionIndex = 2;
+                m_stage.setMaximized(true);
+
+                FxTimer.runLater(Duration.ofMillis(100), ()->{
+                    double topY = m_stage.getY();
+                    double leftX = m_stage.getX();
+                    double width = m_stage.getScene().getWidth();
+                    double height = m_stage.getScene().getHeight();
+                    m_stage.setMaximized(false);
+                    
+                    FxTimer.runLater(Duration.ofMillis(100), ()->{
+                        
+                        m_stage.setWidth(width - (exStage != null ?  exStage.getWidth() : 0));
+                        m_stage.setHeight(height);
+                        m_stage.setY(topY);
+                        m_stage.setX(leftX + (exStage != null ? exStage.getWidth() : 0));
+                        
+                        if(exStage != null){
+                            exStage.setX(leftX);
+                            exStage.setY(topY);
+                            exStage.setHeight(height);
+                        }                        
+                        setChartScrollRight.run();
+                        
+                    });
+    
+                
+                });
+            };
 
             fillRightBtn.setOnAction(e -> {
-                if(m_stage.isMaximized()){
-                    maximizeBtn.fire();
+
+                if(m_positionIndex == 2){
+                    resetPosition.run();
+                }else{
+                    if(m_positionIndex == 1){
+                        m_stage.setMaximized(false);
+                        FxTimer.runLater(Duration.ofMillis(100), ()->{
+                            resetPosition.run();
+                            fillRight.run();
+                        });
+                    }else{
+                        resetPosition.run();
+                        fillRight.run();
+                    }
                 }
-                if (exchange.getAppStage() != null) {
-                    Stage exStage = exchange.getAppStage();
-                    if (exStage.getWidth() != m_stage.getX()) {
-                        exchange.cmdObjectProperty().set(Utils.getCmdObject("MAXIMIZE_STAGE_LEFT"));
-
-                        m_prevHeight = m_stage.getHeight();
-                        m_prevWidth = m_stage.getWidth();
-                        m_prevX = m_stage.getX();
-                        m_prevY = m_stage.getY();
- 
-                        m_stage.setWidth(rect.getWidth() - exStage.getWidth());
-                        m_stage.setHeight(rect.getHeight());
-                        
-                        m_stage.setY(0);
-                        m_stage.setX(exStage.getWidth());
-                      
-    
-
-                        setChartScrollRight.run();
-                    } 
-                } 
-
             });
 
             // chartHeight.bind(Bindings.add(marketScene.heightProperty(), chartHeightOffset));
@@ -652,7 +688,6 @@ public class SpectrumMarketItem {
 
    
             Runnable resetChartHeightOffset = () -> {
-                chartHeightOffset.set(0);
                 chartScroll.setVvalue(chartScrollVvalue);
             };
             /*
@@ -754,7 +789,7 @@ public class SpectrumMarketItem {
                         chartView.setPriceDataList(m_isInvertChart.get() ?  chartArray : invertPrices(chartArray), currentTime);
                         
                         //Platform.runLater(()->);
-                        chartRange.setVisible(true);
+               
                         FxTimer.runLater(Duration.ofMillis(200), setChartScrollRight);
                     }else{
                         
@@ -820,7 +855,8 @@ public class SpectrumMarketItem {
 
                     chartView.setTimeSpan((TimeSpan) objData);
 
-                    chartRange.setVisible(false);
+                
+                
                     chartRange.reset();
                     chartView.reset();
                     setCandles.run();

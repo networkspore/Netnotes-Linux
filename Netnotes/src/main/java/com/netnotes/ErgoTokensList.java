@@ -35,7 +35,6 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
@@ -78,7 +77,6 @@ public class ErgoTokensList extends Network {
     private final SimpleObjectProperty<ErgoMarketsData> m_selectedMarketData = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<ErgoExplorerData> m_selectedExplorerData = new SimpleObjectProperty<>(null);
 
-    private final SimpleObjectProperty<PriceQuote[]> m_priceQuotesProperty = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<ErgoMarketsList> m_ergoMarketsList = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<ErgoExplorerList> m_ergoExplorersList = new SimpleObjectProperty<>(null);
     private String m_marketId = null;
@@ -468,7 +466,7 @@ public class ErgoTokensList extends Network {
                                             ErgoNetworkToken token = networkToken;
 
                                             sourceStage.setScene(getExistingTokenScene(token, networkType, sourceStage, sourceScene));
-                                            Rectangle rect = getNetworksData().getMaximumWindowBounds();
+                                            Rectangle rect = getNetworksData().getDefaultWindowBounds();
 
                                             ResizeHelper.addResizeListener(sourceStage, 500, 615, rect.getWidth(), rect.getHeight());
                                         }

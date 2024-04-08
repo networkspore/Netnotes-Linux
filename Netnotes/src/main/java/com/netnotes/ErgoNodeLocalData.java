@@ -2849,7 +2849,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public void updateAppFile(GitHubAsset[] assets, Stage stage, Scene previousScene, Runnable onComplete, Runnable noUpdate, Runnable failed) {
 
-        Rectangle rect = getErgoNodesList().getErgoNodes().getNetworksData().getMaximumWindowBounds();
+
 
         GitHubAsset fileAsset = assets[0];
 
@@ -2871,8 +2871,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                 Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Settings - Ergo Local Node - " + ErgoNodes.NAME, name, progressBar, stage, closeBtn);
                 stage.setScene(progressScene);
 
-                stage.setX((rect.getWidth() / 2) - (stage.getWidth() / 2));
-                stage.setY((rect.getHeight() / 2) - (stage.getHeight() / 2));
             }
             SimpleBooleanProperty cancel = new SimpleBooleanProperty(false);
             Utils.getUrlFileHash(url, appFile, getNetworksData().getExecService(), (onDlSucceeded) -> {
@@ -2895,8 +2893,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     if (stage != null) {
 
                         stage.setScene(previousScene);
-                        stage.setX((rect.getWidth() / 2) - (stage.getWidth() / 2));
-                        stage.setY((rect.getHeight() / 2) - (stage.getHeight() / 2));
+
                     }
                 } else {
                     Alert a = new Alert(AlertType.NONE, "The download returned an invalid file.", ButtonType.OK);
@@ -2910,8 +2907,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     if (stage != null) {
                         stage.setScene(previousScene);
                         stage.setScene(previousScene);
-                        stage.setX((rect.getWidth() / 2) - (stage.getWidth() / 2));
-                        stage.setY((rect.getHeight() / 2) - (stage.getHeight() / 2));
+
                     }
                 }
             }, (onDlFailed) -> {
@@ -2928,8 +2924,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                 if (stage != null) {
                     stage.setScene(previousScene);
                     stage.setScene(previousScene);
-                    stage.setX(rect.getWidth() - (stage.getWidth() / 2));
-                    stage.setY(rect.getHeight() - (stage.getHeight() / 2));
                 }
             }, stage != null ? progressBar : null, cancel);
 
@@ -3608,27 +3602,20 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
         bodyPaddingBox.prefWidthProperty().bind(settingsScene.widthProperty().subtract(scrollBarWidth).subtract(5));
 
-        Rectangle screenRectangle = getErgoNodesList().getErgoNodes().getNetworksData().getMaximumWindowBounds();
+   
 
         Runnable updateBodySize = () -> {
             //
-            double screenHeight = screenRectangle.getHeight();
+         
             double bodyHeight = bodyPaddingBox.heightProperty().get() + 5;
             double restOfStageHeight = titleBox.heightProperty().doubleValue() + headerBox.heightProperty().get() + menuBarBox.heightProperty().get() + footerBox.heightProperty().get();
             double totalHeight = bodyHeight + restOfStageHeight;
 
-            if (totalHeight <= screenHeight) {
+        
                 stage.setHeight(totalHeight);
                 bodyScroll.setPrefViewportHeight(bodyHeight);
-                if (stage.getY() + totalHeight > screenHeight) {
-                    stage.setY(screenHeight - totalHeight);
-                }
-            } else {
-                scrollBarWidth.set(20);
-                stage.setHeight(screenHeight);
-                bodyScroll.setPrefViewportHeight(screenHeight - restOfStageHeight);
-                stage.setY(0);
-            }
+             
+        
         };
 
         bodyPaddingBox.heightProperty().addListener((obs, oldVal, newVal) -> updateBodySize.run());

@@ -1,11 +1,9 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,9 +31,7 @@ import javafx.scene.control.ScrollPane;
 
 import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -286,7 +282,7 @@ public class ErgoNodes extends Network implements NoteInterface {
             mainScene.getStylesheets().add("/css/startWindow.css");
             m_stage.setScene(mainScene);
 
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
+ 
 
             scrollPane.prefViewportWidthProperty().bind(mainScene.widthProperty().subtract(4));
             scrollPane.prefViewportHeightProperty().bind(mainScene.heightProperty().subtract(titleBox.heightProperty()).subtract(menuBox.heightProperty()));
@@ -347,7 +343,7 @@ public class ErgoNodes extends Network implements NoteInterface {
                 m_stage.setMaximized(!maximized);
             });
 
-            ResizeHelper.addResizeListener(m_stage, 300, 300, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_stage, 300, 300, Double.MAX_VALUE, Double.MAX_VALUE);
 
             scrollPane.setContent(gridBox);
 

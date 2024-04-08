@@ -1,25 +1,14 @@
 package com.netnotes;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -178,7 +167,7 @@ public class NetworkTimer extends Network implements NoteInterface {
 
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         JsonElement subjectElement = note.get("subject");
-        JsonElement timerIdElement = note.get("timerId");
+      //  JsonElement timerIdElement = note.get("timerId");
 
         if (subjectElement != null && subjectElement.isJsonPrimitive()) {
             String subject = subjectElement.getAsString();

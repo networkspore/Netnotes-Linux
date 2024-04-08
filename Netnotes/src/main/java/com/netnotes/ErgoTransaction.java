@@ -40,7 +40,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -661,9 +660,8 @@ public class ErgoTransaction {
             amountBoxes.minHeightProperty().bind(scrollPane.prefViewportHeightProperty().subtract(60));
             amountBoxes.prefWidthProperty().bind(txScene.widthProperty().subtract(60));
 
-            java.awt.Rectangle rect = getParentAddress().getAddressesData().getWalletData().getNetworksData().getMaximumWindowBounds();
-
-            ResizeHelper.addResizeListener(m_stage, 200, 250, rect.getWidth(), rect.getHeight());
+      
+            ResizeHelper.addResizeListener(m_stage, 200, 250, Double.MAX_VALUE, Double.MAX_VALUE);
             
             m_stage.show();
             closeBtn.setOnAction(e->{
@@ -991,9 +989,9 @@ public class ErgoTransaction {
         if(json != null){
             JsonElement numConfirmationsElement = json.get("numConfirmations");
             JsonElement timeStampElement = json.get("timestamp");
-            JsonElement sizeElement = json.get("size");
+         //   JsonElement sizeElement = json.get("size");
 
-            int txSize = sizeElement != null && sizeElement.isJsonPrimitive() ? sizeElement.getAsInt() : 0;
+          //  int txSize = sizeElement != null && sizeElement.isJsonPrimitive() ? sizeElement.getAsInt() : 0;
             
 
             

@@ -1,8 +1,9 @@
 package com.netnotes;
 
-import java.awt.image.BufferedImage;
 
 import com.devskiller.friendly_id.FriendlyId;
+
+import javafx.scene.image.WritableImage;
 
 public class Effects {
 
@@ -19,7 +20,7 @@ public class Effects {
         m_name = name;
     }
 
-    public void applyEffect(BufferedImage img) {
+    public void applyEffect(WritableImage img) {
 
     }
 

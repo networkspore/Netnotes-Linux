@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -354,7 +353,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
             passwordScene.setFill(null);
             passwordScene.getStylesheets().add("/css/startWindow.css");
             m_walletStage.setScene(passwordScene);
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
+
 
             passwordField.setOnKeyPressed(e -> {
 
@@ -368,7 +367,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         passwordField.setText("");
 
                         m_walletStage.setScene(getWalletScene(wallet, m_walletStage));
-                        ResizeHelper.addResizeListener(m_walletStage, MIN_WIDTH, MIN_HEIGHT, rect.getWidth(), rect.getHeight());
+                        ResizeHelper.addResizeListener(m_walletStage, MIN_WIDTH, MIN_HEIGHT, Double.MAX_VALUE, Double.MAX_VALUE);
 
                     } catch (Exception e1) {
 
@@ -384,7 +383,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 }
             });
 
-            ResizeHelper.addResizeListener(m_walletStage, MIN_WIDTH, MIN_HEIGHT, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_walletStage, MIN_WIDTH, MIN_HEIGHT, Double.MAX_VALUE, Double.MAX_VALUE);
             m_walletStage.show();
             m_walletStage.setOnCloseRequest(e -> {
                 closeBtn.fire();
@@ -744,7 +743,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         SimpleDoubleProperty normalHeight = new SimpleDoubleProperty(MIN_HEIGHT);
 
         isShrunk.addListener((obs, oldval, newval)->{
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
+
             if(newval){
                 
                 normalHeight.set(walletStage.getHeight());
@@ -752,11 +751,11 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 bodyVBox.getChildren().removeAll(menuVBox, scrollBox);
                 walletStage.setHeight(smallHeight);
                 walletStage.setAlwaysOnTop(true);
-                ResizeHelper.addResizeListener(walletStage, MIN_WIDTH, smallHeight, rect.getWidth(), smallHeight);
+                ResizeHelper.addResizeListener(walletStage, MIN_WIDTH, smallHeight, Double.MAX_VALUE, smallHeight);
             }else{
 
                 walletStage.setAlwaysOnTop(false);
-                ResizeHelper.addResizeListener(walletStage, MIN_WIDTH, MIN_HEIGHT, rect.getWidth(), rect.getHeight());
+                ResizeHelper.addResizeListener(walletStage, MIN_WIDTH, MIN_HEIGHT, Double.MAX_VALUE, Double.MAX_VALUE);
                 walletStage.setHeight(normalHeight.get());
 
                 bodyVBox.getChildren().clear();

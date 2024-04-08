@@ -2,7 +2,6 @@ package com.netnotes;
 
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
-import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -91,7 +90,6 @@ public class NetworksData implements InstallerInterface {
 
     private InstallableIcon m_focusedInstallable = null;
 
-    private Rectangle m_rect;
     private HostServices m_hostServices;
   
 
@@ -120,12 +118,11 @@ public class NetworksData implements InstallerInterface {
         m_networksFile = networksFile;
         m_networksBox = new VBox();
         m_hostServices = hostServices;
-
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        m_rect = ge.getMaximumWindowBounds();
- 
-        
+   
 
+        
+ 
         try {
             
             InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream();
@@ -371,9 +368,7 @@ public class NetworksData implements InstallerInterface {
         return m_hostServices;
     }
 
-    public Rectangle getMaximumWindowBounds() {
-        return m_rect;
-    }
+  
 
     public void clear() {
         for (NoteInterface noteInterface : m_noteInterfaceList) {
@@ -1050,7 +1045,7 @@ public class NetworksData implements InstallerInterface {
 
     }
 
-    public String getAckString(String id, long timeStamp) {
+    /*public String getAckString(String id, long timeStamp) {
         return "{\"id\": \"" + id + "\", \"type\": \"ack\", \"timeStamp\": " + timeStamp + "}";
     }
 
@@ -1097,6 +1092,6 @@ public class NetworksData implements InstallerInterface {
             }
         }
 
-    }
+    }*/
 
 }

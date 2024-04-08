@@ -22,7 +22,7 @@ public class NamedNodesList {
 
     private ArrayList<NamedNodeUrl> m_dataList = new ArrayList<>();
 
-    private boolean m_updates;
+    //private boolean m_updates;
 
     private SimpleDoubleProperty m_gridWidthProperty = new SimpleDoubleProperty(200);
 
@@ -34,7 +34,7 @@ public class NamedNodesList {
 
     public NamedNodesList(boolean updates, ExecutorService execService) {
 
-        m_updates = updates;
+     //   m_updates = updates;
 
         if (updates) {
             getGitHubList(execService);

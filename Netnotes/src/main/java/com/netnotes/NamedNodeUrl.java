@@ -42,7 +42,7 @@ public class NamedNodeUrl {
             JsonElement ipElement = json.get("ip");
             JsonElement portElement = json.get("port");
             JsonElement networkTypeElement = json.get("networkType");
-            JsonElement nodeTypeElement = json.get("nodeType");
+          //  JsonElement nodeTypeElement = json.get("nodeType");
             JsonElement apiKeyElement = json.get("apiKey");
 
             m_id = idElement != null ? idElement.getAsString() : FriendlyId.createFriendlyId();

@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
+
 import java.io.File;
 import java.time.LocalDateTime;
 
@@ -238,7 +238,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
             if (m_ergNetData.isEmpty()) {
                 m_ergNetData.showwManageStage();
             }
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
+
 
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
                 public Thread newThread(Runnable r) {
@@ -281,7 +281,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
             gridBox.heightProperty().addListener((obs, oldVal, newVal) -> updateScrollSize.run());
 
-            ResizeHelper.addResizeListener(m_stage, 200, 200, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_stage, 200, 200, Double.MAX_VALUE, Double.MAX_VALUE);
 
             closeBtn.setOnAction(e -> {
             

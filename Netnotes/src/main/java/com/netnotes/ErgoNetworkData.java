@@ -1,7 +1,5 @@
 package com.netnotes;
 
-import java.awt.GraphicsEnvironment;
-import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,8 +34,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.netnotes.IconButton.IconStyle;
 import com.satergo.extra.AESEncryption;
-import com.utils.Utils;
-
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 
@@ -528,11 +524,8 @@ public class ErgoNetworkData implements InstallerInterface {
             });
 
             m_manageStage.show();
-            Utils.centerStage(m_manageStage, GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds());
-
-            Rectangle maxRect = m_ergoNetwork.getNetworksData().getMaximumWindowBounds();
-
-            ResizeHelper.addResizeListener(m_manageStage, 400, 200, maxRect.getWidth(), maxRect.getHeight());
+          
+            ResizeHelper.addResizeListener(m_manageStage, 400, 200, Double.MAX_VALUE, Double.MAX_VALUE);
 
             updateAvailableLists(installables);
 

@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -569,7 +569,7 @@ public class ErgoWalletDataList {
             }
         }
 
-        Rectangle windowBounds = m_ergoWallet.getNetworksData().getMaximumWindowBounds();
+      
 
         newWalletBtn.setOnAction(newWalletEvent -> {
             NetworkType networkType = selectedNetworkType.get();
@@ -580,7 +580,7 @@ public class ErgoWalletDataList {
             
             Scene mnemonicScene = createMnemonicScene(friendlyId, walletNameField.getText(), nodeId, explorerId, marketsId, tokensEnabled, networkType, stage);
             stage.setScene(mnemonicScene);
-            ResizeHelper.addResizeListener(stage, 500, 425, windowBounds.getWidth(), windowBounds.getHeight());
+            ResizeHelper.addResizeListener(stage, 500, 425, Double.MAX_VALUE, Double.MAX_VALUE);
         });
 
         Button existingWalletBtn = new Button("Open");
@@ -723,9 +723,9 @@ public class ErgoWalletDataList {
         layoutBox.getChildren().addAll(titleBox, headerBox, bodyPaddBox, footerBox);
         walletScene.getStylesheets().add("/css/startWindow.css");
         stage.setScene(walletScene);
-        Rectangle maxSize = m_ergoWallet.getNetworksData().getMaximumWindowBounds();
 
-        ResizeHelper.addResizeListener(stage, 380, 460, maxSize.getWidth(), maxSize.getHeight());
+
+        ResizeHelper.addResizeListener(stage, 380, 460, Double.MAX_VALUE, Double.MAX_VALUE);
 
         ChangeListener<Number> walletWidthListener = (obs, oldval, newVal) -> {
             m_stageWidth = newVal.doubleValue();

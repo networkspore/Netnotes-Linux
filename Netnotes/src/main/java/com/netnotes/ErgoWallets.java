@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,7 +8,6 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -27,18 +25,14 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.utils.Utils;
 
-import io.circe.Json;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 
 import javafx.scene.control.ScrollPane;
 
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
 
 
@@ -617,9 +611,8 @@ public class ErgoWallets extends Network implements NoteInterface {
                 }
             });
 
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
 
-            ResizeHelper.addResizeListener(m_walletsStage, 200, 200, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_walletsStage, 200, 200, Double.MAX_VALUE, Double.MAX_VALUE);
 
         } else {
             if (m_walletsStage.isIconified()) {

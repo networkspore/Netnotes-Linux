@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -10,6 +9,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -21,6 +21,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
+import org.reactfx.util.FxTimer;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
@@ -89,7 +90,10 @@ public class KucoinExchange extends Network implements NoteInterface {
     private File m_dataFile = null;
 
     private Stage m_appStage = null;
-
+    private boolean m_isMax = false;
+    private double m_prevHeight = -1;
+    private double m_prevX = -1;
+    private double m_prevY = -1;
     //private static long MIN_QUOTE_MILLIS = 5000;
 
     private SimpleObjectProperty<JsonObject> m_cmdObjectProperty = new SimpleObjectProperty<>(null);
@@ -470,7 +474,7 @@ public class KucoinExchange extends Network implements NoteInterface {
                 }
             });
 
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
+ 
             
             Scene appScene = new Scene(layoutBox, appStageWidth, appStageHeight);
             appScene.setFill(null);
@@ -496,41 +500,43 @@ public class KucoinExchange extends Network implements NoteInterface {
                 lastUpdatedField.setText(dateString);
             });
 
-            double maxWidth = rect.getWidth() / 2;
+        
 
-            ResizeHelper.addResizeListener(m_appStage, 250, 300, maxWidth, rect.getHeight());
+            ResizeHelper.addResizeListener(m_appStage, 250, 300, 500, Double.MAX_VALUE);
 
             maxBtn.setOnAction(e -> {
-                if (m_appStage.getX() != 0 || m_appStage.getY() != 0 || m_appStage.getHeight() != rect.getHeight()) {
-
-                    m_appStage.setX(0);
-                    m_appStage.setY(0);
-                    m_appStage.setHeight(rect.getHeight());
-                } else {
-                    m_appStage.setWidth(appStageWidth);
-                    m_appStage.setHeight(appStageHeight);
-
-                    m_appStage.setX((rect.getWidth() / 2) - (appStageWidth / 2));
-                    m_appStage.setY((rect.getHeight() / 2) - (appStageHeight / 2));
+                 if(m_isMax){
+                    
+                    m_appStage.setX(m_prevX);
+                    m_appStage.setHeight(m_prevHeight);
+                    m_appStage.setY(m_prevY);
+                    m_prevX = -1;
+                    m_prevY = -1;
+                    m_prevHeight = -1;
+                    m_isMax = false;
+                }else{
+                    m_isMax = true;
+                    m_prevY = m_appStage.getY();
+                    m_prevX = m_appStage.getX();
+                    m_prevHeight = m_appStage.getScene().getHeight();
+                    m_appStage.setMaximized(true);
+                    FxTimer.runLater(Duration.ofMillis(100), ()->{
+                        double height = m_appStage.getScene().getHeight();
+                       // double width = m_appStage.getScene().getWidth();
+                        double x = m_appStage.getX();
+                        double y = m_appStage.getY();
+                        m_appStage.setMaximized(false);
+                        FxTimer.runLater(Duration.ofMillis(100), ()->{
+                            m_appStage.setX(x);
+                            m_appStage.setY(y);
+                            m_appStage.setHeight(height);
+                        });
+                    });
                 }
 
             });
 
-            m_cmdObjectProperty.addListener((obs, oldVal, newVal) -> {
-                if (newVal != null) {
-                    JsonElement subjectElement = newVal.get("subject");
-                    if (subjectElement != null && subjectElement.isJsonPrimitive()) {
-                        switch (subjectElement.getAsString()) {
-                            case "MAXIMIZE_STAGE_LEFT":
-                                m_appStage.setX(0);
-                                m_appStage.setY(0);
-                                m_appStage.setHeight(rect.getHeight());
-                                m_appStage.show();
-                                break;
-                        }
-                    }
-                }
-            });
+           
 
             m_appStage.setOnCloseRequest(e -> runClose.run());
 

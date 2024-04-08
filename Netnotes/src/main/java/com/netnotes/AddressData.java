@@ -83,7 +83,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
-import java.awt.Rectangle;
+
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -1029,9 +1029,9 @@ public class AddressData extends Network {
         maximizeBtn.setOnAction(e->{
             sendStage.setMaximized(!sendStage.isMaximized());
         });
-        Rectangle rect = getNetworksData().getMaximumWindowBounds();
 
-        ResizeHelper.addResizeListener(sendStage, 200, 250, rect.getWidth(), rect.getHeight());
+
+        ResizeHelper.addResizeListener(sendStage, 200, 250, Double.MAX_VALUE, Double.MAX_VALUE);
 
     }
 
@@ -1979,10 +1979,8 @@ public class AddressData extends Network {
 
             scrollPane.prefViewportHeightProperty().bind(addressScene.heightProperty().subtract(titleBox.heightProperty()).subtract(addressTabsBox.heightProperty()).subtract(updateBox.heightProperty()).subtract(addressBox.heightProperty()));
          
-   
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
 
-            ResizeHelper.addResizeListener(m_addressStage, 200, 250, rect.getWidth(), rect.getHeight());
+            ResizeHelper.addResizeListener(m_addressStage, 200, 250, Double.MAX_VALUE, Double.MAX_VALUE);
 
             maximizeBtn.setOnAction(maxEvent -> {
                 boolean maximized = m_addressStage.isMaximized();
@@ -2473,9 +2471,10 @@ public class AddressData extends Network {
         amountBoxes.minHeightProperty().bind(scrollPane.prefViewportHeightProperty().subtract(60));
         amountBoxes.prefWidthProperty().bind(confirmTxScene.widthProperty().subtract(60));
         
-        java.awt.Rectangle rect = getNetworksData().getMaximumWindowBounds();
 
-        ResizeHelper.addResizeListener(parentStage, 200, 250, rect.getWidth(), rect.getHeight());
+        
+
+        ResizeHelper.addResizeListener(parentStage, 200, 250, Double.MAX_VALUE, Double.MAX_VALUE);
 
     }
  

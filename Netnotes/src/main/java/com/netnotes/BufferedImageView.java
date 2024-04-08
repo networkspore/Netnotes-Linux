@@ -1,18 +1,15 @@
 package com.netnotes;
 
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import java.awt.image.BufferedImage;
+import javafx.scene.image.WritableImage;
 
 import java.util.ArrayList;
 
 public class BufferedImageView extends ImageView {
-
-    private Image m_img;
+    private Image m_defaultImg = null;
+    private WritableImage m_img;
     private ArrayList<Effects> m_effects = new ArrayList<Effects>();
-
-   
 
     public BufferedImageView() {
         super();
@@ -22,20 +19,24 @@ public class BufferedImageView extends ImageView {
     
     public BufferedImageView(double fitWidth){
         this();
+        setPreserveRatio(true);
         setFitWidth(fitWidth);
     }
 
     public BufferedImageView(Image image, double imageWidth) {
-        super(image);
-        m_img = image;
-        setPreserveRatio(true);
-        setFitWidth(imageWidth);
+        super();
+       
+        setDefaultImage(image, imageWidth);
+
+
 
     }
 
+
+
     public BufferedImageView(Image image, boolean fitWidth) {
-        super(image);
-        m_img = image;
+        super();
+        setDefaultImage(image);
 
         setPreserveRatio(true);
         if (fitWidth) {
@@ -45,22 +46,25 @@ public class BufferedImageView extends ImageView {
     }
 
     public BufferedImageView(Image image) {
-        super(image);
-        m_img = image;
-
+        super();
+        setDefaultImage(image);
     }
 
-    public void setDefaultImage(Image img) {
-        m_img = img;
-   
+    public void setDefaultImage(Image image) {
+        m_defaultImg = image;
+        m_img = new WritableImage((int) image.getWidth(),(int) image.getHeight());
+        setImage(m_img);
+        Drawing.drawImageExact(m_img, image, 0, 0, false);
+        
         updateImage();
     }
 
     public void setDefaultImage(Image img, double fitWidth) {
-        m_img = img;
+        setDefaultImage(img);
      
         updateImage();
         setFitWidth(fitWidth);
+        setPreserveRatio(true);
     }
 
     public Effects getEffect(String id) {
@@ -137,21 +141,20 @@ public class BufferedImageView extends ImageView {
     }
 
     public void updateImage() {
+        if(m_img == null && m_defaultImg != null){
+            setDefaultImage(m_defaultImg);
+        }
         if (m_img != null) {
+            if(m_defaultImg != null){
+                Drawing.drawImageExact(m_img, m_defaultImg, 0, 0, false);
+            }
             if (m_effects.size() > 0) {
-                BufferedImage imgBuf = SwingFXUtils.fromFXImage(m_img, null);
+           
 
                 for (int i = 0; i < m_effects.size(); i++) {
                     Effects effect = m_effects.get(i);
-                    effect.applyEffect(imgBuf);
+                    effect.applyEffect(m_img);
                 }
-
-                Image imgUpdate = SwingFXUtils.toFXImage(imgBuf, null);
-
-                setImage(imgUpdate);
-
-            } else {
-                setImage(m_img);
 
             }
         } else {
@@ -163,7 +166,8 @@ public class BufferedImageView extends ImageView {
         return m_img;
     }
 
-    public void updateImage(BufferedImage imgBuf) {
+    public void setBufferedImage(WritableImage imgBuf) {
+        m_img = imgBuf;
         if (m_img != null) {
             if (m_effects.size() > 0) {
 
@@ -172,16 +176,11 @@ public class BufferedImageView extends ImageView {
                     effect.applyEffect(imgBuf);
                 }
 
-                Image imgUpdate = SwingFXUtils.toFXImage(imgBuf, null);
-
-                setImage(imgUpdate);
-
-            } else {
-                 setImage(SwingFXUtils.toFXImage(imgBuf, null));
 
             }
+            setImage(m_img);
         } else {
-            setImage(SwingFXUtils.toFXImage(imgBuf, null));
+            setImage(null);
         }
     }
 }

@@ -47,8 +47,7 @@ import javafx.stage.StageStyle;
 
 import javafx.scene.input.KeyCode;
 
-import java.awt.GraphicsEnvironment;
-import java.awt.Rectangle;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -361,10 +360,7 @@ public class App extends Application {
         statusScene.getStylesheets().add("/css/startWindow.css");
         
         statusStage.setScene(statusScene);
-        
-        Rectangle screenRect = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        statusStage.setX((screenRect.getWidth()/2) - (statusScene.getWidth()/2));
-        statusStage.setY((screenRect.getHeight()/2) - (statusScene.getHeight()/2));
+
 
         return statusStage;
     }
@@ -421,7 +417,7 @@ public class App extends Application {
             if(isShrunk.get()){
                 final Scene originalScene = theStage.getScene();
                 final double originalHeight = originalScene.getHeight();
-                Rectangle rect = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+            
                 final double passSceneWidth = 600;
                 final double passSceneHeight = 305;
                 ResizeHelper.addResizeListener(theStage,passSceneWidth,passSceneHeight, passSceneWidth,passSceneHeight);
@@ -436,7 +432,7 @@ public class App extends Application {
          
                     theStage.setScene(originalScene);
                     theStage.setHeight(originalHeight);
-                    ResizeHelper.addResizeListener(theStage,400 , originalHeight, rect.getWidth(), originalHeight);
+                    ResizeHelper.addResizeListener(theStage,400 , originalHeight, Double.MAX_VALUE, originalHeight);
                 });
             }else{
                  isShrunk.set(true);
@@ -921,8 +917,7 @@ public class App extends Application {
         appStage.setScene(appScene);
         showNetworks(appScene, headerBox, bodyVBox);
 
-        Rectangle rect = m_networksData.getMaximumWindowBounds();
-        ResizeHelper.addResizeListener(appStage, 400, 250, rect.getWidth(), rect.getHeight());
+        ResizeHelper.addResizeListener(appStage, 400, 250, Double.MAX_VALUE, Double.MAX_VALUE);
 
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
             public Thread newThread(Runnable r) {
@@ -1479,9 +1474,6 @@ public class App extends Application {
         statusScene.getStylesheets().add("/css/startWindow.css");
 
         statusStage.setScene(statusScene);
-        Rectangle screenRect = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        statusStage.setX((screenRect.getWidth()/2) - (statusScene.getWidth()/2));
-        statusStage.setY((screenRect.getHeight()/2) - (statusScene.getHeight()/2));
         statusStage.show();
     }
 
@@ -1783,10 +1775,7 @@ public class App extends Application {
                 Platform.runLater(()->textField.requestFocus());
             }
         });
-        Rectangle screenRect = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
-        textInputStage.setX((screenRect.getWidth()/2) - (textInputScene.getWidth()/2));
-        textInputStage.setY((screenRect.getHeight()/2) - (textInputScene.getHeight()/2));
-      
+
         textInputStage.show();
 
 

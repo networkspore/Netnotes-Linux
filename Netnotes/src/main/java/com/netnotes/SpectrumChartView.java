@@ -437,7 +437,7 @@ public class SpectrumChartView {
         m_currentPrice = newPrice;
     }
 
-    private static void addPrices(SimpleIntegerProperty index, SpectrumPriceData priceData, long epochEnd, JsonArray jsonArray){
+    private void addPrices(SimpleIntegerProperty index, SpectrumPriceData priceData, long epochEnd, JsonArray jsonArray){
         int size = jsonArray.size();
 
         if(index.get() + 1 < size){         
@@ -445,8 +445,13 @@ public class SpectrumChartView {
                 SimpleObjectProperty<SpectrumPrice> nextSpectrumPrice = new SimpleObjectProperty<>(new SpectrumPrice(jsonArray.get(index.get() + 1).getAsJsonObject()));
     
                 while(nextSpectrumPrice.get().getTimeStamp() <= epochEnd){
-                    priceData.addPrice(nextSpectrumPrice.get().getTimeStamp(), nextSpectrumPrice.get().getPrice());
-       
+                    long timestamp = nextSpectrumPrice.get().getTimeStamp();
+                    BigDecimal price = nextSpectrumPrice.get().getPrice();
+                    priceData.addPrice(timestamp, price);
+
+                    updateDirection(m_currentPrice, price);
+                    m_currentPrice = price;
+
                     index.set(index.get() + 1);
 
                     if((index.get() +1) == size){
@@ -896,7 +901,7 @@ public class SpectrumChartView {
         
         int currentWidth = m_priceList.size() == 0 ? (int) m_chartWidth.get() : m_scaleColWidth + (m_priceList.size() * totalCellWidth);
         currentWidth = currentWidth < m_chartWidth.get() ? (int) m_chartWidth.get() : currentWidth;
-
+        currentWidth = currentWidth < 100 ? 100 : currentWidth;
         boolean init = m_chartHeight.get() < 1;
 
         int currentHeight = m_chartHeight.get() < MIN_CHART_HEIGHT ? MIN_CHART_HEIGHT : (int) Math.ceil(m_chartHeight.get()) ;

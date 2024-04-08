@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,7 +36,6 @@ import com.google.gson.JsonArray;
 import com.utils.Utils;
 
 import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -557,7 +555,6 @@ public class ErgoTokens extends Network implements NoteInterface {
             tokensScene.getStylesheets().add("/css/startWindow.css");
             m_tokensStage.setScene(tokensScene);
 
-            Rectangle rect = getNetworksData().getMaximumWindowBounds();
 
             addButton.setOnAction(actionEvent -> {
                 Stage addEditTokenStage =  new Stage();
@@ -574,7 +571,7 @@ public class ErgoTokens extends Network implements NoteInterface {
                 });
             });
 
-            ResizeHelper.addResizeListener(m_tokensStage, 300, 400, rect.width, rect.height);
+            ResizeHelper.addResizeListener(m_tokensStage, 300, 400, Double.MAX_VALUE, Double.MAX_VALUE);
             m_tokensStage.setOnCloseRequest(windowEvent -> {
                closeBtn.fire();
             });
