@@ -37,7 +37,6 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -63,6 +62,7 @@ public class KucoinMarketItem {
     private double m_prevHeight = -1;
     private double m_prevX = -1;
     private double m_prevY = -1;
+    private int m_positionIndex = 0;
 
     private TimeSpan m_timeSpan = new TimeSpan("30min");
 
@@ -239,7 +239,7 @@ public class KucoinMarketItem {
             SimpleDoubleProperty chartWidth = new SimpleDoubleProperty(sceneWidth - 50);
             SimpleDoubleProperty chartHeight = new SimpleDoubleProperty(sceneHeight - 170);
             SimpleDoubleProperty chartHeightOffset = new SimpleDoubleProperty(0);
-            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(30);
+            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(12);
             SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
 
             double chartSizeInterval = 25;
@@ -500,13 +500,103 @@ public class KucoinMarketItem {
                 Platform.runLater(()-> chartScroll.setVvalue(chartScrollVvalue));
                 Platform.runLater(()-> chartScroll.setHvalue(chartScrollHvalue));
             };
+            Runnable resetPosition = () ->{
+            
+                if(m_prevX != -1){
+                    m_stage.setY(m_prevY);
+                    m_stage.setX(m_prevX);
+                    m_stage.setWidth(m_prevWidth);
+                    m_stage.setHeight(m_prevHeight);
+                    m_prevX = -1;
+                    m_prevY = -1;
+                    m_prevWidth = -1;
+                    m_prevHeight = -1;
+                    m_positionIndex = 0;
+                }
+               
+                
+            };
 
             maximizeBtn.setOnAction((e) -> {
-               
+                if(m_positionIndex == 0){
+                    
+                    m_prevHeight = m_stage.getScene().getHeight();
+                    m_prevWidth = m_stage.getScene().getWidth();
+                    m_prevX = m_stage.getX();
+                    m_prevY = m_stage.getY();
+                    m_stage.setMaximized(true);
+                    resetScroll.run();
+                    m_positionIndex = 1;
+                }else{
+                    if(m_positionIndex == 1){
+                        m_stage.setMaximized(false);
+                        resetPosition.run();
+                        resetScroll.run();
+                    }else{
+                        resetPosition.run();
+                        FxTimer.runLater(Duration.ofMillis(100), ()->{
+                            m_stage.setMaximized(true);
+                            resetScroll.run();
+                            m_positionIndex = 1;
+                        });
+                        
+                    }
+                     
+                }
             });
 
-            fillRightBtn.setOnAction(e -> {
+            Runnable fillRight = () ->{
+                Stage exStage = exchange.getAppStage();
+                m_prevHeight = m_stage.getScene().getHeight();
+                m_prevWidth = m_stage.getScene().getWidth();
+                m_prevX = m_stage.getX();
+                m_prevY = m_stage.getY();
+                m_positionIndex = 2;
+                m_stage.setMaximized(true);
 
+                FxTimer.runLater(Duration.ofMillis(100), ()->{
+                    double topY = m_stage.getY();
+                    double leftX = m_stage.getX();
+                    double width = m_stage.getScene().getWidth();
+                    double height = m_stage.getScene().getHeight();
+                    m_stage.setMaximized(false);
+                    
+                    FxTimer.runLater(Duration.ofMillis(100), ()->{
+                        
+                        m_stage.setWidth(width - (exStage != null ?  exStage.getWidth() : 0));
+                        m_stage.setHeight(height);
+                        m_stage.setY(topY);
+                        m_stage.setX(leftX + (exStage != null ? exStage.getWidth() : 0));
+                        
+                        if(exStage != null){
+                            exStage.setX(leftX);
+                            exStage.setY(topY);
+                            exStage.setHeight(height);
+                        }                        
+                        resetScroll.run();
+                        
+                    });
+    
+                
+                });
+            };
+
+            fillRightBtn.setOnAction(e -> {
+                
+                if(m_positionIndex == 2){
+                    resetPosition.run();
+                }else{
+                    if(m_positionIndex == 1){
+                        m_stage.setMaximized(false);
+                        FxTimer.runLater(Duration.ofMillis(100), ()->{
+                            resetPosition.run();
+                            fillRight.run();
+                        });
+                    }else{
+                        resetPosition.run();
+                        fillRight.run();
+                    }
+                }
 
             });
 

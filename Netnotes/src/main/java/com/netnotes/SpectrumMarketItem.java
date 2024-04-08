@@ -625,7 +625,7 @@ public class SpectrumMarketItem {
             };
 
             fillRightBtn.setOnAction(e -> {
-
+                
                 if(m_positionIndex == 2){
                     resetPosition.run();
                 }else{
