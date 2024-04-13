@@ -31,7 +31,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty; 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -88,6 +88,7 @@ public class SpectrumMarketItem {
         }
     }
 
+
     public final static double SWAP_BOX_MIN_WIDTH = 300;
     public final static String ERG_ID = "0000000000000000000000000000000000000000000000000000000000000000";
     public final static String SPF_ID = "9a06d9e545a41fd51eeffc5e20d818073bf820c635e2a9d922269913e0de369d";
@@ -112,6 +113,8 @@ public class SpectrumMarketItem {
     private double m_prevX = -1;
     private double m_prevY = -1;
     private String m_symbol;
+
+    
 
     public SpectrumMarketItem(boolean favorite, SpectrumMarketData marketData, SpectrumDataList dataList) {
         m_symbol = marketData.getSymbol();
@@ -221,12 +224,6 @@ public class SpectrumMarketItem {
 
         return rowBox;
     }
-
-
-
- 
-
-   
 
     public String returnGetId() {
         return getId();
@@ -881,6 +878,7 @@ public class SpectrumMarketItem {
     }
 
     public VBox getSwapBox(Scene scene, SimpleBooleanProperty shutdownSwap){
+
         ErgoNetwork ergoNetwork = getErgoNetwork();
         ErgoWallets ergoWallets = ergoNetwork != null ? (ErgoWallets) ergoNetwork.getNetwork(ErgoWallets.NETWORK_ID) : null;
         ErgoNodes ergoNodes = ergoNetwork != null ? (ErgoNodes) ergoNetwork.getNetwork(ErgoNodes.NETWORK_ID) : null;
@@ -905,13 +903,19 @@ public class SpectrumMarketItem {
         
         SimpleStringProperty orderTypeStringObject = new SimpleStringProperty(MARKET_ORDER);
 
+        SimpleBooleanProperty showPoolStats = new SimpleBooleanProperty(true);
+
         Runnable updateOrderPriceObject = () ->{
             if(orderTypeStringObject.get() != null && orderTypeStringObject.get().equals(MARKET_ORDER)){
                 orderPriceObject.set(m_isInvertChart.get() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice());
             }
+            
         };
+
         updateOrderPriceObject.run();
         MenuButton walletBtn = new MenuButton();
+
+        
 
         if(ergoNetwork != null){
             if(ergoWallets != null && ergoNodes != null){
@@ -973,11 +977,10 @@ public class SpectrumMarketItem {
 
         final String walletBtnDefaultString = "[Select]           ";
 
-        final String showUrl = "/assets/eye-30.png";
-        final String hideUrl = "/assets/eye-off-30.png";
+
         
         SimpleBooleanProperty showWallet = new SimpleBooleanProperty(true);
-
+        
         walletBtn.setMaxHeight(40);
         walletBtn.setContentDisplay(ContentDisplay.LEFT);
         walletBtn.setAlignment(Pos.CENTER_LEFT);
@@ -1184,7 +1187,7 @@ public class SpectrumMarketItem {
         walletIconView.setFitWidth(20);
         walletIconView.setPreserveRatio(true);
 
-        Label ergoWalletsLbl = new Label("Ergo Walelts");
+        Label ergoWalletsLbl = new Label("Ergo Wallets");
         ergoWalletsLbl.setFont(App.titleFont);
         ergoWalletsLbl.setTextFill(App.txtColor);
         ergoWalletsLbl.setPadding(new Insets(0, 0, 0, 10));
@@ -1197,24 +1200,19 @@ public class SpectrumMarketItem {
         closeImage.setFitWidth(20);
         closeImage.setPreserveRatio(true);
 
-        Button disableWalletBtn = new Button();
-        disableWalletBtn.setId("toolBtn");
-        disableWalletBtn.setGraphic(closeImage);
-        disableWalletBtn.setPadding(new Insets(0, 1, 0, 3));
-        disableWalletBtn.setOnAction(e->{
-            ergoWalletObject.set(null);
+        
+
+        
+        BufferedButton toggleShowWallets = new BufferedButton("/assets/caret-up-15.png", 15);
+        toggleShowWallets.setId("toolBtn");
+        toggleShowWallets.setPadding(new Insets(0, 5, 0, 3));
+        toggleShowWallets.setOnAction(e->{
+            showWallet.set(!showWallet.get());
+           
         });
         
 
         
-        BufferedButton toggleShowWallets = new BufferedButton(hideUrl, App.MENU_BAR_IMAGE_WIDTH);
-        toggleShowWallets.setId("toolBtn");
-        toggleShowWallets.setPadding(new Insets(0, 5, 0, 3));
-        toggleShowWallets.setOnAction(e->{
-            boolean isShowWallet = !showWallet.get();
-            showWallet.set(isShowWallet);
-            toggleShowWallets.setImage(isShowWallet ? new Image(hideUrl) : new Image(showUrl));            
-        });
         
         BufferedButton openErgoWalletsBtn = new BufferedButton("/assets/open-outline-white-20.png", App.MENU_BAR_IMAGE_WIDTH);
         openErgoWalletsBtn.setId("toolBtn");
@@ -1229,6 +1227,7 @@ public class SpectrumMarketItem {
         walletsTopBar.setId("networkTopBar");
 
 
+
         VBox selectWalletBox = new VBox( walletBox);
         selectWalletBox.setPadding(new Insets(0,0,0,5));
         selectWalletBox.setId("networkBox");
@@ -1236,18 +1235,56 @@ public class SpectrumMarketItem {
         VBox selectWalletPaddingBox = new VBox(walletsTopBar, selectWalletBox);
         selectWalletPaddingBox.setPadding(new Insets(0));
         
-        showWallet.addListener((obs,oldVal,newVal)->{
-            if(newVal){
-                if(!selectWalletPaddingBox.getChildren().contains(selectWalletBox)){
-                    selectWalletPaddingBox.getChildren().add(selectWalletBox);
+
+
+        ImageView poolStatsIconView = new ImageView(SpectrumFinance.getSmallAppIcon());
+        poolStatsIconView.setFitWidth(20);
+        poolStatsIconView.setPreserveRatio(true);
+
+        Label poolStatsLbl = new Label("Profile");
+        poolStatsLbl.setFont(App.titleFont);
+        poolStatsLbl.setTextFill(App.txtColor);
+        poolStatsLbl.setPadding(new Insets(0, 0, 0, 10));
+
+        Region poolStatsSpacer = new Region();
+        HBox.setHgrow(poolStatsSpacer, Priority.ALWAYS);
+
+        
+        
+        BufferedButton poolStatsToggleShowBtn = new BufferedButton("/assets/caret-up-15.png", 15);
+        poolStatsToggleShowBtn.setId("toolBtn");
+        poolStatsToggleShowBtn.setPadding(new Insets(0, 5, 0, 3));
+        poolStatsToggleShowBtn.setOnAction(e->{
+            showPoolStats.set(!showPoolStats.get());
+        });
+        
+
+        
+        HBox poolStatsTopBar = new HBox(poolStatsIconView, poolStatsLbl, poolStatsSpacer, poolStatsToggleShowBtn);
+        poolStatsTopBar.setAlignment(Pos.CENTER_LEFT);
+        poolStatsTopBar.setPadding(new Insets(5,1, 5, 5));
+        poolStatsTopBar.setId("networkTopBar");
+
+        
+
+        VBox poolStatsBox = new VBox();
+
+        VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
+        
+        showPoolStats.addListener((obs,oldval,newval)->{
+            
+            poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
+        
+            if(newval){
+                if(!poolStatsPaddingBox.getChildren().contains(selectWalletBox)){
+                    poolStatsPaddingBox.getChildren().add(selectWalletBox);
                 }
             }else{
-                if(selectWalletPaddingBox.getChildren().contains(selectWalletBox)){
-                    selectWalletPaddingBox.getChildren().remove(selectWalletBox);
+                if(poolStatsPaddingBox.getChildren().contains(selectWalletBox)){
+                    poolStatsPaddingBox.getChildren().remove(selectWalletBox);
                 }
             }
         });
-        
 
         Button buyBtn = new Button("Buy");
         buyBtn.setOnAction(e->{
@@ -1470,9 +1507,15 @@ public class SpectrumMarketItem {
             
         });
 
-       
+        Button disableWalletBtn = new Button();
+        disableWalletBtn.setId("toolBtn");
+        disableWalletBtn.setGraphic(closeImage);
+        disableWalletBtn.setPadding(new Insets(0, 1, 0, 3));
+        disableWalletBtn.setOnAction(e->{
+            ergoWalletObject.set(null);
+        });
 
-    amountField.focusedProperty().addListener((obs,oldval,newval)->{
+        amountField.focusedProperty().addListener((obs,oldval,newval)->{
         if(!newval){
             String str = amountField.getText();
             if(str.equals(("0.")) && str.equals(("0")) && str.equals("") && str.equals(".")){
@@ -1519,19 +1562,30 @@ public class SpectrumMarketItem {
         HBox.setHgrow(executePaddingBox, Priority.ALWAYS);
         executePaddingBox.setPadding(new Insets(5));
 
-        
-
         VBox marketBox = new VBox(isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, executePaddingBox );
         marketBox.setPadding(new Insets(5));
         marketBox.setId("bodyBox");
 
-        VBox marketPaddingBox = new VBox(orderTypeBox, marketBox);
-
-       
-
         ScrollPane walletBoxScroll = new ScrollPane(selectWalletPaddingBox);
-        
         selectWalletPaddingBox.prefWidthProperty().bind(Bindings.createObjectBinding(()->walletBoxScroll.viewportBoundsProperty().get().getWidth() - 2, walletBoxScroll.viewportBoundsProperty()));
+
+        showWallet.addListener((obs,oldval,newval)->{
+            
+            toggleShowWallets.setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
+        
+            if(newval){
+                if(!selectWalletPaddingBox.getChildren().contains(selectWalletBox)){
+                    selectWalletPaddingBox.getChildren().add(selectWalletBox);
+                }
+            }else{
+                if(selectWalletPaddingBox.getChildren().contains(selectWalletBox)){
+                    selectWalletPaddingBox.getChildren().remove(selectWalletBox);
+                }
+            }
+        });
+    
+
+        VBox marketPaddingBox = new VBox(orderTypeBox, marketBox);
 
         VBox swapBox = new VBox(walletBoxScroll, marketPaddingBox);
         
@@ -1834,11 +1888,16 @@ public class SpectrumMarketItem {
         m_marketData.getLastUpdated().addListener((obs,oldVal,newVal)->{
             String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
             
-            if(orderType.equals(MARKET_ORDER)){
-                updateOrderPriceObject.run();
-                updateVolumeFromAmount.run();
-                orderPriceStatusField.setText(Utils.formatTimeString(newVal));
+            switch(orderType){
+                case MARKET_ORDER:
+                    updateOrderPriceObject.run();
+                    updateVolumeFromAmount.run();
+                    orderPriceStatusField.setText(Utils.formatTimeString(newVal));
+                break;
             }
+
+            
+            
         });
 
         Runnable updateNodeBtn = () ->{
@@ -2100,5 +2159,7 @@ public class SpectrumMarketItem {
     public BigDecimal getQuoteVolume(){
         return m_marketData.getQuoteVolume();
     }
+
+  
 
 }

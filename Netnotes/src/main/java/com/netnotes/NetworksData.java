@@ -42,6 +42,9 @@ import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -74,8 +77,8 @@ public class NetworksData implements InstallerInterface {
 
     
     private ExecutorService m_execService = Executors.newFixedThreadPool(6);
-
-    private ArrayList<NoteInterface> m_noteInterfaceList = new ArrayList<>();
+    
+    private ObservableList<NoteInterface> m_noteInterfaceList = FXCollections.observableArrayList();
     private File m_networksFile;
     private String m_selectedId;
     private VBox m_networksBox;
@@ -403,6 +406,14 @@ public class NetworksData implements InstallerInterface {
             return true;
         }
         return false;
+    }
+
+    public void addNetworkListener(ListChangeListener<? super NoteInterface> listener){
+        m_noteInterfaceList.addListener(listener);
+    }
+
+    public void removeNetworkListener(ListChangeListener<? super NoteInterface> listener){
+        m_noteInterfaceList.removeListener(listener);
     }
 
     public VBox getNetworksBox() {

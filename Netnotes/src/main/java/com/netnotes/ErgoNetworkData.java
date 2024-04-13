@@ -812,12 +812,13 @@ public class ErgoNetworkData implements InstallerInterface {
         }
     }
 
-    public void addNetworkListener(ListChangeListener<NoteInterface> listener){
+    public void addNetworkListener(ListChangeListener<? super NoteInterface> listener){
         
         m_networkList.addListener(listener);
     }
 
-    public void addNetworkListener(Object listener) {
+    public void removeNetworkListener(ListChangeListener<? super NoteInterface> listener){
+        m_networkList.removeListener(listener);
     }
 
 }

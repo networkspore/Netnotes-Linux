@@ -3,11 +3,14 @@ package com.netnotes;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
+
 
 import com.google.gson.JsonElement;
 
@@ -28,6 +31,8 @@ public class SpectrumMarketData extends PriceQuote {
 
     private boolean m_defaultInvert = false;
 
+    private SimpleObjectProperty<PoolStats> m_poolStats = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<BigDecimal> m_poolSlippage = new SimpleObjectProperty<>(null);
     
 
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
@@ -41,7 +46,8 @@ public class SpectrumMarketData extends PriceQuote {
         JsonElement lastPriceElement = json.get("lastPrice");
         JsonElement quoteVolumeElement = json.get("baseVolume");
         JsonElement baseVolumeElement = json.get("quoteVolume");
-// idElement != null && idElement.isJsonPrimitive() &&
+
+   
         if(
            
             baseIdElement != null && baseIdElement.isJsonPrimitive() &&
@@ -195,7 +201,52 @@ public class SpectrumMarketData extends PriceQuote {
         return json;
     }
 
+     public void updatePoolStats(ExecutorService execService){
+        SpectrumFinance.getPoolStats(getPoolId(), execService, (onSucceeded)->{
+            Object sourceValue = onSucceeded.getSource().getValue();
+            
+            if(sourceValue != null && sourceValue instanceof JsonObject){
+                
+                try {
+                    m_poolStats.set( new PoolStats((JsonObject) sourceValue));
+                } catch (Exception e) {
+                    m_poolStats.set(null);
+                }
 
+            }
+
+        }, (onFailed)->{
+            m_poolStats.set(null);
+        });
+    }
+
+    public void updatePoolSlipage(ExecutorService execService){
+        SpectrumFinance.getPoolSlippage(getPoolId(), execService, (onSucceeded)->{
+        Object sourceValue = onSucceeded.getSource().getValue();
+        
+        if(sourceValue != null && sourceValue instanceof JsonObject){
+            JsonObject slippageJson = (JsonObject) sourceValue;
+            JsonElement slippageElement = slippageJson.get("slippagePercent");
+            if(slippageElement != null && slippageElement.isJsonPrimitive()){
+                
+                m_poolSlippage.set(slippageElement.getAsBigDecimal());
+            } else{
+                m_poolSlippage.set(null);
+            }
+
+        }
+        }, (onFailed)->{
+            m_poolSlippage.set(null);
+        });
+    }
+
+    public SimpleObjectProperty<BigDecimal> poolSlippageProperty(){
+        return m_poolSlippage;
+    }
+
+    public SimpleObjectProperty<PoolStats> poolStatsProperty(){
+        return m_poolStats;
+    }
 
      public class SpectrumAsset{
 
@@ -326,4 +377,150 @@ public class SpectrumMarketData extends PriceQuote {
     public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
         return m_lastUpdated;
     }
+
+    
+    public class PoolStats{
+        
+        private String m_lockedYTokenId;
+        private String m_lockedYSymbol;
+        private long m_lockedYAmount;
+        private int m_lockedYDecimals;
+
+        private String m_lockedXTokenId;
+        private String m_lockedXSymbol;
+        private long m_lockedXAmount;
+        private int m_lockedDecimals;
+
+        private BigDecimal m_tvl;
+        private BigDecimal m_volume;
+        private BigDecimal m_fees;
+
+        private long m_feesFrom;
+        private long m_feesTo;
+        private long m_volumeFrom;
+        private long m_volumeTo;
+        private BigDecimal m_yearlyFeesPercent;
+        private SimpleLongProperty m_lastUpdated;
+
+        public PoolStats(JsonObject json) throws Exception{
+            updatePoolStats(json);
+        }
+
+        public void updatePoolStats(JsonObject json) throws Exception{
+            
+            if(json == null){
+                throw new Exception("No pool stats");
+            }
+            
+            JsonElement lockedXElement = json.get("lockedX");
+            JsonElement lockedYElement = json.get("lockedY");
+            JsonElement tvlElement = json.get("tvl");
+            JsonElement volumeElement = json.get("volume");
+            JsonElement feesElement = json.get("fees");
+            JsonElement yearlyFeesPercent = json.get("yearlyFeesPercent");
+
+            if(lockedXElement != null && lockedXElement.isJsonObject() && lockedYElement != null && lockedYElement.isJsonObject() && tvlElement != null && volumeElement != null && feesElement != null){
+                
+                JsonObject lockedXObject = lockedXElement.getAsJsonObject();
+                
+                m_lockedXTokenId = lockedXObject.get("id").getAsString();
+                m_lockedXSymbol = lockedXObject.get("ticker").getAsString();
+                m_lockedXAmount = lockedXObject.get("amount").getAsLong();
+                m_lockedDecimals = lockedXObject.get("decimals").getAsInt();
+             
+                JsonObject lockedYObject = lockedYElement.getAsJsonObject();
+
+                m_lockedYTokenId = lockedYObject.get("id").getAsString();
+                m_lockedYSymbol = lockedYObject.get("ticker").getAsString();
+                m_lockedYAmount = lockedYObject.get("amount").getAsLong();
+                m_lockedYDecimals = lockedYObject.get("decimals").getAsInt();
+
+                JsonObject volumeObject = volumeElement.getAsJsonObject();
+                m_volume = volumeObject.get("value").getAsBigDecimal();
+                
+                JsonObject volumeWindowObject = volumeObject.get("window").getAsJsonObject();
+                m_volumeFrom = volumeWindowObject.get("from").getAsLong();
+                m_volumeTo = volumeWindowObject.get("to").getAsLong();
+                
+                JsonObject feesObject = feesElement.getAsJsonObject();
+                m_fees = feesObject.get("value").getAsBigDecimal();
+                
+                JsonObject feesWindowObject = feesObject.get("window").getAsJsonObject();
+                m_feesFrom = feesWindowObject.get("from").getAsLong();
+                m_feesTo = feesWindowObject.get("to").getAsLong();
+                
+                m_yearlyFeesPercent = yearlyFeesPercent.getAsBigDecimal();
+                m_lastUpdated.set(System.currentTimeMillis());
+
+            }else{
+                throw new Exception("Invalid data");
+            }
+    
+            
+        }
+
+        public SimpleLongProperty lastUpdatedProperty(){
+            return m_lastUpdated;
+        }
+
+        public String getLockedYTokenId(){
+            return m_lockedYTokenId;
+        }
+        public String getLockedYSymbol(){
+            return m_lockedYSymbol;
+        }
+        public long getLockedYAmount(){
+            return m_lockedYAmount;
+        }
+        public int getLockedYDecimals(){
+            return m_lockedYDecimals;
+        }
+
+        public String getLockedXTokenId(){
+            return m_lockedXTokenId;
+        }
+        public String getLockedXSymbol(){
+            return m_lockedXSymbol;
+        }
+        public long getLockedXAmount(){
+            return m_lockedXAmount;
+        }
+        public int getLockedDecimals(){
+            return m_lockedDecimals;
+        }
+
+        public BigDecimal getTvl(){
+            return m_tvl;
+        }
+        
+        public BigDecimal getVolume(){
+            return m_volume;
+        }
+        
+        public BigDecimal getFees(){
+            return m_fees;
+        }
+        
+        public long getFeesFrom(){
+            return m_feesFrom;
+        }
+        
+        public long getFeesTo(){
+            return m_feesTo;
+        }
+        
+        public long getVolumeFrom(){
+            return m_volumeFrom;
+        }
+        
+        public long getVolumeTo(){
+            return m_volumeTo;
+        }
+        
+        public BigDecimal getYearlyFeesPercent(){
+            return m_yearlyFeesPercent;
+        }
+
+    }
+
 }

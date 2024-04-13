@@ -54,7 +54,6 @@ import java.lang.Double;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
@@ -1842,7 +1841,7 @@ public class Utils {
                 while ((s = stdInput.readLine()) != null) {
                     javaOutputList.add(s);
 
-                    String timeString = "time=";
+                 //   String timeString = "time=";
                 // int indexOftimeString = s.indexOf(timeString);
 
                     if (s.indexOf("service not known") > -1) {

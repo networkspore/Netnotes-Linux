@@ -30,6 +30,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -356,6 +357,19 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     public NoteInterface getNetwork(String networkId){
         return m_ergNetData.getNetwork(networkId);
+    }
+
+    public void showManageStage(){
+        m_ergNetData.showwManageStage();
+    }
+
+    public void addNetworkListener(ListChangeListener<? super NoteInterface> listener){
+        
+        m_ergNetData.addNetworkListener(listener);
+    }
+
+    public void removeNetworkListener(ListChangeListener<? super NoteInterface> listener){
+        m_ergNetData.removeNetworkListener(listener);
     }
 
     /*

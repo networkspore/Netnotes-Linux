@@ -23,6 +23,8 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
+import org.ergoplatform.appkit.NetworkType;
+
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -32,6 +34,7 @@ import com.utils.Utils;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Task;
@@ -88,13 +91,20 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private java.awt.Font m_txtFont = new java.awt.Font("Deja Vu Sans", java.awt.Font.PLAIN, 15);
     private final String m_exchangeId;
 
+    SpectrumMarketInterface m_msgListener;
+
+    
+    private SimpleObjectProperty<Network> m_tokensList = new SimpleObjectProperty<>(null);
+
+    private SimpleObjectProperty<NoteInterface> m_currentNetwork = new SimpleObjectProperty<>();
+
     public SpectrumDataList(String id, SpectrumFinance spectrumFinance) {
         super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
         m_spectrumFinance = spectrumFinance;
         m_exchangeId= FriendlyId.createFriendlyId();
         setup(m_spectrumFinance.getNetworksData().getAppData().appKeyProperty().get());
         
-        
+        updateTokensList();
 
     }
 
@@ -111,7 +121,35 @@ public class SpectrumDataList extends Network implements NoteInterface {
         
     }
 
-    SpectrumMarketInterface m_msgListener;
+    public SimpleObjectProperty<Network> tokensListNetwork(){
+        return m_tokensList;
+    }
+
+    public void updateTokensList(){
+        m_currentNetwork.set( getNetworksData().getNoteInterface(m_spectrumFinance.getCurrentNetworkId()));
+        if(m_currentNetwork != null){
+            if(m_currentNetwork.get() instanceof ErgoNetwork){
+                ErgoNetwork ergoNetwork = (ErgoNetwork) m_currentNetwork.get();
+                NoteInterface tokensNetwork = ergoNetwork.getNetwork(m_spectrumFinance.getTokensID());
+                if(tokensNetwork != null && tokensNetwork instanceof ErgoTokens){
+                    ErgoTokens ergoTokens = (ErgoTokens) tokensNetwork;
+                    m_tokensList.set(ergoTokens.getTokensList(NetworkType.MAINNET));
+                }else{
+                    m_tokensList.set(null);
+                }
+            }else{
+                m_tokensList.set(null);
+            }
+        }else{
+            m_tokensList.set(null);
+        }
+    }
+
+  
+
+    public SimpleObjectProperty<NoteInterface> currentNetwork(){
+        return m_currentNetwork;
+    }
     
     public void updateMarkets(ArrayList<SpectrumMarketData> marketsArray) {
         

@@ -65,6 +65,8 @@ import javafx.stage.Stage;
 
 public class ErgoTokensList extends Network {
 
+    public final static String NETWORK_ID = "ERGO_TOKENS_LIST";
+
     private File logFile = new File("netnotes-log.txt");
 
     private final ArrayList<ErgoNetworkToken> m_networkTokenList = new ArrayList<>();
@@ -84,7 +86,7 @@ public class ErgoTokensList extends Network {
     private long m_lastSave = 0;
 
     public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens, String marketId, String explorerId) {
-        super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
+        super(null, "Ergo Tokens - List (" + networkType.toString() + ")", NETWORK_ID, ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
         m_marketId = marketId;
@@ -107,7 +109,7 @@ public class ErgoTokensList extends Network {
     }
 
     public ErgoTokensList(ArrayList<ErgoNetworkToken> networkTokenList, NetworkType networkType, ErgoTokens ergoTokens, String marketId) {
-        super(null, "Ergo Tokens - List (" + networkType.toString() + ")", "TOKENS_LIST", ergoTokens);
+        super(null, "Ergo Tokens - List (" + networkType.toString() + ")", NETWORK_ID, ergoTokens);
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
         m_marketId = marketId;

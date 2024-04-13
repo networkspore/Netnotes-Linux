@@ -53,6 +53,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -69,6 +70,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static String NAME = "Spectrum Finance";
     public final static String NETWORK_ID = "SPECTRUM_FINANCE";
 
+    private String m_currentNetworkId = null;
+    private String m_tokensId = null;
+
+
     public static String API_URL = "https://api.spectrum.fi";
 
 
@@ -79,7 +84,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static java.awt.Color NEGATIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xffe96d71, true);
     public static java.awt.Color NEUTRAL_COLOR = new java.awt.Color(0x111111);
 
-    
+    public final static String ERG_ID = "0000000000000000000000000000000000000000000000000000000000000000";
+    public final static String SPF_ID = "9a06d9e545a41fd51eeffc5e20d818073bf820c635e2a9d922269913e0de369d";
 
     public static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     public static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
@@ -114,6 +120,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     //private SimpleObjectProperty<JsonArray> m_marketJson = new SimpleObjectProperty<>(null);
 
+  
 
     public ArrayList<SpectrumMarketData> marketsList(){
         return m_marketsList;
@@ -201,14 +208,19 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private void setup(JsonObject jsonObject) {
 
+        JsonElement currentNetworkElement = jsonObject != null ? jsonObject.get("currentNetworkId") : null;
+        JsonElement tokensIdElement = jsonObject != null ? jsonObject.get("tokensId") : null;
+        
+        String currentNetworkId = currentNetworkElement != null && currentNetworkElement.isJsonPrimitive() ? currentNetworkElement.getAsString() : ErgoNetwork.NETWORK_ID;
+        String tokensId = tokensIdElement != null && tokensIdElement.isJsonPrimitive() ? tokensIdElement.getAsString() : (m_currentNetworkId.equals(ErgoNetwork.NETWORK_ID) ? ErgoTokens.NETWORK_ID : null);
+
+        m_currentNetworkId =currentNetworkId;
+        m_tokensId = tokensId;
 
         String appDirFileString = null;
         if (jsonObject != null) {
             JsonElement appDirElement = jsonObject.get("appDir");
       
-          //  JsonElement dataFileElement = jsonObject.get("dataFile");
-
-        //    fileString = dataFileElement == null ? null : dataFileElement.toString();
 
             appDirFileString = appDirElement == null ? null : appDirElement.getAsString();
 
@@ -231,6 +243,19 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
         getDataDir();
+
+
+
+    }
+
+    @Override
+    public JsonObject getJsonObject() {
+        JsonObject networkObj = new JsonObject();
+        networkObj.addProperty("name", getName());
+        networkObj.addProperty("networkId", getNetworkId());
+        networkObj.addProperty("currentNetworkId", m_currentNetworkId);
+        networkObj.addProperty("tokensId", m_tokensId);
+        return networkObj;
 
     }
 
@@ -346,7 +371,23 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }*/
 
+    public void setCurrentNetworkId(String networkId){
+        m_currentNetworkId = networkId;
+        getLastUpdated().set(LocalDateTime.now());
+    }
 
+    public String getCurrentNetworkId(){
+        return m_currentNetworkId;
+    }
+
+    public String getTokensID(){
+        return m_tokensId;
+    }
+
+    public void setTokensId(String id){
+        m_tokensId = id;
+        getLastUpdated().set(LocalDateTime.now());
+    }
 
 
     private void showAppStage() {
@@ -354,6 +395,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
             
 
             SpectrumDataList spectrumData = new SpectrumDataList(getNetworkId(), this);
+
+
 
             double appStageWidth = 450;
             double appStageHeight = 600;
@@ -493,6 +536,168 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             Region menuBarRegion = new Region();
             HBox.setHgrow(menuBarRegion, Priority.ALWAYS);
+
+            
+            Tooltip currentNetworkTip = new Tooltip("Install: Ergo Network");
+            currentNetworkTip.setShowDelay(new javafx.util.Duration(50));
+            currentNetworkTip.setFont(App.txtFont);
+
+            String tokensDefaultImgString = "/assets/diamond-30.png";
+            String networkDefaultImgString = "/assets/globe-outline-white-120.png";
+     
+            ImageView currentNetworkImageView = new ImageView(new Image(networkDefaultImgString));
+            currentNetworkImageView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+            currentNetworkImageView.setPreserveRatio(true);
+
+            BufferedMenuButton currentNetworkBtn = new BufferedMenuButton();
+            currentNetworkBtn.setGraphic(currentNetworkImageView);
+            currentNetworkBtn.setPadding(new Insets(2, 0, 0, 2));
+            currentNetworkBtn.setTooltip(currentNetworkTip);
+
+
+            
+            BufferedMenuButton tokensMenuBtn = new BufferedMenuButton(tokensDefaultImgString, App.MENU_BAR_IMAGE_WIDTH);
+            tokensMenuBtn.setPadding(new Insets(2, 0, 0, 0));
+            
+            Tooltip tokensTip = new Tooltip("Tokens: Disabled");
+            tokensTip.setShowDelay(new javafx.util.Duration(50));
+            tokensTip.setFont(App.txtFont);
+
+            tokensMenuBtn.setTooltip(tokensTip);
+
+            SimpleObjectProperty< ListChangeListener<NoteInterface>> tokensChangeListenerObject = new SimpleObjectProperty<>(null);
+
+            Runnable updateTokensMenu = ()->{
+                tokensMenuBtn.getItems().clear();
+                NoteInterface currentNetworkInterface = spectrumData.currentNetwork().get();
+                Network tokensList = spectrumData.tokensListNetwork().get();
+                
+                if(currentNetworkInterface != null && currentNetworkInterface instanceof ErgoNetwork){
+                    
+                    ErgoNetwork ergoNetwork = (ErgoNetwork) currentNetworkInterface;
+                    if(tokensChangeListenerObject.get() != null){
+                        ergoNetwork.removeNetworkListener(tokensChangeListenerObject.get());
+                        ergoNetwork.addNetworkListener(tokensChangeListenerObject.get());
+                    }
+                    currentNetworkBtn.setImage(ErgoNetwork.getSmallAppIcon());
+                    currentNetworkBtn.setId("menuBtn");
+                    
+                    MenuItem ergoNetworksItem = new MenuItem("Ergo Network (selected)");
+                    ergoNetworksItem.setOnAction(e->{
+                        
+                    });
+                    
+                    currentNetworkBtn.getItems().clear();
+                    currentNetworkBtn.getItems().add(ergoNetworksItem);
+
+                    if(ergoNetwork.getNetwork(ErgoTokens.NETWORK_ID) != null){
+                        ErgoTokensList ergoTokensList = tokensList != null && tokensList instanceof ErgoTokensList ? (ErgoTokensList) tokensList : null;
+
+                        boolean isEnabled = ergoTokensList != null;
+                    
+                        MenuItem tokensEnabledItem = new MenuItem("Ergo Tokens" + (isEnabled ? " (selected)" : ""));
+                        tokensEnabledItem.setOnAction(e->{
+                            setTokensId(ErgoTokens.NETWORK_ID);
+                            spectrumData.updateTokensList();
+                        });
+
+                        MenuItem tokensDisabledItem = new MenuItem("Tokens Disabled" + (isEnabled ? "" : " (selected)"));
+                        tokensDisabledItem.setOnAction(e->{
+                            setTokensId(null);
+                            spectrumData.updateTokensList();
+                        });
+
+                        if(isEnabled){
+                            tokensTip.setText("Tokens: Enabled");
+                            tokensEnabledItem.setId("selectedMenuItem");
+                            tokensMenuBtn.setImage(ErgoTokens.getSmallAppIcon());
+                            tokensMenuBtn.setId("menuBtn");
+                        }else{
+                            tokensTip.setText("Tokens: Disabled");
+                            tokensDisabledItem.setId("selectedMenuItem");
+                            tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
+                            tokensMenuBtn.setId("menuBtnDisabled");
+                        }
+
+                        tokensMenuBtn.getItems().addAll(tokensEnabledItem, tokensDisabledItem);
+
+                    }else{
+                      
+                      
+
+                        tokensMenuBtn.setId("menuBtnDisabled");
+                        tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
+
+                        MenuItem tokensInstallItem = new MenuItem("(install 'Ergo Tokens')");
+                        tokensInstallItem.setOnAction(e->{
+                            ergoNetwork.showManageStage();
+                        });
+                        tokensTip.setText("(install 'Ergo Tokens')");
+                        tokensMenuBtn.getItems().add(tokensInstallItem);
+                    }
+                }else{
+                    if(getNetworksData().getNoteInterface(ErgoNetwork.NETWORK_ID) == null){
+                        tokensMenuBtn.setId("menuBtnDisabled");
+                        tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
+                        
+                        currentNetworkBtn.setId("menuBtnDisabled");
+                        currentNetworkBtn.setImage(new Image(networkDefaultImgString));
+
+                        MenuItem ergoNetworksInstallItem = new MenuItem("(install 'Ergo Network')");
+                        ergoNetworksInstallItem.setOnAction(e->{
+                            getNetworksData().showManageNetworkStage();
+                        });
+                        tokensTip.setText("No network available");
+                        
+                        
+                        currentNetworkBtn.getItems().add(ergoNetworksInstallItem);
+                    }else{
+                        tokensMenuBtn.setId("menuBtnDisabled");
+                        tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
+
+                        currentNetworkBtn.setId("menuBtnDisabled");
+                        currentNetworkBtn.setImage(new Image(networkDefaultImgString));
+
+                        MenuItem ergoNetworksInstallItem = new MenuItem("Ergo Network");
+                        ergoNetworksInstallItem.setOnAction(e->{
+                            m_tokensId = ErgoTokens.NETWORK_ID;
+                            setCurrentNetworkId(ErgoNetwork.NETWORK_ID);
+                            spectrumData.updateTokensList();
+                        });
+                        tokensTip.setText("Select network");
+
+               
+                        currentNetworkBtn.getItems().add(ergoNetworksInstallItem);
+                    }
+                   
+                }
+            
+            };
+
+            spectrumData.currentNetwork().addListener((obs,oldval,newval)->updateTokensMenu.run());
+
+            ListChangeListener<NoteInterface> tokenChangeListener = (ListChangeListener.Change<? extends NoteInterface> c) -> {
+                spectrumData.updateTokensList();
+            
+            };
+          
+            tokensChangeListenerObject.set(tokenChangeListener);
+
+            getNetworksData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
+                spectrumData.updateTokensList();
+            });
+
+            updateTokensMenu.run();
+            
+            
+
+            //networkChangeListener.set(networkChangeListener);
+
+            HBox rightSideMenu = new HBox(currentNetworkBtn, tokensMenuBtn);
+           
+            rightSideMenu.setId("rightSideMenuBar");
+            rightSideMenu.setPadding(new Insets(0, 0, 0, 0));
+            rightSideMenu.setAlignment(Pos.CENTER_RIGHT);
 
             HBox menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion, searchField);
             HBox.setHgrow(menuBar, Priority.ALWAYS);
@@ -692,7 +897,17 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
 
-    
+    public static void getPoolSlippage(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/slippage";
+
+        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed, null);
+    }
+
+    public static void getPoolStats(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/stats";
+
+        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed, null);
+    }
 
     private void getMarketUpdate(JsonArray jsonArray){
         
