@@ -26,8 +26,6 @@ public class Drawing {
         y1 = y1 > maxHeight ? maxHeight : (y1 < 0 ? 0 : y1);
         y2 = y2 > maxHeight ? maxHeight : (y2 < 0 ? 0 : y2);
 
-
-
         int a1 = (RGB1 >> 24) & 0xff;
         int r1 = (RGB1 >> 16) & 0xff;
         int g1 = (RGB1 >> 8) & 0xff;

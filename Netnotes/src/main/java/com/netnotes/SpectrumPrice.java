@@ -9,6 +9,7 @@ import com.google.gson.JsonElement;
 public class SpectrumPrice{
         private BigDecimal m_price;
         private long m_timeStamp;
+
         public SpectrumPrice(JsonObject json) throws Exception{
             JsonElement timestampElement = json != null && json.isJsonObject() ? json.get("timestamp") : null;
             JsonElement priceElement = json != null && json.isJsonObject() ? json.get("price") : null;
@@ -25,6 +26,11 @@ public class SpectrumPrice{
             m_price = price;
             m_timeStamp = timeStamp;
         }
+        public void invert(){
+            if(!m_price.equals(BigDecimal.ZERO)){
+                m_price = BigDecimal.ONE.divide(m_price, m_price.scale(), RoundingMode.HALF_UP);
+            }
+        }
 
         public BigDecimal getPrice(){
             
@@ -36,7 +42,7 @@ public class SpectrumPrice{
         }
 
         public BigDecimal invertBigDecimal() throws ArithmeticException{
-            return BigDecimal.ONE.divide(m_price, m_price.scale(), RoundingMode.CEILING);
+            return BigDecimal.ONE.divide(m_price, m_price.scale(), RoundingMode.HALF_UP);
         }
 
         public JsonObject getInvertedJson() throws ArithmeticException{

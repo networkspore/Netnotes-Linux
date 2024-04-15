@@ -343,6 +343,20 @@ public class SpectrumChartView {
             updateMarketData(latestTime, lastBigPrice);
         }
     }
+
+    public void invert(){
+        int size = m_dataList.size();
+        if(size > 0){
+            BigDecimal lastPrice = BigDecimal.ZERO;
+            for(int i = 0; i < size ; i++){
+                SpectrumPrice spectrumPrice = m_dataList.get(i);
+                spectrumPrice.invert();
+                updateDirection(lastPrice, spectrumPrice.getPrice());
+                lastPrice = spectrumPrice.getPrice();
+            }
+            processDataList(m_dataList.get(size-1).getTimeStamp());
+        }
+    }
     
     public void processDataList(long latestTime) {
         m_priceList.clear();

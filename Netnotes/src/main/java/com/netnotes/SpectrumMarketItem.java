@@ -779,9 +779,6 @@ public class SpectrumMarketItem {
                         }
 
                        // saveNewDataJson(currentTime, chartArray);
-                      
-                       
-                   
                        
                         chartView.setPriceDataList(m_isInvertChart.get() ?  chartArray : invertPrices(chartArray));
                         
@@ -808,9 +805,10 @@ public class SpectrumMarketItem {
        
 
             m_isInvertChart.addListener((obs,oldval,newval)->{
-                chartView.reset();
+              //  chartView.reset();
                 chartRange.reset();
-                setCandles.run();
+             //   setCandles.run();
+                chartView.invert();
                 invertBtn.setImage( new Image(newval? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
                 m_stage.setTitle(exchange.getName() + " - " +  m_marketData.getCurrentSymbol(newval) + (m_marketData != null ? " - " +(newval ? m_marketData.getInvertedLastPrice().toString() : m_marketData.getLastPrice()) + "" : ""));
                 headingText.setText(m_marketData.getCurrentSymbol(newval));
@@ -855,8 +853,10 @@ public class SpectrumMarketItem {
                 
                 
                     chartRange.reset();
-                    chartView.reset();
-                    setCandles.run();
+                    updateMarketData.run();
+                    setChartScrollRight.run();
+                   // chartView.reset();
+                   // setCandles.run();
       
                 }
             });
