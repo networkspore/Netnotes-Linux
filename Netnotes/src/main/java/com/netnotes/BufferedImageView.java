@@ -51,18 +51,26 @@ public class BufferedImageView extends ImageView {
     }
 
     public void setDefaultImage(Image image) {
-        m_defaultImg = image;
-        m_img = new WritableImage((int) image.getWidth(),(int) image.getHeight());
-        setImage(m_img);
-        Drawing.drawImageExact(m_img, image, 0, 0, false);
+        if(image != null){
+            m_defaultImg = image;
+            m_img = new WritableImage((int) image.getWidth(),(int) image.getHeight());
+          
+            Drawing.drawImageExact(m_img, image, 0, 0, false);
+            updateImage();
+            setImage(m_img);
+        }else{
+            m_img = null;
+            m_defaultImg = null;
+            setImage(null);
+        }
+       // setImage(m_img);
         
-        updateImage();
     }
 
     public void setDefaultImage(Image img, double fitWidth) {
         setDefaultImage(img);
      
-        updateImage();
+    
         setFitWidth(fitWidth);
         setPreserveRatio(true);
     }
@@ -141,13 +149,15 @@ public class BufferedImageView extends ImageView {
     }
 
     public void updateImage() {
-        if(m_img == null && m_defaultImg != null){
-            setDefaultImage(m_defaultImg);
-        }
-        if (m_img != null) {
-            if(m_defaultImg != null){
-                Drawing.drawImageExact(m_img, m_defaultImg, 0, 0, false);
-            }
+      //  if(m_img == null && m_defaultImg != null){
+          //  setDefaultImage(m_defaultImg);
+       // }
+        if (m_img != null && m_defaultImg != null) {
+        
+            //Drawing.clearImage(m_img);
+            Drawing.drawImageExact(m_img, m_defaultImg, 0, 0, false);
+            
+           
             if (m_effects.size() > 0) {
            
 
@@ -157,9 +167,7 @@ public class BufferedImageView extends ImageView {
                 }
 
             }
-        } else {
-            setImage(null);
-        }
+        } 
     }
 
     public Image getBaseImage() {

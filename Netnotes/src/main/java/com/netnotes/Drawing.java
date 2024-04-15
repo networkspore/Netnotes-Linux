@@ -17,10 +17,17 @@ public class Drawing {
 
 
     public static void drawBarFillColor(int direction, boolean fillInverse, int fillColor, int RGB1, int RGB2, BufferedImage img, int x1, int y1, int x2, int y2) {
-        /*cancel draw if out of bounds?
-            if(!(y1 < img.getHeight() && y2 <= img.getHeight() && x1 < img.getWidth() && x2 <= img.getWidth())){
-            return;
-        }*/
+        
+        int maxWidth = img.getWidth()-1;
+        int maxHeight = img.getHeight()-1;
+
+        x1 = x1 > maxWidth ? maxWidth : (x1 < 0 ? 0 : x1);
+        x2 = x2 > maxWidth ? maxWidth : (x2 < 0 ? 0 : x2);
+        y1 = y1 > maxHeight ? maxHeight : (y1 < 0 ? 0 : y1);
+        y2 = y2 > maxHeight ? maxHeight : (y2 < 0 ? 0 : y2);
+
+
+
         int a1 = (RGB1 >> 24) & 0xff;
         int r1 = (RGB1 >> 16) & 0xff;
         int g1 = (RGB1 >> 8) & 0xff;
@@ -152,6 +159,14 @@ public class Drawing {
         double scaleR;
         double scaleG;
         double scaleB;
+
+        int maxWidth = img.getWidth()-1;
+        int maxHeight = img.getHeight()-1;
+
+        x1 = x1 > maxWidth ? maxWidth : (x1 < 0 ? 0 : x1);
+        x2 = x2 > maxWidth ? maxWidth : (x2 < 0 ? 0 : x2);
+        y1 = y1 > maxHeight ? maxHeight : (y1 < 0 ? 0 : y1);
+        y2 = y2 > maxHeight ? maxHeight : (y2 < 0 ? 0 : y2);
 
         switch (direction) {
             case 1:
@@ -343,6 +358,16 @@ public class Drawing {
         }
     }
 
+    public static void clearImage(WritableImage img){
+        
+        PixelWriter pW = img.getPixelWriter();
+
+        fillArea(img,null, pW,0x00000000, 0, 0, (int) img.getWidth(), (int) img.getHeight(), false);
+
+
+
+    }
+
 
 
     public static void drawImageExact(BufferedImage img, BufferedImage img2, int x1, int y1, boolean blend) {
@@ -378,19 +403,24 @@ public class Drawing {
     }
 
     public static void drawImageExact(WritableImage img, Image img2, int x1, int y1, boolean blend){
-        PixelReader px = img.getPixelReader();
+        PixelReader pR = img.getPixelReader();
         PixelWriter pW = img.getPixelWriter();
-        drawImageExact(img, px, pW, img2, x1,y1,blend);
+        PixelReader pR2 = img2.getPixelReader();
+        drawImageExact(img, pR, pW, img2, pR2, x1, y1, blend);
     }
 
-    public static void drawImageExact(WritableImage img,PixelReader pR1, PixelWriter pW, Image img2, int x1, int y1, boolean blend) {
-        int x2 = x1 + (int) img2.getWidth();
-        int y2 = y1 + (int) img2.getHeight();
+    public static void drawImageExact(WritableImage img, PixelReader pR1, PixelWriter pW, Image img2, PixelReader pR2, int x1, int y1, boolean blend) {
+        int imgWidth = (int) img.getWidth();
+        int imgHeight = (int) img.getHeight();
+        
+        int img2Width = (int) img2.getWidth();
+        int img2Height = (int) img2.getHeight();
 
-        PixelReader pR2 = img2.getPixelReader();
+        int x2 = x1 + img2Width;
+        int y2 = y1 + img2Height;
 
-        x2 = x2 > (int) img.getWidth() -1 ? (int) img.getWidth() -1 : x2;
-        y2 = y2 > (int) img.getHeight() -1 ? (int) img.getHeight() -1 : y2;
+        x2 = x2 > imgWidth -1 ? imgWidth -1 : x2;
+        y2 = y2 > imgHeight -1 ? imgHeight -1 : y2;
 
         x1 = x1 < 0 ? 0 : x1;
         y1 = y1 < 0 ? 0 : y1;        
@@ -400,8 +430,8 @@ public class Drawing {
                 int img2x = x - x1;
                 int img2y = y - y1;
 
-                img2x = img2x < 0 ? 0 : (img2x > (int) img2.getWidth() -1 ? (int) img2.getWidth() - 1 : img2x);
-                img2y = img2y < 0 ? 0 : (img2y > (int) img2.getHeight() - 1 ? (int) img2.getHeight() -1 : img2y);
+                img2x = img2x < 0 ? 0 : (img2x > img2Width -1 ? img2Width - 1 : img2x);
+                img2y = img2y < 0 ? 0 : (img2y > img2Height - 1 ? img2Height -1 : img2y);
                 
                 int newRGB = pR2.getArgb(img2x, img2y);
                 
@@ -420,6 +450,15 @@ public class Drawing {
     public static void fillAreaDotted(int size, BufferedImage img, int RGB, int x1, int y1, int x2, int y2) {
 
         int j = 0;
+        
+        int maxWidth = img.getWidth()-1;
+        int maxHeight = img.getHeight()-1;
+
+        x1 = x1 > maxWidth ? maxWidth : (x1 < 0 ? 0 : x1);
+        x2 = x2 > maxWidth ? maxWidth : (x2 < 0 ? 0 : x2);
+        y1 = y1 > maxHeight ? maxHeight : (y1 < 0 ? 0 : y1);
+        y2 = y2 > maxHeight ? maxHeight : (y2 < 0 ? 0 : y2);
+
 
         for (int x = x1; x < x2; x += size) {
             for (int y = y1; y < y2; y += size) {

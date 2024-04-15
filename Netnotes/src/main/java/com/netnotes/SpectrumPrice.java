@@ -21,6 +21,11 @@ public class SpectrumPrice{
             }
         }
 
+        public SpectrumPrice(BigDecimal price, long timeStamp){
+            m_price = price;
+            m_timeStamp = timeStamp;
+        }
+
         public BigDecimal getPrice(){
             
             return m_price;

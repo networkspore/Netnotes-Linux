@@ -249,8 +249,8 @@ public class SpectrumMarketItem {
             final double chartScrollVvalue = 1;
             final double chartScrollHvalue = 1;
 
-            SimpleDoubleProperty chartWidth = new SimpleDoubleProperty(sceneWidth - 50);
-            SimpleDoubleProperty chartHeight = new SimpleDoubleProperty(sceneHeight - 170);
+            SimpleDoubleProperty chartWidth = new SimpleDoubleProperty(400);
+            SimpleDoubleProperty chartHeight = new SimpleDoubleProperty(400);
             //SimpleDoubleProperty chartHeightOffset = new SimpleDoubleProperty(0);
             SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(12);
             SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
@@ -758,7 +758,7 @@ public class SpectrumMarketItem {
 
                 final JsonArray priceDataArray = lastTimeStampElement != null && lastTimeStampElement.isJsonPrimitive() && priceDataElement != null && priceDataElement.isJsonArray() ? priceDataElement.getAsJsonArray() : null;
               //  final long lastTimeStamp = lastTimeStampElement != null && priceDataArray != null  ? lastTimeStampElement.getAsLong() : 0;
-                final long currentTime = System.currentTimeMillis();
+                //final long currentTime = System.currentTimeMillis();
 
                 m_dataList.getSpectrumFinance().getPoolChart(m_marketData.getPoolId(), (onSuccess)->{
                     Object sourceObject = onSuccess.getSource().getValue();
@@ -783,7 +783,7 @@ public class SpectrumMarketItem {
                        
                    
                        
-                        chartView.setPriceDataList(m_isInvertChart.get() ?  chartArray : invertPrices(chartArray), currentTime);
+                        chartView.setPriceDataList(m_isInvertChart.get() ?  chartArray : invertPrices(chartArray));
                         
                         //Platform.runLater(()->);
                

@@ -62,7 +62,9 @@ public class RangeBar extends ImageView{
 
     private Image m_collapseImage = new Image("/assets/collapse-20.png");
 
-    private int m_bg1 = 0xC0ffffff;
+    private int m_bg1 = 0x50ffffff;
+    private int m_bg1active = 0x90ffffff;
+    private int m_bg1setting = 0xC0ffffff;
     private int m_bg2 = 0x50000000;
 
     private int m_barRGB1 = 0x55333333;
@@ -452,14 +454,14 @@ public class RangeBar extends ImageView{
         if (!settingRange) {
             Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x00010101, 0, 0, width, height, false);
 
-            Drawing.drawBar(1, m_bg1, m_bg2, m_imgBuf,m_pR,m_pW, x1, y1, x2, y2);
+            Drawing.drawBar(1, (m_active.get() ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR,m_pW, x1, y1, x2, y2);
             Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1, x2, y2);
 
             if (m_topVvalue.get() == 1 && m_bottomVvalue.get() == 0) {
 
                 Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50000000, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
 
-                Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2)),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), false);
+                Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, m_collapseImage.getPixelReader(), (int) ((width/2) - (m_collapseImage.getWidth()/2)),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), false);
             }
         } else {
             Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x20ffffff, 2, 0, width-3, height, true);
@@ -512,7 +514,7 @@ public class RangeBar extends ImageView{
             Drawing.fillArea(m_imgBuf, m_btnBotBorderColor2, btnBotX1 + 1, btnBotY2 - 1, btnBotX2 - 1, btnBotY2);*/
 
             //RangeBar
-            Drawing.drawBar(1, m_bg1, m_bg2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
+            Drawing.drawBar(1,(m_active.get() ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
             Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
 
         }
