@@ -16,6 +16,14 @@ public class SpectrumPriceData {
     private BigDecimal m_low = BigDecimal.ZERO;
 
     private long m_epochEnd = 0;
+
+    private long m_priceAreaTimeStamp = 0;
+    private int m_direction = 0;
+    private int m_x = -1;
+    private int m_highY = -1;
+    private int m_lowY = -1;
+    private int m_openY = -1;
+    private int m_closeY = -1;
     
     public SpectrumPriceData(long timestamp, long epochEnd, BigDecimal price){
        m_latestTimestamp = timestamp;
@@ -52,6 +60,38 @@ public class SpectrumPriceData {
         m_epochEnd = epochEnd;
     }
 
+    public long getPriceAreaTimeStamp(){
+        return m_priceAreaTimeStamp;
+    }
+
+    public int getDirection(){
+        return m_direction;
+    }
+    public int getX(){
+        return m_x;
+    }
+    public int getHighY(){
+        return m_highY;
+    }
+    public int getLowY(){
+        return m_lowY;
+    }
+    public int getOpenY(){
+        return m_openY;
+    }
+    public int getCloseY(){
+        return m_closeY;
+    }
+
+    public void setPriceArea(long timeStamp, int direction, int x, int highY, int lowY, int openY, int closeY){
+        m_priceAreaTimeStamp = timeStamp;
+        m_direction = direction;
+        m_x = x;
+        m_highY = highY;
+        m_lowY = lowY;
+        m_openY = openY;
+        m_closeY = closeY;
+    }
 
 
     public String getCloseString() {

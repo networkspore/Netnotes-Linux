@@ -88,7 +88,7 @@ public class SpectrumChartView {
 
     private long m_lastTimeStamp = 0;
 
-    public final SimpleLongProperty m_doUpdate = new SimpleLongProperty(0);
+    public final SimpleLongProperty m_doUpdate = new SimpleLongProperty(System.currentTimeMillis());
 
     //private double m_lastClose = 0;
     private int m_labelSpacingSize = 150;
@@ -98,6 +98,19 @@ public class SpectrumChartView {
     private double m_botRangePrice = 0;
 
     private boolean m_isPositive = true;
+    
+    private int m_greenHighlightRGB = 0x504bbd94;
+    //  int m_greenHighlightRGB2 = 0x80028a0f;
+    private int m_redRGBhighlight = 0x50e96d71;
+    //  int redRGBhighlight2 = 0x809a2a2a;
+    private Color m_highlightGreen = KucoinExchange.POSITIVE_HIGHLIGHT_COLOR;
+    private Color m_baseRed = KucoinExchange.NEGATIVE_COLOR;
+    private Color m_highlightRed = KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR;
+
+    private Color m_overlayRed = new Color(0x709A2A2A, true);
+    private Color m_overlayHighlightRed = new Color(0x70e96d71, true);
+
+
 
     public SpectrumChartView(SimpleDoubleProperty width, SimpleDoubleProperty height, TimeSpan timeSpan) {
 
@@ -105,9 +118,10 @@ public class SpectrumChartView {
         m_chartHeight = height;
         m_timeSpan = timeSpan;
         updateLabelFont();
-        //updateBufferedImage();
+        
+       
     }
-
+ 
 
     public long getLastTimestamp(){
         return m_lastTimeStamp;
@@ -186,7 +200,7 @@ public class SpectrumChartView {
         
 
         Runnable updateImg = ()->{
-            Image img = updateBufferedImage();
+            Image img = updateBufferedImage(m_doUpdate.get());
             if(img != null){
                 imgView.setFitWidth(img.getWidth());
                 imgView.setImage(img);
@@ -875,17 +889,10 @@ public class SpectrumChartView {
         return m_labelHeight + 7;
     }
 
-
-
-    public Image updateBufferedImage() {
+   
+    public Image updateBufferedImage(long timestamp) {
         LocalDateTime now = LocalDateTime.now();
      
-       
-        int greenHighlightRGB = 0x504bbd94;
-      //  int greenHighlightRGB2 = 0x80028a0f;
-        int redRGBhighlight = 0x50e96d71;
-      //  int redRGBhighlight2 = 0x809a2a2a;
-
         int priceListSize = getPriceListSize();
         int totalCellWidth = getTotalCellWidth();
 
@@ -984,13 +991,7 @@ public class SpectrumChartView {
             int j = 0;
 
             //    Color green = KucoinExchange.POSITIVE_COLOR;
-            Color highlightGreen = KucoinExchange.POSITIVE_HIGHLIGHT_COLOR;
-            Color garnetRed = KucoinExchange.NEGATIVE_COLOR;
-            Color highlightRed = KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR;
-
-            Color overlayRed = new Color(garnetRed.getRed(), garnetRed.getGreen(), garnetRed.getBlue(), 0x70);
-            Color overlayRedHighlight = new Color(highlightRed.getRed(), highlightRed.getGreen(), highlightRed.getBlue(), 0x70);
-
+    
             int priceListWidth = priceListSize * totalCellWidth;
 
             int halfCellWidth = cellWidth / 2;
@@ -1001,8 +1002,6 @@ public class SpectrumChartView {
             int rowHeight = getRowHeight();
 
             int rows = (int) Math.floor(chartHeight / rowHeight);
-            
-            ////////////////////////////TODO: handle chart too small
 
             rows = rows == 0 ? 1 : rows;
 
@@ -1122,51 +1121,9 @@ public class SpectrumChartView {
                     }
 
                 }
-
-                if (highY != lowY) {
-                    Drawing.fillArea(m_img, 0xffffffff, x + halfCellWidth - 1, chartHeight - highY, x + halfCellWidth, chartHeight - lowY);
-                }
-
-                if (neutral) {
-
-                    Drawing.drawBar(1, Color.lightGray, Color.gray, m_img, x, chartHeight - openY - 1, x + cellWidth, chartHeight - closeY + 1);
-
-                } else {
-                    if (positive) {
-
-                        int y1 = chartHeight - closeY;
-                        int y2 = (chartHeight - openY) + 1;
-
-                        int x2 = x + cellWidth;
-                        Drawing.drawBar(1, 0xff000000, 0xff111111, m_img, x, y1, x2, y2);
-                        Drawing.drawBar(1, greenHighlightRGB, 0xff000000, m_img, x, y1, x2, y2);
-                        Drawing.drawBar(0, 0x104bbd94, 0x004bbd94, m_img, x, y1, x2, y2);
-
-                        int RGBhighlight = highlightGreen.getRGB();
-
-                        Drawing.fillArea(m_img, 0x804bbd94, x + 1, y1, x2, y1 + 1);
-
-                        Drawing.drawBar(0x80555555, RGBhighlight, m_img, x2, y1 + 3, x2 - 2, y2);
-
-                        Drawing.fillArea(m_img, 0x30000000, x, y2 - 1, x2, y2);
-
-                    } else {
-
-                        int y1 = chartHeight - openY;
-                        int y2 = chartHeight - closeY;
-
-                        Drawing.drawBar(1, garnetRed, highlightRed, m_img, x, y1, x + cellWidth, y2);
-                        Drawing.drawBar(0, overlayRed, overlayRedHighlight, m_img, x, y1, x + cellWidth, y2);
-
-                        int RGBhighlight = overlayRedHighlight.getRGB();
-
-                        Drawing.fillArea(m_img, RGBhighlight, x, y1, x + 1, y2);
-                        Drawing.fillArea(m_img, RGBhighlight, x, y1, x + cellWidth, y1 + 1);
-                        Drawing.fillArea(m_img, garnetRed.getRGB(), x + cellWidth - 1, y1, x + cellWidth, y2);
-
-                        Drawing.fillArea(m_img, garnetRed.getRGB(), x + 1, y2 - 1, x + cellWidth - 1, y2);
-                    }
-                }
+                priceData.setPriceArea(timestamp, neutral ? 0 : (positive ? 1 : -1), x, highY, lowY, openY, closeY);
+                
+                drawBar(neutral, positive, x, highY, lowY, openY, closeY,  cellWidth, chartHeight);
 
                 i++;
             }
@@ -1212,9 +1169,9 @@ public class SpectrumChartView {
             boolean isLastPositive = m_isPositive;
 
             if (isLastPositive) {
-                RGBhighlight = greenHighlightRGB;
+                RGBhighlight = m_greenHighlightRGB;
             } else {
-                RGBhighlight = redRGBhighlight;
+                RGBhighlight = m_redRGBhighlight;
             }
 
             Drawing.drawBar(1, 0xff000000, 0xff111111, m_img, x1, y1, m_imgWidth, y2);
@@ -1330,6 +1287,55 @@ public class SpectrumChartView {
         } */
         return SwingFXUtils.toFXImage(m_img,null);
       
+    }
+
+    public void drawBar(boolean neutral, boolean positive, int x, int highY, int lowY, int openY, int closeY,  int cellWidth,  int chartHeight){
+        int halfCellWidth = cellWidth / 2;
+        //Candle wick
+        if (highY != lowY) {
+            Drawing.fillArea(m_img, 0xffffffff, x + halfCellWidth - 1, chartHeight - highY, x + halfCellWidth, chartHeight - lowY);
+         }
+
+         if (neutral) {
+
+             Drawing.drawBar(1, Color.lightGray, Color.gray, m_img, x, chartHeight - openY - 1, x + cellWidth, chartHeight - closeY + 1);
+
+         } else {
+             if (positive) {
+
+                 int y1 = chartHeight - closeY;
+                 int y2 = (chartHeight - openY) + 1;
+
+                 int x2 = x + cellWidth;
+                 Drawing.drawBar(1, 0xff000000, 0xff111111, m_img, x, y1, x2, y2);
+                 Drawing.drawBar(1, m_greenHighlightRGB, 0xff000000, m_img, x, y1, x2, y2);
+                 Drawing.drawBar(0, 0x104bbd94, 0x004bbd94, m_img, x, y1, x2, y2);
+
+                 int RGBhighlight = m_highlightGreen.getRGB();
+
+                 Drawing.fillArea(m_img, 0x804bbd94, x + 1, y1, x2, y1 + 1);
+
+                 Drawing.drawBar(0x80555555, RGBhighlight, m_img, x2, y1 + 3, x2 - 2, y2);
+
+                 Drawing.fillArea(m_img, 0x30000000, x, y2 - 1, x2, y2);
+
+             } else {
+
+                 int y1 = chartHeight - openY;
+                 int y2 = chartHeight - closeY;
+
+                 Drawing.drawBar(1, m_baseRed, m_highlightRed, m_img, x, y1, x + cellWidth, y2);
+                 Drawing.drawBar(0, m_overlayRed, m_overlayHighlightRed, m_img, x, y1, x + cellWidth, y2);
+
+                 int RGBhighlight = m_overlayHighlightRed.getRGB();
+
+                 Drawing.fillArea(m_img, RGBhighlight, x, y1, x + 1, y2);
+                 Drawing.fillArea(m_img, RGBhighlight, x, y1, x + cellWidth, y1 + 1);
+                 Drawing.fillArea(m_img, m_baseRed.getRGB(), x + cellWidth - 1, y1, x + cellWidth, y2);
+
+                 Drawing.fillArea(m_img, m_baseRed.getRGB(), x + 1, y2 - 1, x + cellWidth - 1, y2);
+             }
+         }
     }
 
     public void shutdown(){
