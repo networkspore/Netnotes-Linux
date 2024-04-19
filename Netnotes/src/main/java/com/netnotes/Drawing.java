@@ -6,6 +6,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelReader;
@@ -15,6 +16,7 @@ import javafx.scene.image.WritableImage;
 
 public class Drawing {
 
+    public final static int EMPTY_ARGB = 0x00000000;
 
     public static void drawBarFillColor(int direction, boolean fillInverse, int fillColor, int RGB1, int RGB2, BufferedImage img, int x1, int y1, int x2, int y2) {
         
@@ -356,6 +358,10 @@ public class Drawing {
         }
     }
 
+    public static void clearImage(BufferedImage img){
+        fillArea(img, EMPTY_ARGB, 0, 0, img.getWidth(), img.getHeight(), false);
+    }
+
     public static void clearImage(WritableImage img){
         
         PixelWriter pW = img.getPixelWriter();
@@ -366,14 +372,52 @@ public class Drawing {
 
     }
 
+    public static void clearImage(WritableImage img, PixelWriter pW, int width, int height){
+        
+        fillArea(img,null, pW,0x00000000, 0, 0, width, height, false);
 
+    }
+
+
+    public static void drawImageExact(BufferedImage img, BufferedImage img2, int x1, int y1, int width, int height, boolean blend) {
+        int x2 = x1 + width;
+        int y2 = y1 + height;
+
+
+        x1 = x1 < 0 ? 0 : x1;
+        y1 = y1 < 0 ? 0 : y1;        
+
+        for (int x = x1; x < x2; x++) {
+            for (int y = y1; y < y2; y++) {
+                int img2x = x - x1;
+                int img2y = y - y1;
+                
+
+                img2x = img2x < 0 ? 0 : (img2x > img2.getWidth() ? img2.getWidth()  : img2x);
+                img2y = img2y < 0 ? 0 : (img2y > img2.getHeight()  ? img2.getHeight() : img2y);
+                
+                int newRGB = img2.getRGB(img2x, img2y);
+                
+                if (blend) {
+                   
+                   
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        int oldRGB = img.getRGB(x, y);
+                        img.setRGB(x, y, blendRGBA(oldRGB, newRGB));
+                    }
+                } else {
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        img.setRGB(x, y, newRGB);
+                    }
+                }
+            }
+        }
+    }
 
     public static void drawImageExact(BufferedImage img, BufferedImage img2, int x1, int y1, boolean blend) {
         int x2 = x1 + img2.getWidth();
         int y2 = y1 + img2.getHeight();
 
-        x2 = x2 > img.getWidth() -1 ? img.getWidth() -1 : x2;
-        y2 = y2 > img.getHeight() -1 ? img.getHeight() -1 : y2;
 
         x1 = x1 < 0 ? 0 : x1;
         y1 = y1 < 0 ? 0 : y1;        
@@ -383,18 +427,22 @@ public class Drawing {
                 int img2x = x - x1;
                 int img2y = y - y1;
 
-                img2x = img2x < 0 ? 0 : (img2x > img2.getWidth() -1 ? img2.getWidth() - 1 : img2x);
-                img2y = img2y < 0 ? 0 : (img2y > img2.getHeight() - 1 ? img2.getHeight() -1 : img2y);
+                img2x = img2x < 0 ? 0 : (img2x > img2.getWidth() ? img2.getWidth()  : img2x);
+                img2y = img2y < 0 ? 0 : (img2y > img2.getHeight()  ? img2.getHeight() : img2y);
                 
                 int newRGB = img2.getRGB(img2x, img2y);
                 
                 if (blend) {
-                    int oldRGB = img.getRGB(x, y);
                    
-
-                    img.setRGB(x, y, blendRGBA(oldRGB, newRGB));
+                   
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        int oldRGB = img.getRGB(x, y);
+                        img.setRGB(x, y, blendRGBA(oldRGB, newRGB));
+                    }
                 } else {
-                    img.setRGB(x, y, newRGB);
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        img.setRGB(x, y, newRGB);
+                    }
                 }
             }
         }
@@ -417,8 +465,8 @@ public class Drawing {
         int x2 = x1 + img2Width;
         int y2 = y1 + img2Height;
 
-        x2 = x2 > imgWidth -1 ? imgWidth -1 : x2;
-        y2 = y2 > imgHeight -1 ? imgHeight -1 : y2;
+        x2 = x2 > imgWidth ? imgWidth  : x2;
+        y2 = y2 > imgHeight ? imgHeight : y2;
 
         x1 = x1 < 0 ? 0 : x1;
         y1 = y1 < 0 ? 0 : y1;        
@@ -428,8 +476,8 @@ public class Drawing {
                 int img2x = x - x1;
                 int img2y = y - y1;
 
-                img2x = img2x < 0 ? 0 : (img2x > img2Width -1 ? img2Width - 1 : img2x);
-                img2y = img2y < 0 ? 0 : (img2y > img2Height - 1 ? img2Height -1 : img2y);
+                img2x = img2x < 0 ? 0 : (img2x > img2Width ? img2Width : img2x);
+                img2y = img2y < 0 ? 0 : (img2y > img2Height ? img2Height  : img2y);
                 
                 int newRGB = pR2.getArgb(img2x, img2y);
                 
@@ -449,8 +497,8 @@ public class Drawing {
 
         int j = 0;
         
-        int maxWidth = img.getWidth()-1;
-        int maxHeight = img.getHeight()-1;
+        int maxWidth = img.getWidth();
+        int maxHeight = img.getHeight();
 
         x1 = x1 > maxWidth ? maxWidth : (x1 < 0 ? 0 : x1);
         x2 = x2 > maxWidth ? maxWidth : (x2 < 0 ? 0 : x2);
@@ -611,6 +659,8 @@ public class Drawing {
        
         return bufImage;
     }
+    
+
 
     public static BufferedImage resizeImage(BufferedImage buf, int width, int height, boolean maintainRatio){
         if(!maintainRatio){

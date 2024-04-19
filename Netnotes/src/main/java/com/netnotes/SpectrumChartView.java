@@ -31,7 +31,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 
 public class SpectrumChartView {
 
@@ -82,6 +82,9 @@ public class SpectrumChartView {
 
     private BufferedImage m_img = null;
     private Graphics2D m_g2d = null;
+
+   
+
     private int m_imgWidth = -1;
     private int m_imgHeight = -1;
     private Color m_defaultColor = new Color(0f, 0f, 0f, 0.01f);
@@ -110,6 +113,8 @@ public class SpectrumChartView {
     private Color m_overlayRed = new Color(0x709A2A2A, true);
     private Color m_overlayHighlightRed = new Color(0x70e96d71, true);
 
+    private BufferedImage m_labelImg = null;
+    private Graphics2D m_labelG2d = null;
 
 
     public SpectrumChartView(SimpleDoubleProperty width, SimpleDoubleProperty height, TimeSpan timeSpan) {
@@ -168,8 +173,7 @@ public class SpectrumChartView {
         //updateBufferedImage();
     }
 
-    private BufferedImage m_labelImg = null;
-    private Graphics2D m_labelG2d = null;
+  
 
     public void updateLabelFont() {
 
@@ -189,29 +193,34 @@ public class SpectrumChartView {
         m_labelImg = null;
     }
 
-    
-    
 
-    public HBox getChartBox() {
 
+    public StackPane getChartBox() {
+        
 
         ImageView imgView = new ImageView();
         imgView.setPreserveRatio(true);
-        
+
+        /*ImageView overlayImgView = new ImageView();
+        overlayImgView.setPreserveRatio(true);
+
+        overlayImgView.setOnMouseMoved(e->{
+            updateOverlayImage(overlayImgView);
+        });*/
 
         Runnable updateImg = ()->{
             Image img = updateBufferedImage(m_doUpdate.get());
             if(img != null){
                 imgView.setFitWidth(img.getWidth());
-                imgView.setImage(img);
-
             }
+            imgView.setImage(img);
+            
+           // updateOverlayImage(overlayImgView);
         };
 
         updateImg.run();
 
         m_doUpdate.addListener((obs,oldval,newval)->updateImg.run());
-
 
         m_chartHeight.addListener((obs, oldVal, newVal) -> updateImg.run());
 
@@ -225,10 +234,12 @@ public class SpectrumChartView {
         rangeActiveProperty().addListener((obs, oldVal, newVal) -> updateImg.run());
 
         
-        HBox chartBox = new HBox(imgView);
+        StackPane chartBox = new StackPane(imgView);
     
         return chartBox;
     }
+
+   
 
     public void reset() {
         m_lastTimeStamp = 0;

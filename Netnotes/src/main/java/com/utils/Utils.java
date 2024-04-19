@@ -88,6 +88,16 @@ import com.satergo.extra.AESEncryption;
 
 public class Utils {
 
+    public final static String[] getAsciiStringArray(){
+        String[] charStrings = new String[255];
+
+        for(int i = 0; i < 255; i++){
+            charStrings[i] = Character.toString ((char) i);
+        }
+
+        return charStrings;
+    }
+
     // Security.addProvider(new Blake2bProvider());
     public final static String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36";
 

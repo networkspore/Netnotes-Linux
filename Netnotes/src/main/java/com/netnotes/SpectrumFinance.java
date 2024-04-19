@@ -106,8 +106,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private SimpleObjectProperty<LocalDateTime> m_listChanged = new SimpleObjectProperty<>(null);
 //    private AtomicLong m_marketsLastChecked = new AtomicLong(0);
 //    private AtomicLong m_tickersLastChecked = new AtomicLong(0);
+    private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
+    private SimpleIntegerProperty m_connectionStatus = new SimpleIntegerProperty(0);
 
-    
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> m_scheduledFuture = null;
 
@@ -1137,8 +1138,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
     
-    private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
-    private SimpleIntegerProperty m_connectionStatus = new SimpleIntegerProperty(0);
 
     public void addMsgListener(SpectrumMarketInterface item) {
         if (!m_msgListeners.contains(item)) {
@@ -1158,11 +1157,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
             m_scheduledFuture.cancel(false);
-            try {
-                Files.writeString(App.logFile.toPath(), "Update spf stopped", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-                
-            }
+         
         }
 
     }

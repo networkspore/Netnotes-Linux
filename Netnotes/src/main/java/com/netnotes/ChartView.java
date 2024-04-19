@@ -828,11 +828,7 @@ public class ChartView {
                 fillTopRangeY2 = fillTopRangeY2 >= (img.getHeight() -1) ? img.getHeight() -1 : fillTopRangeY2;
                 
                 
-                try {
-                    Files.writeString(logFile.toPath(), "\nimgWidth: " + img.getWidth() + " imgHeight: " + img.getHeight() + "\ntopRY1: " + fillTopRangeY1 + " topRY2: " + fillTopRangeY2 + "\nx1: " + x1 + " x2: " + x2 + "\n" , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-                    
-                }
+               
                 Drawing.fillArea(img, 0xffffffff, x1,fillTopRangeY1 , x2, fillTopRangeY2);
                 g2d.setColor(blackColor);
                 g2d.drawString(topRangeString, topRangeStringX, topRangeStringY);

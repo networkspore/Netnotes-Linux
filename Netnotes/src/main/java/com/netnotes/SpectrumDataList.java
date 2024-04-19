@@ -84,15 +84,13 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private int m_height = 30;
     private int m_symbolColWidth = 180;
     private int m_colPadding = 5;
-    private int m_stringY = -1;
-
     
-    private java.awt.Font m_font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 15);
-    private java.awt.Font m_txtFont = new java.awt.Font("Deja Vu Sans", java.awt.Font.PLAIN, 15);
     private final String m_exchangeId;
 
     SpectrumMarketInterface m_msgListener;
 
+    
+    private ImageText m_imageText = new ImageText();
     
     private SimpleObjectProperty<Network> m_tokensList = new SimpleObjectProperty<>(null);
 
@@ -118,7 +116,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private void setup(SecretKey secretKey) {
         getFile(secretKey);
-        
+
     }
 
     public SimpleObjectProperty<Network> tokensListNetwork(){
@@ -666,7 +664,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         super.shutdown();
     }
 
-
+   // m_imageText.updateLineImage(0, m_symbolImage, symbolString);
     public Image getButtonImage(SpectrumMarketData data) {
      
         boolean isInvert = data.getDefaultInvert() ? ! getSortMethod().isTargetSwapped() : getSortMethod().isTargetSwapped();
@@ -678,7 +676,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
        if(m_symbolImage == null){
         
             m_symbolImage = new BufferedImage(m_symbolColWidth, m_height, BufferedImage.TYPE_INT_ARGB);
-            m_symbolGraphics = m_symbolImage.createGraphics();
+           /* m_symbolGraphics = m_symbolImage.createGraphics();
             m_symbolGraphics.setFont(m_txtFont);
             FontMetrics fm = m_symbolGraphics.getFontMetrics();        
             int fontAscent = fm.getAscent();
@@ -693,27 +691,33 @@ public class SpectrumDataList extends Network implements NoteInterface {
             m_symbolGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             m_symbolGraphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             m_symbolGraphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-            m_symbolGraphics.setColor(SpectrumMarketItem.WHITE_COLOR);
+            m_symbolGraphics.setColor(SpectrumMarketItem.WHITE_COLOR);*/
             
         }else{
             Drawing.fillArea(m_symbolImage, App.DEFAULT_RGBA,0,0,m_symbolImage.getWidth(), m_symbolImage.getHeight(),false );
         }
-         
-        m_symbolGraphics.drawString(symbolString, 0, m_stringY);
+      
+        int fontHeight = m_imageText.getStandarFontMetrics().getHeight();
+
+        BufferedImage emojiLayer = m_imageText.updateLineImage(0, (m_height /2) - (fontHeight/2), m_symbolImage, symbolString);
+        
+        if(emojiLayer != null){
+            Drawing.drawImageExact(m_symbolImage, emojiLayer, 0, 0, true);
+        }
 
         if(m_imgCache == null){
             m_imgCache = new BufferedImage(MAX_ROW_IMG_WIDTH, m_height, BufferedImage.TYPE_INT_ARGB);
 
-            m_g2d = m_imgCache.createGraphics();
-            m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+         //   m_g2d = m_imgCache.createGraphics();
+           /*  m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
             m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
             m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
             m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
             m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-            m_g2d.setFont(m_font);
+            m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);*/
+          //  m_g2d.setFont(m_font);
 
         }else{    
             Drawing.fillArea(m_imgCache, App.DEFAULT_RGBA,0,0,m_imgCache.getWidth(), m_imgCache.getHeight(),false);
@@ -721,7 +725,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
         Drawing.drawImageExact(m_imgCache, m_symbolImage, 0, 0, false);
 
-        m_g2d.drawString(priceString, m_symbolColWidth + m_colPadding, m_stringY);
+       // m_g2d.drawString(priceString, m_symbolColWidth + m_colPadding, m_stringY);
+
+       m_imageText.updateLineImage(m_symbolColWidth + m_colPadding, (m_height /2) - (fontHeight/2), m_imgCache, priceString);
 
        /* } else {
 

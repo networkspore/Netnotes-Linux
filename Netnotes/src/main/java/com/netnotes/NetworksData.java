@@ -51,6 +51,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -63,8 +64,8 @@ import javafx.stage.StageStyle;
 public class NetworksData implements InstallerInterface {
 
     public final static long WATCH_INTERVAL = 50;
-    public final String INPUT_EXT = ".in";
-    public final String OUT_EXT = ".out";
+    public final static String INPUT_EXT = ".in";
+    public final static String OUT_EXT = ".out";
     public final static long DEFAULT_CYCLE_PERIOD = 7;
 
     public final static String[] INTALLABLE_NETWORK_IDS = new String[]{
@@ -111,8 +112,6 @@ public class NetworksData implements InstallerInterface {
     private double m_stagePrevHeight = 500;
     private boolean m_stageMaximized = false;
     private AppData m_appData;
-    
-
 
 
     public NetworksData(AppData appData,  HostServices hostServices, File networksFile, boolean isFile) {
@@ -121,28 +120,25 @@ public class NetworksData implements InstallerInterface {
         m_networksFile = networksFile;
         m_networksBox = new VBox();
         m_hostServices = hostServices;
+       
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-   
 
-        
- 
         try {
             
             InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream();
             java.awt.Font ocrFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, stream).deriveFont(48f);
             ge.registerFont(ocrFont);
             stream.close();
-            
- 
-            
-        } catch (FontFormatException | IOException e) {
+           
 
+        } catch (FontFormatException | IOException e) {
+           
             try {
-                Files.writeString(logFile.toPath(), "\nError registering font: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(App.logFile.toPath(), "\nError registering font: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
             
             }
-
+            
         } 
 
         if (isFile) {
@@ -181,8 +177,15 @@ public class NetworksData implements InstallerInterface {
     }
 
 
+
+
     public ExecutorService getExecService(){
         return m_execService;
+    }
+
+    
+    public Image getCharacterImage(String characterString){
+        return null;
     }
 
 
