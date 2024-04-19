@@ -9,8 +9,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 
 import javax.imageio.ImageIO;
@@ -151,12 +149,6 @@ public class ImageText {
 
 
     public BufferedImage updateLineImage(int x, int textY, BufferedImage lineImage, String str){
-        
-        try {
-            Files.writeString(App.logFile.toPath(), "\n" + str, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
-         
-        }
 
         SimpleObjectProperty<BufferedImage> emojiLayer = new SimpleObjectProperty<>(null);
         SimpleIntegerProperty xP = new SimpleIntegerProperty(x);
@@ -169,12 +161,14 @@ public class ImageText {
                 int chrInt = (int) str.charAt(i);
                 if(chrInt > STANDARD_CHAR_END){
                     if(prevInt == -1 && (chrInt < 55296 || chrInt > 57343)){
-                        //Files.writeString(App.logFile.toPath(), "\n" + (char) chrInt, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+
                         drawExtendedGlyph(chrInt, lineImage, xP, textY);
+
                     }else{
                         if(prevInt == -1){
+
                             prevInt = chrInt;
-                          //  Files.writeString(App.logFile.toPath(), chrInt + " ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+
                         }else{
                             int codePoint = prevInt != -1 ? Character.toCodePoint((char)prevInt, (char)chrInt) : chrInt;
                             
