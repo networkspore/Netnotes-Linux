@@ -65,27 +65,17 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
         };
 
 
-        ChangeListener<LocalDateTime> marketDataChanged = (obs,oldval,newval)->{ 
-            getQuote.run();  
-            
-        };
-
         Runnable setMarketData = ()->{
-            if(m_marketData != null){
-                m_marketData.getLastUpdated().removeListener(marketDataChanged);
-            }
+
             m_marketData = spectrum.getMarketDataBySymbols("SigUSD", "ERG");
 
-            if(m_marketData != null){
-                m_marketData.getLastUpdated().addListener(marketDataChanged);
-            }
             getQuote.run();
 
         };
 
-        ChangeListener<LocalDateTime> updateListener = (obs,oldval,newval)->{
+        if(spectrum.connectionStatus() == SpectrumFinance.STARTED){
             setMarketData.run();
-        };
+        }
 
 
         m_msgListener = new SpectrumMarketInterface() {
@@ -93,26 +83,34 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
             public String getId() {
                 return m_exchangeId;
             }
-
+            public void sendMessage(int msg, long timestamp){
+                switch(msg){
+                    case SpectrumFinance.STARTED:
+                        setMarketData.run();
+                    break;
+                    case SpectrumFinance.STOPPED:
+                        m_marketData = null;
+                        getQuote.run();
+                    break;
+                    case SpectrumFinance.LIST_CHANGED:
+                    case SpectrumFinance.LIST_UPDATED:
+                        getQuote.run();
+                    break;
+                }
+            }
         };
 
         spectrum.addMsgListener(m_msgListener);
-        
-
-        //updateMarkets(spectrum);
-
-        spectrum.listUpdated().addListener(updateListener);
-        
-        setMarketData.run();
 
        
         setShutdownListener((obs, oldval, newVal) -> {
             
-            spectrum.listUpdated().removeListener(updateListener);
             spectrum.removeMsgListener(m_msgListener);
             statusProperty().set(ErgoMarketsData.STOPPED);
             getShutdownNow().removeListener(getShutdownListener());
+            m_marketData = null;
             priceQuoteProperty().set(null);
+
         });
        // spectrum.
         

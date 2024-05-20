@@ -35,7 +35,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import com.utils.Utils;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -229,13 +231,11 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     public void showTokensStage() {
         if (m_tokensStage == null) {
-            ErgoTokensList tokensList = new ErgoTokensList(getAppKey(), m_networkType, this, m_marketId, m_explorerId);
+
+            SimpleObjectProperty<ErgoTokensList> tokensListObject = new SimpleObjectProperty<>(null);
+
             
-
-            tokensList.selectedExplorerData().addListener((obs,oldval,newval)->{
-                setExplorerId(newval != null ? newval.getId() : null);
-            });
-
+         
 
 
             double tokensStageWidth = 375;
@@ -271,7 +271,8 @@ public class ErgoTokens extends Network implements NoteInterface {
                 chooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("text/json", "*.json"));
                 File openFile = chooser.showOpenDialog(m_tokensStage);
                 if (openFile != null) {
-                    tokensList.importJson(m_tokensStage, openFile);
+                    
+                    tokensListObject.get().importJson(m_tokensStage, openFile);
                 }
             });
 
@@ -286,7 +287,7 @@ public class ErgoTokens extends Network implements NoteInterface {
 
                 if (saveFile != null) {
                     try {
-                        Files.writeString(saveFile.toPath(), tokensList.getJsonObject().toString());
+                        Files.writeString(saveFile.toPath(), tokensListObject.get().getJsonObject().toString());
                     } catch (IOException e) {
                         Alert writeAlert = new Alert(AlertType.NONE, e.toString(), ButtonType.OK);
                         writeAlert.initOwner(m_tokensStage);
@@ -308,7 +309,7 @@ public class ErgoTokens extends Network implements NoteInterface {
             toggleNetworkTypeBtn.setOnAction(e -> {
                 setNetworkType(m_networkType == NetworkType.MAINNET ? NetworkType.TESTNET : NetworkType.MAINNET);
              
-                tokensList.setNetworkType(getAppKey(), m_networkType);
+                tokensListObject.get().setNetworkType(getAppKey(), m_networkType);
 
                 toggleTip.setText((m_networkType == NetworkType.MAINNET ? "MAINNET" : "TESTNET"));
                 toggleNetworkTypeBtn.setImage(m_networkType == NetworkType.MAINNET ?new Image("/assets/toggle-on.png") : new Image("/assets/toggle-off.png"));
@@ -340,78 +341,86 @@ public class ErgoTokens extends Network implements NoteInterface {
            
 
             Runnable updateExplorerBtn = () ->{
-                ErgoExplorers ergoExplorers = (ErgoExplorers) getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-            
-                ErgoExplorerData explorerData = tokensList.selectedExplorerData().get();
-                
-            
-                if(explorerData != null && ergoExplorers != null){
-                
-                    explorerTip.setText("Ergo Explorer: " + explorerData.getName());
-                
+                ErgoTokensList tokensList = tokensListObject.get();
 
-                }else{
+                if(tokensList != null){
+                    ErgoExplorers ergoExplorers = (ErgoExplorers) getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
+                
+                    ErgoExplorerData explorerData = tokensList.selectedExplorerData().get();
                     
-                    if(ergoExplorers == null){
-                        explorerTip.setText("(install 'Ergo Explorer')");
+                
+                    if(explorerData != null && ergoExplorers != null){
+                    
+                        explorerTip.setText("Ergo Explorer: " + explorerData.getName());
+                    
+
                     }else{
-                        explorerTip.setText("Select Explorer...");
+                        
+                        if(ergoExplorers == null){
+                            explorerTip.setText("(install 'Ergo Explorer')");
+                        }else{
+                            explorerTip.setText("Select Explorer...");
+                        }
                     }
                 }
                 
             };
 
             Runnable getAvailableExplorerMenu = () ->{
-            
-                ErgoExplorerList explorerList = tokensList.ergoExplorerListProperty().get();
-                if(explorerList != null){
-                    explorerBtn.setId("menuBtn");
-                    explorerList.getMenu(explorerBtn, tokensList.selectedExplorerData());
-                }else{
-                    explorerBtn.getItems().clear();
-                    explorerBtn.setId("menuBtnDisabled");
-                
+                ErgoTokensList tokensList = tokensListObject.get();
+                if(tokensList != null){
+                    ErgoExplorerList explorerList = tokensList.ergoExplorerListProperty().get();
+                    if(explorerList != null){
+                        explorerBtn.setId("menuBtn");
+                        explorerList.getMenu(explorerBtn, tokensListObject.get().selectedExplorerData());
+                    }else{
+                        explorerBtn.getItems().clear();
+                        explorerBtn.setId("menuBtnDisabled");
+                    
+                    }
+                    updateExplorerBtn.run();
                 }
-                updateExplorerBtn.run();
             };
 
             Runnable updateMarketsBtn = () -> {
+                ErgoTokensList tokensList = tokensListObject.get();
+                ErgoMarketsData marketsData = tokensList != null ? tokensList.selectedMarketData().get() : null;
                 
-                ErgoMarketsData marketsData = tokensList.selectedMarketData().get();
-                ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-    
-                if (marketsData != null && ergoMarkets != null) {
-    
-                    marketsTip.setText("Ergo Markets: " + marketsData.getName());
-                    tokensList.updateSelectedMarket(marketsData);
-                    
-                } else {
-    
-                    if (ergoMarkets == null) {
-                        marketsTip.setText("(install 'Ergo Markets')");
+                if(tokensList != null){
+                    ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+
+                    if (marketsData != null && ergoMarkets != null) {
+
+                        marketsTip.setText("Ergo Markets: " + marketsData.getName());
+                        tokensList.updateSelectedMarket(marketsData);
+                        
                     } else {
-                        marketsTip.setText("Select market...");
+
+                        if (ergoMarkets == null) {
+                            marketsTip.setText("(install 'Ergo Markets')");
+                        } else {
+                            marketsTip.setText("Select market...");
+                        }
                     }
                 }
-    
             };
-            tokensList.selectedMarketData().addListener((obs, oldval, newVal) -> {
-                setMarketId(newVal != null ? newVal.getMarketId() : null);
-                updateMarketsBtn.run();
-            });
+           
+      
     
             Runnable getAvailableMarketsMenu = () -> {
-                ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-         
-                if (ergoMarkets != null) {
-                    marketBtn.setId("menuBtn");
-                    
-                    ergoMarkets.getErgoMarketsList().getMenu(marketBtn, tokensList.selectedMarketData());
-                } else {
-                    marketBtn.getItems().clear();
-                    marketBtn.setId("menuBtnDisabled");
+                ErgoTokensList tokensList = tokensListObject.get();
+                if(tokensList != null){
+                    ErgoMarkets ergoMarkets = (ErgoMarkets) getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
+                    if (ergoMarkets != null) {
+                        marketBtn.setId("menuBtn");
+                        
+                        ergoMarkets.getErgoMarketsList().getMenu(marketBtn, tokensList.selectedMarketData());
+                    } else {
+                        marketBtn.getItems().clear();
+                        marketBtn.setId("menuBtnDisabled");
+                    }
+                    updateMarketsBtn.run();
                 }
-                updateMarketsBtn.run();
             };
           
 
@@ -446,8 +455,48 @@ public class ErgoTokens extends Network implements NoteInterface {
             layoutVBox.setPadding(new Insets(0, 5, 0, 5));
             VBox.setVgrow(layoutVBox, Priority.ALWAYS);
 
-            VBox tokensBox = tokensList.getButtonGrid();
+            HBox tokensBox = new HBox();
+            HBox.setHgrow(tokensBox, Priority.ALWAYS);
 
+            
+            Runnable addLoadingBox = ()->{
+                VBox loadingBox = new VBox(App.createImageButton(ErgoTokens.getAppIcon(), NAME));
+                HBox.setHgrow(loadingBox, Priority.ALWAYS);
+                VBox.setVgrow(loadingBox, Priority.ALWAYS);
+                loadingBox.setAlignment(Pos.CENTER);
+                tokensBox.getChildren().clear();
+                tokensBox.getChildren().add(loadingBox);
+            };
+
+            addLoadingBox.run();
+
+            Runnable setTokensList = () ->{
+               
+                ErgoTokensList tList = new ErgoTokensList(getAppKey(), m_networkType, this, m_marketId, m_explorerId);
+                
+                Utils.returnObject(tList, getNetworksData().getExecService(), (onSuceeded)->{
+                    Object listObject = onSuceeded.getSource().getValue();
+                    if(listObject != null && listObject instanceof ErgoTokensList){
+                        ErgoTokensList tokensList = (ErgoTokensList) listObject;
+
+                        tokensList.selectedExplorerData().addListener((obs,oldval,newval)->{
+                            setExplorerId(newval != null ? newval.getId() : null);
+                        });
+                        tokensList.selectedMarketData().addListener((obs, oldval, newVal) -> {
+                            setMarketId(newVal != null ? newVal.getMarketId() : null);
+                            updateMarketsBtn.run();
+                        });
+                        tokensBox.getChildren().clear();
+                        VBox vBox = tokensList.getButtonGrid();
+                        HBox.setHgrow(vBox, Priority.ALWAYS);
+
+                        tokensBox.getChildren().add(vBox);
+                        getAvailableExplorerMenu.run();
+                        getAvailableMarketsMenu.run();
+                    }
+                }, null);
+            };
+          
             Region growRegion = new Region();
 
             VBox.setVgrow(growRegion, Priority.ALWAYS);
@@ -456,6 +505,8 @@ public class ErgoTokens extends Network implements NoteInterface {
 
             ScrollPane scrollPane = new ScrollPane(bodyBox);
 
+            bodyBox.prefWidthProperty().bind(Bindings.createObjectBinding(()->scrollPane.layoutBoundsProperty().get().getWidth() < 300 ? 300 :scrollPane.layoutBoundsProperty().get().getWidth() , scrollPane.layoutBoundsProperty()));
+            
             scrollPane.setId("bodyBox");
 
             Button addButton = new Button("New");
@@ -481,27 +532,28 @@ public class ErgoTokens extends Network implements NoteInterface {
             removeButton.setUserData(null);
 
             removeButton.setOnAction(action -> {
+                ErgoTokensList tokensList = tokensListObject.get();
+                if(tokensList != null){
+                    ErgoNetworkToken selectedToken = (ErgoNetworkToken) tokensList.selectedTokenProperty().get();
+                    if(selectedToken != null){
+                        Alert a = new Alert(AlertType.NONE, "Would you like to remove '" + selectedToken.getName() + "' from Ergo Tokens?", ButtonType.NO, ButtonType.YES);
+                        a.initOwner(m_tokensStage);
+                        a.setTitle("Remove Token - " + selectedToken.getName());
+                        a.setGraphic(IconButton.getIconView(selectedToken.getIcon(), 40));
+                        a.setHeaderText("Remove Token");
+                        Optional<ButtonType> result = a.showAndWait();
 
-                
-                ErgoNetworkToken selectedToken = (ErgoNetworkToken) tokensList.selectedTokenProperty().get();
-                if(selectedToken != null){
-                    Alert a = new Alert(AlertType.NONE, "Would you like to remove '" + selectedToken.getName() + "' from Ergo Tokens?", ButtonType.NO, ButtonType.YES);
-                    a.initOwner(m_tokensStage);
-                    a.setTitle("Remove Token - " + selectedToken.getName());
-                    a.setGraphic(IconButton.getIconView(selectedToken.getIcon(), 40));
-                    a.setHeaderText("Remove Token");
-                    Optional<ButtonType> result = a.showAndWait();
+                        if (result.isPresent() && result.get() == ButtonType.YES) {
 
-                    if (result.isPresent() && result.get() == ButtonType.YES) {
-
-                        tokensList.removeToken(selectedToken.getNetworkId());
+                            tokensList.removeToken(selectedToken.getNetworkId());
+                        }
+                    
                     }
-                
-                }
 
-                removeButton.setDisable(true);
-                tokensList.selectedTokenProperty().set(null);
-                removeButton.setId("menuBarBtnDisabled");
+                    removeButton.setDisable(true);
+                    tokensList.selectedTokenProperty().set(null);
+                    removeButton.setId("menuBarBtnDisabled");
+                }
             });
 
             HBox menuBox = new HBox(addButton, removeButton);
@@ -521,25 +573,26 @@ public class ErgoTokens extends Network implements NoteInterface {
                 getAvailableMarketsMenu.run();
             });
 
-            getAvailableExplorerMenu.run();
-            getAvailableMarketsMenu.run();
 
             tokensScene.focusOwnerProperty().addListener((e) -> {
-                Object focusOwnerObject = tokensScene.focusOwnerProperty().get();
-                if (focusOwnerObject != null && focusOwnerObject instanceof IconButton &&  ((IconButton) focusOwnerObject).getUserData() != null &&  ((IconButton) focusOwnerObject).getUserData() instanceof ErgoNetworkToken) {
-                  
-                    ErgoNetworkToken selectedToken = (ErgoNetworkToken) ((IconButton) focusOwnerObject).getUserData();    
-                    tokensList.selectedTokenProperty().set(selectedToken);
-                    removeButton.setDisable(false);
-                    removeButton.setId("menuBarBtn");
-                } else {
-
-                    if (focusOwnerObject != null && focusOwnerObject instanceof Button && ((Button) focusOwnerObject).getText().equals(removeButton.getText())) {
-
+                if(tokensListObject.get() != null){
+                    ErgoTokensList tokensList = tokensListObject.get();
+                    Object focusOwnerObject = tokensScene.focusOwnerProperty().get();
+                    if (focusOwnerObject != null && focusOwnerObject instanceof IconButton &&  ((IconButton) focusOwnerObject).getUserData() != null &&  ((IconButton) focusOwnerObject).getUserData() instanceof ErgoNetworkToken) {
+                    
+                        ErgoNetworkToken selectedToken = (ErgoNetworkToken) ((IconButton) focusOwnerObject).getUserData();    
+                        tokensList.selectedTokenProperty().set(selectedToken);
+                        removeButton.setDisable(false);
+                        removeButton.setId("menuBarBtn");
                     } else {
-                        removeButton.setDisable(true);
-                        tokensList.selectedTokenProperty().set(null);
-                        removeButton.setId("menuBarBtnDisabled");
+
+                        if (focusOwnerObject != null && focusOwnerObject instanceof Button && ((Button) focusOwnerObject).getText().equals(removeButton.getText())) {
+
+                        } else {
+                            removeButton.setDisable(true);
+                            tokensList.selectedTokenProperty().set(null);
+                            removeButton.setId("menuBarBtnDisabled");
+                        }
                     }
                 }
             });
@@ -557,18 +610,22 @@ public class ErgoTokens extends Network implements NoteInterface {
 
 
             addButton.setOnAction(actionEvent -> {
-                Stage addEditTokenStage =  new Stage();
-                addEditTokenStage.getIcons().add(getIcon());
-                addEditTokenStage.initStyle(StageStyle.UNDECORATED);
-                Button stageCloseBtn = new Button();
+                if(tokensListObject.get() != null){
+                    ErgoTokensList tokensList = tokensListObject.get();
 
-                Scene addTokenScene = tokensList.getEditTokenScene(null, m_networkType, addEditTokenStage, stageCloseBtn);
+                    Stage addEditTokenStage =  new Stage();
+                    addEditTokenStage.getIcons().add(getIcon());
+                    addEditTokenStage.initStyle(StageStyle.UNDECORATED);
+                    Button stageCloseBtn = new Button();
 
-                addEditTokenStage.setScene(addTokenScene);
-                addEditTokenStage.show();
-                stageCloseBtn.setOnAction(e->{
-                    addEditTokenStage.close();
-                });
+                    Scene addTokenScene = tokensList.getEditTokenScene(null, m_networkType, addEditTokenStage, stageCloseBtn);
+
+                    addEditTokenStage.setScene(addTokenScene);
+                    addEditTokenStage.show();
+                    stageCloseBtn.setOnAction(e->{
+                        addEditTokenStage.close();
+                    });
+                }
             });
 
             ResizeHelper.addResizeListener(m_tokensStage, 300, 400, Double.MAX_VALUE, Double.MAX_VALUE);
@@ -576,6 +633,8 @@ public class ErgoTokens extends Network implements NoteInterface {
                closeBtn.fire();
             });
             m_tokensStage.show();
+            getNetworksData().getExecService().execute(setTokensList);
+         
         } else {
             if (m_tokensStage.isIconified()) {
                 m_tokensStage.setIconified(false);

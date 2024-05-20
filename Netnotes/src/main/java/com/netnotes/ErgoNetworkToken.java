@@ -5,6 +5,8 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
@@ -89,7 +91,7 @@ public class ErgoNetworkToken extends PriceCurrency {
         if (tokenDataElement != null && tokenDataElement.isJsonObject()) {
             JsonObject sourceJson = tokenDataElement.getAsJsonObject();
            
-            setTokenData(sourceJson);
+            setTokenData(sourceJson, false);
         }
         if(getTimeStamp() == 0){
             updateTokenInfo();
@@ -119,35 +121,51 @@ public class ErgoNetworkToken extends PriceCurrency {
        updateTokenInfo();
   
    }
+   
+    public ErgoNetworkToken(ErgoTokensList tokensList,long emissionAmount, String description, String tokenId, String name, String symbol, int fractionalPrecision, String networkId, String networkType, String imageString, String tokenType, String fontSymbol){
+        super(tokenId, name, symbol, fractionalPrecision, networkId, networkType, imageString, tokenType, fontSymbol);
+        m_tokensList = tokensList;
 
+        setEmissionAmount(emissionAmount);
+        setDescription(description);
+        updateTokenInfo();
+        
+    }
 
     public void open() {
         
         showTokenStage();
     }
 
-    public void setTokenData(JsonObject sourceJson){
+    public void setTokenData(JsonObject sourceJson, boolean update){
 
         JsonElement emissionAmountElement = sourceJson.get("emissionAmount");
         JsonElement nameElement = sourceJson.get("name");
         JsonElement descriptionElement = sourceJson.get("description");
         JsonElement decimalsElement = sourceJson.get("decimals");
- 
+        JsonElement timeStampElement = sourceJson.get("timeStamp");
 
         long emissionAmount = emissionAmountElement == null ? 0 : emissionAmountElement.getAsLong();
         String tokenName = nameElement == null ? null : nameElement.getAsString();
         String description = descriptionElement == null ? null : descriptionElement.getAsString();
         int decimals = decimalsElement == null ? 0 : decimalsElement.getAsInt();
-        
+        long timeStamp = timeStampElement != null && timeStampElement.isJsonPrimitive() ? timeStampElement.getAsLong() : 0;
         setEmissionAmount(emissionAmount);
         setSymbol(tokenName);
         setDescription(description);
         setDecimals(decimals);
-        setTimeStamp(System.currentTimeMillis());
-        getLastUpdated().set(LocalDateTime.now());
+        
+        if(update){
+            setTimeStamp(System.currentTimeMillis());
+            getLastUpdated().set(LocalDateTime.now());
+        }else{
+            setTimeStamp(timeStamp);
+        }
     }
 
-    
+    public ErgoTokensList getErgoTokensList(){
+        return m_tokensList;
+    }
 
 
     public SimpleBooleanProperty explorerVerifiedProperty() {
@@ -175,7 +193,7 @@ public class ErgoNetworkToken extends PriceCurrency {
                     JsonObject sourceJson = (JsonObject) sourceObject;
          
                 
-                    setTokenData(sourceJson);
+                    setTokenData(sourceJson, true);
                     m_explorerVerified.set(true);
                     getLastUpdated().set(LocalDateTime.now());
                     
@@ -229,7 +247,7 @@ public class ErgoNetworkToken extends PriceCurrency {
             TextField emissionAmountField = new TextField();
             Button closeBtn = new Button();
           //  Button maximizeBtn = new Button();
-            if (getTimeStamp() != 0) {
+           /* if (getTimeStamp() != 0) {
 
        
                 promptText.setText(getName());
@@ -245,7 +263,7 @@ public class ErgoNetworkToken extends PriceCurrency {
                 descriptionTextArea.setText("No informaiton available.");
                 emissionLbl.setText("");
                 emissionAmountField.setText("");
-            }
+            }*/
             
             Button maximizeBtn = new Button();
             
@@ -440,20 +458,28 @@ public class ErgoNetworkToken extends PriceCurrency {
 
             getAvailableExplorerMenu.run();
 
-           getLastUpdated().addListener((obs,oldval, newval)->{
+            Runnable updateData = ()->{
               
-                    
-                    promptText.setText(getName());
-                    descriptionTextArea.setText(getDescription());
-                    long emissionAmount = getEmissionAmount();
-
-                    if (emissionAmount != 0) {
-                        emissionLbl.setText("Total Supply:");
-                        emissionAmountField.setText(emissionAmount + "");
-                    }
+                promptText.setText(getName());
+                descriptionTextArea.setText(getDescription());
                 
-           });
-    
+
+                int decimals = getDecimals();
+
+                long longAmount = getEmissionAmount();
+
+                if (longAmount != 0) {
+                    BigDecimal emissionAmount = BigDecimal.valueOf(longAmount);
+                    BigDecimal bigAmount = decimals != 0 ? emissionAmount.divide(BigDecimal.valueOf(10).pow(decimals), decimals, RoundingMode.UNNECESSARY) : emissionAmount;
+                    emissionLbl.setText("Total Supply:");
+                    emissionAmountField.setText(bigAmount.toString());
+                }
+
+            };
+
+            getLastUpdated().addListener((obs,oldval, newval)->updateData.run());
+            
+            updateData.run();
 
             /* addShutdownListener((obs, oldVal, newVal) -> {
 

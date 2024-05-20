@@ -28,7 +28,7 @@ public class SpectrumSort {
     private String m_direction = SortDirection.DSC;
 
 
-    private SimpleBooleanProperty m_isTargetSwappedProperty = new SimpleBooleanProperty(false);
+    private boolean m_isTargetSwapped = false;
 
     public SpectrumSort(){
 
@@ -49,7 +49,7 @@ public class SpectrumSort {
         setSwapTarget(swapTarget);        
     }
 
-    public SpectrumSort(JsonObject json) throws NullPointerException{
+    /*public SpectrumSort(JsonObject json) throws NullPointerException{
         if(json != null){
             JsonElement typeElement = json.get("type");
             JsonElement directionElement = json.get("direction");
@@ -57,11 +57,11 @@ public class SpectrumSort {
 
             m_type = typeElement != null && typeElement.isJsonPrimitive() ? typeElement.getAsString() : m_type;
             m_direction = directionElement != null && directionElement.isJsonPrimitive() ? directionElement.getAsString() : m_direction;
-            m_isTargetSwappedProperty.set(isSwappedElement != null && isSwappedElement.isJsonPrimitive() ? isSwappedElement.getAsBoolean() : true); 
+            m_isTargetSwapped = isSwappedElement != null && isSwappedElement.isJsonPrimitive() ? isSwappedElement.getAsBoolean() : true; 
         }else{
             throw new NullPointerException("SpectrumSort Args Null");
         }
-    }
+    }*/
 
     public String getType(){
         return m_type;
@@ -85,25 +85,23 @@ public class SpectrumSort {
 
     public void setSwapTarget(String swapTarget){
       
-        m_isTargetSwappedProperty.set(swapTarget.equals(SwapMarket.SWAPPED) ? true : false);
+        m_isTargetSwapped = swapTarget.equals(SwapMarket.SWAPPED) ? true : false;
     }
 
     public String getSwaptTarget(){
-        return m_isTargetSwappedProperty.get() ? SwapMarket.SWAPPED : SwapMarket.STANDARD;
+        return m_isTargetSwapped ? SwapMarket.SWAPPED : SwapMarket.STANDARD;
     }
     
-    public SimpleBooleanProperty isTargetSwappedProperty(){
-        return m_isTargetSwappedProperty;
-    }
+    
     public boolean isTargetSwapped(){
-        return m_isTargetSwappedProperty.get();
+        return m_isTargetSwapped;
     }
 
     public JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
         json.addProperty("type", m_type);
         json.addProperty("direction", m_direction);
-        json.addProperty("isTargetSwapped", m_isTargetSwappedProperty.get());
+        json.addProperty("isTargetSwapped", m_isTargetSwapped);
         return json;
     }
 }

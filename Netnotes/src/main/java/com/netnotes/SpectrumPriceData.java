@@ -9,24 +9,16 @@ import com.utils.Utils;
 
 public class SpectrumPriceData {
 
-    private long m_latestTimestamp = 0;
+    private long m_startTimestamp = 0;
     private BigDecimal m_open = BigDecimal.ZERO;
     private BigDecimal m_close = BigDecimal.ZERO;
     private BigDecimal m_high = BigDecimal.ZERO;
     private BigDecimal m_low = BigDecimal.ZERO;
 
     private long m_epochEnd = 0;
-
-    private long m_priceAreaTimeStamp = 0;
-    private int m_direction = 0;
-    private int m_x = -1;
-    private int m_highY = -1;
-    private int m_lowY = -1;
-    private int m_openY = -1;
-    private int m_closeY = -1;
     
-    public SpectrumPriceData(long timestamp, long epochEnd, BigDecimal price){
-       m_latestTimestamp = timestamp;
+    public SpectrumPriceData(long epochStart, long epochEnd, BigDecimal price){
+        m_startTimestamp = epochStart;
         m_epochEnd = epochEnd;
         m_open = price;
         m_close = price;
@@ -34,11 +26,18 @@ public class SpectrumPriceData {
         m_low = price;
     }
 
+    public SpectrumPriceData(long timestamp, long epochEnd){
+        m_startTimestamp = timestamp;
+        m_epochEnd = epochEnd;
+    }
 
-    public SpectrumPriceData(SpectrumPrice spectrumPrice, long epochEnd){
+
+    public SpectrumPriceData(SpectrumPrice spectrumPrice, long epochStart, long epochEnd){
+        m_startTimestamp = epochStart;
+
 
         BigDecimal price = spectrumPrice.getPrice();
-        m_latestTimestamp = spectrumPrice.getTimeStamp();
+
         m_open = price;
         m_low = price;
         m_high = price;
@@ -51,15 +50,15 @@ public class SpectrumPriceData {
     }
 
 
-    public SpectrumPriceData(long timestamp, BigDecimal open, BigDecimal close, BigDecimal high, BigDecimal low, long epochEnd) {
-        m_latestTimestamp = timestamp;
+    public SpectrumPriceData(long timestamp, BigDecimal open, BigDecimal close, BigDecimal high, BigDecimal low, long epochStart, long epochEnd) {
+        m_startTimestamp = epochStart;
         m_open = open;
         m_close = close;
         m_high = high;
         m_low = low;
         m_epochEnd = epochEnd;
     }
-
+/*
     public long getPriceAreaTimeStamp(){
         return m_priceAreaTimeStamp;
     }
@@ -91,36 +90,35 @@ public class SpectrumPriceData {
         m_lowY = lowY;
         m_openY = openY;
         m_closeY = closeY;
-    }
+    }*/
 
 
     public String getCloseString() {
         return m_close.toString();
     }
 
-    public long getLatestTimestamp() {
-        return m_latestTimestamp;
+    public long getEpochStart() {
+        return m_startTimestamp;
     }
 
+
+
     public void addPrice(long timestamp, BigDecimal price){
-  
-       m_latestTimestamp = timestamp;
-        m_close = price;
+        if(timestamp >= m_startTimestamp && timestamp < m_epochEnd){
+            m_close = price;
        
-        m_low = m_low.min(price);
-        m_high = m_high.max(price);
+            m_low = m_low.equals(BigDecimal.ZERO) ? price :  m_low.min(price);
+            m_high = m_high.max(price);
+        }
         
     }
 
     public LocalDateTime getLocalDateTime() {
        
-        return Utils.milliToLocalTime(m_latestTimestamp);
+        return Utils.milliToLocalTime(m_epochEnd);
         
     }
 
-    public void setLatestTimestamp(long timeStamp) {
-        m_latestTimestamp = timeStamp;
-    }
 
     public BigDecimal getOpen() {
         return m_open;
@@ -161,7 +159,7 @@ public class SpectrumPriceData {
         jsonObject.addProperty("close",getClose());
         jsonObject.addProperty("high", getHigh());
         jsonObject.addProperty("low", getLow());
-        jsonObject.addProperty("latestTimeStamp", getLatestTimestamp());
+        jsonObject.addProperty("epochStartTimeStamp", getEpochStart());
         jsonObject.addProperty("epchEndTimeStamp", getEpochEnd());
         return jsonObject;
     }

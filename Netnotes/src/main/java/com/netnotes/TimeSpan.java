@@ -1,5 +1,8 @@
 package com.netnotes;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+
 public class TimeSpan {
 
     private long m_seconds;
@@ -13,6 +16,10 @@ public class TimeSpan {
 
     public TimeSpan(String id) {
         setup(id);
+    }
+
+    public TimeSpan(JsonObject json){
+        openJson(json);
     }
 
     public TimeSpan(String name, String id, long seconds) {
@@ -34,6 +41,33 @@ public class TimeSpan {
 
     public String getId() {
         return m_id;
+    }
+
+    public JsonObject getJsonObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("id", m_id);
+        json.addProperty("seconds", m_seconds);
+        json.addProperty("name", m_name);
+        return json;
+    }
+
+    public void openJson(JsonObject json) throws NullPointerException{
+        if(json != null){
+            JsonElement idElement = json.get("id");
+            JsonElement secondsElement = json.get("seconds");
+            JsonElement nameElement = json.get("name");
+
+            if(idElement != null && idElement.isJsonPrimitive() && secondsElement != null && secondsElement.isJsonPrimitive() && nameElement != null && nameElement.isJsonPrimitive()){
+                m_id = idElement.getAsString();
+                m_seconds = secondsElement.getAsLong();
+                m_name = nameElement.getAsString();
+            }else{
+                throw new NullPointerException("Timespan elements are null");
+            }
+
+        }else{
+            throw new NullPointerException("Timespan json is null");
+        }
     }
 
     private void setup(String id) {
@@ -84,9 +118,23 @@ public class TimeSpan {
                 m_name = "1 day";
                 m_seconds = 60 * 60 * 24;
                 break;
+            case "7day":
             case "1week":
                 m_name = "1 week";
                 m_seconds = 60 * 60 * 24 * 7;
+                break;
+            case "30day":
+            case "1month":
+                m_name = "1 month";
+                m_seconds = 60 * 60 * 24 * 30;
+                break;
+            case "6month":
+                m_name = "6 month";
+                m_seconds = 60 * 60 * 24 * 30 * 6;
+                break;
+            case "1year":
+                m_name = "1 year";
+                m_seconds = 60 * 60 * 24 * 365;
                 break;
 
         }

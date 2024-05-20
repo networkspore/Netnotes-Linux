@@ -195,6 +195,10 @@
     -fx-background-color:#151515;
 }
 
+#logoImg{
+    -fx-opacity: 0.1;
+}
+
 
 
 #unSelected {
@@ -990,14 +994,14 @@
 }
 
 #rowFieldRed {
-    -fx-background-color: transparent;
-    -fx-text-fill: #e0115fF0;
-    -fx-font-size: 14px;
+    -fx-background-color: #111111;
+    -fx-text-fill: #9A2A2A;
+    -fx-font-size: 16px;
     -fx-font-family: 'OCR A Extended';
 }
 
 #rowFieldRed:hover {
-    -fx-text-fill: #e0115f;
+    -fx-text-fill: #9A2A2A;
 }
 
 #rowFieldRed:focused {
@@ -1009,9 +1013,9 @@
 }
 
 #rowFieldGreen {
-    -fx-background-color: transparent;
-    -fx-text-fill: #00FF0060;
- 
+    -fx-background-color: #111111fe;
+    -fx-text-fill: #30ff3090;
+    -fx-font-size: 16px;
 }
 
 #rowFieldGreen:hover {

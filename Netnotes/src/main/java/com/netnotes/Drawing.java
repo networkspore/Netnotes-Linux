@@ -18,6 +18,112 @@ public class Drawing {
 
     public final static int EMPTY_ARGB = 0x00000000;
 
+    public static void drawBarFillColor(int direction, boolean fillInverse, int fillColor, int RGB1, int RGB2, WritableImage img, PixelReader pR, PixelWriter pW, int x1, int y1, int x2, int y2) {
+        
+        int maxWidth = (int) img.getWidth()-1;
+        int maxHeight = (int) img.getHeight()-1;
+
+        x1 = x1 > maxWidth ? maxWidth : (x1 < 0 ? 0 : x1);
+        x2 = x2 > maxWidth ? maxWidth : (x2 < 0 ? 0 : x2);
+        y1 = y1 > maxHeight ? maxHeight : (y1 < 0 ? 0 : y1);
+        y2 = y2 > maxHeight ? maxHeight : (y2 < 0 ? 0 : y2);
+
+        int a1 = (RGB1 >> 24) & 0xff;
+        int r1 = (RGB1 >> 16) & 0xff;
+        int g1 = (RGB1 >> 8) & 0xff;
+        int b1 = RGB1 & 0xff;
+
+        int a2 = (RGB2 >> 24) & 0xff;
+        int r2 = (RGB2 >> 16) & 0xff;
+        int g2 = (RGB2 >> 8) & 0xff;
+        int b2 = RGB2 & 0xff;
+
+        int i = 0;
+        int width;
+        int height;
+        double scaleA;
+        double scaleR;
+        double scaleG;
+        double scaleB;
+
+        switch (direction) {
+            case 1:
+                height = (y2 - y1) - 1;
+                height = height < 1 ? 1 : height;
+                // double middle = height / 2;
+                //(0.6d * (double) height) / High
+
+                scaleA = (double) (a2 - a1) / (double) height;
+                scaleR = (double) (r2 - r1) / (double) height;
+                scaleG = (double) (g2 - g1) / (double) height;
+                scaleB = (double) (b2 - b1) / (double) height;
+
+                /*try {
+                    Files.writeString(logFile.toPath(), "\nscaleA: " + scaleA + " R " + scaleR + " G " + scaleG + " B " + scaleB, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+
+                }*/
+                i = 0;
+                for (int x = x1; x < x2; x++) {
+                    for (int y = y1; y < y2; y++) {
+                        int oldRGB = pR.getArgb(x, y);
+
+                        if (oldRGB == fillColor || (oldRGB != fillColor && fillInverse)) {
+                            int a = (int) (a1 + (i * scaleA));
+                            int r = (int) (r1 + (i * scaleR));
+                            int g = (int) (g1 + (i * scaleG));
+                            int b = (int) (b1 + (i * scaleB));
+
+                            /*
+                            try {
+                                Files.writeString(logFile.toPath(), "\ni: " + i + " a: " + a + " r: " + r + " g: " + g + " b: " + b, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e) {
+
+                            }*/
+                            int p = (a << 24) | (r << 16) | (g << 8) | b;
+
+                            pW.setArgb(x, y, blendRGBA(oldRGB, p));
+                        }
+                        i++;
+                    }
+                    i = 0;
+                }
+                break;
+            default:
+                width = (x2 - x1) - 1;
+                width = width < 1 ? 1 : width;
+                // double middle = width / 2;
+                //(0.6d * (double) height) / High
+
+                scaleA = (double) (a2 - a1) / (double) width;
+                scaleR = (double) (r2 - r1) / (double) width;
+                scaleG = (double) (g2 - g1) / (double) width;
+                scaleB = (double) (b2 - b1) / (double) width;
+
+                i = 0;
+                for (int x = x1; x < x2; x++) {
+                    for (int y = y1; y < y2; y++) {
+                        int oldRGB = pR.getArgb(x, y);
+
+                        if (oldRGB == fillColor || (oldRGB != fillColor && fillInverse)) {
+
+                            int a = (int) (a1 + (i * scaleA));
+                            int r = (int) (r1 + (i * scaleR));
+                            int g = (int) (g1 + (i * scaleG));
+                            int b = (int) (b1 + (i * scaleB));
+
+                            int p = (a << 24) | (r << 16) | (g << 8) | b;
+
+                            pW.setArgb(x, y, blendRGBA(oldRGB, p));
+                        }
+
+                    }
+                    i++;
+                }
+                break;
+        }
+    }
+
     public static void drawBarFillColor(int direction, boolean fillInverse, int fillColor, int RGB1, int RGB2, BufferedImage img, int x1, int y1, int x2, int y2) {
         
         int maxWidth = img.getWidth()-1;
@@ -33,7 +139,7 @@ public class Drawing {
         int g1 = (RGB1 >> 8) & 0xff;
         int b1 = RGB1 & 0xff;
 
-        int a2 = (RGB1 >> 24) & 0xff;
+        int a2 = (RGB2 >> 24) & 0xff;
         int r2 = (RGB2 >> 16) & 0xff;
         int g2 = (RGB2 >> 8) & 0xff;
         int b2 = RGB2 & 0xff;
@@ -147,7 +253,7 @@ public class Drawing {
         int g1 = (RGB1 >> 8) & 0xff;
         int b1 = RGB1 & 0xff;
 
-        int a2 = (RGB1 >> 24) & 0xff;
+        int a2 = (RGB2 >> 24) & 0xff;
         int r2 = (RGB2 >> 16) & 0xff;
         int g2 = (RGB2 >> 8) & 0xff;
         int b2 = RGB2 & 0xff;
@@ -235,7 +341,7 @@ public class Drawing {
         int g1 = (RGB1 >> 8) & 0xff;
         int b1 = RGB1 & 0xff;
 
-        int a2 = (RGB1 >> 24) & 0xff;
+        int a2 = (RGB2 >> 24) & 0xff;
         int r2 = (RGB2 >> 16) & 0xff;
         int g2 = (RGB2 >> 8) & 0xff;
         int b2 = RGB2 & 0xff;
@@ -263,17 +369,19 @@ public class Drawing {
                 i = 0;
                 for (int x = x1; x < x2; x++) {
                     for (int y = y1; y < y2; y++) {
-                        
-                        int oldRGB = pR.getArgb(x, y);
+                        if(x > -1 && x < (int) img.getWidth() && y > -1 && y < (int) img.getHeight()){
 
-                        int a = (int) (a1 + (i * scaleA));
-                        int r = (int) (r1 + (i * scaleR));
-                        int g = (int) (g1 + (i * scaleG));
-                        int b = (int) (b1 + (i * scaleB));
-
-                        int p = (a << 24) | (r << 16) | (g << 8) | b;
-                        pW.setArgb(x, y, blendRGBA(oldRGB, p));
                         
+                            int oldRGB = pR.getArgb(x, y);
+
+                            int a = (int) (a1 + (i * scaleA));
+                            int r = (int) (r1 + (i * scaleR));
+                            int g = (int) (g1 + (i * scaleG));
+                            int b = (int) (b1 + (i * scaleB));
+
+                            int p = (a << 24) | (r << 16) | (g << 8) | b;
+                            pW.setArgb(x, y, blendRGBA(oldRGB, p));
+                        }
                         i++;
                     }
                     i = 0;
@@ -335,6 +443,9 @@ public class Drawing {
             }
         }
     }
+    public static void fillArea(WritableImage img, PixelReader pR, PixelWriter pW,  int RGB, int x1, int y1, int x2, int y2) {
+        fillArea(img, pR, pW, RGB, x1, y1, x2, y2, true);
+    }
 
     public static void fillArea(WritableImage img, PixelReader pR, PixelWriter pW,  int RGB, int x1, int y1, int x2, int y2, boolean blend) {
         x1 = x1 < 0 ? 0 : x1;
@@ -358,6 +469,66 @@ public class Drawing {
         }
     }
 
+    public static void drawFadeHLine(WritableImage img, PixelReader pR, PixelWriter pW, int RGB1, int RGB2, int thickness, int x1, int y1, int x2, int y2, boolean blend){
+        int halfThickness = (int) Math.ceil(thickness / 2);
+        
+        boolean change = y2 < y1;
+        int y3 = y1;
+        y1 = change ? y2 : y1;
+        y2 = change ? y3 : y2;
+        
+        double m =(y2 - y1) /  (x2 - x1);
+        int y = 0;
+  
+
+        for (int x = x1; x < x2; x++) {
+            //y = m(x − x1) + y2;
+
+            y = (int) (m *(x - x1)) + y2; 
+            if(x > 0 && x < img.getWidth() && y > 0 && y < img.getHeight()){
+                y3 = y + thickness > img.getHeight() ? (int) img.getHeight() : y + thickness;
+                if(y2 < y3){
+                    
+                }else{
+                    
+                }
+                fillArea(img, pR, pW, RGB1, x1, y1,x2, y2, false);
+                drawBar(1,change? RGB2 : RGB1, change ? RGB1 : RGB2, img, pR, pW, x, y , x2, y3 );
+            }
+           // int direction, int RGB1, int RGB2, WritableImage img, PixelReader pR, PixelWriter pW, 
+        }
+    }
+
+    public static void drawFadeHLine(BufferedImage img, int RGB1, int RGB2, int thickness, int x1, int y1, int x2, int y2, boolean blend){
+     //   int halfThickness = (int) Math.ceil(thickness / 2);
+        
+        boolean change = y2 < y1;
+        int y3 = y1;
+        y1 = change ? y2 : y1;
+        y2 = change ? y3 : y2;
+        
+        double m =(y2 - y1) /  (x2 - x1);
+        int y = 0;
+  
+
+        for (int x = x1; x < x2; x++) {
+            //y = m(x − x1) + y2;
+
+            y = (int) (m *(x - x1)) + y2; 
+            if(x > 0 && x < img.getWidth() && y > 0 && y < img.getHeight()){
+                y3 = y + thickness > img.getHeight() ? (int) img.getHeight() : y + thickness;
+                if(y2 < y3){
+                    
+                }else{
+                    
+                }
+                fillArea(img, RGB1, x1, y1,x2, y2, false);
+                drawBar(1,change? RGB2 : RGB1, change ? RGB1 : RGB2, img, x, y , x2, y3 );
+            }
+           // int direction, int RGB1, int RGB2, WritableImage img, PixelReader pR, PixelWriter pW, 
+        }
+    }
+
     public static void clearImage(BufferedImage img){
         fillArea(img, EMPTY_ARGB, 0, 0, img.getWidth(), img.getHeight(), false);
     }
@@ -378,6 +549,128 @@ public class Drawing {
 
     }
 
+    public static void drawImageExact(BufferedImage img, Image img2, int x1, int y1){
+        drawImageLimit(img, img2, x1, y1, -1);
+    }
+    
+    public static void drawImageLimit(WritableImage img, PixelReader pR1, PixelWriter pW1, Image img2, int x1, int y1, int limitAlpha){
+    
+        PixelReader pR = img2.getPixelReader();
+        int width = (int) img2.getWidth();
+        int height = (int) img2.getHeight();
+        int x2 = x1 + width;
+        int y2 = y1 + height;
+ 
+
+        for (int x = x1; x < x2; x++) {
+            for (int y = y1; y < y2; y++) {
+                int img2x = x - x1;
+                int img2y = y - y1;
+                
+                if(img2x > -1 && img2x < img2.getWidth() && img2y > -1 && img2y < img2.getWidth() && x > -1 && x < img.getWidth() && y > -1 && y < img.getHeight()){
+                
+                    int rgba = pR.getArgb(img2x, img2y);
+                   
+  
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        int oldRGB = pR1.getArgb(x, y);
+                        
+                        rgba = blendRGBA(oldRGB, rgba);
+                        
+                        int a = (rgba >> 24) & 0xff;
+                        int r = (rgba >> 16) & 0xff;
+                        int g = (rgba >> 8) & 0xff;
+                        int b = rgba & 0xff;
+    
+                        a = limitAlpha < 0 ? a : (a < limitAlpha ? a : limitAlpha);
+                        
+                        int p = ((a << 24) | (r << 16) | (g << 8) | b);
+                        
+                        pW1.setArgb(x, y, p );
+                    }
+                    
+                }
+            }
+        }
+
+    }
+
+    public static void drawImageLimit(BufferedImage img, Image img2, int x1, int y1, int limitAlpha){
+    
+        PixelReader pR = img2.getPixelReader();
+        int width = (int) img2.getWidth();
+        int height = (int) img2.getHeight();
+        int x2 = x1 + width;
+        int y2 = y1 + height;
+ 
+
+        for (int x = x1; x < x2; x++) {
+            for (int y = y1; y < y2; y++) {
+                int img2x = x - x1;
+                int img2y = y - y1;
+                
+                if(img2x > -1 && img2x < img2.getWidth() && img2y > -1 && img2y < img2.getWidth() && x > -1 && x < img.getWidth() && y > -1 && y < img.getHeight()){
+                
+                    int rgba = pR.getArgb(img2x, img2y);
+                   
+  
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        int oldRGB = img.getRGB(x, y);
+                        
+                        rgba = blendRGBA(oldRGB, rgba);
+                        
+                        int a = (rgba >> 24) & 0xff;
+                        int r = (rgba >> 16) & 0xff;
+                        int g = (rgba >> 8) & 0xff;
+                        int b = rgba & 0xff;
+    
+                        a = limitAlpha < 0 ? a : (a < limitAlpha ? a : limitAlpha);
+                        
+                        int p = ((a << 24) | (r << 16) | (g << 8) | b);
+                        
+                        img.setRGB(x, y, p );
+                    }
+                    
+                }
+            }
+        }
+
+    }
+    
+    public static void drawImageExact(WritableImage img, PixelReader pR, PixelWriter pW, BufferedImage img2, int x1, int y1, int width, int height, boolean blend) {
+        int x2 = x1 + width;
+        int y2 = y1 + height;
+
+
+        x1 = x1 < 0 ? 0 : x1;
+        y1 = y1 < 0 ? 0 : y1;        
+
+        for (int x = x1; x < x2; x++) {
+            for (int y = y1; y < y2; y++) {
+                int img2x = x - x1;
+                int img2y = y - y1;
+                
+
+                img2x = img2x < 0 ? 0 : (img2x > img2.getWidth() ? img2.getWidth()  : img2x);
+                img2y = img2y < 0 ? 0 : (img2y > img2.getHeight()  ? img2.getHeight() : img2y);
+                
+                int newRGB = img2.getRGB(img2x, img2y);
+                
+                if (blend) {
+                   
+                   
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        int oldRGB = pR.getArgb(x, y);
+                        pW.setArgb(x, y, blendRGBA(oldRGB, newRGB));
+                    }
+                } else {
+                    if(x < img.getWidth() && y < img.getHeight()){
+                        pW.setArgb(x, y, newRGB);
+                    }
+                }
+            }
+        }
+    }
 
     public static void drawImageExact(BufferedImage img, BufferedImage img2, int x1, int y1, int width, int height, boolean blend) {
         int x2 = x1 + width;
@@ -521,6 +814,34 @@ public class Drawing {
 
     }
 
+    public static void fillAreaDotted(int size, WritableImage img, PixelReader pR, PixelWriter pW, int RGB, int x1, int y1, int x2, int y2) {
+
+        int j = 0;
+        
+        int maxWidth = (int) img.getWidth();
+        int maxHeight = (int) img.getHeight();
+
+        x1 = x1 > maxWidth ? maxWidth : (x1 < 0 ? 0 : x1);
+        x2 = x2 > maxWidth ? maxWidth : (x2 < 0 ? 0 : x2);
+        y1 = y1 > maxHeight ? maxHeight : (y1 < 0 ? 0 : y1);
+        y2 = y2 > maxHeight ? maxHeight : (y2 < 0 ? 0 : y2);
+
+
+        for (int x = x1; x < x2; x += size) {
+            for (int y = y1; y < y2; y += size) {
+
+                if (j % 2 == 0) {
+                    // int oldRGB = img.getRGB(x, y);
+                    //  img.setRGB(x, y, blendRGBA(oldRGB, RGB));
+                    fillArea(img,pR, pW, RGB, x, y, x + size, y + size, true);
+                }
+                j++;
+            }
+
+        }
+
+    }
+
     public static void setImageAlpha(BufferedImage img, int alpha){
         int width = img.getWidth();
         int height = img.getHeight();
@@ -567,8 +888,8 @@ public class Drawing {
     }
 
     //topleft to bottomRight
-    public static void drawLineRect(BufferedImage img, Color color, int lineSize, int x1, int y1, int x2, int y2) {
-        int RGB = color.getRGB();
+    public static void drawLineRect(BufferedImage img, int RGB, int lineSize, int x1, int y1, int x2, int y2) {
+        
         fillArea(img, RGB, x1, y1, x1 + lineSize, y2);
         fillArea(img, RGB, x2 - lineSize, y1, x2, y2);
 

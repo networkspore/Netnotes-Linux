@@ -9,7 +9,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.HashMap;
 
 import javax.imageio.ImageIO;
 
@@ -31,15 +30,15 @@ public class ImageText {
     public final static String[] EMOJI_MODIFIERS = new String[]{"1f3fb", "1f3fc", "1f3fd", "1f3fe", "1f3ff"};
     public final static String EMOJI_JOINER = "200d";
 
-    public final static String EXTEN_32_DIR = "/extended32";
-    public final static String EXTEN_FILE_EXT = ".png";
+    public final static Color RENDER_COLOR = new Color(0xffffffff, true);
+    public final static Color SHADOW_COLOR = new Color(0xff000000, true);
 
     private BufferedImage m_imgTxtExtBuffImg;
     private Graphics2D m_imgTxtExtG2d;
     private java.awt.Font m_imgTxtExtFont;
     private FontMetrics m_imgTxtExtFontMetrics;
     
-    private HashMap<Integer, BufferedImage> m_standardImgfontMap = null;
+   // private HashMap<Integer, BufferedImage> m_standardImgfontMap = null;
     private String[] m_emojiCodes = new String[]{};
 
 
@@ -58,61 +57,34 @@ public class ImageText {
 
     public ImageText(String fontString,int weight, int fontSize, String extFontString, int extWeight, int extFontSize){
         
-        updateStandardImageFontMap(fontString, weight, fontSize);
+        setupStandardFont(fontString, weight, fontSize);
         setupExtendedFont(extFontString, extWeight, extFontSize);
     }
 
    
 
-    private void updateStandardImageFontMap(String fontString, int weight, int fontSize){
+    private void setupStandardFont(String fontName, int fontWeight, int fontSize){
+        
         m_standardFontImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         m_standardFontG2d = m_standardFontImg.createGraphics();
-        m_standardFont = new java.awt.Font(fontString, weight, fontSize);
+        m_standardFont = new Font(fontName, fontWeight, fontSize);
+        m_standardFontG2d.setFont(m_standardFont);
+        m_standardFontMetrics = m_standardFontG2d.getFontMetrics();
+
+        int height = m_standardFontMetrics.getHeight();
+        int width = m_standardFontMetrics.getMaxAdvance();
+        m_standardFontImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        m_standardFontG2d = m_standardFontImg.createGraphics();
         m_standardFontG2d.setFont(m_standardFont);
         m_standardFontMetrics = m_standardFontG2d.getFontMetrics();
         
-        int height = m_standardFontMetrics.getHeight();
-        int width = m_standardFontMetrics.getMaxAdvance();
-        int ascent = m_standardFontMetrics.getMaxAscent();
-        int leading = m_standardFontMetrics.getLeading();
-        int[] widths = m_standardFontMetrics.getWidths();
-
-        m_standardFontImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        m_standardFontG2d = m_standardFontImg.createGraphics();
-        m_standardFontG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        m_standardFontG2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-     //   m_standardFontG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        m_standardFontG2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-     //   m_standardFontG2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-     //   m_standardFontG2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        m_standardFontG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-      //  m_standardFontG2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        m_standardFontG2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-
-        m_standardFontG2d.setColor(new Color(0xffffffff,true));
-        m_standardFontG2d.setFont(m_standardFont);
-
-        m_standardImgfontMap = new HashMap<Integer, BufferedImage>();
+        setDefaultRendinghints(m_standardFontG2d);
 
 
 
-        for(int i = STANDARD_CHAR_START; i <= STANDARD_CHAR_END ; i++){
-            String charStr = Character.toString((char) i);
-            
-            Drawing.clearImage(m_standardFontImg);
-            m_standardFontG2d.drawString(charStr, 0, ascent + leading);
-            int w = widths[i];
-            BufferedImage img = new BufferedImage(w, height, BufferedImage.TYPE_INT_ARGB);
-            Drawing.drawImageExact(img, m_standardFontImg, 0, 0, false);
-            m_standardImgfontMap.put(i, img);
 
-        }
-     
-        m_standardFontG2d = null;
-        m_standardFontImg = null;
-        m_standardFont = null;
+
     }
-  
    
 
 
@@ -121,7 +93,7 @@ public class ImageText {
         m_imgTxtExtBuffImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 
         m_imgTxtExtG2d = m_imgTxtExtBuffImg.createGraphics();
-        m_imgTxtExtFont = new java.awt.Font(fontName, fontWeight, fontSize);
+        m_imgTxtExtFont = new Font(fontName, fontWeight, fontSize);
         m_imgTxtExtG2d.setFont(m_imgTxtExtFont);
         m_imgTxtExtFontMetrics = m_imgTxtExtG2d.getFontMetrics();
 
@@ -132,19 +104,23 @@ public class ImageText {
         m_imgTxtExtG2d.setFont(m_imgTxtExtFont);
         m_imgTxtExtFontMetrics = m_imgTxtExtG2d.getFontMetrics();
         
-        m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-     //   m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-     //   m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-     //   m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-      //  m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        m_imgTxtExtG2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-
-        m_imgTxtExtG2d.setColor(new java.awt.Color(0xffffffff,true));
+        setDefaultRendinghints(m_imgTxtExtG2d);
 
 
+
+
+    }
+
+    public void setDefaultRendinghints(Graphics2D g2d){
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+     //   g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+     //   g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+     //   g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+      //  g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
     }
 
 
@@ -197,6 +173,7 @@ public class ImageText {
         return emojiLayer.get();
     }
 
+
     public boolean isEmojiCode(String emojiCode){
         if(emojiCode != null){
             for(String f : m_emojiCodes){
@@ -241,15 +218,23 @@ public class ImageText {
         return false;
     }
 
-    public void drawStandardGlyph(int cpInt, BufferedImage lineImage, SimpleIntegerProperty x, int y){
-        if(cpInt < STANDARD_CHAR_START || cpInt > STANDARD_CHAR_END){
-            cpInt = 32;
-        }
-        BufferedImage chrImg = m_standardImgfontMap.get(cpInt);
+   
+    public void drawStandardGlyph(int codePoint, BufferedImage lineImage, SimpleIntegerProperty x, int y){
+        int ascent = m_standardFontMetrics.getAscent();
+        int leading = m_standardFontMetrics.getLeading();
+        
 
-        Drawing.drawImageExact(lineImage, chrImg, x.get(), y, true);
-      
-        x.set(x.get() + m_letterSpacing + chrImg.getWidth());
+        String charStr = Character.toString((char) codePoint);
+        Drawing.clearImage(m_standardFontImg);
+        m_standardFontG2d.setColor(SHADOW_COLOR);
+        m_standardFontG2d.drawString(charStr, 2, ascent + leading+2);
+        m_standardFontG2d.setColor(RENDER_COLOR);
+        m_standardFontG2d.drawString(charStr, 0, ascent + leading);
+        int w = m_standardFontMetrics.charWidth(codePoint);
+        
+        Drawing.drawImageExact(lineImage, m_standardFontImg, x.get(), y, w, m_standardFontImg.getHeight(), true);
+        x.set(x.get()+ m_letterSpacing + w);
+
     }
    
     public void drawExtendedGlyph(int codePoint, BufferedImage lineImage, SimpleIntegerProperty x, int y){
@@ -259,7 +244,11 @@ public class ImageText {
 
         String charStr = Character.toString((char) codePoint);
         Drawing.clearImage(m_imgTxtExtBuffImg);
+        m_imgTxtExtG2d.setColor(SHADOW_COLOR);
+        m_imgTxtExtG2d.drawString(charStr, 2, ascent + leading+2);
+        m_imgTxtExtG2d.setColor(RENDER_COLOR);
         m_imgTxtExtG2d.drawString(charStr, 0, ascent + leading);
+
         int w = m_imgTxtExtFontMetrics.charWidth(codePoint);
         
         Drawing.drawImageExact(lineImage, m_imgTxtExtBuffImg, x.get(), y, w, m_imgTxtExtBuffImg.getHeight(), true);
@@ -267,11 +256,11 @@ public class ImageText {
 
     }
 
-    public HashMap<Integer, BufferedImage> getStandardImgfontMap(){
-        return m_standardImgfontMap;
-    }
-
     public FontMetrics getStandarFontMetrics(){
         return m_standardFontMetrics;
+    }
+
+    public FontMetrics getExtendedFontMetrics(){
+        return m_imgTxtExtFontMetrics;
     }
 }

@@ -1,6 +1,5 @@
 package com.netnotes;
 
-
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -29,11 +28,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-import javafx.application.Platform;
+import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -48,11 +49,14 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -75,6 +79,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public static String API_URL = "https://api.spectrum.fi";
 
+    public final static int STOPPED = 0;
+    public final static int STARTING = 1;
+    public final static int STARTED = 2;
+
+    public static final int LIST_CHANGED = 10;
+    public static final int LIST_UPDATED = 11;
+
+
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
@@ -85,6 +97,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public final static String ERG_ID = "0000000000000000000000000000000000000000000000000000000000000000";
     public final static String SPF_ID = "9a06d9e545a41fd51eeffc5e20d818073bf820c635e2a9d922269913e0de369d";
+    public final static String SIGUSD_ID = "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04";
 
     public static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     public static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
@@ -102,15 +115,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private ArrayList<String> m_favoriteIds = new ArrayList<>();
     private ArrayList<SpectrumMarketData> m_marketsList = new ArrayList<>();
 
-    private SimpleObjectProperty<LocalDateTime> m_listUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
-    private SimpleObjectProperty<LocalDateTime> m_listChanged = new SimpleObjectProperty<>(null);
-//    private AtomicLong m_marketsLastChecked = new AtomicLong(0);
-//    private AtomicLong m_tickersLastChecked = new AtomicLong(0);
     private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
-    private SimpleIntegerProperty m_connectionStatus = new SimpleIntegerProperty(0);
+    private int m_connectionStatus = 0;
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> m_scheduledFuture = null;
+    private TimeSpan m_itemTimeSpan= new TimeSpan("1day");
+
 
     private boolean m_isMax = false;
     private double m_prevHeight = -1;
@@ -118,22 +129,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private double m_prevY = -1;
     private int m_listenerSize = 0;
 
-    //private SimpleObjectProperty<JsonArray> m_marketJson = new SimpleObjectProperty<>(null);
-
-  
-
-    public ArrayList<SpectrumMarketData> marketsList(){
-        return m_marketsList;
-    }
-
-    public SimpleObjectProperty<LocalDateTime> listUpdated(){
-        return m_listUpdated;
-    }
-
-    public SimpleObjectProperty<LocalDateTime> listChanged(){
-        return m_listChanged;
-    }
-    
 
     public SpectrumFinance(NetworksData networksData) {
         this(null, networksData);
@@ -183,6 +178,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
      
     }
 
+    public ArrayList<SpectrumMarketData> marketsList(){
+        return m_marketsList;
+    }
+
+
+
     public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
 
         return m_cmdObjectProperty;
@@ -210,7 +211,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         JsonElement currentNetworkElement = jsonObject != null ? jsonObject.get("currentNetworkId") : null;
         JsonElement tokensIdElement = jsonObject != null ? jsonObject.get("tokensId") : null;
-        
+        JsonElement stageElement = jsonObject != null ? jsonObject.get("stage") : null; 
         String currentNetworkId = currentNetworkElement != null && currentNetworkElement.isJsonPrimitive() ? currentNetworkElement.getAsString() : ErgoNetwork.NETWORK_ID;
         String tokensId = tokensIdElement != null && tokensIdElement.isJsonPrimitive() ? tokensIdElement.getAsString() : m_currentNetworkId != null ? ((m_currentNetworkId.equals(ErgoNetwork.NETWORK_ID) ? ErgoTokens.NETWORK_ID : null)) : null;
 
@@ -244,8 +245,28 @@ public class SpectrumFinance extends Network implements NoteInterface {
         setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
         getDataDir();
 
+        if(stageElement != null && stageElement.isJsonObject()){
+            JsonObject stageObject =  stageElement.getAsJsonObject();
 
+            JsonElement itemTimeSpanElement = stageObject.get("itemTimeSpan");
 
+            try{
+                m_itemTimeSpan = itemTimeSpanElement != null && itemTimeSpanElement.isJsonObject()  ? new TimeSpan(itemTimeSpanElement.getAsJsonObject()) :  new TimeSpan("1day");
+
+            }catch(NullPointerException nPE){
+                m_itemTimeSpan = new TimeSpan("1day");
+            }
+        }
+
+    }
+
+    public void setItemTimeSpan(TimeSpan value){
+        m_itemTimeSpan = value;
+        getLastUpdated().set(LocalDateTime.now());
+    }
+
+    public TimeSpan getItemTimeSpan(){
+        return m_itemTimeSpan;
     }
 
     @Override
@@ -255,9 +276,24 @@ public class SpectrumFinance extends Network implements NoteInterface {
         networkObj.addProperty("networkId", getNetworkId());
         networkObj.addProperty("currentNetworkId", m_currentNetworkId);
         networkObj.addProperty("tokensId", m_tokensId);
+        networkObj.add("stage", getStageJson());
         return networkObj;
 
     }
+
+    @Override
+    public JsonObject getStageJson() {
+        JsonObject json = new JsonObject();
+        json.add("itemTimeSpan", m_itemTimeSpan.getJsonObject());
+        json.addProperty("maximized", getStageMaximized());
+        json.addProperty("width", getStageWidth());
+        json.addProperty("height", getStageHeight());
+        json.addProperty("prevWidth", getStagePrevWidth());
+        json.addProperty("prevHeight", getStagePrevHeight());
+        json.addProperty("iconStyle", getStageIconStyle());
+        return json;
+    }
+
 
     public void open() {
         super.open();
@@ -396,9 +432,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             SpectrumDataList spectrumData = new SpectrumDataList(getNetworkId(), this);
 
+            SimpleObjectProperty<TimeSpan> itemTimeSpanObject = new SimpleObjectProperty<TimeSpan>(m_itemTimeSpan);
 
 
-            double appStageWidth = 450;
+            double appStageWidth = 670;
             double appStageHeight = 600;
 
             m_appStage = new Stage();
@@ -408,21 +445,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             Button closeBtn = new Button();
 
-            Runnable runClose = () -> {
-                
-        
-                spectrumData.shutdown();
-                spectrumData.removeUpdateListener();
-
-                m_appStage = null;
-
-            };
-
-            closeBtn.setOnAction(closeEvent -> {
-
-                m_appStage.close();
-                runClose.run();
-            });
 
             Button maxBtn = new Button();
 
@@ -512,16 +534,16 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 spectrumData.getLastUpdated().set(LocalDateTime.now());
             });
 
-            BufferedButton swapTargetButton = new BufferedButton(spectrumData.getSortMethod().isTargetSwapped()? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton swapTargetButton = new BufferedButton(spectrumData.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
             swapTargetButton.setOnAction(e->{
-                SpectrumSort sortMethod = spectrumData.getSortMethod();
-                sortMethod.setSwapTarget(sortMethod.isTargetSwapped() ? SpectrumSort.SwapMarket.STANDARD : SpectrumSort.SwapMarket.SWAPPED);
-                swapTargetButton.setImage(new Image(spectrumData.getSortMethod().isTargetSwapped()? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
-                spectrumData.sort();
-                spectrumData.updateGridBox();
-                spectrumData.getLastUpdated().set(LocalDateTime.now());
-
+                spectrumData.isInvertProperty().set(!spectrumData.isInvertProperty().get());
             });
+
+            spectrumData.isInvertProperty().addListener((obs,oldval,newval)->{
+                swapTargetButton.setImage(new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
+        
+            });
+            
 
 
 
@@ -631,6 +653,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                   
                 }else{
                     if(getNetworksData().getNoteInterface(ErgoNetwork.NETWORK_ID) == null){
+
                         tokensMenuBtn.setId("menuBtnDisabled");
                         tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
                         
@@ -645,7 +668,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
                         
                         
                         currentNetworkBtn.getItems().add(ergoNetworksInstallItem);
+
                     }else{
+
                         tokensMenuBtn.setId("menuBtnDisabled");
                         tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
 
@@ -663,9 +688,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
                             spectrumData.updateTokensList();
                         });
                         tokensTip.setText("Select network");
-
                
                         currentNetworkBtn.getItems().add(ergoNetworksInstallItem);
+
                     }
                    
                 }
@@ -692,7 +717,46 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Region menuBarRegion1 = new Region();
             menuBarRegion1.setMinWidth(10);
 
-            HBox menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion, rightSideMenu);
+            
+            MenuButton timeSpanBtn = new MenuButton(m_itemTimeSpan.getName());
+            timeSpanBtn.setFont(App.txtFont);
+            timeSpanBtn.setContentDisplay(ContentDisplay.LEFT);
+            timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
+
+            
+            String[] spans = {"1hour", "8hour", "12hour", "1day", "1week", "1month", "6month", "1year"};
+
+            for (int i = 0; i < spans.length; i++) {
+
+                String span = spans[i];
+                TimeSpan timeSpan = new TimeSpan(span);
+                MenuItem menuItm = new MenuItem(timeSpan.getName());
+                menuItm.setId("urlMenuItem");
+                menuItm.setUserData(timeSpan);
+
+                menuItm.setOnAction(action -> {
+    
+                    Object itemObject = menuItm.getUserData();
+
+                    if (itemObject != null && itemObject instanceof TimeSpan) {
+                        
+                        TimeSpan timeSpanItem = (TimeSpan) itemObject;
+                        itemTimeSpanObject.set(timeSpanItem);
+                        
+                    }
+
+                });
+
+                timeSpanBtn.getItems().add(menuItm);
+
+            }
+
+            itemTimeSpanObject.addListener((obs,oldval,newval)->{
+                timeSpanBtn.setText(newval.getName());
+                setItemTimeSpan(newval);
+            });
+
+            HBox menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
             HBox.setHgrow(menuBar, Priority.ALWAYS);
             menuBar.setAlignment(Pos.CENTER_LEFT);
             menuBar.setId("menuBar");
@@ -700,18 +764,32 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             VBox favoritesVBox = spectrumData.getFavoriteGridBox();
 
+            SimpleObjectProperty<ScrollPane> selectedScroll = new SimpleObjectProperty<>(null);
+
             ScrollPane favoriteScroll = new ScrollPane(favoritesVBox);
             favoriteScroll.setPadding(new Insets(5, 0, 5, 5));
-            favoriteScroll.setId("bodyBox");
+            favoriteScroll.setId("darkBox");
+            favoriteScroll.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
+                selectedScroll.set(favoriteScroll);
+            });
+            
 
-            VBox chartList = spectrumData.getGridBox();
+            SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(appStageWidth - 30);
+            SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
 
+            VBox chartList = spectrumData.getGridBox(gridWidth, itemTimeSpanObject, currentBox);
+  
             ScrollPane scrollPane = new ScrollPane(chartList);
-            scrollPane.setPadding(SMALL_INSETS);
-            scrollPane.setId("bodyBox");
+            scrollPane.setPadding(new Insets(2));
+            HBox headingsBox = new HBox();
 
-            VBox bodyPaddingBox = new VBox(scrollPane);
-            bodyPaddingBox.setPadding(SMALL_INSETS);
+            scrollPane.addEventFilter(MouseEvent.MOUSE_CLICKED,(e)->{
+                selectedScroll.set(scrollPane);
+            });
+
+            VBox bodyPaddingBox = new VBox(headingsBox,
+                scrollPane);
+            bodyPaddingBox.setPadding(new Insets(5,5,0,5));
 
             Font smallerFont = Font.font("OCR A Extended", 10);
 
@@ -723,7 +801,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             lastUpdatedField.setEditable(false);
             lastUpdatedField.setId("formField");
             lastUpdatedField.setFont(smallerFont);
-            lastUpdatedField.setPrefWidth(165);
+            lastUpdatedField.setPrefWidth(245);
 
             HBox lastUpdatedBox = new HBox(lastUpdatedTxt, lastUpdatedField);
             lastUpdatedBox.setAlignment(Pos.CENTER_RIGHT);
@@ -731,7 +809,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             VBox footerVBox = new VBox(lastUpdatedBox);
             HBox.setHgrow(footerVBox, Priority.ALWAYS);
-            footerVBox.setPadding(SMALL_INSETS);
+            footerVBox.setPadding(new Insets(0,5,2,5));
 
             VBox headerVBox = new VBox(titleBox);
             headerVBox.setPadding(new Insets(0, 5, 0, 5));
@@ -757,25 +835,32 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
                 }
             });
-
-            favoritesVBox.getChildren().addListener((Change<? extends Node> changeEvent) -> {
-                int numFavorites = favoritesVBox.getChildren().size();
-                if (numFavorites > 0) {
-                    if (!headerVBox.getChildren().contains(favoriteScroll)) {
-
-                        headerVBox.getChildren().add(favoriteScroll);
-                        menuPaddingBox.setPadding(new Insets(0, 0, 5, 0));
+            Runnable updateFavorites = ()->{
+                    int numFavorites = favoritesVBox.getChildren().size();
+                    if (numFavorites > 0) {
+                        if (!headerVBox.getChildren().contains(favoriteScroll)) {
+    
+                            headerVBox.getChildren().add(favoriteScroll);
+                            menuPaddingBox.setPadding(new Insets(0, 0, 5, 0));
+                        }
+                        int favoritesHeight = (numFavorites * 32) + 37 + (currentBox.get() != null && selectedScroll.get() != null && selectedScroll.get().equals(favoriteScroll) ? 128 : 0);
+                        favoriteScroll.setPrefViewportHeight(favoritesHeight > 175 ? 175 : favoritesHeight);
+                    } else {
+                        if (headerVBox.getChildren().contains(favoriteScroll)) {
+    
+                            headerVBox.getChildren().remove(favoriteScroll);
+                            menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
+                        }
                     }
-                    int favoritesHeight = numFavorites * 40 + 21;
-                    favoriteScroll.setPrefViewportHeight(favoritesHeight > 175 ? 175 : favoritesHeight);
-                } else {
-                    if (headerVBox.getChildren().contains(favoriteScroll)) {
+                
+            };
+            favoritesVBox.getChildren().addListener((Change<? extends Node> changeEvent) -> updateFavorites.run());
 
-                        headerVBox.getChildren().remove(favoriteScroll);
-                        menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
-                    }
-                }
+            selectedScroll.addListener((obs,oldval,newval)->{
+                updateFavorites.run();
             });
+
+            currentBox.addListener((obs,oldval,newval)->updateFavorites.run());
 
             Scene appScene = new Scene(layoutBox, appStageWidth, appStageHeight);
             appScene.setFill(null);
@@ -786,6 +871,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
             bodyPaddingBox.prefWidthProperty().bind(m_appStage.widthProperty());
             scrollPane.prefViewportWidthProperty().bind(m_appStage.widthProperty());
 
+            Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
+            gridWidth.bind(scrollWidth);
+
             favoriteScroll.prefViewportWidthProperty().bind(m_appStage.widthProperty());
 
             scrollPane.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(headerVBox.heightProperty()).subtract(footerVBox.heightProperty()));
@@ -793,18 +881,34 @@ public class SpectrumFinance extends Network implements NoteInterface {
             chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
             favoritesVBox.prefWidthProperty().bind(favoriteScroll.prefViewportWidthProperty().subtract(40));
 
-            spectrumData.getLastUpdated().addListener((obs, oldVal, newVal) -> {
-               // refreshBtn.setDisable(false);
-             //   refreshBtn.setImage(new Image("/assets/refresh-white-30.png"));
-                String dateString = Utils.formatDateTimeString(newVal);
-
-                lastUpdatedField.setText(dateString);
+          
+            spectrumData.addUpdateListener((obs,oldval,newval)->{
+                if(newval != null){
+                    lastUpdatedField.setText(Utils.formatDateTimeString(newval));
+                }else{
+                    lastUpdatedField.setText("");
+                }
             });
 
-        
-
-            ResizeHelper.addResizeListener(m_appStage, 250, 300, 400, Double.MAX_VALUE);
+            ResizeHelper.addResizeListener(m_appStage, 250, 300,Double.MAX_VALUE, Double.MAX_VALUE);
    
+            Runnable runClose = () -> {
+
+
+                spectrumData.shutdown();
+                spectrumData.removeUpdateListener();
+                if(m_appStage != null){
+                    m_appStage.close();
+                    m_appStage = null;
+                }
+
+            };
+            
+            closeBtn.setOnAction(closeEvent -> {
+                
+                runClose.run();
+            });
+
             maxBtn.setOnAction(e -> {
                 if(m_isMax){
                     
@@ -813,7 +917,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     m_appStage.setY(m_prevY);
                     m_prevX = -1;
                     m_prevY = -1;
-                    m_prevHeight = -1;
+                    m_prevHeight = -1;  
                     m_isMax = false;
                 }else{
                     m_isMax = true;
@@ -837,7 +941,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             });
 
             
-            FxTimer.runLater(Duration.ofMillis(100), ()->Platform.runLater(()->spectrumData.connectToExchange(this)));
+            FxTimer.runLater(Duration.ofMillis(50), ()->spectrumData.connectToExchange(this));
             
 
             m_appStage.setOnCloseRequest(e -> runClose.run());
@@ -860,25 +964,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return getNetworksData().getExecService();
     }
 
-    private void getMarkets() {
+    private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/markets";
 
-        Utils.getUrlJsonArray(urlString, getExecService(), success -> {
-
-
-            Object sourceObject = success.getSource().getValue();
-            if (sourceObject != null && sourceObject instanceof JsonArray) {
-                JsonArray marketJsonArray = (JsonArray) sourceObject;
-             
-                getMarketUpdate(marketJsonArray);
-            } 
-        }, (onfailed)->{
-            try {
-                Files.writeString(App.logFile.toPath(), "getMarketsDataArray failed:" + onfailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-                
-            }
-        }, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
                         
     }
   
@@ -905,6 +994,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private void getMarketUpdate(JsonArray jsonArray){
         
         ArrayList<SpectrumMarketData> tmpMarketsList = new ArrayList<>();
+        long timeStamp = System.currentTimeMillis();
 
         SimpleBooleanProperty isChanged = new SimpleBooleanProperty(false);
         for (int i = 0; i < jsonArray.size(); i++) {
@@ -916,13 +1006,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 
                 try{
                     
-                    SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson);
+                    SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson, timeStamp);
+               
                     int marketIndex = getMarketDataIndexById(tmpMarketsList, marketData.getId());
                     
 
                     if(marketIndex != -1){
                         SpectrumMarketData lastData = tmpMarketsList.get(marketIndex);
                         BigDecimal quoteVolume = lastData.getQuoteVolume();
+
                         if(marketData.getQuoteVolume().doubleValue() > quoteVolume.doubleValue()){
                             tmpMarketsList.set(marketIndex, marketData);
                         }
@@ -952,8 +1044,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
                     JsonArray tickerArray = (JsonArray) tickerSourceObject;
 
-         
-                    
                     for (int j = 0; j < tickerArray.size(); j++) {
                 
                         JsonElement tickerObjectElement = tickerArray.get(j);
@@ -970,19 +1060,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
                             
                                 if(marketData != null){
                                     
-                                
                                     JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
                                     JsonElement poolIdElement = tickerDataJson.get("pool_id");
-                                    if(
-                                    
-                                        liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() &&
-                                        poolIdElement != null && poolIdElement.isJsonPrimitive()
-                                    ){
-                                        
-                                    
+                                    if(liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() ){
+
                                         marketData.setLiquidityUSD(liquidityUsdElement.getAsBigDecimal());
+       
+                                    }
+                                    if( poolIdElement != null && poolIdElement.isJsonPrimitive()){
                                         marketData.setPoolId(poolIdElement.getAsString());
-                                        
                                     }
                                 }
 
@@ -1006,26 +1092,57 @@ public class SpectrumFinance extends Network implements NoteInterface {
             });
         }
     }
-    
+
+
+    public void sendMessage(int msg){
+        long timestamp = System.currentTimeMillis();
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(msg, timestamp);
+        }
+    }
+
+    public void sendMessage(int msg, long timestamp){
+
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(msg, timestamp);
+        }
+    }
     private void updateMarketList(ArrayList<SpectrumMarketData> data){
         int size = data.size();
 
         if(m_marketsList.size() == 0){
             for(int i = 0; i < size; i++){
                 SpectrumMarketData marketData = data.get(i);
-                m_marketsList.add(marketData);
+               if(data != null){
+                    m_marketsList.add(marketData);
+               }
             }
             data.clear();
-            listUpdated().set(LocalDateTime.now());
+            sendMessage(LIST_CHANGED);
         }else{
+            SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
             for(int i = 0; i < size; i++){
                 SpectrumMarketData newMarketData = data.get(i);
+                
                 SpectrumMarketData marketData = getMarketDataById(m_marketsList, newMarketData.getId());
-                marketData.update(newMarketData);
+                if(marketData != null){
+                    marketData.update(newMarketData);
+                }else{
+                    changed.set(true);
+                    m_marketsList.add(newMarketData);
+                   
+                }
             }
             data.clear();
+            if(changed.get()){
+                sendMessage(LIST_CHANGED);
+            }else{
+                sendMessage(LIST_UPDATED);
+            }
+            
         }
     }
+    
     
     /*
     public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -1129,22 +1246,28 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
     
     }
+    
 
-    public void getPoolChart(String poolId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart";
-   
+    public File getMarketFile(SpectrumMarketData data){
         
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        return data.getPoolId() != null ? getIdDataFile( data.getPoolId()) : null;    
+    }
 
+    public void getPoolChart(String poolId, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+
+        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from=0&to=" + currentTime;
+
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
     }
     
 
     public void addMsgListener(SpectrumMarketInterface item) {
         if (!m_msgListeners.contains(item)) {
 
-            if (m_connectionStatus.get() == 0) {
-                start();
-            }
+            
+            start();
+            
             m_msgListeners.add(item);
         }else{
           
@@ -1152,8 +1275,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
 
+    private void setConnectionStatus(int status){
+        m_connectionStatus = status;
+        sendMessage(status);
+    }
+
     public void stop(){
-        m_connectionStatus.set(0);
+        setConnectionStatus(STOPPED);
         
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
             m_scheduledFuture.cancel(false);
@@ -1165,9 +1293,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
     //private static volatile int m_counter = 0;
 
     public void start(){
-        if(m_connectionStatus.get() == 0){
+        if(m_connectionStatus == STOPPED){
 
-            m_connectionStatus.set(1);
+            m_connectionStatus = STARTING;
                     
 
             ExecutorService executor = getNetworksData().getExecService();
@@ -1175,7 +1303,23 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Runnable exec = ()->{
                 //FreeMemory freeMem = Utils.getFreeMemory();
                 
-                getMarkets();
+                getMarkets(success -> {
+
+
+                    Object sourceObject = success.getSource().getValue();
+                    if (sourceObject != null && sourceObject instanceof JsonArray) {
+                        JsonArray marketJsonArray = (JsonArray) sourceObject;
+                        try {
+                            Files.writeString( new File(getDataDir().getAbsolutePath() + "/markets.json").toPath(), marketJsonArray.toString());
+                        } catch (IOException e) {
+                 
+                        }
+                        m_connectionStatus = STARTED;
+                        getMarketUpdate(marketJsonArray);
+                    } 
+                }, (onfailed)->{
+                    stop();
+                });
                 /*try {
                     Files.writeString(App.logFile.toPath(), "\nfreeMem: " + freeMem.getMemFreeGB() + " GB", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
@@ -1203,30 +1347,18 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             m_scheduledFuture = m_schedualedExecutor.scheduleAtFixedRate(submitExec, 0, 7000, TimeUnit.MILLISECONDS);
 
-                
-            /*ChangeListener<SpectrumMarketData[]> dataChangeListener = (obs,oldval,newval)->{
-        
-                for(SpectrumMarketInterface msgListener : m_msgListeners){
-                    msgListener.marketArrayChange(newval);
-                }
-                
-            };*/
-        // dataArrayObject.addListener(dataChangeListener);
-         //   getMarkets();
         
             m_msgListeners.addListener((ListChangeListener.Change<? extends SpectrumMarketInterface> c) ->{
                 int newSize = m_msgListeners.size();
                 boolean added = newSize > m_listenerSize;
                 
                 if(added){
-                    
-                //   SpectrumMarketInterface lastInterface = m_msgListeners.get(newSize-1);
-                // lastInterface.marketArrayChange(dataArrayObject.get());
+      
                     
                 }else{
                     if(newSize == 0){
                     
-                        shutdown();
+                        stop();
                     }
                 }
 
@@ -1273,6 +1405,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return false;
     }
 
+    public int connectionStatus(){
+        return m_connectionStatus;
+    }
  
 
     @Override

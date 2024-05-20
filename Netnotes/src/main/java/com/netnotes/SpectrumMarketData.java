@@ -2,15 +2,14 @@ package com.netnotes;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.utils.Utils;
 
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
-
 
 import com.google.gson.JsonElement;
 
@@ -25,25 +24,36 @@ public class SpectrumMarketData extends PriceQuote {
     private BigDecimal m_invertedPrice = BigDecimal.ZERO;
     private BigDecimal m_baseVolume = BigDecimal.ZERO;
     private BigDecimal m_quoteVolume = BigDecimal.ZERO;
+    private int m_baseDecimals;
+    private int m_quoteDecimals;
+
+    private long m_lastPoolData = 0;
 
     private String m_poolId = null;
+
     private BigDecimal m_liquidityUSD = BigDecimal.ZERO;
 
     private boolean m_defaultInvert = false;
 
     private SimpleObjectProperty<PoolStats> m_poolStats = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<BigDecimal> m_poolSlippage = new SimpleObjectProperty<>(null);
-    
+
+
+    private SimpleObjectProperty<SpectrumChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
 
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
     
-    public SpectrumMarketData(JsonObject json) throws Exception{
-        super(json.get("lastPrice").getAsString(), json.get("baseSymbol").getAsString(), json.get("quoteSymbol").getAsString(), System.currentTimeMillis());
-        JsonElement baseIdElement = json.get("baseId");
+    public SpectrumMarketData(JsonObject json, long timeStamp) throws Exception{
+        super(json.get("lastPrice").getAsString(), json.get("baseSymbol").getAsString(), json.get("quoteSymbol").getAsString(), timeStamp);
+       
+        JsonElement baseIdElement =  json.get("baseId");
         JsonElement baseSymbolElement = json.get("baseSymbol");
-        JsonElement quoteIdElement = json.get("quoteId");
-        JsonElement quoteSymbolElement = json.get("quoteSymbol");
+
+        JsonElement quoteIdElement =json.get("quoteId");
+        JsonElement quoteSymbolElement =  json.get("quoteSymbol");
+
         JsonElement lastPriceElement = json.get("lastPrice");
+
         JsonElement quoteVolumeElement = json.get("baseVolume");
         JsonElement baseVolumeElement = json.get("quoteVolume");
 
@@ -58,7 +68,7 @@ public class SpectrumMarketData extends PriceQuote {
             baseVolumeElement != null &&  baseVolumeElement.isJsonObject() &&
             quoteVolumeElement != null && quoteVolumeElement.isJsonObject()
         ){
-            m_lastPrice = lastPriceElement.getAsBigDecimal();
+            
             JsonObject quoteVolumeObject = quoteVolumeElement.getAsJsonObject();
             long quoteVolumeValue = quoteVolumeObject.get("value").getAsLong();
             int quoteVolumeDecimals = quoteVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
@@ -68,26 +78,34 @@ public class SpectrumMarketData extends PriceQuote {
             JsonObject baseVolumeObject = baseVolumeElement.getAsJsonObject();
             long baseVolumeValue = baseVolumeObject.get("value").getAsLong();
             int baseVolumeDecimals = baseVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
+            
             BigDecimal baseVolumeBigDecimal = calculateLongToBigDecimal(baseVolumeValue, baseVolumeDecimals);
+           
+           
             String baseId = baseIdElement.getAsString();
             String quoteId = quoteIdElement.getAsString();
-            m_id = quoteId + "_" + baseId;
+            m_id = quoteId + "_" +baseId ;
             String quoteSymbol = quoteSymbolElement.getAsString();
+            String baseSymbol = baseSymbolElement.getAsString();
             
-            m_defaultInvert = quoteSymbol.equals("SigUSD");
-            m_quoteId = baseId;
-            m_quoteSymbol = baseSymbolElement.getAsString();
-            m_baseId = quoteIdElement.getAsString();
-            m_baseSymbol = quoteSymbol;
+            m_defaultInvert = !quoteSymbol.equals("SigUSD");
+
+            m_quoteId = quoteId;
+            m_quoteSymbol = quoteSymbol;
+
+            m_baseId = baseId;
+            m_baseSymbol = baseSymbol;
         
-            m_quoteVolume = baseVolumeBigDecimal;
-            m_baseVolume = quoteVolumeBigDecimal;
+            m_quoteVolume = quoteVolumeBigDecimal; 
+            m_baseVolume = baseVolumeBigDecimal;
+
+            m_baseDecimals = baseVolumeDecimals;
+            m_quoteDecimals = quoteVolumeDecimals;
 
             try{
             
-                
-                m_invertedPrice = lastPriceElement.getAsBigDecimal();
-                m_lastPrice = BigDecimal.ONE.divide(m_invertedPrice, m_invertedPrice.precision(), RoundingMode.CEILING);
+                m_lastPrice = lastPriceElement.getAsBigDecimal();
+                m_invertedPrice = BigDecimal.ONE.divide(m_lastPrice, m_lastPrice.precision(), RoundingMode.CEILING);
 
                 setPrices(m_lastPrice.toString(), m_baseSymbol,m_quoteSymbol, m_baseId, m_quoteId);
             }catch(ArithmeticException ae){
@@ -97,14 +115,52 @@ public class SpectrumMarketData extends PriceQuote {
             //   throw new Exception("Divide by zero");
             }
             
-            
+
           
         }else{
             throw new Exception("Missing expected arguments");
         }
         
     }
+    public boolean isPool(){
+        return m_poolId != null;
+    }
+    
+    public long getLastPoolData(){
+        return m_lastPoolData;
+    }
 
+    public void setLastPoolData(long value){
+        m_lastPoolData = value;
+    }
+
+    public SimpleObjectProperty<SpectrumChartView> getSpectrumChartView(){
+        return m_chartViewProperty;
+    }
+
+    private SimpleLongProperty m_poolLastWritten = new SimpleLongProperty(0);
+
+    public long getPoolLastWritten(){
+        return m_poolLastWritten.get();
+    }
+
+
+    public void setPoolLastWritten(long value){
+        m_poolLastWritten.set( value);
+    }
+
+    public SimpleLongProperty poolLastWrittenProperty(){
+        return m_poolLastWritten;
+    }
+
+    public int getBaseDecimals(){
+        return m_baseDecimals;
+    }
+
+    public int getQuoteDecimals(){
+        return m_quoteDecimals;
+    }
+    
     public boolean getDefaultInvert(){
         return m_defaultInvert;
     }
@@ -324,42 +380,6 @@ public class SpectrumMarketData extends PriceQuote {
         }
     }
 
-    public class SpectrumVolumeData{
-        private long m_value;
-        private SpectrumAsset m_asset;
-        private SpectrumWindow m_window;
- 
-        public SpectrumVolumeData(JsonObject json) throws JsonParseException{
-            JsonElement valueElement = json.get("value");
-            JsonElement unitsElement = json.get("units");
-            JsonElement windowElement = json.get("window");
-            
-            if(unitsElement != null && unitsElement.isJsonObject()){
-                m_value = valueElement != null && valueElement.isJsonPrimitive() ? valueElement.getAsLong() : -1;
-                JsonObject unitsObject = unitsElement.getAsJsonObject();
-                JsonElement assetElement = unitsObject.get("asset");
-                if(assetElement != null && assetElement.isJsonObject()){
-                    m_asset = new SpectrumAsset(assetElement.getAsJsonObject());
-                }else{
-                    throw new JsonParseException("Invalid volumeData asset");
-                }
-                if(windowElement != null && windowElement.isJsonObject()){
-                    m_window = new SpectrumWindow(windowElement.getAsJsonObject());
-                }
-            }else{
-                throw new JsonParseException("Invalid volumeData unit.");
-            }
-        }
-        public long getValue(){
-            return m_value;
-        }
-        public SpectrumAsset getAsset(){
-            return m_asset;
-        }
-        public SpectrumWindow getWindow(){
-            return m_window;
-        }
-    }
     public String getCurrentSymbol(boolean swapped){
         return swapped ? (getQuoteSymbol() + "-" + getBaseSymbol()) : getSymbol();
     }
@@ -370,9 +390,13 @@ public class SpectrumMarketData extends PriceQuote {
         m_baseVolume = updateData.getBaseVolume();
         m_quoteVolume = updateData.getQuoteVolume();
         m_liquidityUSD = updateData.getLiquidityUSD();
-        updateTimeStamp();
+        setTimeStamp(updateData.getTimeStamp());
+   
         m_lastUpdated.set(LocalDateTime.now());
+    
     }
+
+
 
     public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
         return m_lastUpdated;
@@ -400,8 +424,7 @@ public class SpectrumMarketData extends PriceQuote {
         private long m_volumeFrom;
         private long m_volumeTo;
         private BigDecimal m_yearlyFeesPercent;
-        private SimpleLongProperty m_lastUpdated;
-
+        
         public PoolStats(JsonObject json) throws Exception{
             updatePoolStats(json);
         }
@@ -450,7 +473,7 @@ public class SpectrumMarketData extends PriceQuote {
                 m_feesTo = feesWindowObject.get("to").getAsLong();
                 
                 m_yearlyFeesPercent = yearlyFeesPercent.getAsBigDecimal();
-                m_lastUpdated.set(System.currentTimeMillis());
+               
 
             }else{
                 throw new Exception("Invalid data");
@@ -459,10 +482,7 @@ public class SpectrumMarketData extends PriceQuote {
             
         }
 
-        public SimpleLongProperty lastUpdatedProperty(){
-            return m_lastUpdated;
-        }
-
+     
         public String getLockedYTokenId(){
             return m_lockedYTokenId;
         }
@@ -522,5 +542,42 @@ public class SpectrumMarketData extends PriceQuote {
         }
 
     }
-
+    
+    public class SpectrumVolumeData{
+        private long m_value;
+        private SpectrumAsset m_asset;
+        private SpectrumWindow m_window;
+ 
+        public SpectrumVolumeData(JsonObject json) throws JsonParseException{
+            JsonElement valueElement = json.get("value");
+            JsonElement unitsElement = json.get("units");
+            JsonElement windowElement = json.get("window");
+            
+            if(unitsElement != null && unitsElement.isJsonObject()){
+                m_value = valueElement != null && valueElement.isJsonPrimitive() ? valueElement.getAsLong() : -1;
+                JsonObject unitsObject = unitsElement.getAsJsonObject();
+                JsonElement assetElement = unitsObject.get("asset");
+                if(assetElement != null && assetElement.isJsonObject()){
+                    m_asset = new SpectrumAsset(assetElement.getAsJsonObject());
+                }else{
+                    throw new JsonParseException("Invalid volumeData asset");
+                }
+                if(windowElement != null && windowElement.isJsonObject()){
+                    m_window = new SpectrumWindow(windowElement.getAsJsonObject());
+                }
+            }else{
+                throw new JsonParseException("Invalid volumeData unit.");
+            }
+        }
+        public long getValue(){
+            return m_value;
+        }
+        public SpectrumAsset getAsset(){
+            return m_asset;
+        }
+        public SpectrumWindow getWindow(){
+            return m_window;
+        }
+    }
+    
 }

@@ -12,6 +12,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Optional;
 
 import javax.crypto.BadPaddingException;
@@ -69,6 +71,8 @@ public class ErgoTokensList extends Network {
 
     private File logFile = new File("netnotes-log.txt");
 
+
+
     private final ArrayList<ErgoNetworkToken> m_networkTokenList = new ArrayList<>();
    // private VBox m_buttonGrid = null;
     private double m_sceneWidth = 600;
@@ -85,6 +89,8 @@ public class ErgoTokensList extends Network {
     private String m_explorerId = null;
     private long m_lastSave = 0;
 
+
+
     public ErgoTokensList(SecretKey secretKey, NetworkType networkType, ErgoTokens ergoTokens, String marketId, String explorerId) {
         super(null, "Ergo Tokens - List (" + networkType.toString() + ")", NETWORK_ID, ergoTokens);
         m_networkType = networkType;
@@ -92,7 +98,6 @@ public class ErgoTokensList extends Network {
         m_marketId = marketId;
         m_explorerId = explorerId;
 
-    
         setupMarketData(marketId);
         setupExplorerData();
 
@@ -239,12 +244,13 @@ public class ErgoTokensList extends Network {
         ErgoMarketsData marketsData = m_selectedMarketData.get();
         if(marketsData != null){
             if(marketsData instanceof SpectrumErgoMarketsData){
+                    
                 return  marketsData.getPriceQuoteById(baseId, quoteId);
             }
         }
         return null;
     }
-
+    /*
     public PriceQuote findPriceQuote(String baseSymbol, String quoteSymbol){
         ErgoMarketsData marketsData = m_selectedMarketData.get();
         if(marketsData != null){
@@ -259,9 +265,9 @@ public class ErgoTokensList extends Network {
                     return quote;
                 }
             }
-        }*/
+        }
         return null;
-    }
+    }*/
 
 
 
@@ -364,19 +370,19 @@ public class ErgoTokensList extends Network {
             int numCells = m_networkTokenList.size();
 
             buttonGrid.getChildren().clear();
-            // VBox.setVgrow(m_buttonGrid, Priority.ALWAYS);
-            
+        
+            Collections.sort(m_networkTokenList, Comparator.comparing(ErgoNetworkToken::getSymbol));
+               
             for (int i = 0; i < numCells; i++) {
                 ErgoNetworkToken networkToken = m_networkTokenList.get(i);
 
-                
                 //PriceQuote priceQuote = networkToken.getPriceQuote();
 
                 IconButton rowButton = networkToken.getButton(IconStyle.ROW);
            
 
                 HBox rowBox = new HBox(rowButton);
-                
+                rowBox.setPadding(new Insets(1, 0,1,0));
                 buttonGrid.getChildren().add(rowBox);
                 rowButton.prefWidthProperty().bind(buttonGrid.widthProperty());
             }
@@ -389,14 +395,21 @@ public class ErgoTokensList extends Network {
         return buttonGrid;
     }
 
-  
+    private ErgoToken m_ergoToken = null; 
 
     public ErgoNetworkToken getErgoToken(String tokenid) {
         if(tokenid != null){
-            for (int i = 0; i < m_networkTokenList.size(); i++) {
-                ErgoNetworkToken networkToken = m_networkTokenList.get(i);
-                if (networkToken.getTokenId().equals(tokenid)) {
-                    return networkToken;
+            if(tokenid.equals(SpectrumFinance.ERG_ID) && m_marketId != null && m_marketId.equals(SpectrumFinance.NETWORK_ID)){
+                if(m_ergoToken == null){
+                    m_ergoToken =  new ErgoToken(SpectrumFinance.NETWORK_ID, this);
+                }
+                return m_ergoToken;
+            }else{
+                for (int i = 0; i < m_networkTokenList.size(); i++) {
+                    ErgoNetworkToken networkToken = m_networkTokenList.get(i);
+                    if (networkToken.getTokenId().equals(tokenid)) {
+                        return networkToken;
+                    }
                 }
             }
         }
@@ -414,6 +427,7 @@ public class ErgoTokensList extends Network {
 
         return newToken;
     }
+
 
     public ErgoNetworkToken getTokenByName(String name) {
         for (int i = 0; i < m_networkTokenList.size(); i++) {
@@ -691,8 +705,7 @@ public class ErgoTokensList extends Network {
 
     private void openJson(JsonObject json, NetworkType networkType) {
         m_networkTokenList.clear();
-
-        
+      
    
         JsonElement networkTypeElement = json.get("networkType");
 

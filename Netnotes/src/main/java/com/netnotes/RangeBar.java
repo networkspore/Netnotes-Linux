@@ -4,11 +4,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.utils.Utils;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -16,8 +19,11 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.text.Text;
 
-public class RangeBar extends ImageView{
+public class RangeBar extends ImageView implements ControlInterface{
 
    public static int DEFAULT_BUTTON_HEIGHT = 0;
 
@@ -81,8 +87,11 @@ public class RangeBar extends ImageView{
     
     public final static long EXECUTION_TIME = 200;
 
+    private String m_networkId;
+
     public RangeBar(SimpleDoubleProperty width, SimpleDoubleProperty height,  ExecutorService executor) {
         super();
+        m_networkId = FriendlyId.createFriendlyId();
         m_width = width;
         m_height = height;
     
@@ -158,7 +167,48 @@ public class RangeBar extends ImageView{
         
     }
 
+    public String getNetworkId(){
+        return m_networkId;
+    }
 
+    public HBox getControlBox(){
+        
+            BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
+            setRangeBtn.getBufferedImageView().setFitWidth(15);
+            setRangeBtn.setOnAction(e->start());
+            setRangeBtn.setId("circleGoBtn");
+            setRangeBtn.setMaxWidth(20);
+            setRangeBtn.setMaxHeight(20);
+
+            Region btnSpacer = new Region();
+            btnSpacer.setMinWidth(5);
+
+            BufferedButton cancelRangeBtn = new BufferedButton("/assets/close-outline-white.png");
+            cancelRangeBtn.getBufferedImageView().setFitWidth(15);
+            cancelRangeBtn.setId("menuBarCircleBtn");
+            cancelRangeBtn.setOnAction(e->stop());
+            cancelRangeBtn.setMaxWidth(20);
+            cancelRangeBtn.setMaxHeight(20);
+
+            Text rangeText = new Text(String.format("%-14s", "Select range"));
+            rangeText.setFont(App.titleFont);
+            rangeText.setFill(App.txtColor);
+
+            HBox chartRangeToolbox = new HBox(rangeText, setRangeBtn, btnSpacer, cancelRangeBtn);
+            chartRangeToolbox.setId("bodyBox");
+            chartRangeToolbox.setAlignment(Pos.CENTER_LEFT);
+            chartRangeToolbox.setPadding(new Insets(0,5,0,5));
+        
+        return chartRangeToolbox;
+    }
+
+    public void toggle(){
+        toggleSettingRange();
+    }
+
+    public boolean isActive(){
+        return m_active.get();
+    }
     
     public void toggleSettingRange() {
    
@@ -166,6 +216,16 @@ public class RangeBar extends ImageView{
         m_currentSelectionIndex = -1;
         updateImage();
 
+    }
+
+    public void cancel(){
+        if(m_settingRange.get()){
+            toggle();
+        }
+    }
+
+    public boolean isCancelled(){
+        return m_settingRange.get() == false;
     }
 
     public void start(){
@@ -414,7 +474,15 @@ public class RangeBar extends ImageView{
         return (botValue == m_minBot ? height - (m_btnHeight * 2) : (int) Math.ceil(((height - (m_btnHeight * 2)) - (getScrollScale(height) * botValue)))) + m_btnHeight;
     }
 
+    private double[] m_topBotRange = new double[] {0,0};
    
+    public double[] getTopBotRange(){
+        return m_topBotRange;
+    }
+    public void setTopBotRange(double[] value){
+        m_topBotRange = value;
+    }
+
     public void updateImage() {
         
         if(m_imgBuf == null){
