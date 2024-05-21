@@ -73,7 +73,7 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
 
         };
 
-        if(spectrum.connectionStatus() == SpectrumFinance.STARTED){
+        if(spectrum.getConnectionStatus() == SpectrumFinance.STARTED){
             setMarketData.run();
         }
 
@@ -97,6 +97,9 @@ public class SpectrumErgoMarketsData extends ErgoMarketsData{
                         getQuote.run();
                     break;
                 }
+            }
+            public void sendMessage(int code, long timestamp, String msg){
+                
             }
         };
 

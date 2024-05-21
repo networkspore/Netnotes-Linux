@@ -32,9 +32,7 @@ import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -82,6 +80,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public final static int STOPPED = 0;
     public final static int STARTING = 1;
     public final static int STARTED = 2;
+    public final static int ERROR = 3;
+
 
     public static final int LIST_CHANGED = 10;
     public static final int LIST_UPDATED = 11;
@@ -772,12 +772,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
             favoriteScroll.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
                 selectedScroll.set(favoriteScroll);
             });
-            
+            double defaultGridWidth = appStageWidth -30;
+            double defaultGridHeight = appStageHeight - 100;            
 
-            SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(appStageWidth - 30);
+            SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
+            SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
             SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
 
-            VBox chartList = spectrumData.getGridBox(gridWidth, itemTimeSpanObject, currentBox);
+            VBox chartList = spectrumData.getGridBox(gridWidth, gridHeight, itemTimeSpanObject, currentBox);
   
             ScrollPane scrollPane = new ScrollPane(chartList);
             scrollPane.setPadding(new Insets(2));
@@ -821,7 +823,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
 
             spectrumData.statusProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal != null && !(newVal.equals("Loading..."))) {
+                if (newVal != null && (newVal.startsWith("Top"))) {
                     if (!headerVBox.getChildren().contains(menuPaddingBox)) {
                         headerVBox.getChildren().add(1, menuPaddingBox);
 
@@ -873,6 +875,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
             gridWidth.bind(scrollWidth);
+
+            Binding<Double> scrollHeight = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? scrollPane.viewportBoundsProperty().get().getHeight() : defaultGridHeight, scrollPane.viewportBoundsProperty());
+            gridHeight.bind(scrollHeight);
 
             favoriteScroll.prefViewportWidthProperty().bind(m_appStage.widthProperty());
 
@@ -1107,6 +1112,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
             m_msgListeners.get(i).sendMessage(msg, timestamp);
         }
     }
+    public void sendMessage(int code, long timestamp, String msg){
+
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(code, timestamp, msg);
+        }
+    }
+
     private void updateMarketList(ArrayList<SpectrumMarketData> data){
         int size = data.size();
 
@@ -1318,7 +1330,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
                         getMarketUpdate(marketJsonArray);
                     } 
                 }, (onfailed)->{
-                    stop();
+                    //onfailed.getSource().getException();
+                    m_connectionStatus = ERROR;
+                    sendMessage(ERROR, System.currentTimeMillis(), onfailed.getSource().getException().toString());
                 });
                 /*try {
                     Files.writeString(App.logFile.toPath(), "\nfreeMem: " + freeMem.getMemFreeGB() + " GB", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -1405,7 +1419,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return false;
     }
 
-    public int connectionStatus(){
+    public int getConnectionStatus(){
         return m_connectionStatus;
     }
  

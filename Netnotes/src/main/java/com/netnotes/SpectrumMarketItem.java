@@ -171,24 +171,28 @@ public class SpectrumMarketItem {
       
 
 
-        HBox hasChart = new HBox();
-        hasChart.setMinWidth(10);
-        hasChart.setPrefWidth(10);
-        hasChart.setMinHeight(15);
-        hasChart.setMaxHeight(15);
+        HBox openChartBtn = new HBox();
+        openChartBtn.setMinWidth(10);
+        openChartBtn.setPrefWidth(10);
+        openChartBtn.setMinHeight(15);
+        openChartBtn.setMaxHeight(15);
 
-        hasChart.setId(m_marketData.getPoolId() != null ? "onlineBtn" : "offlineBtn");
-        hasChart.setOnMouseClicked(e->{
+        openChartBtn.setId(m_marketData.getPoolId() != null ? "onlineBtn" : "offlineBtn");
+        openChartBtn.setOnMouseClicked(e->{
             if(m_marketData.getPoolId() == null){
                 
             }else{
                 open();
             }
-        }); 
+        });
+
+        HBox openChartBtnBox = new HBox(openChartBtn);
+        openChartBtnBox.setMaxHeight(32);
+        openChartBtnBox.setAlignment(Pos.CENTER);
        
 
-        HBox rowChartBox = new HBox(hasChart);
-        rowChartBox.setAlignment(Pos.CENTER_LEFT);
+        HBox rowChartBox = new HBox(openChartBtnBox);
+        rowChartBox.setAlignment(Pos.TOP_LEFT);
         rowChartBox.setPadding(new Insets(0,5, 0, 0));
 
        ImageView rowChartImgView = new ImageView();
@@ -447,9 +451,16 @@ public class SpectrumMarketItem {
         VBox priceVBox = new VBox(priceHBox, statsBox);
         HBox.setHgrow(priceVBox,Priority.ALWAYS);
         priceVBox.setAlignment(Pos.CENTER_RIGHT);
-        
 
-        HBox rowBox = new HBox(favoriteBtn, rowImgBox,  priceVBox, rowChartBox );
+        HBox favoriteBtnBox = new HBox(favoriteBtn);
+        favoriteBtnBox.setMaxHeight(32);
+        favoriteBtnBox.setAlignment(Pos.CENTER_LEFT);
+
+        VBox leftMarginVBox = new VBox(favoriteBtnBox);
+        leftMarginVBox.setAlignment(Pos.TOP_CENTER);
+        leftMarginVBox.setId("darkBox");
+
+        HBox rowBox = new HBox(leftMarginVBox, rowImgBox,  priceVBox, rowChartBox );
         rowBox.setId("rowBox");
         rowBox.setAlignment(Pos.TOP_LEFT);
         rowBox.maxWidthProperty().bind(widthObject);
@@ -472,7 +483,7 @@ public class SpectrumMarketItem {
         Runnable update = ()->{
    
             boolean isChart = m_marketData.getPoolId() != null;
-            hasChart.setId(m_marketData != null ? (isChart ? "availableBtn" : "offlineBtn") : "offlineBtn");
+            openChartBtn.setId(m_marketData != null ? (isChart ? "availableBtn" : "offlineBtn") : "offlineBtn");
             
 
             priceText.setText( m_isInvert.get() ?String.format("%-12s", m_marketData.getInvertedLastPrice()+ "").substring(0,12) : String.format("%-12s", m_marketData.getLastPrice()+ "").substring(0,12) );
