@@ -37,7 +37,7 @@ public class SpectrumChartView {
 
     
     public final static int DECIMAL_PRECISION = 6;
-    public final static int MAX_BARS = 150;
+    public final static int MAX_CHART_WIDTH = 150 * 20;
     public final static int MIN_CHART_HEIGHT = 300;
     public final static int MIN_CHART_WIDTH = 100;
     public final static int DEFAULT_CELL_WIDTH = 20;
@@ -425,49 +425,6 @@ public class SpectrumChartView {
 
 
 
-    
-      //  scaleColWidthObject.set(scaleColWidth);
-
-   
-        /*
-        rangeBar.bottomVvalueProperty().addListener((obs, oldVal, newVal) -> {
-       
-            if(priceList.size() == 0){
-                updateImg.run();
-            }else{
-                updateBufferedImage(isInvert.get() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice() , m_marketData.getTimeStamp(), directionObject.get(), priceList, numbersObject.get(), wImgObj, cellWidth, cellPadding, scaleColWidth.get(), timeSpan.get(), rangeBar.bottomVvalueProperty().get(), rangeBar.topVvalueProperty().get(), rangeBar.activeProperty().get(), rangeBar.settingRangeProperty().get());
-            }
-         
-        });
-        rangeBar.topVvalueProperty().addListener((obs, oldVal, newVal) -> {
-            if(priceList.size() == 0){
-                updateImg.run();
-            }else{
-                updateBufferedImage(isInvert.get() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice() , m_marketData.getTimeStamp(), directionObject.get(), priceList, numbersObject.get(), wImgObj, cellWidth, cellPadding, scaleColWidth.get(), timeSpan.get(), rangeBar.bottomVvalueProperty().get(), rangeBar.topVvalueProperty().get(), rangeBar.activeProperty().get(), rangeBar.settingRangeProperty().get());
-            }
-        });
-
-
-        rangeBar.activeProperty().addListener((obs, oldVal, newVal) -> {
-            if(priceList.size() == 0){
-                updateImg.run();
-            }else{
-                updateBufferedImage(isInvert.get() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice() , m_marketData.getTimeStamp(), directionObject.get(), priceList, numbersObject.get(), wImgObj, cellWidth, cellPadding, scaleColWidth.get(), timeSpan.get(), rangeBar.bottomVvalueProperty().get(), rangeBar.topVvalueProperty().get(), rangeBar.activeProperty().get(), rangeBar.settingRangeProperty().get());
-            }
-        });
-
-        rangeBar.settingRangeProperty().addListener((obs,oldval,newval)->{
-            if(priceList.size() == 0){
-                updateImg.run();
-            }else{
-                updateBufferedImage(isInvert.get() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice() , m_marketData.getTimeStamp(), directionObject.get(), priceList, numbersObject.get(), wImgObj, cellWidth, cellPadding, scaleColWidth.get(), timeSpan.get(), rangeBar.bottomVvalueProperty().get(), rangeBar.topVvalueProperty().get(), rangeBar.activeProperty().get(), rangeBar.settingRangeProperty().get());
-            }
-        });
-        */
-        
-
-
-
    
     public void updatePriceListNumbers(ArrayList<SpectrumPriceData> priceList, SimpleObjectProperty<SpectrumNumbers> numbersObject){
         SpectrumNumbers numbers = new SpectrumNumbers();
@@ -583,7 +540,7 @@ public class SpectrumChartView {
 
         BigDecimal highValue = spectrumNumbers.getHigh();
         BigDecimal lowValue = spectrumNumbers.getLow();
-        BigDecimal spacing =  spectrumNumbers.getHigh().multiply(BigDecimal.valueOf(.1));
+        BigDecimal spacing =  spectrumNumbers.getHigh().multiply(BigDecimal.valueOf(.05));
         
         BigDecimal scale = closeMiddle.divide(highValue, 20, RoundingMode.UP);
  
@@ -793,104 +750,26 @@ public class SpectrumChartView {
                 public Object call() {
 
                     
-                    ArrayList<SpectrumPriceData> priceList = new ArrayList<>();
+                 //   ArrayList<SpectrumPriceData> priceList = new ArrayList<>();
 
         
                 
-                    SpectrumNumbers numbers = new SpectrumNumbers();
+                   // SpectrumNumbers numbers = new SpectrumNumbers();
 
                     SpectrumPrice oldestPrice = sPData[0];
-                    SpectrumPrice newestPrice = sPData[size - 1];
                     long oldestTimeStamp = oldestPrice.getTimeStamp();
-                    long newestTimeStamp = newestPrice.getTimeStamp();
 
                     long timeSpanMillis = timeSpan.getMillis();
 
-                    int maxElements = (int) Math.ceil(((newestTimeStamp + timeSpanMillis) - oldestTimeStamp) / timeSpanMillis);
+                    int maxElements = (int)((currentTime - oldestTimeStamp) / timeSpanMillis);
 
-                    int startElement = maxElements > maxBars ? maxElements - maxBars : 0;
+                    int startElement = maxElements > maxBars ? maxBars : maxElements;
 
-                    final long startTimeStamp = ((startElement * timeSpanMillis) + oldestTimeStamp ) + timeSpanMillis;
-                            
+                    final long startTimeStamp = currentTime - (startElement * timeSpanMillis);
+                           
                     
-                    SimpleIntegerProperty index = new SimpleIntegerProperty(0);
-   
 
-
-                    SimpleObjectProperty<BigDecimal> lastClose = new SimpleObjectProperty<>(BigDecimal.ZERO);
-
-                    SimpleLongProperty epochEnd = new SimpleLongProperty(startTimeStamp);
-
-                    
-                    SimpleObjectProperty<SpectrumPrice> spectrumPrice = new SimpleObjectProperty<>();
-                    while (index.get() < size) {
-                        
-                        try{
-                            spectrumPrice.set(isInvert ? sPData[index.get()].getInverted() :sPData[index.get()] );
-                            
-                            if(spectrumPrice.get().getTimeStamp() > startTimeStamp - timeSpanMillis  ){
-                                if(numbers.getOpen(false).equals(BigDecimal.ZERO)){
-                                    numbers.setOpen(lastClose.get());
-                                }
-                                while(spectrumPrice.get().getTimeStamp() > epochEnd.get()){
-                                
-                                    SpectrumPriceData data = new SpectrumPriceData(epochEnd.get()-1, epochEnd.get() , lastClose.get());
-                                    priceList.add(data);
-                                    epochEnd.set(epochEnd.get() + timeSpanMillis);
-                                }
-
-                                SpectrumPriceData priceData = new SpectrumPriceData(spectrumPrice.get(), epochEnd.get() - timeSpanMillis ,epochEnd.get() );
-                                priceData.setOpen(lastClose.get());
-                            
-                                addPrices(isInvert, sPData, index, priceData, epochEnd.get());
-
-                                
-
-                                lastClose.set(priceData.getClose());
-
-                            
-                                priceList.add(priceData);
-                
-                                numbers.updateData(priceData);
-                                
-                                
-                                epochEnd.set(epochEnd.get() + timeSpanMillis);
-                                    
-                                
-                            }else{
-                                BigDecimal close = spectrumPrice.get().getPrice();
-
-                                lastClose.set(close);
-                            }
-                        }catch(Exception priceException){
-                            
-                            try {
-                                Files.writeString(App.logFile.toPath(), "\nSpectrum setPriceData: " + priceException.toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e) {
-                    
-                            }
-                        
-                        }
-                        
-                        index.set(index.get()+1);
-                        
-                    }
-                    
-                    epochEnd.set(epochEnd.get() - timeSpanMillis);
-
-                    while( currentTime > (epochEnd.get() + timeSpanMillis)){
-                                
-                        SpectrumPriceData data = new SpectrumPriceData(epochEnd.get() +timeSpanMillis -1, epochEnd.get() +timeSpanMillis , lastClose.get());
-                        priceList.add(data);
-                        epochEnd.set(epochEnd.get() + timeSpanMillis);
-                        numbers.updateData(data);
-                    }
-                    SpectrumPriceData[] dataArray = new SpectrumPriceData[priceList.size()];
-                    priceList.toArray(dataArray);
-                   
-                    numbers.setSpectrumPriceData(dataArray);
-
-                    return numbers;
+                    return process(sPData, isInvert,startTimeStamp, timeSpan, currentTime);
                 }
             };
 
@@ -904,56 +783,9 @@ public class SpectrumChartView {
                     
     }
 
-    private static void addPrices(boolean isInvert, SpectrumPrice[] dataList, SimpleIntegerProperty index, SpectrumPriceData priceData, long epochEnd){
-        int size = dataList.length;
-
-        if(index.get() + 1 < size){         
-            try{
-                SimpleObjectProperty<SpectrumPrice> nextSpectrumPrice = new SimpleObjectProperty<>(isInvert ? dataList[index.get() + 1].getInverted() : dataList[index.get() + 1]);
-               
-                while(nextSpectrumPrice.get().getTimeStamp() <= epochEnd){
-                    long timestamp = nextSpectrumPrice.get().getTimeStamp();
-                    BigDecimal price = nextSpectrumPrice.get().getPrice();
-                    priceData.addPrice(timestamp, price);
-
-            
-     
-
-                    index.set(index.get() + 1);
-
-                    if((index.get() +1) == size){
-                        break;
-                    }
-                    try{
-                        nextSpectrumPrice.set(isInvert ? dataList[index.get() + 1].getInverted() : dataList[index.get() + 1] );
-                    }catch(Exception whileNextException){
-                        try{
-                            Files.writeString(App.logFile.toPath(), "Spectrum nextPriceException: " + whileNextException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        }catch(IOException npioe){
-
-                        }
-                        if((index.get() +1) == size){
-                            index.set(index.get() + 1);
-                        }
-                    
-                    }
-                }
-            }catch(Exception nextPriceException){
-                try{
-                    Files.writeString(App.logFile.toPath(), "Spectrum nextPriceException: " + nextPriceException.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                }catch(IOException npioe){
-
-                } 
-                if((index.get() +1) != size){        
-                    index.set(index.get() + 1);
-                }
-            }
-        }
-    }
 
     private static void getOpen(SimpleObjectProperty<SpectrumPrice> lastPriceObject, SimpleIntegerProperty index, long epochStart, SpectrumPrice[] dataList){
  
-
         while(index.get() +1 < dataList.length){
             SpectrumPrice indexPrice = dataList[index.get() +1];
             long timeStamp = indexPrice.getTimeStamp();
@@ -1180,25 +1012,35 @@ public class SpectrumChartView {
 
     private static int m_rowPadding = 7;
 
-
-
+    public static int SCALE_COL_PADDING = 40;
     
-    public static double[] updateBufferedImage(BufferedImage img, Graphics2D g2d, Font labelFont, FontMetrics labelMetrics, SpectrumNumbers numbers,double[] topBotRange, int cellWidth, int cellPadding, int scaleColWidth, int amStringWidth, TimeSpan timeSpan,  double bottomVvalue, double topVvalue,boolean rangeActive, boolean isRangeSetting) {
+    
+    public static void updateBufferedImage(BufferedImage img, Graphics2D g2d, Font labelFont, FontMetrics labelMetrics, SpectrumNumbers numbers, int cellWidth, int cellPadding, int scaleColWidth,  int amStringWidth, TimeSpan timeSpan,  RangeBar rangeBar) {
         
         if(img == null ){
-            return null;
+            return;
         }
         SpectrumPriceData[] priceList = numbers.getSpectrumPriceData();
 
         if(priceList == null || (priceList != null && priceList.length == 0) ) {
-            return null;
+            return;
         }
+        RangeStyle rangeStyle = rangeBar.rangeStyleProperty().get();
+
+
+        double bottomVvalue = rangeBar.bottomVvalueProperty().get();
+        double topVvalue = rangeBar.topVvalueProperty().get(); 
+      
+        boolean isRangeSetting = rangeBar.settingRangeProperty().get(); 
         
-        rangeActive = rangeActive && !isRangeSetting;
+        boolean rangeActive = rangeBar.activeProperty().get();
+        boolean isAuto = rangeStyle.getId().equals(RangeStyle.AUTO) && !isRangeSetting;
+
+        rangeActive = isAuto || (rangeActive && !isRangeSetting);
         
         LocalDateTime now = LocalDateTime.now();
 
-        BigDecimal currentPrice = numbers.getClose(false);
+        BigDecimal currentPrice = numbers.getClose();
         
         int priceListSize = priceList.length;
         int totalCellWidth = cellWidth + cellPadding;
@@ -1211,45 +1053,59 @@ public class SpectrumChartView {
 
         int labelHeight = labelMetrics.getHeight();
 
+       
+
         int chartWidth = width - scaleColWidth;
         int chartHeight = height - (2 * (labelHeight + 5)) - 10;
 
-        int numCells = (int) Math.floor((width - scaleColWidth) / totalCellWidth);
+        int numCells = (int) Math.floor(chartWidth / totalCellWidth);
 
-        int i = numCells > priceListSize ? 0 : priceListSize - numCells;
-
-
-        double highValue = numbers.getHigh().doubleValue();
-
-
-        double scale = (.6d * ((double) chartHeight)) / highValue;
-
-        
-        int lblWidth = scaleColWidth - 6;
-        
+           
         int rowHeight = labelHeight + m_rowPadding; 
-
             
     
 
         g2d.setFont(labelFont);
         g2d.setColor(m_labelColor);
+
+        BigDecimal bigImageHeight = (BigDecimal.valueOf(height));
+        BigDecimal closeMiddle = BigDecimal.valueOf(0.6).multiply(bigImageHeight);
+
+       
+        BigDecimal highValue = numbers.getHigh();
+        BigDecimal lowValue = numbers.getLow();
+
+        BigDecimal spacing =  highValue.multiply(BigDecimal.valueOf(.1));
+        
+        BigDecimal scale = closeMiddle.divide(highValue, 20, RoundingMode.UP);
+        
         
 
-        double topRangePrice = (topVvalue * (Math.floor(chartHeight / rowHeight) * rowHeight)) / scale;
-        double botRangePrice = (bottomVvalue * (Math.floor(chartHeight / rowHeight) * rowHeight)) / scale;
+        BigDecimal topRangePrice = isAuto ? highValue.add(spacing) : (isRangeSetting ? BigDecimal.valueOf(topVvalue * (Math.floor(chartHeight / rowHeight) * rowHeight)).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getTopValue());
+        BigDecimal botRangePrice = isAuto ? lowValue.subtract(spacing) : (isRangeSetting? BigDecimal.valueOf(bottomVvalue * (Math.floor(chartHeight / rowHeight) * rowHeight)).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getBotValue());
 
+
+        botRangePrice = botRangePrice.max(BigDecimal.ZERO);
+        BigDecimal topChartValue = BigDecimal.valueOf(chartHeight).divide(scale, 13, RoundingMode.HALF_UP);
+            
         
-
+        BigDecimal scale2 = bigImageHeight.divide((topRangePrice.subtract(botRangePrice)), 20, RoundingMode.UP);
+         
         if (isRangeSetting) {
-            topBotRange[0] = topRangePrice;
-            topBotRange[1] = botRangePrice;
-        } else {
-            topRangePrice = topBotRange[0];
-            botRangePrice = topBotRange[1];
+            rangeStyle.setTopValue(topRangePrice);
+            rangeStyle.setBottomValue(botRangePrice);
+            rangeStyle.setStyle(RangeStyle.USER);
         }
+        
+        
 
-        double scale2 = (double) chartHeight / (topRangePrice - botRangePrice);
+
+        if(isAuto){
+            double tVv = topRangePrice.divide(topChartValue, 12, RoundingMode.HALF_UP).doubleValue();
+            double bVv = botRangePrice.divide(topChartValue, 12, RoundingMode.HALF_UP).doubleValue();
+            rangeBar.setTopValue(tVv, false);
+            rangeBar.setBotVvalue(bVv, true);  
+        }
 
         Drawing.fillArea(img, 0xff111111, 0, 0, chartWidth, chartHeight, true);
 
@@ -1265,8 +1121,10 @@ public class SpectrumChartView {
         int halfLabelHeight = (labelHeight / 2);
         int halfCellWidth = cellWidth / 2;
 
+        int i = numCells > priceListSize ? 0 : priceListSize - numCells;
+
         int items = priceListSize - i;
-        int colLabelSpacing = items == 0 ? m_labelSpacingSize : (int) Math.floor(items / ((items * cellWidth) / m_labelSpacingSize));
+        int colLabelSpacing = (int) Math.floor(items / (priceListWidth / m_labelSpacingSize));
 
     
 
@@ -1279,6 +1137,7 @@ public class SpectrumChartView {
 
         int rowLabelSpacing = (int) (rows / (rowsHeight / m_labelSpacingSize));
 
+        int scaleLabelLength = (numbers.getClose() + "").length();
 
         for (j = 0; j < rows; j++) {
 
@@ -1291,78 +1150,69 @@ public class SpectrumChartView {
             }
             Drawing.fillArea(img, 0xff000000, chartWidth, y, chartWidth + 6, y + 1, false);
 
-            double scaleLabeldbl = rangeActive ? (double) ((j * rowHeight) / scale2) + botRangePrice : (double) (j * rowHeight) / scale;
+           BigDecimal scaleLabelDec = rangeActive ? BigDecimal.valueOf(j * rowHeight).divide(scale2, 14, RoundingMode.HALF_UP).add(botRangePrice) : BigDecimal.valueOf(j * rowHeight).divide(scale, 14, RoundingMode.HALF_UP);
 
           //  String scaleAmount = String.format("%." + numbers.getDecimals() + "f", scaleLabeldbl);
             //int amountWidth = m_imageText.getStandarFontMetrics().stringWidth(scaleAmount);
 
             // amountWidth = amountWidth > scaleColWidth - 2 ? scaleColWidth -2 : amountWidth;
 
-            int x1 = chartWidth + 17;
+            int x1 = chartWidth + (SCALE_COL_PADDING/2);
             int y1 = (y - halfLabelHeight) + lblCenter;
+            
+            String scaleLabelString = scaleLabelDec + "";
+            int scaleLabelStringLength = scaleLabelString.length();
+            String label = scaleLabelDec.doubleValue() == 0 && j == 0 ? "0" : scaleLabelString.substring(0, Math.min(scaleLabelStringLength, scaleLabelLength));
+            g2d.drawString( label, x1, y1);
 
-
-            g2d.drawString(String.format("%."+numbers.getClose().precision()+"f",scaleLabeldbl ), x1, y1);
-           // Drawing.clearImage(m_labelImg);
-
-          //  m_labelG2d.drawString(scaleAmount, 0, m_labelLeading + m_labelAscent);
-    
-          //  Drawing.drawImageExact(img, pR ,pW, m_labelImg, x1, y1, lblWidth, labelHeight, true);
             
         }
         j = 0;
 
-        while (i < priceListSize) {
+        while (i < priceList.length) {
             SpectrumPriceData priceData = priceList[i];
 
             int x = ((priceListWidth < chartWidth) ? (chartWidth - priceListWidth) : 0) + (j * (cellWidth + cellPadding));
             j++;
+           
+           BigDecimal low =  priceData.getOpen().min(priceData.getLow());
+           BigDecimal high = priceData.getHigh();
 
-            double low = priceData.getOpen().doubleValue() < priceData.getLow().doubleValue() ? priceData.getOpen().doubleValue() : priceData.getLow().doubleValue();
-            double high = priceData.getHigh().doubleValue();
-            if(rangeActive){
-                low = low < botRangePrice ? botRangePrice : low;
-                low = low > topRangePrice ? topRangePrice : low;
-                high = high < botRangePrice ? botRangePrice : high;
-                high = high > topRangePrice ? topRangePrice : high;
-            }
-            double nextOpen = (i < priceListSize - 2 ? priceList[i + 1].getOpen().doubleValue() : priceData.getClose().doubleValue());
-            double close = priceData.getClose().doubleValue();
-            double open = priceData.getOpen().doubleValue();
+
+            BigDecimal nextOpen = (i < priceListSize - 2 ? priceList[i + 1].getOpen() : priceData.getClose());  
+            BigDecimal close = priceData.getClose();
+            BigDecimal open = priceData.getOpen();
 
             
             if(rangeActive){
-                close = close < botRangePrice ? botRangePrice : close;
-                close = close > topRangePrice ? topRangePrice : close;
-                open = open < botRangePrice ? botRangePrice : open;
-                open = open > topRangePrice ? topRangePrice : open;
+                low =  low.max(botRangePrice);
+                low = low.min(topRangePrice);
+                high = high.max(botRangePrice);
+                high = high.min(topRangePrice);
+                close = close.max(botRangePrice);
+                close = close.min( topRangePrice);
+                open = open.max(botRangePrice);
+                open = open.min(topRangePrice);
             }
+                    
+            int lowY = rangeActive ?  low.subtract(botRangePrice).multiply(scale2).intValue() : low.multiply(scale).intValue();
+            int highY = rangeActive ? high.subtract(botRangePrice).multiply(scale2).intValue() : high.multiply(scale).intValue();
+            int openY = rangeActive ? open.subtract(botRangePrice).multiply(scale2).intValue() : open.multiply(scale).intValue();
+            int closeY = rangeActive ? close.subtract(botRangePrice).multiply(scale2).intValue(): close.multiply(scale).intValue();
 
-            int lowY = (int) (low * scale);
-            int highY = (int) (high * scale);
-            int openY = (int) (open * scale);
-            int closeY = (int) (close * scale);
 
-            if (rangeActive) {
+            lowY = Math.max(lowY, 0);
+            lowY = Math.min(lowY, chartHeight);
 
-                lowY = (int) ((low - botRangePrice) * scale2);
-                highY = (int) ((high - botRangePrice) * scale2);
-                openY = (int) ((open - botRangePrice) * scale2);
-                closeY = (int) ((close - botRangePrice) * scale2);
+            highY = Math.max(highY, 0);
+            highY = Math.min(highY, chartHeight) ;
 
-                lowY = lowY < 1 ? 1 : lowY;
-                lowY = lowY > chartHeight ? chartHeight : lowY;
+            openY = Math.max(openY,0);
+            openY = Math.min(openY, chartHeight);
 
-                highY = highY < 1 ? 1 : highY;
-                highY = highY > chartHeight ? chartHeight : highY;
-
-                openY = openY < 1 ? 1 : openY;
-                openY = openY > chartHeight ? chartHeight : openY;
-
-                closeY = closeY < 1 ? 1 : closeY;
-                closeY = closeY > chartHeight ? chartHeight : closeY;
-
-            }
+            closeY = Math.max(closeY, 0);
+            closeY = Math.min(closeY,chartHeight);
+        
 
             boolean positive = !((height - closeY) > (height - openY));
             boolean neutral = open == nextOpen && open == close;
@@ -1410,31 +1260,19 @@ public class SpectrumChartView {
             i++;
         }
 
-        int currentCloseY = (int) (currentPrice.doubleValue() * scale);
+        int currentCloseY = rangeActive ? currentPrice.subtract(botRangePrice).multiply(scale2).intValue() : currentPrice.multiply(scale).intValue();
 
         int y = chartHeight - currentCloseY;
         int minY = (halfLabelHeight + 8);
         int maxY = chartHeight;
 
-        boolean outOfBounds = false;
+        boolean outOfBounds = y < minY || y > maxY;
 
-        if (rangeActive) {
-            y = (int) (chartHeight - ((currentPrice.doubleValue() - botRangePrice) * scale2));
-
-            if (y < minY) {
-                outOfBounds = true;
-                y = minY;
-            } else {
-                if (y > maxY) {
-                    outOfBounds = true;
-                    y = maxY;
-                }
-            }
-
-        }
-
-        y = y < 0 ? 0 : y > chartHeight ? chartHeight : y;
-
+        y = rangeActive ? (y < minY ? minY : (y>maxY ? maxY : y)) : y; 
+        
+        y = Math.max(0, y); 
+        y = Math.min(y, chartHeight);
+        
         // m_direction = m_isPositive.get() > -1;
 
     // m_lastClose = getCurrentPrice().doubleValue();
@@ -1576,7 +1414,7 @@ public class SpectrumChartView {
 /*   m_g2d.setColor(new Color(0xffcdd4da, true));
         m_g2d.setFont(m_labelFont);
         m_g2d.drawString(Utils.formatTimeString(Utils.milliToLocalTime(m_doUpdate.get())), width-85, height);
-*/      return topBotRange;
+*/      
       
     }
 

@@ -1309,7 +1309,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             m_connectionStatus = STARTING;
                     
-
             ExecutorService executor = getNetworksData().getExecService();
             
             Runnable exec = ()->{
@@ -1330,30 +1329,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
                         getMarketUpdate(marketJsonArray);
                     } 
                 }, (onfailed)->{
-                    //onfailed.getSource().getException();
-                    m_connectionStatus = ERROR;
-                    sendMessage(ERROR, System.currentTimeMillis(), onfailed.getSource().getException().toString());
-                });
-                /*try {
-                    Files.writeString(App.logFile.toPath(), "\nfreeMem: " + freeMem.getMemFreeGB() + " GB", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
                     
-                }
+                    m_connectionStatus = ERROR;
+                    Throwable throwable = onfailed.getSource().getException();
+                    String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
+                  
+                    sendMessage(ERROR, System.currentTimeMillis(), msg);
+                });
+                
 
-               
-                int counter = m_counter;
- 
-                if(counter >= 10){
-                    System.gc();
-                    try {
-                        Files.writeString(App.logFile.toPath(), "\nGarbage Collected", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e) {
-                        
-                    }
-                    m_counter = 0;
-                }else{
-                    m_counter++;
-                }*/
                 
             };
 

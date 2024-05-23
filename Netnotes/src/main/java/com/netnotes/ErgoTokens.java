@@ -672,11 +672,11 @@ public class ErgoTokens extends Network implements NoteInterface {
 
 
     public static Image getAppIcon() {
-        return new Image("/assets/diamond-150.png");
+        return new Image("/assets/ergoTokens-150.png");
     }
 
     public static Image getSmallAppIcon() {
-        return new Image("/assets/diamond-30.png");
+        return new Image("/assets/ergoTokens-30.png");
     }
 
     public String getFile(NetworkType networkType) {

@@ -439,7 +439,7 @@ public class AddressData extends Network {
         tokensTip.setShowDelay(new javafx.util.Duration(50));
         tokensTip.setFont(App.mainFont);
 
-        BufferedMenuButton tokensBtn = new BufferedMenuButton("/assets/diamond-30.png", imageWidth);
+        BufferedMenuButton tokensBtn = new BufferedMenuButton(ErgoTokens.getSmallAppIcon().getUrl(), imageWidth);
         tokensBtn.setPadding(new Insets(2, 0, 0, 0));
         
 
@@ -1783,7 +1783,7 @@ public class AddressData extends Network {
             tokensTip.setFont(App.mainFont);
 
 
-            BufferedMenuButton tokensBtn = new BufferedMenuButton("/assets/diamond-30.png", imageWidth);
+            BufferedMenuButton tokensBtn = new BufferedMenuButton(ErgoTokens.getSmallAppIcon().getUrl(), imageWidth);
             tokensBtn.setPadding(new Insets(2, 0, 0, 0));
         
             

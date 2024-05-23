@@ -4,6 +4,7 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
@@ -842,6 +843,7 @@ public class SpectrumMarketItem {
             SpectrumChartView spectrumChartView = m_marketData.getSpectrumChartView().get();
             SimpleBooleanProperty shutdownSwap = new SimpleBooleanProperty(false);
             SimpleObjectProperty<TimeSpan> timeSpanObject = new SimpleObjectProperty<>(new TimeSpan("30min"));
+            SimpleObjectProperty<RangeStyle> rangeStyleObject = new SimpleObjectProperty<>(new RangeStyle("auto"));
 
             double sceneWidth = 900;
             double sceneHeight = 800;
@@ -1065,67 +1067,68 @@ public class SpectrumMarketItem {
             java.awt.Font labelFont = m_dataList.getLabelFont();
             FontMetrics labelMetrics = m_dataList.getLabelMetrics();
             int amStringWidth = labelMetrics.stringWidth(" a.m. ");
-       
+            int zeroStringWidth = labelMetrics.stringWidth("0");
+
             Runnable setChartScrollRight = () ->{
                 Platform.runLater(()->chartScroll.setVvalue(chartScrollVvalue));
                 Platform.runLater(()->chartScroll.setHvalue(chartScrollHvalue));
             };
+            
 
             Runnable createChart = () ->{
+                
+                int maxBars = (SpectrumChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding))-1;
+                TimeSpan timeSpan = timeSpanObject.get();
+
                 spectrumChartView.processData(
                     m_isInvert.get(), 
-                    SpectrumChartView.MAX_BARS, 
+                    maxBars, 
                     timeSpanObject.get(),
-                    Utils.getNowEpochMillis(m_marketData.getLastUpdated().get() == null ? LocalDateTime.now() : m_marketData.getLastUpdated().get()),
+                    System.currentTimeMillis(),
                      m_dataList.getSpectrumFinance().getExecService(), 
                      (onSucceeded)->{
                         Object sourceValue = onSucceeded.getSource().getValue();
                         if(sourceValue != null && sourceValue instanceof SpectrumNumbers){
                             SpectrumNumbers numbers = (SpectrumNumbers) sourceValue;
-                            int size = numbers.dataLength() > SpectrumChartView.MAX_BARS ? SpectrumChartView.MAX_BARS : numbers.dataLength();
+                            
+                            int size = numbers.dataLength();
+
+                        
                             if(size > 0){
                            
                                 int totalCellWidth = cellWidth + cellPadding;
                                 
-                                int itemsTotalCellWidth = size * (totalCellWidth + cellPadding);
-                         
-                                int scaleColWidth =  labelMetrics.stringWidth(numbers.getClose() +"")+ 30;
+                                int itemsTotalCellWidth = size * (totalCellWidth);
+
+                                int scaleLabelLength = (numbers.getClose() +"").length();
+
+                                int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
                 
                                 int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
                                 int height = (int) chartScroll.viewportBoundsProperty().get().getHeight();
                                 
-                                
+
                                 boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
                             
                                 m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
                                 m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
-                                boolean settingRange = chartRange.settingRangeProperty().get();
                                 m_numbers = numbers;
-                                double botVvalue = chartRange.bottomVvalueProperty().get(); 
-                                double topVvalue = chartRange.topVvalueProperty().get();
-                                boolean active = chartRange.activeProperty().get();
-                                TimeSpan timeSpan = timeSpanObject.get();
-                                double[] topBotRange = SpectrumChartView.updateBufferedImage(
+            
+                                
+                                SpectrumChartView.updateBufferedImage(
                                     m_img, 
                                     m_g2d, 
                                     labelFont, 
                                     labelMetrics, 
                                     numbers,
-                                    chartRange.getTopBotRange(), 
                                     cellWidth, 
                                     cellPadding, 
-                                    scaleColWidth, 
+                                    scaleColWidth,
                                     amStringWidth,
                                     timeSpan, 
-                                    botVvalue,
-                                    topVvalue,
-                                    active,
-                                    settingRange
+                                    chartRange
                                 );
-                                if(settingRange){
-                                    chartRange.setTopBotRange(topBotRange == null ? new double[]{0,0} : topBotRange);
-                                }
-
+                               
                                 chartImageView.setImage(SwingFXUtils.toFXImage(m_img, null));
                                 if(isNewImg){
                                     setChartScrollRight.run();
@@ -1140,65 +1143,12 @@ public class SpectrumMarketItem {
                // spectrumChartView.updateChartImage(cellWidth, cellPadding, priceData, numbersObject, chartRange, chartWidth, chartHeight, timeSpanObject.get(), m_isInvert.get());
             };
             
-            Runnable updateChart = () ->{
-                if(m_numbers != null){
-                    SpectrumNumbers numbers = m_numbers;
-                    int size = numbers.dataLength() > SpectrumChartView.MAX_BARS ? SpectrumChartView.MAX_BARS : numbers.dataLength();
-                    if(size > 0){
-                   
-                        int totalCellWidth = cellWidth + cellPadding;
-                        
-                        int itemsTotalCellWidth = size * (totalCellWidth + cellPadding);
-                 
-                        int scaleColWidth =  labelMetrics.stringWidth(numbers.getClose() +"")+ 30;
-        
-                        int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
-                        int height = (int) chartScroll.viewportBoundsProperty().get().getHeight();
-                        height = height < 300 ? 300 : height;
-                        
-                        boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
-                    
-                        m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
-                        m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
-                        boolean settingRange = chartRange.settingRangeProperty().get();
-                        double botVvalue = chartRange.bottomVvalueProperty().get(); 
-                        double topVvalue = chartRange.topVvalueProperty().get();
-                        boolean active = chartRange.activeProperty().get();
-                        TimeSpan timeSpan = timeSpanObject.get();
-
-                        double[] topBotRange = SpectrumChartView.updateBufferedImage(
-                            m_img, 
-                            m_g2d, 
-                            labelFont, 
-                            labelMetrics, 
-                            numbers,
-                            chartRange.getTopBotRange(), 
-                            cellWidth, 
-                            cellPadding, 
-                            scaleColWidth, 
-                            amStringWidth,
-                            timeSpan, 
-                            botVvalue, 
-                            topVvalue, 
-                            active , 
-                            settingRange
-                        );
-                        if(settingRange){
-                            chartRange.setTopBotRange(topBotRange == null ? new double[]{0,0} : topBotRange);
-                        }
-
-                        chartImageView.setImage(SwingFXUtils.toFXImage(m_img, null));
-                        if(isNewImg){
-                            setChartScrollRight.run();
-                        }
-                    }
-                }
-            };
+            
 
             
             ChangeListener<Bounds> boundsChangeListener = (obs,oldval,newval)->{
            
-                    updateChart.run();
+                    createChart.run();
               
               
 
@@ -1208,15 +1158,19 @@ public class SpectrumMarketItem {
             };
             
             chartRange.bottomVvalueProperty().addListener((obs,oldval,newval)->{
-                updateChart.run();
+                if(chartRange.settingRangeProperty().get()){
+                    createChart.run();
+                }
             });
 
             chartRange.topVvalueProperty().addListener((obs,oldval,newval)->{
-                updateChart.run();
+                if(chartRange.settingRangeProperty().get()){
+                    createChart.run();
+                }
             });
 
             chartRange.activeProperty().addListener((obs,oldval,newval)->{
-                updateChart.run();
+                createChart.run();
             });
 
             SimpleObjectProperty<ControlInterface> currentControl = new SimpleObjectProperty<>(null);
@@ -1242,21 +1196,22 @@ public class SpectrumMarketItem {
                         currentControl.set(null);
                     }
                 }
-                updateChart.run();
+                createChart.run();
             });
     
+            timeSpanObject.addListener((obs,oldval,newval)->createChart.run());
 
             Runnable addListeners = () ->{
                 spectrumChartView.dataListChangedProperty().addListener(dataChangeListener);
                 chartScroll.viewportBoundsProperty().addListener(boundsChangeListener);
        
             };
-            createChart.run();
+       
 
-            FxTimer.runLater(Duration.ofMillis(200),()->{
+            FxTimer.runLater(Duration.ofMillis(150),()->{
                 
-               
                 addListeners.run();
+                createChart.run();
             });
 
             
@@ -1392,10 +1347,13 @@ public class SpectrumMarketItem {
                 if(m_stage != null){
                     m_stage.close();
                     m_stage = null;
-                    m_g2d.dispose();
-                    m_g2d = null;
-                    m_img = null;
+                  
                 }
+                if(m_g2d != null){
+                    m_g2d.dispose();
+                }
+                m_g2d = null;
+                m_img = null;
             });
 
      
@@ -1471,7 +1429,9 @@ public class SpectrumMarketItem {
                 if(m_stage != null){
                     m_stage.close();
                     m_stage = null;
-                    m_g2d.dispose();
+                    if(m_g2d != null){
+                        m_g2d.dispose();
+                    }
                     m_g2d = null;
                     m_img = null;
                 }

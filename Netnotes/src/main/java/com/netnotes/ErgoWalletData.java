@@ -605,7 +605,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         tokensTip.setFont(App.txtFont);
 
 
-        BufferedMenuButton tokensMenuBtn = new BufferedMenuButton("/assets/diamond-30.png", imageWidth);
+        BufferedMenuButton tokensMenuBtn = new BufferedMenuButton(ErgoTokens.getSmallAppIcon().getUrl(), imageWidth);
         tokensMenuBtn.setPadding(new Insets(2, 0, 0, 0));
         tokensMenuBtn.setTooltip(tokensTip);
 

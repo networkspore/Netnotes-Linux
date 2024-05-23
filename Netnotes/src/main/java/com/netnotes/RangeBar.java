@@ -9,6 +9,7 @@ import com.utils.Utils;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -40,6 +41,7 @@ public class RangeBar extends ImageView implements ControlInterface{
     private SimpleDoubleProperty m_bottomVvalue = new SimpleDoubleProperty(0);
     private SimpleBooleanProperty m_settingRange = new SimpleBooleanProperty(false);
     private SimpleBooleanProperty m_active = new SimpleBooleanProperty(false);
+    private SimpleObjectProperty<RangeStyle> m_rangeStyle = new SimpleObjectProperty<>(new RangeStyle(RangeStyle.AUTO)); 
 
     private double m_minBot = 0;
 
@@ -242,6 +244,20 @@ public class RangeBar extends ImageView implements ControlInterface{
     
     }
 
+    public void setTopValue(double value, boolean update){
+        m_topVvalue.set(value);
+        if(update){
+            updateImage();
+        }
+    }
+
+    public void setBotVvalue(double value, boolean update){
+        m_bottomVvalue.set(value);
+        if(update){
+            updateImage();
+        }
+    }
+
     public SimpleDoubleProperty rangeBarWidthProperty() {
         return m_width;
     }
@@ -403,6 +419,7 @@ public class RangeBar extends ImageView implements ControlInterface{
 
     }
 
+
     public static int selectMouseButton(MouseEvent mouseEvent, double height, double topVvalue, double botVvalue, double btnHeight) {
 
         double mouseY = mouseEvent.getY();
@@ -474,13 +491,9 @@ public class RangeBar extends ImageView implements ControlInterface{
         return (botValue == m_minBot ? height - (m_btnHeight * 2) : (int) Math.ceil(((height - (m_btnHeight * 2)) - (getScrollScale(height) * botValue)))) + m_btnHeight;
     }
 
-    private double[] m_topBotRange = new double[] {0,0};
    
-    public double[] getTopBotRange(){
-        return m_topBotRange;
-    }
-    public void setTopBotRange(double[] value){
-        m_topBotRange = value;
+    public SimpleObjectProperty<RangeStyle> rangeStyleProperty(){
+        return m_rangeStyle;
     }
 
     public void updateImage() {
