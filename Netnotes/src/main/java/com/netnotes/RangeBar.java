@@ -9,10 +9,11 @@ import com.utils.Utils;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -22,6 +23,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
 public class RangeBar extends ImageView implements ControlInterface{
@@ -41,7 +43,7 @@ public class RangeBar extends ImageView implements ControlInterface{
     private SimpleDoubleProperty m_bottomVvalue = new SimpleDoubleProperty(0);
     private SimpleBooleanProperty m_settingRange = new SimpleBooleanProperty(false);
     private SimpleBooleanProperty m_active = new SimpleBooleanProperty(false);
-    private SimpleObjectProperty<RangeStyle> m_rangeStyle = new SimpleObjectProperty<>(new RangeStyle(RangeStyle.AUTO)); 
+    private RangeStyle m_rangeStyle = new RangeStyle(RangeStyle.AUTO); 
 
     private double m_minBot = 0;
 
@@ -174,10 +176,38 @@ public class RangeBar extends ImageView implements ControlInterface{
     }
 
     public HBox getControlBox(){
+
+            MenuButton rangeStyleBtn = new MenuButton(m_rangeStyle.getName());
+            rangeStyleBtn.setPrefWidth(60);
+            rangeStyleBtn.setPrefHeight(20);
+            HBox rangeStyleBox = new HBox(rangeStyleBtn);
+            rangeStyleBox.setId("urlField");
+         
+            VBox rangeStyleBtnBox = new VBox(rangeStyleBox);
+            rangeStyleBtnBox.setAlignment(Pos.CENTER);
+            rangeStyleBtnBox.setPadding(new Insets(3,5,3,5));
+            
+           
+            MenuItem autoRangeStyleItem = new MenuItem(RangeStyle.AUTO);
+            autoRangeStyleItem.setOnAction(e->{
+                rangeStyleBtn.setText(RangeStyle.AUTO);
+                
+            });
+
+            MenuItem userRangeStyleItem = new MenuItem(RangeStyle.USER);
+            userRangeStyleItem.setOnAction(e->{
+                rangeStyleBtn.setText(RangeStyle.USER);
+            });
+
+            rangeStyleBtn.getItems().addAll(autoRangeStyleItem, userRangeStyleItem);
+            
         
             BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
             setRangeBtn.getBufferedImageView().setFitWidth(15);
-            setRangeBtn.setOnAction(e->start());
+            setRangeBtn.setOnAction(e->{
+                m_rangeStyle.setStyle(rangeStyleBtn.getText());
+                start();
+            });
             setRangeBtn.setId("circleGoBtn");
             setRangeBtn.setMaxWidth(20);
             setRangeBtn.setMaxHeight(20);
@@ -196,7 +226,9 @@ public class RangeBar extends ImageView implements ControlInterface{
             rangeText.setFont(App.titleFont);
             rangeText.setFill(App.txtColor);
 
-            HBox chartRangeToolbox = new HBox(rangeText, setRangeBtn, btnSpacer, cancelRangeBtn);
+            
+
+            HBox chartRangeToolbox = new HBox(rangeText,rangeStyleBtnBox, setRangeBtn, btnSpacer, cancelRangeBtn);
             chartRangeToolbox.setId("bodyBox");
             chartRangeToolbox.setAlignment(Pos.CENTER_LEFT);
             chartRangeToolbox.setPadding(new Insets(0,5,0,5));
@@ -278,6 +310,7 @@ public class RangeBar extends ImageView implements ControlInterface{
         m_imgBuf = new WritableImage(width, height);
         m_pW = m_imgBuf.getPixelWriter();
         m_pR = m_imgBuf.getPixelReader();
+    
         Drawing.fillArea(m_imgBuf, m_pR, m_pW, BG_RGB, 0, 0, width, height, false);
         setImage(m_imgBuf);
         setFitWidth(m_imgBuf.getWidth());
@@ -290,9 +323,6 @@ public class RangeBar extends ImageView implements ControlInterface{
         setBgImage(width, height);
     }
 
-    public SimpleBooleanProperty activeProperty() {
-        return m_active;
-    }
 
     public SimpleDoubleProperty topVvalueProperty() {
         return m_topVvalue;
@@ -349,6 +379,7 @@ public class RangeBar extends ImageView implements ControlInterface{
     public void reset(boolean update) {
         m_settingRange.set(false);
         m_active.set(false);
+        m_rangeStyle.setStyle(RangeStyle.NONE);
         m_topVvalue.set(m_maxTop);
         m_bottomVvalue.set(m_minBot);
         if (update) {
@@ -461,7 +492,7 @@ public class RangeBar extends ImageView implements ControlInterface{
 
             boolean settingRange = m_settingRange.get();
             if (!settingRange) {
-
+                m_rangeStyle.setStyle(RangeStyle.USER);
                 m_settingRange.set(true);
                 m_currentSelectionIndex = -1;
             } else {
@@ -492,112 +523,60 @@ public class RangeBar extends ImageView implements ControlInterface{
     }
 
    
-    public SimpleObjectProperty<RangeStyle> rangeStyleProperty(){
+    public RangeStyle getRangeStyle(){
         return m_rangeStyle;
+    }
+
+    public SimpleBooleanProperty activeProperty(){
+        return m_active;
     }
 
     public void updateImage() {
         
         if(m_imgBuf == null){
             setBgImage(m_width, m_height);
-        }/*else{
-            int w = (int) m_width.get();
-            int h = (int) m_height.get();
-            w = w < 1 ? 1 : w;
-            h = h < 1 ? 1 : h;
-            if(m_imgBuf.getWidth() != w || m_imgBuf.getHeight() != h){
-                setBgImage(m_width, m_height);
-            }else{
-                Drawing.fillArea(m_imgBuf, m_pR, m_pW, BG_RGB, 0, 0, w , h, false);
-            }
-        }*/
+        }
       
         int width = (int) m_imgBuf.getWidth();
         int height = (int) m_imgBuf.getHeight();
 
-        /*int btnTopX1 = 0;
-        int btnTopY1 = 0;
-        int btnTopX2 = width;
-        int btnTopY2 = m_btnHeight;
-
-        int btnBotX1 = 0;
-        int btnBotY1 = height - m_btnHeight;
-        int btnBotX2 = width;
-        int btnBotY2 = height;*/
-        // double imgScale = getScrollScale(height);
         int x1 = 2;
         int y1 = getY1(height);
 
         int x2 = width-4;
         int y2 = getY2(height);
         boolean settingRange = m_settingRange.get();
+        boolean active = isActive();
 
         if (!settingRange) {
             Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x00010101, 0, 0, width, height, false);
 
-            Drawing.drawBar(1, (m_active.get() ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR,m_pW, x1, y1, x2, y2);
+            Drawing.drawBar(1, (active ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR,m_pW, x1, y1, x2, y2);
             Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1, x2, y2);
 
             if (m_topVvalue.get() == 1 && m_bottomVvalue.get() == 0) {
 
-                Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50000000, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
+                Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50111111, x1, (height / 2) - 10, x2, (height / 2) + 10, true);
 
-                Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, m_collapseImage.getPixelReader(), (int) ((width/2) - (m_collapseImage.getWidth()/2)),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), false);
+             //   Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, m_collapseImage.getPixelReader(), (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), false);
+               //WritableImage img, PixelReader pR1, PixelWriter pW1, Image img2, int x1, int y1, int limitAlpha
+               Drawing.drawImageLimit(m_imgBuf, m_pR, m_pW, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), 0x40);
             }
         } else {
             Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x20ffffff, 2, 0, width-3, height, true);
             Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0xff000000, 2, 0, width-3, height, true);
-            //OkBtn
-           /* boolean okBtnDown = m_currentSelectionIndex == 0;
-            int okShadingRGB1 = m_shadingLightRGB;
-            int okShadingRGB2 = m_shadingGreenRGB;
-            int okRGB1 = m_btnTopBgColor1;
-            int okRGB2 = m_btnTopBgColor2;
-            int okRGB3 = m_btnTopBgColor3;
-            int okRGB4 = m_btnTopBgColor4;
-
-            if (okBtnDown) {
-                okShadingRGB1 = m_shadingDarkRGB;
-                okShadingRGB2 = m_shadingGreenRGB;
-
-            }
-
-            Drawing.drawBar(1, okShadingRGB1, okShadingRGB2, m_imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
-            Drawing.drawBar(1, okRGB1, okRGB2, m_imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
-            Drawing.drawBar(0, okRGB3, okRGB4, m_imgBuf, btnTopX1, btnTopY1, btnTopX2, btnTopY2);
-
-            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor2, btnTopX1, btnTopY1, btnTopX1 + 1, btnTopY2);
-            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor2, btnTopX1, btnTopY1, btnTopX2, btnTopY1 + 1);
-            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor, btnTopX2 - 1, btnTopY1, btnTopX2, btnTopY2);
-            Drawing.fillArea(m_imgBuf, m_btnTopBorderColor, btnTopX1 + 1, btnTopY2 - 1, btnTopX2 - 1, btnTopY2);
-
-            //Cancel Btn
-            boolean cancelBtnDown = m_currentSelectionIndex == 1;
-            int cancelShadingRGB1 = m_shadingRedRGB;
-            int cancelShadingRGB2 = m_shadingLightRedRGB; //
-            int cancelRGB1 = m_btnBotBgColor1;
-            int cancelRGB2 = m_btnBotBgColor2;
-            int cancelRGB3 = m_btnBotBgColor3;
-            int cancelRGB4 = m_btnBotBgColor4;
-
-            if (cancelBtnDown) {
-                cancelShadingRGB1 = m_shadingDarkRGB;
-                cancelShadingRGB2 = m_shadingRedRGB;
-            }
-
-            Drawing.drawBar(1, cancelShadingRGB1, cancelShadingRGB2, m_imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
-            Drawing.drawBar(1, cancelRGB1, cancelRGB2, m_imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
-            Drawing.drawBar(0, cancelRGB3, cancelRGB4, m_imgBuf, btnBotX1, btnBotY1, btnBotX2, btnBotY2);
-
-            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor2, btnBotX1, btnBotY1, btnBotX1 + 1, btnBotY2); //left
-            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor, btnBotX1, btnBotY1, btnBotX2, btnBotY1 + 1); //top
-            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor, btnBotX2 - 1, btnBotY1, btnBotX2, btnBotY2);
-            Drawing.fillArea(m_imgBuf, m_btnBotBorderColor2, btnBotX1 + 1, btnBotY2 - 1, btnBotX2 - 1, btnBotY2);*/
-
+          
             //RangeBar
-            Drawing.drawBar(1,(m_active.get() ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
+            Drawing.drawBar(1,(active ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
             Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
+            int sliderHeight = 9;
+            int topSliderY2 = y1 + sliderHeight;
 
+
+            int botSliderY1 = y2 - sliderHeight;
+
+            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x80ffffff, x1, y1, width-3, topSliderY2, true);
+            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50000000, x1, botSliderY1, width-3, y2, true);
         }
        
     }

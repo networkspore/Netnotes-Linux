@@ -1025,15 +1025,14 @@ public class SpectrumChartView {
         if(priceList == null || (priceList != null && priceList.length == 0) ) {
             return;
         }
-        RangeStyle rangeStyle = rangeBar.rangeStyleProperty().get();
-
+        RangeStyle rangeStyle = rangeBar.getRangeStyle();
 
         double bottomVvalue = rangeBar.bottomVvalueProperty().get();
         double topVvalue = rangeBar.topVvalueProperty().get(); 
       
         boolean isRangeSetting = rangeBar.settingRangeProperty().get(); 
         
-        boolean rangeActive = rangeBar.activeProperty().get();
+        boolean rangeActive = rangeBar.isActive();
         boolean isAuto = rangeStyle.getId().equals(RangeStyle.AUTO) && !isRangeSetting;
 
         rangeActive = isAuto || (rangeActive && !isRangeSetting);
@@ -1096,15 +1095,19 @@ public class SpectrumChartView {
             rangeStyle.setBottomValue(botRangePrice);
             rangeStyle.setStyle(RangeStyle.USER);
         }
-        
-        
-
 
         if(isAuto){
+
             double tVv = topRangePrice.divide(topChartValue, 12, RoundingMode.HALF_UP).doubleValue();
             double bVv = botRangePrice.divide(topChartValue, 12, RoundingMode.HALF_UP).doubleValue();
-            rangeBar.setTopValue(tVv, false);
-            rangeBar.setBotVvalue(bVv, true);  
+            
+            if(topVvalue != tVv || bVv != bottomVvalue){
+
+                rangeBar.setTopValue(tVv, false);
+                rangeBar.setBotVvalue(bVv, true);  
+                
+            }
+
         }
 
         Drawing.fillArea(img, 0xff111111, 0, 0, chartWidth, chartHeight, true);
