@@ -568,7 +568,7 @@ public class Drawing {
                 int img2x = x - x1;
                 int img2y = y - y1;
                 
-                if(img2x > -1 && img2x < img2.getWidth() && img2y > -1 && img2y < img2.getWidth() && x > -1 && x < img.getWidth() && y > -1 && y < img.getHeight()){
+                if(img2x > -1 && img2x < width && img2y > -1 && img2y < height && x > -1 && x < img.getWidth() && y > -1 && y < img.getHeight()){
                 
                     int rgba = pR.getArgb(img2x, img2y);
                    

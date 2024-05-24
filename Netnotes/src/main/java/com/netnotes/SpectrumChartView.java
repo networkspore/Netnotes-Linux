@@ -1080,8 +1080,8 @@ public class SpectrumChartView {
         
         
 
-        BigDecimal topRangePrice = isAuto ? highValue.add(spacing) : (isRangeSetting ? BigDecimal.valueOf(topVvalue * (Math.floor(chartHeight / rowHeight) * rowHeight)).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getTopValue());
-        BigDecimal botRangePrice = isAuto ? lowValue.subtract(spacing) : (isRangeSetting? BigDecimal.valueOf(bottomVvalue * (Math.floor(chartHeight / rowHeight) * rowHeight)).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getBotValue());
+        BigDecimal topRangePrice = isAuto ? highValue.add(spacing) : (isRangeSetting ? BigDecimal.valueOf(topVvalue * chartHeight).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getTopValue());
+        BigDecimal botRangePrice = isAuto ? lowValue.subtract(spacing) : (isRangeSetting? BigDecimal.valueOf(bottomVvalue * chartHeight).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getBotValue());
 
 
         botRangePrice = botRangePrice.max(BigDecimal.ZERO);

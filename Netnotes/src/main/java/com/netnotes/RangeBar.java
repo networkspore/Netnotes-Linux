@@ -180,12 +180,14 @@ public class RangeBar extends ImageView implements ControlInterface{
             MenuButton rangeStyleBtn = new MenuButton(m_rangeStyle.getName());
             rangeStyleBtn.setPrefWidth(60);
             rangeStyleBtn.setPrefHeight(20);
+
             HBox rangeStyleBox = new HBox(rangeStyleBtn);
             rangeStyleBox.setId("urlField");
+            rangeStyleBox.setPrefHeight(20);
          
             VBox rangeStyleBtnBox = new VBox(rangeStyleBox);
             rangeStyleBtnBox.setAlignment(Pos.CENTER);
-            rangeStyleBtnBox.setPadding(new Insets(3,5,3,5));
+            rangeStyleBtnBox.setPadding(new Insets(0,5,0,5));
             
            
             MenuItem autoRangeStyleItem = new MenuItem(RangeStyle.AUTO);
@@ -556,11 +558,11 @@ public class RangeBar extends ImageView implements ControlInterface{
 
             if (m_topVvalue.get() == 1 && m_bottomVvalue.get() == 0) {
 
-                Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50111111, x1, (height / 2) - 10, x2, (height / 2) + 10, true);
+               // Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50111111, x1, (height / 2) - 10, x2, (height / 2) + 10, false);
 
-             //   Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, m_collapseImage.getPixelReader(), (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), false);
+               // Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, m_collapseImage.getPixelReader(), (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), true);
                //WritableImage img, PixelReader pR1, PixelWriter pW1, Image img2, int x1, int y1, int limitAlpha
-               Drawing.drawImageLimit(m_imgBuf, m_pR, m_pW, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), 0x40);
+               Drawing.drawImageLimit(m_imgBuf, m_pR, m_pW, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), 0x70);
             }
         } else {
             Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x20ffffff, 2, 0, width-3, height, true);
