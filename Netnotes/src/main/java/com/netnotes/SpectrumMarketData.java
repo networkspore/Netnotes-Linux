@@ -2,7 +2,6 @@ package com.netnotes;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.utils.Utils;
 
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;

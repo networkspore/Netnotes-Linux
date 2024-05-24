@@ -10,7 +10,6 @@ import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -39,7 +38,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -100,8 +98,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private SimpleObjectProperty<NoteInterface> m_currentNetwork = new SimpleObjectProperty<>();
     
     private SimpleLongProperty m_doGridUpdate = new SimpleLongProperty(0);
-
-    private String m_errorMsg = "";
 
     public SpectrumDataList(String id, SpectrumFinance spectrumFinance) {
         

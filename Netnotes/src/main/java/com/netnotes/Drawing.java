@@ -6,7 +6,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
@@ -471,7 +470,7 @@ public class Drawing {
     }
 
     public static void drawFadeHLine(WritableImage img, PixelReader pR, PixelWriter pW, int RGB1, int RGB2, int thickness, int x1, int y1, int x2, int y2, boolean blend){
-        int halfThickness = (int) Math.ceil(thickness / 2);
+       // int halfThickness = (int) Math.ceil(thickness / 2);
         
         boolean change = y2 < y1;
         int y3 = y1;

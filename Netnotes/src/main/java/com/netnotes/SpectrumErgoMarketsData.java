@@ -6,8 +6,6 @@ import com.devskiller.friendly_id.FriendlyId;
 
 import com.google.gson.JsonObject;
 
-import javafx.beans.value.ChangeListener;
-
 public class SpectrumErgoMarketsData extends ErgoMarketsData{
     
 

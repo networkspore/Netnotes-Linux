@@ -68,12 +68,10 @@ import javafx.stage.Stage;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FilenameUtils;
-import org.bouncycastle.pqc.jcajce.provider.qtesla.SignatureSpi.qTESLA;
 
 import java.io.FilenameFilter;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
-import ove.alphazero.util.CmdLineArgs.Spec;
 import ove.crypto.digest.Blake2b;
 import scala.util.Try;
 
@@ -87,7 +85,6 @@ import com.netnotes.FreeMemory;
 import com.netnotes.HashData;
 import com.netnotes.PriceAmount;
 import com.netnotes.PriceCurrency;
-import com.netnotes.SpectrumPrice;
 import com.satergo.extra.AESEncryption;
 
 public class Utils {

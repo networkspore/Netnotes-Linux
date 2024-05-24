@@ -2,9 +2,6 @@ package com.netnotes;
 
 import com.google.gson.JsonObject;
 
-import javafx.beans.property.SimpleBooleanProperty;
-
-import com.google.gson.JsonElement;
 
 public class SpectrumSort {
     public static class SortType{
