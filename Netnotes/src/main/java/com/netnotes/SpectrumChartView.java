@@ -29,20 +29,21 @@ import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.scene.image.PixelReader;
-import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 
 public class SpectrumChartView {
 
     
     public final static int DECIMAL_PRECISION = 6;
-    public final static int MAX_CHART_WIDTH = 150 * 20;
+   
     public final static int MIN_CHART_HEIGHT = 300;
-    public final static int MIN_CHART_WIDTH = 100;
+    public final static int MIN_CHART_WIDTH = 200;
+    
     public final static int DEFAULT_CELL_WIDTH = 20;
     public final static int DEFAULT_CELL_PADDING = 3;
-    
+    public final static int MAX_CHART_WIDTH = 3840;
+    public final static int MAX_CHART_HEIGHT = 2160;
+
     public final static int CANDLE_GRAPH = 0;
     public final static int MINIMAL_LINE_GRAPH = 1;
 
@@ -1074,11 +1075,11 @@ public class SpectrumChartView {
         BigDecimal highValue = numbers.getHigh();
         BigDecimal lowValue = numbers.getLow();
 
-        BigDecimal spacing =  highValue.multiply(BigDecimal.valueOf(.1));
+        BigDecimal spacing =  highValue.multiply(BigDecimal.valueOf(.05));
         
         BigDecimal scale = closeMiddle.divide(highValue, 20, RoundingMode.UP);
         
-        
+        rangeStyle.setScale(scale);
 
         BigDecimal topRangePrice = isAuto ? highValue.add(spacing) : (isRangeSetting ? BigDecimal.valueOf(topVvalue * chartHeight).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getTopValue());
         BigDecimal botRangePrice = isAuto ? lowValue.subtract(spacing) : (isRangeSetting? BigDecimal.valueOf(bottomVvalue * chartHeight).divide(scale, 15, RoundingMode.HALF_UP) : rangeStyle.getBotValue());
@@ -1090,10 +1091,10 @@ public class SpectrumChartView {
         
         BigDecimal scale2 = bigImageHeight.divide((topRangePrice.subtract(botRangePrice)), 20, RoundingMode.UP);
          
-        if (isRangeSetting) {
+        if (isRangeSetting || isAuto ) {
             rangeStyle.setTopValue(topRangePrice);
             rangeStyle.setBottomValue(botRangePrice);
-            rangeStyle.setStyle(RangeStyle.USER);
+            rangeStyle.setChartHeight(chartHeight);
         }
 
         if(isAuto){
@@ -1103,7 +1104,7 @@ public class SpectrumChartView {
             
             if(topVvalue != tVv || bVv != bottomVvalue){
 
-                rangeBar.setTopValue(tVv, false);
+                rangeBar.setTopVvalue(tVv, false);
                 rangeBar.setBotVvalue(bVv, true);  
                 
             }
@@ -1133,12 +1134,12 @@ public class SpectrumChartView {
 
         int rows = (int) Math.floor(chartHeight / rowHeight);
 
-        rows = rows == 0 ? 1 : rows;
+        rows = rows < 1 ? 1 : rows;
 
         int rowsHeight = rows * rowHeight;
         
-
-        int rowLabelSpacing = (int) (rows / (rowsHeight / m_labelSpacingSize));
+        double rowsHeightPerSpacingSize = (rowsHeight / m_labelSpacingSize);
+        int rowLabelSpacing = (int) (rows / rowsHeightPerSpacingSize);
 
         int scaleLabelLength = (numbers.getClose() + "").length();
 
@@ -1365,8 +1366,8 @@ public class SpectrumChartView {
 
 //g2d.drawString(String.format("%."+numbers.getClose().precision()+"f",scaleLabeldbl ), x1, y1);
 
-            int topRangeY = (int) Math.ceil(chartHeight - (topVvalue * (rows * rowHeight)));
-            int botRangeY = (int) Math.ceil(chartHeight - (bottomVvalue * ((rows * rowHeight))));
+            int topRangeY = (int) Math.ceil(chartHeight - (topVvalue * chartHeight));
+            int botRangeY = (int) Math.ceil(chartHeight - (bottomVvalue * (chartHeight)));
 
             Drawing.fillArea(img, 0x40ffffff, 0, 0, width, topRangeY);
             Drawing.fillArea(img, 0x40ffffff, 0, botRangeY, width, chartHeight);
@@ -1472,7 +1473,7 @@ public class SpectrumChartView {
     }
 
    
-    
+    /*
     public void drawBar(WritableImage img, PixelReader pR, PixelWriter pW, boolean neutral, boolean positive, int x, int highY, int lowY, int openY, int closeY,  int cellWidth,  int chartHeight){
         int halfCellWidth = cellWidth / 2;
         //Candle wick
@@ -1521,7 +1522,7 @@ public class SpectrumChartView {
 
              }
          }
-    }
+    } */
 
     public void shutdown(String id){
        m_shutdownIdProperty.set(id);

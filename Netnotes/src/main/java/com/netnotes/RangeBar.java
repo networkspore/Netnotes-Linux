@@ -1,5 +1,8 @@
 package com.netnotes;
 
+import java.awt.image.BufferedImage;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -9,15 +12,14 @@ import com.utils.Utils;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelReader;
-import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -25,6 +27,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+
 
 public class RangeBar extends ImageView implements ControlInterface{
 
@@ -82,9 +85,8 @@ public class RangeBar extends ImageView implements ControlInterface{
 
     private int m_currentSelectionIndex = -1;
 
-    private WritableImage m_imgBuf = null;
-    private PixelWriter m_pW = null;
-    private PixelReader m_pR = null;
+    private BufferedImage m_imgBuf = null;
+    private WritableImage m_wImg = null;
 
     private AtomicReference<Double> m_mouseLocation = new AtomicReference<Double>(0.0);
     private Future<?> m_lastExecution = null;
@@ -100,13 +102,7 @@ public class RangeBar extends ImageView implements ControlInterface{
         m_height = height;
     
 
-        
-        Runnable updateMouseY =()->{
-            Utils.returnObject(null, executor, (onSucceeded)->{
-                setRangeByY(m_mouseLocation.get(), getHeight());
-                updateImage();
-            }, (onFailed)->{});
-        };
+
             
         EventHandler<? super MouseEvent> mouseMoveEventHandler = (mouseEvent) ->{
 
@@ -116,7 +112,12 @@ public class RangeBar extends ImageView implements ControlInterface{
                 if (m_lastExecution == null || (m_lastExecution != null && m_lastExecution.isDone())) {
 
                     m_lastExecution = executor.submit(()->{
-                        updateMouseY.run();
+                        
+                        Utils.returnObject(null, executor, (onSucceeded)->{
+                            setRangeByY(m_mouseLocation.get(), getHeight());
+                            updateImage();
+                        }, (onFailed)->{});
+
                         try {
                             Thread.sleep(50);
                         } catch (InterruptedException e) {
@@ -176,66 +177,215 @@ public class RangeBar extends ImageView implements ControlInterface{
     }
 
     public HBox getControlBox(){
+       
 
-            MenuButton rangeStyleBtn = new MenuButton(m_rangeStyle.getName());
-            rangeStyleBtn.setPrefWidth(60);
-            rangeStyleBtn.setPrefHeight(20);
+        HBox rangeStyleIsAutoIndicator = new HBox();
+        rangeStyleIsAutoIndicator.setId("menuBarCircleBtn");
+        rangeStyleIsAutoIndicator.setMinHeight(6);
+        rangeStyleIsAutoIndicator.setMaxHeight(6);
+        rangeStyleIsAutoIndicator.setMinWidth(6);
+        rangeStyleIsAutoIndicator.setMaxWidth(6);
 
-            HBox rangeStyleBox = new HBox(rangeStyleBtn);
-            rangeStyleBox.setId("urlField");
-            rangeStyleBox.setPrefHeight(20);
-         
-            VBox rangeStyleBtnBox = new VBox(rangeStyleBox);
-            rangeStyleBtnBox.setAlignment(Pos.CENTER);
-            rangeStyleBtnBox.setPadding(new Insets(0,5,0,5));
+      
+
+        Text styleText = new Text("Auto");
+        styleText.setFont(App.titleFont);
+        styleText.setFill(App.altColor);
+
+        Region indicatorRegion = new Region();
+        indicatorRegion.setMinWidth(5);
+
+        HBox rangeStyleBtn = new HBox(rangeStyleIsAutoIndicator,indicatorRegion, styleText);
+        rangeStyleBtn.setId("toggleBox");
+        rangeStyleBtn.setPrefWidth(55);
+        rangeStyleBtn.setPrefHeight(20);
+        rangeStyleBtn.setAlignment(Pos.CENTER_LEFT);
+        rangeStyleBtn.setPadding(new Insets(0,0,0,15));
+        
+
+   
+
+
+
+        HBox rangeStyleBox = new HBox(rangeStyleBtn);
+        //rangeStyleBox.setId("urlField");
+        rangeStyleBox.setPrefHeight(25);
+        
+        VBox rangeStyleBtnBox = new VBox(rangeStyleBox);
+        rangeStyleBtnBox.setAlignment(Pos.CENTER);
+        rangeStyleBtnBox.setPadding(new Insets(0,5,0,10));
+        
+
+        
+    
+        BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
+        setRangeBtn.getBufferedImageView().setFitWidth(15);
+       
+        setRangeBtn.setId("circleGoBtn");
+        setRangeBtn.setMaxWidth(20);
+        setRangeBtn.setMaxHeight(20);
+
+        Region btnSpacer = new Region();
+        btnSpacer.setMinWidth(5);
+
+        BufferedButton cancelRangeBtn = new BufferedButton("/assets/close-outline-white.png");
+        cancelRangeBtn.getBufferedImageView().setFitWidth(15);
+        cancelRangeBtn.setId("menuBarCircleBtn");
+        
+        cancelRangeBtn.setMaxWidth(20);
+        cancelRangeBtn.setMaxHeight(20);
+
+        Text rangeText = new Text(String.format("%-14s", "Select range"));
+        rangeText.setFont(App.titleFont);
+        rangeText.setFill(App.txtColor);
+
+
+        Text topValueText = new Text("Top");
+        topValueText.setFont(App.titleFont);
+        topValueText.setFill(App.txtColor);
+
+        TextField topValueTextField = new TextField();
+        topValueTextField.setId("urlField");
+
+        Runnable setTopVvalueByText = () ->{
+            BigDecimal topChartValue = BigDecimal.valueOf(m_rangeStyle.getChartHeight()).divide(m_rangeStyle.getScale(), 13, RoundingMode.HALF_UP);
+            BigDecimal topRangePrice = new BigDecimal(topValueTextField.getText());
+
+            double tVv = topRangePrice.divide(topChartValue, 12, RoundingMode.HALF_UP).doubleValue();
+            double bVv = m_bottomVvalue.get();
             
+            setTopVvalue(Math.min(1, Math.max(tVv, bVv+.005)), true);
+        };
+        
+       ChangeListener<String> topValueListener = (obs,oldval,newval)->{
+            String number = newval.replaceAll("[^0-9.]", "");
+            int index = number.indexOf(".");
+            String leftSide = index != -1 ? number.substring(0, index + 1) : number;
+            String rightSide = index != -1 ?  number.substring(index + 1) : "";
+            rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
+            rightSide = rightSide.length() > 20 ? rightSide.substring(0, 20) : rightSide;
+            topValueTextField.setText(leftSide +  rightSide);
+
+        
+        };
+        topValueTextField.textProperty().addListener(topValueListener);
+        topValueTextField.setOnAction(e->setTopVvalueByText.run());
+
+        Region tvtbRegion = new Region();
+        tvtbRegion.setMinWidth(5);
+
+
+        HBox topValueTextBox = new HBox(topValueText,tvtbRegion, topValueTextField);
+        topValueTextBox.setAlignment(Pos.CENTER_LEFT);
+        topValueTextBox.setPadding(new Insets(0,0,0,10));
+
+        Text botValueText = new Text("Bottom");
+        botValueText.setFont(App.titleFont);
+        botValueText.setFill(App.txtColor);
+
+        TextField botValueTextField = new TextField();
+        botValueTextField.setId("urlField");
+
+        Runnable setBotVvalueByText = () ->{
+            BigDecimal botChartValue = BigDecimal.valueOf(m_rangeStyle.getChartHeight()).divide(m_rangeStyle.getScale(), 13, RoundingMode.HALF_UP);
+            BigDecimal botRangePrice = new BigDecimal(botValueTextField.getText());
+
+            double bVv = botRangePrice.divide(botChartValue, 12, RoundingMode.HALF_UP).doubleValue();
+            double tVv = m_topVvalue.get();
+            
+            setBotVvalue(Math.min(tVv - .005, Math.max(bVv, 0)), true);
+        };
+
+        botValueTextField.setOnAction(e->setBotVvalueByText.run());
+
+        ChangeListener<String> botChangeListener = (obs,oldval,newval)->{
+            String number = newval.replaceAll("[^0-9.]", "");
+            int index = number.indexOf(".");
+            String leftSide = index != -1 ? number.substring(0, index + 1) : number;
+            String rightSide = index != -1 ?  number.substring(index + 1) : "";
+            rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
+            rightSide = rightSide.length() > 20 ? rightSide.substring(0, 20) : rightSide;
+            botValueTextField.setText(leftSide +  rightSide);
+
+            
+        };
+        botValueTextField.textProperty().addListener(botChangeListener);
+
+        Region bvtbRegion = new Region();
+        bvtbRegion.setMinWidth(5);
+
+        HBox botValueTextBox = new HBox(botValueText, bvtbRegion, botValueTextField);
+        botValueTextBox.setAlignment(Pos.CENTER_LEFT);
+        botValueTextBox.setPadding(new Insets(0,10,0,10));
+
+        Runnable setBotValueTextField = ()->{
            
-            MenuItem autoRangeStyleItem = new MenuItem(RangeStyle.AUTO);
-            autoRangeStyleItem.setOnAction(e->{
-                rangeStyleBtn.setText(RangeStyle.AUTO);
-                
-            });
+            botValueTextField.setText(m_rangeStyle.getBotValue() + "");
+    
+        };
+     
 
-            MenuItem userRangeStyleItem = new MenuItem(RangeStyle.USER);
-            userRangeStyleItem.setOnAction(e->{
-                rangeStyleBtn.setText(RangeStyle.USER);
-            });
-
-            rangeStyleBtn.getItems().addAll(autoRangeStyleItem, userRangeStyleItem);
+        Runnable setTopValueTextField = ()->{
+           
+            topValueTextField.setText(m_rangeStyle.getTopValue() + "");
             
+        };
+     
+        setBotValueTextField.run();
+        setTopValueTextField.run();
         
-            BufferedButton setRangeBtn = new BufferedButton("/assets/checkmark-25.png");
-            setRangeBtn.getBufferedImageView().setFitWidth(15);
-            setRangeBtn.setOnAction(e->{
-                m_rangeStyle.setStyle(rangeStyleBtn.getText());
-                start();
-            });
-            setRangeBtn.setId("circleGoBtn");
-            setRangeBtn.setMaxWidth(20);
-            setRangeBtn.setMaxHeight(20);
+        ChangeListener<Number> tVvChangeListener = (obs,oldval,newval)->{
+            setTopValueTextField.run();
+        };
 
-            Region btnSpacer = new Region();
-            btnSpacer.setMinWidth(5);
+        ChangeListener<Number> bVvChangeListener = (obs,oldval,newval)->{
+            setBotValueTextField.run();
+        };
 
-            BufferedButton cancelRangeBtn = new BufferedButton("/assets/close-outline-white.png");
-            cancelRangeBtn.getBufferedImageView().setFitWidth(15);
-            cancelRangeBtn.setId("menuBarCircleBtn");
-            cancelRangeBtn.setOnAction(e->stop());
-            cancelRangeBtn.setMaxWidth(20);
-            cancelRangeBtn.setMaxHeight(20);
+        m_topVvalue.addListener(tVvChangeListener);
+        m_bottomVvalue.addListener(bVvChangeListener);
 
-            Text rangeText = new Text(String.format("%-14s", "Select range"));
-            rangeText.setFont(App.titleFont);
-            rangeText.setFill(App.txtColor);
+        Runnable removeListeners = () ->{
+            m_topVvalue.removeListener(tVvChangeListener);
+            m_bottomVvalue.removeListener(bVvChangeListener);
+        };
 
-            
+        cancelRangeBtn.setOnAction(e->{
+            removeListeners.run();
+            stop();
+        });
 
-            HBox chartRangeToolbox = new HBox(rangeText,rangeStyleBtnBox, setRangeBtn, btnSpacer, cancelRangeBtn);
-            chartRangeToolbox.setId("bodyBox");
-            chartRangeToolbox.setAlignment(Pos.CENTER_LEFT);
-            chartRangeToolbox.setPadding(new Insets(0,5,0,5));
+        setRangeBtn.setOnAction(e->{
+            removeListeners.run();
+            start();
+        });
+
+        rangeStyleBtn.addEventFilter(MouseEvent.MOUSE_PRESSED, e->{
+            rangeStyleIsAutoIndicator.setId("circleGoBtn"); 
+            rangeStyleBtn.setId("toggleBoxPressed");
+        });
+
+        rangeStyleBtn.addEventFilter(MouseEvent.MOUSE_RELEASED, e->{
+            rangeStyleIsAutoIndicator.setId("menuBarCircleBtn"); 
+            rangeStyleBtn.setId("toggleBox");
+        });
+
+        rangeStyleBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, (e)->{
+            m_rangeStyle.setStyle(RangeStyle.AUTO);
+            start();
+        });
         
+
+        HBox chartRangeToolbox = new HBox(rangeText,topValueTextBox, botValueTextBox ,rangeStyleBtnBox,  setRangeBtn, btnSpacer, cancelRangeBtn);
+        chartRangeToolbox.setId("bodyBox");
+        chartRangeToolbox.setAlignment(Pos.CENTER_LEFT);
+        chartRangeToolbox.setPadding(new Insets(0,5,0,5));
+    
         return chartRangeToolbox;
+    }
+
+    public static BigDecimal getValueFromVvalue(double vValue, double height, BigDecimal scale){
+        return BigDecimal.valueOf(vValue * height).divide(scale, 15, RoundingMode.HALF_UP);
     }
 
     public void toggle(){
@@ -278,7 +428,7 @@ public class RangeBar extends ImageView implements ControlInterface{
     
     }
 
-    public void setTopValue(double value, boolean update){
+    public void setTopVvalue(double value, boolean update){
         m_topVvalue.set(value);
         if(update){
             updateImage();
@@ -309,12 +459,11 @@ public class RangeBar extends ImageView implements ControlInterface{
         width = width < MIN_WIDTH ? MIN_WIDTH : width;
         height = height < MIN_HEIGHT ? MIN_HEIGHT : height;
 
-        m_imgBuf = new WritableImage(width, height);
-        m_pW = m_imgBuf.getPixelWriter();
-        m_pR = m_imgBuf.getPixelReader();
+        m_imgBuf = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+
     
-        Drawing.fillArea(m_imgBuf, m_pR, m_pW, BG_RGB, 0, 0, width, height, false);
-        setImage(m_imgBuf);
+        Drawing.fillArea(m_imgBuf, BG_RGB, 0, 0, width, height, false);
+        
         setFitWidth(m_imgBuf.getWidth());
     }
 
@@ -551,10 +700,10 @@ public class RangeBar extends ImageView implements ControlInterface{
         boolean active = isActive();
 
         if (!settingRange) {
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x00010101, 0, 0, width, height, false);
+            Drawing.fillArea(m_imgBuf, 0x00010101, 0, 0, width, height, false);
 
-            Drawing.drawBar(1, (active ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR,m_pW, x1, y1, x2, y2);
-            Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1, x2, y2);
+            Drawing.drawBar(1, (active ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf, x1, y1, x2, y2);
+            Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf, x1, y1, x2, y2);
 
             if (m_topVvalue.get() == 1 && m_bottomVvalue.get() == 0) {
 
@@ -562,24 +711,24 @@ public class RangeBar extends ImageView implements ControlInterface{
 
                // Drawing.drawImageExact(m_imgBuf, m_pR, m_pW, m_collapseImage, m_collapseImage.getPixelReader(), (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), true);
                //WritableImage img, PixelReader pR1, PixelWriter pW1, Image img2, int x1, int y1, int limitAlpha
-               Drawing.drawImageLimit(m_imgBuf, m_pR, m_pW, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), 0x70);
+               Drawing.drawImageLimit(m_imgBuf, m_collapseImage, (int) ((width/2) - (m_collapseImage.getWidth()/2) ),(int)( (height / 2) - (m_collapseImage.getHeight() / 2)), 0x70);
             }
         } else {
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x20ffffff, 2, 0, width-3, height, true);
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0xff000000, 2, 0, width-3, height, true);
+            Drawing.fillArea(m_imgBuf, 0x20ffffff, 2, 0, width-3, height, true);
+            Drawing.fillArea(m_imgBuf, 0xff000000, 2, 0, width-3, height, true);
           
             //RangeBar
-            Drawing.drawBar(1,(active ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
-            Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf,m_pR, m_pW, x1, y1 + 1, x2, y2 - 1);
+            Drawing.drawBar(1,(active ? m_bg1active : m_settingRange.get() ? m_bg1setting : m_bg1), m_bg2, m_imgBuf, x1, y1 + 1, x2, y2 - 1);
+            Drawing.drawBar(m_barRGB1, m_barRGB2, m_imgBuf, x1, y1 + 1, x2, y2 - 1);
             int sliderHeight = 9;
             int topSliderY2 = y1 + sliderHeight;
 
 
             int botSliderY1 = y2 - sliderHeight;
 
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x80ffffff, x1, y1, width-3, topSliderY2, true);
-            Drawing.fillArea(m_imgBuf,m_pR, m_pW, 0x50000000, x1, botSliderY1, width-3, y2, true);
+            Drawing.fillArea(m_imgBuf, 0x80ffffff, x1, y1, width-3, topSliderY2, true);
+            Drawing.fillArea(m_imgBuf, 0x50000000, x1, botSliderY1, width-3, y2, true);
         }
-       
+        setImage(SwingFXUtils.toFXImage(m_imgBuf, m_wImg));
     }
 }

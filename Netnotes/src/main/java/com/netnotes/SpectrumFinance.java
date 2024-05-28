@@ -54,6 +54,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -447,8 +448,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
             Button maxBtn = new Button();
+            Button fillLeftBtn = new Button();
 
-            HBox titleBox = App.createTopBar(getSmallAppIcon(), maxBtn, closeBtn, m_appStage);
+            HBox titleBox = App.createTopBar(getSmallAppIcon(),fillLeftBtn, maxBtn, closeBtn, m_appStage);
+            
+            fillLeftBtn.setGraphic(new ImageView(new Image("/assets/fillLeft.png")));
+
             titleBox.setPadding(new Insets(7, 8, 5, 10));
 
             m_appStage.titleProperty().bind(Bindings.concat(NAME, " - ", spectrumData.statusProperty()));
@@ -914,7 +919,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 runClose.run();
             });
 
-            maxBtn.setOnAction(e -> {
+            maxBtn.setOnAction(e->{
+            
+                m_appStage.setMaximized(!m_appStage.isMaximized());
+                    
+               
+            });
+
+           fillLeftBtn.setOnAction(e -> {
                 if(m_isMax){
                     
                     m_appStage.setX(m_prevX);

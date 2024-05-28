@@ -277,19 +277,19 @@ public class SpectrumMarketItem {
         VBox.setVgrow(statsBox, Priority.ALWAYS);
         statsBox.setPadding(new Insets(0,10,0,0));
 
-        Text lblPercentChangeText = new Text(String.format("%-6s", ""));
+        Text lblPercentChangeText = new Text(String.format("%-7s", "Change"));
         lblPercentChangeText.setFont(App.txtFont);
         lblPercentChangeText.setFill(Color.web("#777777"));
 
-        Text lblOpenText = new Text(String.format("%-6s", "Open"));
+        Text lblOpenText = new Text(String.format("%-7s", "Open"));
         lblOpenText.setFont(App.txtFont);
         lblOpenText.setFill(Color.web("#777777"));
 
-        Text lblHighText = new Text(String.format("%-6s", "High"));
+        Text lblHighText = new Text(String.format("%-7s", "High"));
         lblHighText.setFont(App.txtFont);
         lblHighText.setFill(Color.web("#777777"));
 
-        Text lblLowText = new Text(String.format("%-6s", "Low"));
+        Text lblLowText = new Text(String.format("%-7s", "Low"));
         lblLowText.setFont(App.txtFont);
         lblLowText.setFill(Color.web("#777777"));
 
@@ -316,7 +316,7 @@ public class SpectrumMarketItem {
         HBox lowHBox = new HBox(lblLowText, lowText);
         lowHBox.setPadding(new Insets(5));
 
-        VBox statsVbox = new VBox( highHBox, lowHBox,openHbox, changeHBox);
+        VBox statsVbox = new VBox( openHbox,changeHBox, highHBox, lowHBox);
         VBox.setVgrow(statsVbox, Priority.ALWAYS);
         statsVbox.setId("transparentColor");
         
@@ -336,7 +336,7 @@ public class SpectrumMarketItem {
                 percentFormat.setMaximumFractionDigits(2);
                 
                 percentChangeText.setText(increaseDirection == 0 ? "" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
-                percentChangeText.setFill(increaseDirection == 0 ? Color.WHITE  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#feb9e9")) );
+                percentChangeText.setFill(increaseDirection == 0 ? Color.WHITE  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
             }else{
                 statsBox.getChildren().clear();
             }
@@ -444,8 +444,8 @@ public class SpectrumMarketItem {
 
         HBox priceHBox = new HBox(priceText);
         HBox.setHgrow(priceHBox, Priority.ALWAYS);
-        priceHBox.setAlignment(Pos.BOTTOM_RIGHT);
-        priceHBox.setPadding(new Insets(0,20,5,0));
+        priceHBox.setAlignment(Pos.CENTER_RIGHT);
+        priceHBox.setPadding(new Insets(6,20,5,0));
         priceHBox.setMinHeight(32);
 
         VBox priceVBox = new VBox(priceHBox, statsBox);
@@ -952,7 +952,7 @@ public class SpectrumMarketItem {
 
             RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight, getNetworksData().getExecService());
             ImageView chartImageView = new ImageView();
-            
+            chartImageView.setPreserveRatio(true);
             ScrollPane chartScroll = new ScrollPane(chartImageView);
             
             headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(favoriteBtn.widthProperty()).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
@@ -1075,8 +1075,12 @@ public class SpectrumMarketItem {
             
 
             Runnable createChart = () ->{
-                
-                int maxBars = (SpectrumChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding))-1;
+                Bounds bounds = chartScroll.viewportBoundsProperty().get();
+                          
+                int viewPortHeight = (int) bounds.getHeight();
+                int viewPortWidth = (int) bounds.getWidth();
+                int maxBars =  (SpectrumChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding));
+
                 TimeSpan timeSpan = timeSpanObject.get();
 
                 spectrumChartView.processData(
@@ -1102,10 +1106,12 @@ public class SpectrumMarketItem {
                                 int scaleLabelLength = (numbers.getClose() +"").length();
 
                                 int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
-                
-                                int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
-                                int height = (int) chartScroll.viewportBoundsProperty().get().getHeight();
                                 
+                                
+
+                                int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, SpectrumChartView.MIN_CHART_WIDTH));
+                                
+                                int height = Math.min(SpectrumChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, SpectrumChartView.MIN_CHART_HEIGHT));
 
                                 boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
                             
@@ -1130,8 +1136,17 @@ public class SpectrumMarketItem {
                                 );
                                
                                 chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
+                                
                                 if(isNewImg){
                                     setChartScrollRight.run();
+                                    if(viewPortWidth > SpectrumChartView.MAX_CHART_WIDTH){
+                                        chartImageView.setFitWidth(viewPortWidth);
+                                    }else{
+                                        
+                                        chartImageView.setFitWidth(m_img.getWidth());
+                                        
+                                    }
+                                    
                                 }
                             }
                         }
@@ -1161,9 +1176,14 @@ public class SpectrumMarketItem {
                         int scaleLabelLength = (numbers.getClose() +"").length();
 
                         int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
-        
+                        
+                        Bounds bounds = chartScroll.viewportBoundsProperty().get();
+                        int viewPortHeight = (int) bounds.getHeight();
+                        int viewPortWidth = (int) bounds.getWidth();
+                        
                         int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
-                        int height = (int) chartScroll.viewportBoundsProperty().get().getHeight();
+                        int height = Math.min(SpectrumChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, SpectrumChartView.MIN_CHART_HEIGHT));
+
                         
 
                         boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
@@ -1189,6 +1209,12 @@ public class SpectrumMarketItem {
                         chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
                         if(isNewImg){
                             setChartScrollRight.run();
+                            double w = Math.max(viewPortWidth, SpectrumChartView.MAX_CHART_WIDTH);
+                            if(w > viewPortHeight){
+                                chartImageView.setFitWidth(w);
+                            }else{
+                                chartImageView.setFitHeight(viewPortHeight);
+                            }
                         }
                     }
                 }
@@ -1271,23 +1297,7 @@ public class SpectrumMarketItem {
             ResizeHelper.addResizeListener(m_stage, 200, 200, Double.MAX_VALUE, Double.MAX_VALUE);
             m_stage.show();
 
-            /*EventHandler<MouseEvent> toggleHeader = (mouseEvent) -> {
-                double mouseY = mouseEvent.getY();
-                if (mouseY < (titleBox.getLayoutBounds().getHeight() + 10)) {
-                    if (!headerVBox.getChildren().contains(paddingBox)) {
-                        headerVBox.getChildren().addAll( paddingBox);
-                       // chartHeightOffset.set(chartHeightOffset.get() == headerVBox.getHeight() ? 0 : chartHeightOffset.get());
-                    }
-                } else {
-                    if (headerVBox.getChildren().contains(titleBox)) {
-                        if (mouseY > headerVBox.heightProperty().get()) {
-                            headerVBox.getChildren().remove(paddingBox);
-                         //   chartHeightOffset.set(chartHeightOffset.get() == 0 ? headerVBox.getHeight() : chartHeightOffset.get());
-                        }
-                    }
-                }
-            };*/
-           
+    
    
             Runnable resetPosition = () ->{
             
@@ -1514,7 +1524,7 @@ public class SpectrumMarketItem {
         SimpleObjectProperty<AddressesData> addressesDataObject = new SimpleObjectProperty<>(null);
 
         SimpleObjectProperty<ErgoAmount> ergoPriceAmountObject = new SimpleObjectProperty<ErgoAmount>(null);
-        SimpleObjectProperty<PriceAmount> spfPriceAmountObject = new SimpleObjectProperty<>(null);
+       // SimpleObjectProperty<PriceAmount> spfPriceAmountObject = new SimpleObjectProperty<>(null);
         SimpleObjectProperty<PriceAmount> basePriceAmountObject = new SimpleObjectProperty<>(null); 
         SimpleObjectProperty<PriceAmount> quotePriceAmountObject = new SimpleObjectProperty<>(null);
 
@@ -1523,7 +1533,7 @@ public class SpectrumMarketItem {
         SimpleBooleanProperty nodeAvailableObject = new SimpleBooleanProperty(false);
         SimpleStringProperty nodeStatusObject = new SimpleStringProperty(null);
         SimpleBooleanProperty isBuyObject = new SimpleBooleanProperty(true);
-        SimpleBooleanProperty isSpfFeesObject = new SimpleBooleanProperty(false);
+     //   SimpleBooleanProperty isSpfFeesObject = new SimpleBooleanProperty(false);
         SimpleObjectProperty<BigDecimal> currentAmount = new SimpleObjectProperty<>(BigDecimal.ZERO);
         SimpleObjectProperty<BigDecimal> currentVolume = new SimpleObjectProperty<>(BigDecimal.ZERO);
         
@@ -1715,7 +1725,7 @@ public class SpectrumMarketItem {
         ergoQuantityBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(ergoQuantityBox, Priority.ALWAYS);
 
-        ///
+        /*
 
         TextField spfQuantityField = new TextField();
         HBox.setHgrow(spfQuantityField, Priority.ALWAYS);
@@ -1737,7 +1747,7 @@ public class SpectrumMarketItem {
         spfQuantityBox.setPadding(new Insets(0,5,0,5));
         spfQuantityBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(spfQuantityBox, Priority.ALWAYS);
-
+ */
 
         TextField quoteQuantityField = new TextField();
         HBox.setHgrow(quoteQuantityField, Priority.ALWAYS);
@@ -1803,7 +1813,7 @@ public class SpectrumMarketItem {
         HBox bottomGradientBox = new HBox(botAddressBoxSeperator);
         bottomGradientBox.setPadding(new Insets(5, 0,0,0));
 
-        HBox addressFeesBox = new HBox(ergoQuantityBox, spfQuantityBox);
+        HBox addressFeesBox = new HBox(ergoQuantityBox);
         HBox.setHgrow(addressFeesBox, Priority.ALWAYS);
 
         VBox selectedAddressBox = new VBox(adrBtnBox);
@@ -2330,12 +2340,12 @@ public class SpectrumMarketItem {
             AddressData adrData = addressesDataObject.get() != null ? addressesDataObject.get().selectedAddressDataProperty().get() : null;
 
             ErgoAmount ergoPriceAmount = adrData != null ? adrData.ergoAmountProperty().get() : null;
-            PriceAmount spfPriceAmount = adrData != null ? adrData.getConfirmedTokenAmount(SPF_ID) : null;
+        //    PriceAmount spfPriceAmount = adrData != null ? adrData.getConfirmedTokenAmount(SPF_ID) : null;
             PriceAmount basePriceAmount = adrData != null ? (!baseId.equals(ERG_ID) ?  adrData.getConfirmedTokenAmount(baseId) : adrData.ergoAmountProperty().get()) : null; 
             PriceAmount quotePriceAmount = adrData != null ? (!quoteId.equals(ERG_ID) ? adrData.getConfirmedTokenAmount(quoteId) : adrData.ergoAmountProperty().get()) : null;
 
             ergoPriceAmountObject.set(ergoPriceAmount);
-            spfPriceAmountObject.set(spfPriceAmount);
+          //  spfPriceAmountObject.set(spfPriceAmount);
             basePriceAmountObject.set(basePriceAmount);
             quotePriceAmountObject.set(quotePriceAmount);
 
@@ -2348,10 +2358,10 @@ public class SpectrumMarketItem {
             ergoImgView.setFitWidth(ergoCurrencyImage.getWidth());
          
             /*spf amount*/
-            Image spfCurrencyImage = spfPriceAmount != null ? spfPriceAmount.getCurrency().getBackgroundIcon(38) : PriceCurrency.getBlankBgIcon(38, "SPF");   
-            spfQuantityField.setText(spfPriceAmount != null ? spfPriceAmount.getAmountString() : "0.0");
-            spfImgView.setImage(spfCurrencyImage);
-            spfImgView.setFitWidth(spfCurrencyImage.getWidth());
+           // Image spfCurrencyImage = spfPriceAmount != null ? spfPriceAmount.getCurrency().getBackgroundIcon(38) : PriceCurrency.getBlankBgIcon(38, "SPF");   
+           // spfQuantityField.setText(spfPriceAmount != null ? spfPriceAmount.getAmountString() : "0.0");
+           // spfImgView.setImage(spfCurrencyImage);
+        //    spfImgView.setFitWidth(spfCurrencyImage.getWidth());
         
         
             /*base Amount*/
@@ -2425,7 +2435,7 @@ public class SpectrumMarketItem {
         feesTextBox.setAlignment(Pos.TOP_RIGHT);
 
 
-        Runnable updateFeesBtn = () ->{
+      /*  Runnable updateFeesBtn = () ->{
             
             if(isSpfFeesObject.get()){
                 //ergoRemoveFees
@@ -2455,7 +2465,7 @@ public class SpectrumMarketItem {
         });
         spfQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
             isSpfFeesObject.set(true);
-        });
+        });*/
 
    
 
@@ -2485,7 +2495,7 @@ public class SpectrumMarketItem {
 
 
 
-        isSpfFeesObject.addListener((obs,oldval,newval)->updateFeesBtn.run());
+     //   isSpfFeesObject.addListener((obs,oldval,newval)->updateFeesBtn.run());
        //AddressData update
             
         ChangeListener<LocalDateTime> addressUpdateListener = (obs,oldval,newval)->{
@@ -2504,8 +2514,8 @@ public class SpectrumMarketItem {
             updateBalances.run();
         
         };
-        
-        m_marketData.getLastUpdated().addListener((obs,oldVal,newVal)->{
+
+        ChangeListener<LocalDateTime> marketDataUpdateListener = (obs,oldVal,newVal)->{
             String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
             
             switch(orderType){
@@ -2518,7 +2528,9 @@ public class SpectrumMarketItem {
 
             
             
-        });
+        };
+        
+        m_marketData.getLastUpdated().addListener(marketDataUpdateListener);
 
         Runnable updateNodeBtn = () ->{
             
@@ -2578,9 +2590,7 @@ public class SpectrumMarketItem {
             
         };
         
-      
-        
-        addressesDataObject.addListener((obs,oldval,newval)->{
+        ChangeListener<AddressesData> addressesDataObjChangeListener = (obs,oldval,newval)->{
             adrBtn.getItems().clear();
             nodeBtn.getItems().clear();
 
@@ -2690,7 +2700,9 @@ public class SpectrumMarketItem {
                 
             }
             updateBalances.run();
-        });
+        };
+        
+        addressesDataObject.addListener(addressesDataObjChangeListener);
 
         walletsListObject.addListener((obs,oldVal,newVal)->{});
 
@@ -2704,6 +2716,8 @@ public class SpectrumMarketItem {
                 if(addressesData != null){
                     addressesData.shutdown();
                 }
+                m_marketData.getLastUpdated().removeListener(marketDataUpdateListener);
+                addressesDataObject.removeListener(addressesDataObjChangeListener);
             }
         });
 

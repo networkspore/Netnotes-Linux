@@ -694,6 +694,41 @@
     -fx-border-color: #009925;
 }
 
+#toggleBox{
+    -fx-background-color:  linear-gradient(to bottom,
+    #444444,
+    #111111);
+    -fx-border-color: #555555;
+    -fx-border-color: #555555;
+    -fx-border-width: 1 1 1 1;
+    -fx-border-style: solid;
+    -fx-border-radius: 30;
+    -fx-background-radius: 30;
+    -fx-padding: 2;
+    -fx-opacity: .7;
+}
+#toggleBox:hover{
+    -fx-opacity: 1;
+}
+
+#toggleBoxPressed{
+    -fx-background-color:  linear-gradient(to bottom,
+    #111111,
+    #444444);
+    -fx-border-color: #555555;
+    -fx-border-color: #555555;
+    -fx-border-width: 1 1 1 1;
+    -fx-border-style: solid;
+    -fx-border-radius: 30;
+    -fx-background-radius: 30;
+    -fx-padding: 2;
+    -fx-opacity: .7;
+}
+
+#toggleBoxPressed:hover{
+    -fx-opacity: 1;
+}
+
 #offlineBtn {
     -fx-background-color: #444444;
     -fx-border-color: #555555;
@@ -714,6 +749,8 @@
     #444444);
     -fx-border-color: #555555;
 }
+
+
 
 #networkBox{
     -fx-border-color: #111111;
@@ -1240,16 +1277,23 @@
     -fx-padding: 0.0 0.15em;
 }
 
-.scroll-bar:horizontal .thumb,
+
 .scroll-bar:vertical .thumb {
-    -fx-background-color: derive(black, 10.0%);
+    /*-fx-background-color: derive(#77777780, 10.0%);*/
+    -fx-background-color: linear-gradient(to right,  #88888840 25%, #77777740 70%, #11111130 100%);
     -fx-background-insets: 2.0, 0.0, 0.0;
+    -fx-opacity: .8;
   
+}
+
+.scroll-bar:horizontal .thumb{
+    -fx-background-color: linear-gradient(to top,  #88888840 25%, #77777740 70%, #11111130 100%);
+    -fx-background-insets: 2.0, 0.0, 0.0;
+    -fx-opacity: .8;
 }
 
 .scroll-bar:horizontal .thumb:hover,
 .scroll-bar:vertical .thumb:hover {
-    -fx-background-color: #77777760;
-    -fx-background-insets: 2.0, 0.0, 0.0;
+    -fx-opacity: 1;
 
 }

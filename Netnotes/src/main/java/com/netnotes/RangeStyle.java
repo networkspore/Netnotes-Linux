@@ -18,6 +18,9 @@ public class RangeStyle {
     private String m_name;
     private String m_id;
 
+    private BigDecimal m_scale = BigDecimal.ONE;
+    private int m_chartHeight = 1;
+
     public static String[] AVAILABLE_RANGE_STYLES = new String[]{
         USER, AUTO, NONE
     };
@@ -56,6 +59,7 @@ public class RangeStyle {
     public String getId() {
         return m_id;
     }
+
 
     public JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
@@ -104,4 +108,21 @@ public class RangeStyle {
     public BigDecimal getBotValue(){
         return m_botValue;
     }
+
+    public BigDecimal getScale(){
+        return m_scale;
+    }
+
+    public void setScale(BigDecimal scale){
+        m_scale = scale;
+    }
+
+    public void setChartHeight(int height){
+        m_chartHeight = height;
+    }
+
+    public int getChartHeight(){
+        return m_chartHeight;
+    }
+
 }

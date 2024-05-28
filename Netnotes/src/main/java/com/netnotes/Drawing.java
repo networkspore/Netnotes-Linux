@@ -229,10 +229,10 @@ public class Drawing {
                 break;
         }
     }
-
+    /*
     public static void drawBar(int rgb1, int rgb2, WritableImage img,PixelReader pR, PixelWriter pW, int x1, int y1, int x2, int y2) {
         drawBar(0, rgb1, rgb2, img, pR, pW, x1, y1, x2, y2);
-    }
+    }*/
 
     public static void drawBar(int rgb1, int rgb2, BufferedImage img, int x1, int y1, int x2, int y2) {
         drawBar(0, rgb1, rgb2, img, x1, y1, x2, y2);
@@ -333,7 +333,7 @@ public class Drawing {
         }
     }
    
-    
+    /*
     public static void drawBar(int direction, int RGB1, int RGB2, WritableImage img, PixelReader pR, PixelWriter pW, int x1, int y1, int x2, int y2) {
 
         int a1 = (RGB1 >> 24) & 0xff;
@@ -417,7 +417,7 @@ public class Drawing {
                 }
                 break;
         }
-    }
+    }*/
 
 
     public static void fillArea(BufferedImage img, int RGB, int x1, int y1, int x2, int y2) {
@@ -468,7 +468,7 @@ public class Drawing {
             }
         }
     }
-
+    /*
     public static void drawFadeHLine(WritableImage img, PixelReader pR, PixelWriter pW, int RGB1, int RGB2, int thickness, int x1, int y1, int x2, int y2, boolean blend){
        // int halfThickness = (int) Math.ceil(thickness / 2);
         
@@ -497,7 +497,7 @@ public class Drawing {
             }
            // int direction, int RGB1, int RGB2, WritableImage img, PixelReader pR, PixelWriter pW, 
         }
-    }
+    }*/
 
     public static void drawFadeHLine(BufferedImage img, int RGB1, int RGB2, int thickness, int x1, int y1, int x2, int y2, boolean blend){
      //   int halfThickness = (int) Math.ceil(thickness / 2);
