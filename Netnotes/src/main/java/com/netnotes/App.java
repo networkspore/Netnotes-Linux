@@ -1829,7 +1829,7 @@ public class App extends Application {
         fillRightBtn.setGraphic(IconButton.getIconView(new Image("/assets/fillRight.png"), 20));
         fillRightBtn.setPadding(new Insets(0, 3, 0, 3));
 
-        HBox newTopBar = new HBox(barIconView, newTitleLbl, spacer, fillRightBtn, minimizeBtn, maximizeBtn, closeBtn);
+        HBox newTopBar = new HBox(barIconView, newTitleLbl, spacer, minimizeBtn, fillRightBtn, maximizeBtn, closeBtn);
         newTopBar.setAlignment(Pos.CENTER_LEFT);
         newTopBar.setPadding(new Insets(7, 8, 10, 10));
         newTopBar.setId("topBar");

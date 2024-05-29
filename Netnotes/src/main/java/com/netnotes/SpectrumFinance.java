@@ -451,8 +451,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Button fillLeftBtn = new Button();
 
             HBox titleBox = App.createTopBar(getSmallAppIcon(),fillLeftBtn, maxBtn, closeBtn, m_appStage);
+            ImageView fillLeftImgView = new ImageView(new Image("/assets/fillLeft.png"));
+            fillLeftImgView.setPreserveRatio(true);
+            fillLeftImgView.setFitHeight(19);
+            fillLeftBtn.setGraphic(fillLeftImgView);
             
-            fillLeftBtn.setGraphic(new ImageView(new Image("/assets/fillLeft.png")));
 
             titleBox.setPadding(new Insets(7, 8, 5, 10));
 

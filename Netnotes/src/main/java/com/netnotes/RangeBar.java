@@ -17,6 +17,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -341,14 +342,28 @@ public class RangeBar extends ImageView implements ControlInterface{
         ChangeListener<Number> bVvChangeListener = (obs,oldval,newval)->{
             setBotValueTextField.run();
         };
+      
+        Button removeRangeSetting = new Button();
 
+        ChangeListener<Boolean> isRangeSetting = (obs,oldval,newval) ->{
+            if(!newval){
+                removeRangeSetting.fire();
+            }
+        };
+    
+        m_settingRange.addListener(isRangeSetting);
         m_topVvalue.addListener(tVvChangeListener);
         m_bottomVvalue.addListener(bVvChangeListener);
 
         Runnable removeListeners = () ->{
             m_topVvalue.removeListener(tVvChangeListener);
             m_bottomVvalue.removeListener(bVvChangeListener);
+            m_settingRange.removeListener(isRangeSetting);
         };
+
+        removeRangeSetting.setOnAction(e->{
+            removeListeners.run();
+        });
 
         cancelRangeBtn.setOnAction(e->{
             removeListeners.run();
@@ -372,6 +387,7 @@ public class RangeBar extends ImageView implements ControlInterface{
 
         rangeStyleBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, (e)->{
             m_rangeStyle.setStyle(RangeStyle.AUTO);
+            removeListeners.run();
             start();
         });
         
@@ -422,10 +438,15 @@ public class RangeBar extends ImageView implements ControlInterface{
     }
     
     public void stop(){
- 
+        m_rangeStyle.setStyle(RangeStyle.NONE);
         m_currentSelectionIndex = -1;
-        reset();
-    
+        m_settingRange.set(false);
+        m_active.set(false);
+        m_topVvalue.set(m_maxTop);
+        m_bottomVvalue.set(m_minBot);
+        updateImage();
+        
+        
     }
 
     public void setTopVvalue(double value, boolean update){
@@ -530,9 +551,9 @@ public class RangeBar extends ImageView implements ControlInterface{
     public void reset(boolean update) {
         m_settingRange.set(false);
         m_active.set(false);
-        m_rangeStyle.setStyle(RangeStyle.NONE);
-        m_topVvalue.set(m_maxTop);
-        m_bottomVvalue.set(m_minBot);
+        m_rangeStyle.setStyle(RangeStyle.AUTO);
+      
+
         if (update) {
             updateImage();
         }

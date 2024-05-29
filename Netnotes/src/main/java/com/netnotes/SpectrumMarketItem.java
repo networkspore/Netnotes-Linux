@@ -1464,11 +1464,11 @@ public class SpectrumMarketItem {
             });
 
             ChangeListener<Boolean> invertListener = (obs,oldval,newval)->{
-                
+               
                 invertBtn.setImage( new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
                 m_stage.setTitle(exchange.getName() + " - " +  m_marketData.getCurrentSymbol(newval) + " - " + (newval ? m_marketData.getInvertedLastPrice() + "" : m_marketData.getLastPrice() + "") + ""  );
                 headingText.setText(m_marketData.getCurrentSymbol(newval));
-                createChart.run();
+                chartRange.reset();
             };
 
             m_isInvert.addListener(invertListener);
