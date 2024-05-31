@@ -25,7 +25,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -69,13 +68,13 @@ public class SpectrumChartView {
     // private BufferedImage m_img = null;
 
    
-
+   
 
     private static int m_defaultColor = new Color(0f, 0f, 0f, 0.01f).getRGB();
 
+
     private long m_lastTimeStamp = 0;
 
-    public final SimpleLongProperty m_doUpdate = new SimpleLongProperty(System.currentTimeMillis());
 
     //private double m_lastClose = 0;
     private static int m_labelSpacingSize = 150;
@@ -99,20 +98,19 @@ public class SpectrumChartView {
     private static Font m_arial = new Font("Arial", Font.PLAIN, 12);
 
 
-    private volatile SpectrumData m_data = null; 
+    private SpectrumPrice[] m_data = null; 
     private SimpleLongProperty m_dataListChanged = new SimpleLongProperty();
     
     private SimpleStringProperty m_shutdownIdProperty = new SimpleStringProperty(null);
 
-    private volatile int m_tries = 0;
+   // private volatile int m_tries = 0;
 
     private ArrayList<String> m_listeners = new ArrayList<String>();
-
-    private  ChangeListener<LocalDateTime> m_marketDataListener = null;
 
     public SpectrumChartView(SpectrumMarketData marketData, SpectrumFinance spectrumFinance) {
         m_marketData = marketData;
         m_spectrumFinance = spectrumFinance;
+     
       
     }
 
@@ -120,43 +118,36 @@ public class SpectrumChartView {
         return m_dataListChanged;
     } 
 
-    private void addUpdateListener(){
-        if(m_marketDataListener == null && m_listeners.size() > 0){
-            m_marketDataListener = (obs,oldval,newval)->{
-                SpectrumData data = m_data;    
-                
-                if(data != null){
-
-                    data.setPriceData(updateLastItem(data.getPriceData(), new SpectrumPrice(m_marketData.getLastPrice(), m_marketData.getTimeStamp())));
-                    m_data = data;
-
-                    m_dataListChanged.set(Utils.getNowEpochMillis());
-
-                }else{
-                    if(m_tries %2 == 0){
-                        
-                        getPoolData();
-                    }
-                    m_tries++;
-                }
-            
-               
-            };
-            m_marketData.getLastUpdated().addListener(m_marketDataListener);
-        }
-    }
-
-    private void removeUpdateListener(){
-
-            ChangeListener<LocalDateTime> changeListener = m_marketDataListener;
-            
-            if(changeListener != null){
-                m_marketData.getLastUpdated().removeListener(changeListener);
-                m_data = null;
-                changeListener = null;
-            }
+    public void addPrices(SpectrumPrice[] prices){
         
+        
+        if(m_data != null && m_data.length > 0 && prices != null && prices.length > 0){
+            
+            SpectrumPrice[] data = m_data;
+            int size = data.length;
+            long lastTimeStamp = data[size -1].getTimeStamp();
+            int items = prices.length;                 
+            
+
+            for(int i = 0; i < prices.length ; i ++){
+                SpectrumPrice p = prices[i];
+                if(p.getTimeStamp() > lastTimeStamp){
+                    break;
+                }
+                items--;
+            }
+            int len = prices.length - items;
+            if(len > 0){
+                int newSize = size + len;
+                SpectrumPrice[] newData = Arrays.copyOf(data, newSize);
+                
+                System.arraycopy(data, items, newData, size, len);
+                m_data = newData;
+            }
+
+         }
     }
+
 
     public int addDataListener(String id){
         if(id == null){
@@ -169,7 +160,7 @@ public class SpectrumChartView {
             
             if(size == 0){
                 getPoolData();
-                addUpdateListener();
+               // addUpdateListener();
             }
             m_listeners.add(id);
 
@@ -198,11 +189,8 @@ public class SpectrumChartView {
     public boolean removeListener(String id){
         if(id != null){
      
-            boolean removed = m_listeners.remove(id);
-            if(m_listeners.size() == 0 && m_marketDataListener != null){
-                removeUpdateListener();
-            }
-            return removed;
+            
+            return m_listeners.remove(id);
             
         }
         return false;
@@ -214,9 +202,6 @@ public class SpectrumChartView {
     }
 
 
-
-   
-
     public void getPoolData(){
         
         String poolId = m_marketData.getPoolId();
@@ -225,14 +210,15 @@ public class SpectrumChartView {
         m_spectrumFinance.getPoolChart(poolId, currentTime, (onSucceeded)->{
             Object succededObject = onSucceeded.getSource().getValue();
             if(succededObject != null && succededObject instanceof JsonArray){
-                JsonArray jsonArray = (JsonArray) succededObject;
-                
-                updatePoolData(m_spectrumFinance.getExecService(), jsonArray, (onSpectrumData)->{
+                JsonArray json = (JsonArray) succededObject;
+                getSpectrumPriceArray(m_spectrumFinance.getExecService(), json, (onSpectrumData)->{
                     Object sourceObject = onSpectrumData.getSource().getValue();
-                    if(sourceObject != null && sourceObject instanceof SpectrumData){
-                        m_tries = 0;
-                        m_data = (SpectrumData) sourceObject;
-                        m_dataListChanged.set(currentTime);
+                    if(sourceObject != null && sourceObject instanceof SpectrumPrice[]){
+                        m_data = (SpectrumPrice[]) sourceObject;
+                        if(m_data.length > 2){
+                            m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
+                            m_dataListChanged.set(currentTime);
+                        }
                     }
                 }, (onFailed)->{
                   
@@ -253,15 +239,90 @@ public class SpectrumChartView {
         
     }
 
+    
+
+    public void update(){
+        int numListeners = m_listeners.size();
+        long currentTime = Utils.getNowEpochMillis();
+        
+        if(numListeners > 0 && m_lastTimeStamp > 0){
+
+            String poolId = m_marketData.getPoolId();
+            
+    
+            m_spectrumFinance.getPoolChart(poolId,m_lastTimeStamp + 1 , currentTime, (onSucceeded)->{
+                Object succededObject = onSucceeded.getSource().getValue();
+                if(succededObject != null && succededObject instanceof JsonArray){
+                    JsonArray json = (JsonArray) succededObject;
+                    if(json.size() > 0){
+                        
+                        getSpectrumPriceArray(m_spectrumFinance.getExecService(), json, (onSpectrumData)->{
+                            Object sourceObject = onSpectrumData.getSource().getValue();
+                            if(sourceObject != null && sourceObject instanceof SpectrumPrice[]){
+                                SpectrumPrice[] prices = (SpectrumPrice[]) sourceObject;
+                                if(prices.length > 0){
+                                addPrices(prices); 
+                                    m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
+                                    m_dataListChanged.set(m_lastTimeStamp);
+                                }
+                                
+                            }
+                        }, (onFailed)->{
+                        
+                        });
+                    }
+    
+                
+                }
+              
+            }, (onFailed)->{
+                //noConnection?
+                try {
+                    Files.writeString(App.logFile.toPath(),"\ninitChart SMD: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+    
+                }
+             });
+        }
+       // m_data.setPriceData(updateLastItem(m_data.getPriceData(), new SpectrumPrice(m_marketData.getLastPrice(), m_marketData.getTimeStamp())));
+        /*if(m_data != null){
+    
+            int size = m_data.length;
+                
+            if(size > 2){
+                SpectrumPrice secondLastPrice =m_data[size-2];
+                SpectrumPrice lastPrice = m_data[size -1];
+                
+                if(lastPrice.getTimeStamp() < timeStamp){
+                    if(secondLastPrice.getPrice().equals(lastPrice.getPrice()) && lastPrice.getPrice().equals(price)){
+                        m_data[size-1] = new SpectrumPrice(price, timeStamp);
+                        m_dataListChanged.set(timeStamp);
+                    }else{
+                    
+                       addPrice(new SpectrumPrice(price, timeStamp), size);
 
 
-    public void updatePoolData(ExecutorService execService, JsonArray jsonArray, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+                    }
+                }
+            }else{
+                addPrice(new SpectrumPrice(price, timeStamp), size);
+            }
+        }*/
+       
+    }
+
+
+  
+
+
+
+    public void getSpectrumPriceArray(ExecutorService execService, JsonArray jsonArray, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
 
         Task<Object> task = new Task<Object>() {
             @Override
             public Object call() throws Exception{
 
-                return updatePoolData(jsonArray);
+                return getSpectrumPriceArray(jsonArray);
             }
         };
 
@@ -273,111 +334,24 @@ public class SpectrumChartView {
     }
 
 
-    public SpectrumData updatePoolData(JsonArray jsonArray) throws Exception{
+    public SpectrumPrice[] getSpectrumPriceArray(JsonArray jsonArray) throws Exception{
  
-        SimpleObjectProperty<BigDecimal> prevPrice = new SimpleObjectProperty<>( BigDecimal.ZERO);
 
-        
-
-        SpectrumPrice lastPrice = null;
-
-        try {
-            lastPrice  = new SpectrumPrice(jsonArray.get(jsonArray.size()-1).getAsJsonObject());
-            prevPrice.set(new SpectrumPrice(jsonArray.get(0).getAsJsonObject()).getPrice());
-        } catch (Exception e) {
-  
-        }
-        if(lastPrice == null){
-            return null;
-            
-        }
-        long currentTime = Utils.getNowEpochMillis();
         int size = jsonArray.size();
-       
-        SpectrumPrice[] data = new SpectrumPrice[size];
-        SpectrumNumbers oneDay = new SpectrumNumbers();
-        SpectrumNumbers sevenDay = new SpectrumNumbers();
-        SpectrumNumbers sixMonth = new SpectrumNumbers();
-        SpectrumNumbers oneMonth = new SpectrumNumbers();
-        SpectrumNumbers oneYear = new SpectrumNumbers();
-        SpectrumNumbers allTime = new SpectrumNumbers(); 
 
+        SpectrumPrice data[] = new SpectrumPrice[size];
 
         for(int i = 0; i < size ; i ++){
         
             SpectrumPrice spectrumPrice = new SpectrumPrice(jsonArray.get(i).getAsJsonObject());
             data[i] = spectrumPrice;
-
-            BigDecimal price = spectrumPrice.getPrice();
-            long priceSpan = currentTime - spectrumPrice.getTimeStamp();
-    
-            if(allTime.getOpen(false).equals(BigDecimal.ZERO)){
-
-                allTime.setOpen(price);
-        
-            }
-            allTime.updateNumbers(price);
-    
-
-            if(priceSpan < oneDayMillis){
-                if(oneDay.getOpen(false).equals(BigDecimal.ZERO)){
-            
-                    oneDay.setOpen(prevPrice.get());
-                    
-                }
-                oneDay.updateNumbers(price);
-            }else{
-                
-                
-            }
-            if(priceSpan < oneWeekMillis){
-                if(sevenDay.getOpen(false).equals(BigDecimal.ZERO)){
-                    
-                    sevenDay.setOpen(prevPrice.get());
-                    
-                }  
-                sevenDay.updateNumbers(price);
-            }else{
-                
-                
-            }
-            if(priceSpan < oneMonthMillis){
-                if(oneMonth.getOpen(false).equals(BigDecimal.ZERO)){
-                    
-                    oneMonth.setOpen(prevPrice.get());
-                }
-                oneMonth.updateNumbers(price);
-                    
-            }else{
-                
-            }
-
-            if(priceSpan < sixMonthMillis){
-                if(sixMonth.getOpen(false).equals(BigDecimal.ZERO)){
-                
-                    sixMonth.setOpen(prevPrice.get());
-                }
-                sixMonth.updateNumbers(price);
-            }
-            
-            if(priceSpan < oneYearMillis){
-                if(oneYear.getOpen(false).equals(BigDecimal.ZERO)){
-            
-                    oneYear.setOpen(prevPrice.get());
-                }
-                oneYear.updateNumbers(price);
-            }else{
-                
-            }
-            prevPrice.set(price);
-       
             
         }
 
-        return new SpectrumData(data, oneDay, sevenDay, oneMonth, sixMonth, oneYear, allTime);
+        return data; 
     }
 
-    public SpectrumData getSpectrumData(){
+    public SpectrumPrice[] getSpectrumData(){
         return m_data;
     }
 
@@ -469,9 +443,7 @@ public class SpectrumChartView {
         m_lastTimeStamp = 0;
         m_valid = 0;
         m_msg = "Loading";
-        if(update){
-            m_doUpdate.set(System.currentTimeMillis());
-        }
+     
     }
 
 
@@ -668,123 +640,6 @@ public class SpectrumChartView {
         m_decimals = decimals;
     }
     
-    
-    public static SpectrumNumbers process(SpectrumPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime){
-        SpectrumNumbers numbers = new SpectrumNumbers();
-
-        long timeSpanMillis = timeSpan.getMillis();
-
-        SimpleIntegerProperty index = new SimpleIntegerProperty(-1);
-        
-        int numItems = (int) Math.ceil((currentTime - startTimeStamp) / timeSpanMillis);
-
-
-        long firstTimeStamp = (startTimeStamp - timeSpanMillis);
-
-        SpectrumPriceData[] priceList = new SpectrumPriceData[numItems];
-        SimpleObjectProperty<SpectrumPrice> lastPriceObject = new SimpleObjectProperty<>(null);
-        
-        for(int i = 0 ; i < numItems ; i++){
-            long span = i * timeSpanMillis;
-            long epochStart = firstTimeStamp + span;
-            long epochEnd = epochStart + timeSpanMillis;
-
-            getOpen(lastPriceObject, index, epochStart, sDArray);
-
-            SpectrumPrice lastPrice = isInvert && lastPriceObject.get() != null ? lastPriceObject.get().getInverted() : lastPriceObject.get() ;
-
-            BigDecimal price = lastPrice != null ?  lastPrice.getPrice() : BigDecimal.ZERO;
-
-            SpectrumPriceData lastPriceData = i == 0 ? null : priceList[i -1];
-
-            SpectrumPriceData priceData = new SpectrumPriceData( epochStart, epochEnd, lastPriceData == null ? price : lastPriceData.getClose());
-
-            addPrices(isInvert, sDArray, index, priceData);
-
-            priceList[i] = priceData;
-
-            numbers.updateData(priceData);
-        }
-        numbers.setSpectrumPriceData(priceList);
-
-        return numbers;
-    }
-
-    public void processData(boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        
-        SpectrumData spectrumData = m_data;
-        
-        if(spectrumData != null){
-             
-            SpectrumPrice[] sPData = spectrumData.getPriceData();
-            int size = sPData.length;
-            if(size > 2){
-                Task<Object> task = new Task<Object>() {
-                    @Override
-                    public Object call() {
-                        // SpectrumChartView.process(spdata.getPriceData(), invert, startTimeStamp, colSpan, currentTime);
-                        return process(spectrumData.getPriceData(), isInvert, startTimeStamp,timeSpan, currentTime);
-                    }
-                };
-
-                task.setOnFailed(onFailed);
-
-                task.setOnSucceeded(onSucceeded);
-
-                execService.submit(task);
-            }
-        }
-                    
-    }
-
-    public void processData(boolean isInvert, int maxBars, TimeSpan timeSpan,  long currentTime, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        
-        SpectrumData spectrumData = m_data;
-        
-        if(spectrumData != null){
-             
-            SpectrumPrice[] sPData = spectrumData.getPriceData();
-            int size = sPData.length;
-            if(size > 2){
-            Task<Object> task = new Task<Object>() {
-                @Override
-                public Object call() {
-
-                    
-                 //   ArrayList<SpectrumPriceData> priceList = new ArrayList<>();
-
-        
-                
-                   // SpectrumNumbers numbers = new SpectrumNumbers();
-
-                    SpectrumPrice oldestPrice = sPData[0];
-                    long oldestTimeStamp = oldestPrice.getTimeStamp();
-
-                    long timeSpanMillis = timeSpan.getMillis();
-
-                    int maxElements = (int)((currentTime - oldestTimeStamp) / timeSpanMillis);
-
-                    int startElement = maxElements > maxBars ? maxBars : maxElements;
-
-                    final long startTimeStamp = currentTime - (startElement * timeSpanMillis);
-                           
-                    
-
-                    return process(sPData, isInvert,startTimeStamp, timeSpan, currentTime);
-                }
-            };
-
-            task.setOnFailed(onFailed);
-
-            task.setOnSucceeded(onSucceeded);
-
-            execService.submit(task);
-        }
-        }
-                    
-    }
-
-
     private static void getOpen(SimpleObjectProperty<SpectrumPrice> lastPriceObject, SimpleIntegerProperty index, long epochStart, SpectrumPrice[] dataList){
  
         while(index.get() +1 < dataList.length){
@@ -797,7 +652,6 @@ public class SpectrumChartView {
             index.set(index.get() + 1);
         };
     }
-
 
     private static void addPrices(boolean isInvert, SpectrumPrice[] dataList, SimpleIntegerProperty index, SpectrumPriceData priceData){
         int size = dataList.length;
@@ -843,6 +697,204 @@ public class SpectrumChartView {
             }
         }
     }
+    
+    public static SpectrumNumbers process(SpectrumPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime) throws ArithmeticException{
+        SpectrumNumbers numbers = new SpectrumNumbers();
+
+        long timeSpanMillis = timeSpan.getMillis();
+
+        SimpleIntegerProperty index = new SimpleIntegerProperty(-1);
+
+        SpectrumPrice sd0 = sDArray[0];
+        long sd0TimeStamp = sd0.getTimeStamp();
+        //int numItems = (int) Math.ceil((currentTime - startTimeStamp) / timeSpanMillis);
+
+        startTimeStamp = (((int)((startTimeStamp - sd0TimeStamp) / timeSpanMillis)) * timeSpanMillis) + sd0TimeStamp;
+        currentTime = (((int)((currentTime - sd0TimeStamp) / timeSpanMillis)) * timeSpanMillis) + sd0TimeStamp;
+
+
+        int numItems = (int) Math.ceil(((currentTime + timeSpanMillis) - startTimeStamp) / timeSpanMillis);
+
+       
+
+        SpectrumPriceData[] priceList = new SpectrumPriceData[numItems];
+        SimpleObjectProperty<SpectrumPrice> lastPriceObject = new SimpleObjectProperty<>(null);
+        
+        for(int i = 0 ; i < numItems ; i++){
+            long span = i * timeSpanMillis;
+            long epochStart = startTimeStamp + span;
+            long epochEnd = epochStart + timeSpanMillis;
+
+            getOpen(lastPriceObject, index, epochStart, sDArray);
+
+            SpectrumPrice lastPrice = isInvert && lastPriceObject.get() != null ? lastPriceObject.get().getInverted() : lastPriceObject.get() ;
+
+            BigDecimal price = lastPrice != null ?  lastPrice.getPrice() : BigDecimal.ZERO;
+
+            SpectrumPriceData lastPriceData = i == 0 ? null : priceList[i -1];
+
+            SpectrumPriceData priceData = new SpectrumPriceData( epochStart, epochEnd, lastPriceData == null ? price : lastPriceData.getClose());
+
+            addPrices(isInvert, sDArray, index, priceData);
+
+            priceList[i] = priceData;
+
+            numbers.updateData(priceData);
+        }
+        numbers.setSpectrumPriceData(priceList);
+        numbers.setLastIndex(index.get());
+        return numbers;
+    }
+        /*    SpectrumNumbers numbers = new SpectrumNumbers();
+
+        
+
+        long timeSpanMillis = timeSpan.getMillis();
+        SpectrumPrice firstItem = sDArray[0];
+        long ts0 = firstItem.getTimeStamp();
+
+       //SimpleIntegerProperty index = new SimpleIntegerProperty(0);
+        
+        long firstTimeStamp = ((((int) ((startTimeStamp - ts0) / timeSpanMillis))) * timeSpanMillis) + ts0;
+
+       // int numItems = (int) Math.ceil((currentTime - firstTimeStamp) / timeSpanMillis);
+        ArrayList<SpectrumPriceData> priceDataList = new ArrayList<>();
+    
+        SimpleIntegerProperty i = new SimpleIntegerProperty(0);
+        SimpleLongProperty ts = new SimpleLongProperty(0);
+        SimpleObjectProperty<SpectrumPrice> p = new SimpleObjectProperty<>();
+        
+        long arrayLength = sDArray.length;
+        
+        int j = 0;
+        
+        
+        SimpleObjectProperty<SpectrumPrice> lastPrice = new SimpleObjectProperty<SpectrumPrice>(new SpectrumPrice(BigDecimal.ZERO, firstTimeStamp));
+
+        while(i.get() < arrayLength){
+            long span = j * timeSpanMillis;
+            long epochStart = firstTimeStamp + span;
+            long epochEnd = epochStart + timeSpanMillis;
+           
+            
+            p.set(isInvert ? sDArray[i.get()].getInverted() : sDArray[i.get()]);
+
+            ts.set(p.get().getTimeStamp());
+
+            while(i.get() < arrayLength && ts.get() < epochStart){
+                lastPrice.set(p.get());
+                p.set(isInvert ? sDArray[i.get()].getInverted() : sDArray[i.get()]);
+                ts.set(p.get().getTimeStamp());
+                i.set(i.get() + 1);
+            }
+            
+            SpectrumPriceData priceData = new SpectrumPriceData( epochStart, epochEnd, lastPrice.get().getPrice());
+
+
+            while(ts.get() < epochEnd && i.get() < arrayLength){
+                lastPrice.set(p.get());
+                p.set(isInvert ? sDArray[i.get()].getInverted() : sDArray[i.get()]);
+                
+
+                priceData.addPrice(p.get().getTimeStamp(), p.get().getPrice());
+                
+                ts.set(p.get().getTimeStamp());
+                i.set(i.get()+1);
+                
+            }
+            
+            priceDataList.add(priceData);
+
+            numbers.updateData(priceData);
+            j++;
+        }
+
+        SpectrumPriceData[] d = new SpectrumPriceData[priceDataList.size()];
+        d = priceDataList.toArray(d);
+        
+        numbers.setSpectrumPriceData(d);
+
+        return numbers;
+    }*/
+
+    public void processData(boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        
+        
+        
+
+        if(m_data != null ){
+            int size = m_data.length;
+            if(size > 2){
+                Task<Object> task = new Task<Object>() {
+                    @Override
+                    public Object call() throws ArithmeticException {
+                        
+
+                        return process( m_data, isInvert, startTimeStamp,timeSpan, currentTime);
+                    }
+                };
+
+                task.setOnFailed(onFailed);
+
+                task.setOnSucceeded(onSucceeded);
+
+                execService.submit(task);
+            }
+        }
+                    
+    }
+
+    public void processData(boolean isInvert, int maxBars, TimeSpan timeSpan,  long currentTime, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        
+       
+        
+        if(m_data != null){
+             
+            SpectrumPrice[] sPData = m_data;
+            int size = sPData.length;
+            if(size > 2){
+            Task<Object> task = new Task<Object>() {
+                @Override
+                public Object call()throws ArithmeticException {
+
+                    
+                 //   ArrayList<SpectrumPriceData> priceList = new ArrayList<>();
+
+        
+                
+                   // SpectrumNumbers numbers = new SpectrumNumbers();
+
+                    SpectrumPrice oldestPrice = sPData[0];
+                    long oldestTimeStamp = oldestPrice.getTimeStamp();
+
+                    long timeSpanMillis = timeSpan.getMillis();
+
+                    int maxElements = (int)((currentTime - oldestTimeStamp) / timeSpanMillis);
+
+                    int startElement = maxElements > maxBars ? maxBars : maxElements;
+
+                    final long startTimeStamp = currentTime - (startElement * timeSpanMillis);
+                           
+                    
+
+                    return process( sPData, isInvert,startTimeStamp, timeSpan, currentTime);
+                }
+            };
+
+            task.setOnFailed(onFailed);
+
+            task.setOnSucceeded(onSucceeded);
+
+            execService.submit(task);
+        }
+        }
+                    
+    }
+
+
+
+
+ 
     /*
     private void addPrices(ArrayList<SpectrumPrice> dataList, SimpleIntegerProperty index, SpectrumPriceData priceData, long epochEnd){
         int size = dataList.size();
@@ -892,46 +944,11 @@ public class SpectrumChartView {
     }*/
 
 
-    public SpectrumPrice[] updateLastItem(SpectrumPrice[] data, SpectrumPrice spectrumPrice) {
-        
-        BigDecimal price = spectrumPrice.getPrice();
-        long timeStamp = spectrumPrice.getTimeStamp();
-
-    
-        int size = data.length;
-            
-        if(size > 2){
-            SpectrumPrice secondLastPrice =data[size-2];
-            SpectrumPrice lastPrice = data[size -1];
-            
-            if(lastPrice.getTimeStamp() < timeStamp){
-                if(secondLastPrice.getPrice().equals(lastPrice.getPrice()) && lastPrice.getPrice().equals(price)){
-                    data[size-1] =  spectrumPrice;
-                    return data;
-                }else{
-                    SpectrumPrice[] newData = Arrays.copyOf(data, data.length+1);
-                    newData[data.length] = spectrumPrice;
-                    return newData;
-                    
-                    
-            
-                }
-            }else{
-                return data;
-            }
-        }else{
-            SpectrumPrice[] newData = Arrays.copyOf(data, data.length+1);
-            newData[data.length] = spectrumPrice;
-            return newData;
-        }
-        
-    }
 
 
 
-    public SimpleLongProperty updatedTimeStampProperty(){
-        return m_doUpdate;
-    }
+
+  
 
  /*   private int m_maxBarsOffset = 0;
 
@@ -996,14 +1013,11 @@ public class SpectrumChartView {
         return img.getHeight() - (int) (scale * numberClass.getLow(false).doubleValue());
     }
 
-    public String getTimeStampString() {
-        long lastUpdated = m_doUpdate.get();
-        return Utils.formatTimeString(Utils.milliToLocalTime(lastUpdated));
-    }
+   
 
     public void setMsg(String msg) {
         m_msg = msg;
-        m_doUpdate.set(System.currentTimeMillis());
+        
     }
 
     public String getMsg() {
@@ -1403,22 +1417,7 @@ public class SpectrumChartView {
         }
 
 
-/*  m_g2d.setFont(m_headingFont);
-    FontMetrics fm = m_g2d.getFontMetrics();
-    String text = init ? "Initializing..." : m_msg;
 
-    int stringWidth = fm.stringWidth(text);
-    int fmAscent = fm.getAscent();
-    int x = (width / 2) - (stringWidth/2);
-    int y = ((height - fm.getHeight()) / 2) + fmAscent;
-    m_g2d.setColor(Color.WHITE);
-    m_g2d.drawString(text, x, y); */  
-  
-        
-/*   m_g2d.setColor(new Color(0xffcdd4da, true));
-        m_g2d.setFont(m_labelFont);
-        m_g2d.drawString(Utils.formatTimeString(Utils.milliToLocalTime(m_doUpdate.get())), width-85, height);
-*/      
       
     }
 

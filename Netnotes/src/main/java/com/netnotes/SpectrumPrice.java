@@ -65,15 +65,13 @@ public class SpectrumPrice{
             return m_timeStamp;
         }
 
-        public BigDecimal getInvertedPrice(){
-            try{
-                return BigDecimal.ONE.divide(m_price, 15, RoundingMode.HALF_UP);
-            }catch(ArithmeticException e){
-                return BigDecimal.ZERO;
-            }
+        public BigDecimal getInvertedPrice() throws ArithmeticException{
+       
+            return BigDecimal.ONE.divide(m_price, 15, RoundingMode.HALF_UP);
+            
         }
 
-        public SpectrumPrice getInverted(){
+        public SpectrumPrice getInverted() throws ArithmeticException{
             return new SpectrumPrice(getInvertedPrice(), m_timeStamp);
         }
 

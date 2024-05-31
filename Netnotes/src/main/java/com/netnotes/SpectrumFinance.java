@@ -1288,6 +1288,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
         Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
     }
     
+    public void getPoolChart(String poolId,long fromTime, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+
+        String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from=" + fromTime + "&to=" + currentTime;
+
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+    }
 
     public void addMsgListener(SpectrumMarketInterface item) {
         if (!m_msgListeners.contains(item)) {

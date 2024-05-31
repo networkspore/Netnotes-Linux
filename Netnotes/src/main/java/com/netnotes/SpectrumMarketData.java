@@ -390,7 +390,11 @@ public class SpectrumMarketData extends PriceQuote {
         m_quoteVolume = updateData.getQuoteVolume();
         m_liquidityUSD = updateData.getLiquidityUSD();
         setTimeStamp(updateData.getTimeStamp());
-   
+        
+        if(m_chartViewProperty.get() != null){
+            m_chartViewProperty.get().update();
+        }
+
         m_lastUpdated.set(LocalDateTime.now());
     
     }

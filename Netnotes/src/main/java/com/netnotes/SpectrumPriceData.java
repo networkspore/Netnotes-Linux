@@ -16,6 +16,9 @@ public class SpectrumPriceData {
     private BigDecimal m_low = BigDecimal.ZERO;
 
     private long m_epochEnd = 0;
+    private int m_count = 0;
+    private boolean m_lastCloseDirection = false;
+    private long m_lastTimeStamp = 0;
     
     public SpectrumPriceData(long epochStart, long epochEnd, BigDecimal price){
         m_startTimestamp = epochStart;
@@ -24,17 +27,19 @@ public class SpectrumPriceData {
         m_close = price;
         m_high = price;
         m_low = price;
+        m_lastTimeStamp = epochStart;
     }
 
     public SpectrumPriceData(long timestamp, long epochEnd){
         m_startTimestamp = timestamp;
         m_epochEnd = epochEnd;
+        m_lastTimeStamp = timestamp;
     }
 
 
     public SpectrumPriceData(SpectrumPrice spectrumPrice, long epochStart, long epochEnd){
         m_startTimestamp = epochStart;
-
+        m_lastTimeStamp = epochStart;
 
         BigDecimal price = spectrumPrice.getPrice();
 
@@ -57,6 +62,7 @@ public class SpectrumPriceData {
         m_high = high;
         m_low = low;
         m_epochEnd = epochEnd;
+        m_lastTimeStamp = epochStart;
     }
 /*
     public long getPriceAreaTimeStamp(){
@@ -101,7 +107,13 @@ public class SpectrumPriceData {
         return m_startTimestamp;
     }
 
+    public long getLastTimeStamp(){
+        return m_lastTimeStamp;
+    }
 
+    public void setLastTimeStamp(long timeStamp){
+        m_lastTimeStamp = timeStamp;
+    }
 
     public void addPrice(long timestamp, BigDecimal price){
         if(timestamp >= m_startTimestamp && timestamp < m_epochEnd){
@@ -109,14 +121,38 @@ public class SpectrumPriceData {
        
             m_low = m_low.equals(BigDecimal.ZERO) ? price :  m_low.min(price);
             m_high = m_high.max(price);
+
+            int compareTo = m_close.compareTo(price);
+            if(compareTo != 0){
+                m_lastCloseDirection = compareTo == -1;
+            }
+            m_lastTimeStamp = timestamp;
+            m_count++;
         }
         
+
+     
+    }
+
+    public boolean getLastCloseDirection(){
+        return m_lastCloseDirection;
+    }
+    public void setLastCloseDirection(boolean value){
+        m_lastCloseDirection = value;
     }
 
     public LocalDateTime getLocalDateTime() {
        
         return Utils.milliToLocalTime(m_epochEnd);
         
+    }
+
+    public void setCount(int count){
+        m_count = count;
+    }
+
+    public int getCount(){
+        return m_count;
     }
 
 

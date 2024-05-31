@@ -4,6 +4,8 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
@@ -204,7 +206,7 @@ public class SpectrumMarketItem {
         chartBox.setPadding(new Insets(0));
         chartBox.minWidthProperty().bind(widthObject.subtract(chartWidthOffset));
         
-        Text priceText = new Text();
+        Text priceText = new Text(m_isInvert.get() ?String.format("%-12s", m_marketData.getInvertedLastPrice()+ "").substring(0,12) : String.format("%-12s", m_marketData.getLastPrice()+ "").substring(0,12));
         priceText.setFont(Font.font("OCR A Extended", FontWeight.NORMAL, 14));
         priceText.setFill(App.txtColor);
         
@@ -360,7 +362,7 @@ public class SpectrumMarketItem {
                 TimeSpan colSpan = new TimeSpan("custom","id1", colSpanSeconds);
               
              
-                long currentTime =  m_marketData.getTimeStamp();
+                long currentTime =  Utils.getNowEpochMillis();
 
                 long startTimeStamp = currentTime - durationSpan.getMillis();
 
@@ -371,19 +373,39 @@ public class SpectrumMarketItem {
                         SpectrumNumbers numbers =(SpectrumNumbers) sourceValue;
                         
                         numbersObject.set( isCurrent ? numbers : null);
+
+                        
                         
                         boolean isNewImage = (m_rowImg == null) ||  (m_rowImg != null &&(m_rowImg.getWidth() != width || m_rowImg.getHeight() != height));
                         m_rowImg = isNewImage ? new BufferedImage(width , height, BufferedImage.TYPE_INT_ARGB) : m_rowImg; 
                         
-                        try {
-
-                            chartView.updateRowChart(numbers, colSpan, cellWidth, m_rowImg);
-                            rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, null));
-                            rowChartImgView.setFitWidth(m_rowImg.getWidth());
-
-                        } catch ( ArithmeticException e1) {
+                   
+                         priceText.setText( String.format("%-12s", numbers.getClose() + "").substring(0,12) );
                         
+                         boolean update = false;
+                        
+                        
+                        chartView.updateRowChart(numbers, colSpan, cellWidth, m_rowImg);
+                        update = true;
+                    
+
+                        rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, null));
+                        rowChartImgView.setFitWidth(m_rowImg.getWidth());
+                        
+                    
+                        
+                        if(m_marketData.getQuoteSymbol().equals("SigUSD")){
+                            File saveFile = new File(m_marketData.getCurrentSymbol(false) + ".json");
+                            
+
+                            try {
+                                Files.writeString(saveFile.toPath(), "\nlast Index: " + numbers.getLastIndex() + " " + chartView.getLastTimestamp() + " " + chartView.getSpectrumData().length + " " + numbers.dataLength() + " " + numbers.getClose() + " " + numbers.getLastTimeStamp() + " " + numbers.getSpectrumPriceData()[numbers.getSpectrumPriceData().length -1].getCloseString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
+                        
+                            }
                         }
+                    
+
                     }
 
                 }, (onFailed)->{
@@ -395,13 +417,13 @@ public class SpectrumMarketItem {
             }
         };
 
-        updateRowImg.run();
         ChangeListener<Number> widthListener = (obs,oldval,newval) ->{
             updateRowImg.run();
         };
         ChangeListener<Number> heightListener = (obs,oldval,newval) ->{
             updateRowImg.run();
         };
+        
         chartHeightObject.addListener(heightListener);
         widthObject.addListener(widthListener);
 
@@ -484,9 +506,7 @@ public class SpectrumMarketItem {
    
             boolean isChart = m_marketData.getPoolId() != null;
             openChartBtn.setId(m_marketData != null ? (isChart ? "availableBtn" : "offlineBtn") : "offlineBtn");
-            
-
-            priceText.setText( m_isInvert.get() ?String.format("%-12s", m_marketData.getInvertedLastPrice()+ "").substring(0,12) : String.format("%-12s", m_marketData.getLastPrice()+ "").substring(0,12) );
+    
             symbolText.setText(m_marketData.getCurrentSymbol(m_isInvert.get()));
 
         };
@@ -535,6 +555,7 @@ public class SpectrumMarketItem {
 
         baseImg.addListener((obs,oldval,newval)->updateLogo.run());
         quoteImg.addListener((obs,oldval,newval)->updateLogo.run());
+
 
         ChangeListener<HBox> currentBoxChangeListener = (obs,oldval,newval)->{
             boolean isCurrent = newval != null && newval.equals(rowBox);
@@ -1082,12 +1103,13 @@ public class SpectrumMarketItem {
                 int maxBars =  (SpectrumChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding));
 
                 TimeSpan timeSpan = timeSpanObject.get();
+                long timestamp =spectrumChartView.dataListChangedProperty().get();
 
                 spectrumChartView.processData(
                     m_isInvert.get(), 
                     maxBars, 
                     timeSpanObject.get(),
-                    System.currentTimeMillis(),
+                    timestamp,
                      m_dataList.getSpectrumFinance().getExecService(), 
                      (onSucceeded)->{
                         Object sourceValue = onSucceeded.getSource().getValue();
@@ -1134,6 +1156,7 @@ public class SpectrumMarketItem {
                                     timeSpan, 
                                     chartRange
                                 );
+                               
                                
                                 chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
                                 
@@ -1469,6 +1492,7 @@ public class SpectrumMarketItem {
                 m_stage.setTitle(exchange.getName() + " - " +  m_marketData.getCurrentSymbol(newval) + " - " + (newval ? m_marketData.getInvertedLastPrice() + "" : m_marketData.getLastPrice() + "") + ""  );
                 headingText.setText(m_marketData.getCurrentSymbol(newval));
                 chartRange.reset();
+                createChart.run();
             };
 
             m_isInvert.addListener(invertListener);
@@ -1724,30 +1748,6 @@ public class SpectrumMarketItem {
         ergoQuantityBox.setPadding(new Insets(0,0,0,0));
         ergoQuantityBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(ergoQuantityBox, Priority.ALWAYS);
-
-        /*
-
-        TextField spfQuantityField = new TextField();
-        HBox.setHgrow(spfQuantityField, Priority.ALWAYS);
-        spfQuantityField.setId("formField");
-        spfQuantityField.setEditable(false);
-        spfQuantityField.setAlignment(Pos.CENTER_RIGHT);
-
-        ImageView spfImgView = new ImageView();
-        spfImgView.setPreserveRatio(true);
-        
-
-        StackPane spfQuantityFieldBox = new StackPane(spfImgView, spfQuantityField);
-        HBox.setHgrow(spfQuantityFieldBox, Priority.ALWAYS);
-        spfQuantityFieldBox.setPadding(new Insets(0,3,0,0));
-        spfQuantityFieldBox.setAlignment(Pos.CENTER_LEFT);
-        spfQuantityFieldBox.setId("darkBox");
-
-        HBox spfQuantityBox = new HBox(spfQuantityFieldBox);
-        spfQuantityBox.setPadding(new Insets(0,5,0,5));
-        spfQuantityBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(spfQuantityBox, Priority.ALWAYS);
- */
 
         TextField quoteQuantityField = new TextField();
         HBox.setHgrow(quoteQuantityField, Priority.ALWAYS);
@@ -2184,7 +2184,15 @@ public class SpectrumMarketItem {
 
         Button executeBtn = new Button("");
         executeBtn.setOnAction(e->{
+            boolean isBuy = isBuyObject.get();
+            boolean invert = isBuy ? isInvert() : !isInvert();
            
+            String quoteId = invert ?  m_marketData.getBaseId() : m_marketData.getQuoteId();
+            String baseId = invert ? m_marketData.getQuoteId() : m_marketData.getBaseId();
+            BigDecimal baseAmount = currentAmount.get();
+
+           // executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
+            //swap();
         });
 
         HBox executeBox = new HBox(executeBtn);

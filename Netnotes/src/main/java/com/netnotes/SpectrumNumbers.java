@@ -18,11 +18,18 @@ public class SpectrumNumbers {
     private boolean m_lastCloseDirection = false;
     private SpectrumPriceData[] m_priceData = null;
     
-
+    private long m_lastTimeStamp;
+    private int m_lastIndex = 0;
 
     public SpectrumNumbers(){}
 
+    public int getLastIndex(){
+        return m_lastIndex;
+    }
 
+    public void setLastIndex(int index){
+        m_lastIndex = index;
+    }
 
     public SpectrumNumbers invert(){
         SpectrumNumbers inverted = new SpectrumNumbers();
@@ -72,6 +79,14 @@ public class SpectrumNumbers {
         m_lastCloseDirection = closeDirection;
     }
 
+    public void setLastTimeStamp(long timestamp){
+        m_lastTimeStamp = timestamp;
+    }
+
+    public long getLastTimeStamp(){
+        return m_lastTimeStamp;
+    }
+
 
     public void updateData(SpectrumPriceData data){
 
@@ -94,10 +109,9 @@ public class SpectrumNumbers {
         
         setCount(m_count + 1);
 
-        int compareTo = m_close.compareTo(data.getClose());
-    
-        m_lastCloseDirection = compareTo == 0 ? m_lastCloseDirection : (compareTo == 1);
+        m_lastCloseDirection = data.getLastCloseDirection();
 
+        m_lastTimeStamp = data.getLastTimeStamp();
     }
 
     public SpectrumPriceData[] getSpectrumPriceData(){
