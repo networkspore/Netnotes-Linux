@@ -117,12 +117,14 @@ public class SpectrumPriceData {
 
     public void addPrice(long timestamp, BigDecimal price){
         if(timestamp >= m_startTimestamp && timestamp < m_epochEnd){
-            m_close = price;
+           
        
             m_low = m_low.equals(BigDecimal.ZERO) ? price :  m_low.min(price);
             m_high = m_high.max(price);
 
             int compareTo = m_close.compareTo(price);
+            m_close = price;
+
             if(compareTo != 0){
                 m_lastCloseDirection = compareTo == -1;
             }

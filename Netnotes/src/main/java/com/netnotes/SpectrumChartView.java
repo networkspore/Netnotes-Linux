@@ -25,6 +25,8 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -67,7 +69,8 @@ public class SpectrumChartView {
 
     // private BufferedImage m_img = null;
 
-   
+    
+    private int m_connectionStatus = SpectrumFinance.STOPPED;
    
 
     private static int m_defaultColor = new Color(0f, 0f, 0f, 0.01f).getRGB();
@@ -99,13 +102,12 @@ public class SpectrumChartView {
 
 
     private SpectrumPrice[] m_data = null; 
-    private SimpleLongProperty m_dataListChanged = new SimpleLongProperty();
     
-    private SimpleStringProperty m_shutdownIdProperty = new SimpleStringProperty(null);
+    
 
    // private volatile int m_tries = 0;
 
-    private ArrayList<String> m_listeners = new ArrayList<String>();
+    private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
 
     public SpectrumChartView(SpectrumMarketData marketData, SpectrumFinance spectrumFinance) {
         m_marketData = marketData;
@@ -114,42 +116,67 @@ public class SpectrumChartView {
       
     }
 
-    public SimpleLongProperty dataListChangedProperty(){
-        return m_dataListChanged;
-    } 
-
-    public void addPrices(SpectrumPrice[] prices){
+ 
+    public long addPrices(SpectrumPrice[] prices){
         
         
         if(m_data != null && m_data.length > 0 && prices != null && prices.length > 0){
             
-            SpectrumPrice[] data = m_data;
-            int size = data.length;
-            long lastTimeStamp = data[size -1].getTimeStamp();
-            int items = prices.length;                 
-            
+          
+            int size = m_data.length;
 
-            for(int i = 0; i < prices.length ; i ++){
+            SpectrumPrice lastItem = m_data[size -1];
+            long lastTimeStamp = lastItem.getTimeStamp();
+
+            int priceLength = prices.length;
+            int startIndex = 0;                 
+            
+            for(int i = 0; i < priceLength ; i ++){
                 SpectrumPrice p = prices[i];
                 if(p.getTimeStamp() > lastTimeStamp){
                     break;
                 }
-                items--;
+                startIndex++;
             }
-            int len = prices.length - items;
-            if(len > 0){
-                int newSize = size + len;
-                SpectrumPrice[] newData = Arrays.copyOf(data, newSize);
+           
+            int itemsLeft = priceLength - startIndex;
+
+            if(size > 0 && itemsLeft > 0){
+                int newSize = size + itemsLeft;
                 
-                System.arraycopy(data, items, newData, size, len);
-                m_data = newData;
+                SpectrumPrice[] data = Arrays.copyOf(m_data, newSize);
+                System.arraycopy(prices, startIndex, data, size, itemsLeft);
+              
+                SpectrumPrice newLastItem = data[newSize -1];
+                m_data = data;
+                
+                return newLastItem.getTimeStamp();
             }
 
-         }
+        }
+        
+        return -1;
+    }
+    public void addMsgListener(SpectrumMarketInterface item) {
+        if (!m_msgListeners.contains(item)) {
+
+            
+            start();
+            
+            m_msgListeners.add(item);
+        }
+
+    }
+
+    public void start(){
+        if(m_connectionStatus == SpectrumFinance.STOPPED){
+            m_connectionStatus = SpectrumFinance.STARTING;
+            getPoolData();
+        }
     }
 
 
-    public int addDataListener(String id){
+   /* public int addDataListener(String id){
         if(id == null){
             return -2;
         }
@@ -184,21 +211,66 @@ public class SpectrumChartView {
             return -2;
         }
         return -1;
+    }*/
+
+
+   /* public String getListener(int index){
+           
+        return index > -1 && index < m_listeners.size() ? m_listeners.get(index) : null;
+    }*/
+    public SpectrumMarketInterface getListener(String id) {
+        
+        for (int i = 0; i < m_msgListeners.size(); i++) {
+            SpectrumMarketInterface listener = m_msgListeners.get(i);
+            if (listener.getId().equals(id)) {
+                return listener;
+            }
+        }
+        return null;
     }
 
-    public boolean removeListener(String id){
-        if(id != null){
-     
+    public boolean removeMsgListener(SpectrumMarketInterface item) {
+   
+
+       // SpectrumMarketInterface listener = getListener(item.getId());
+        
+        if (item != null) {
+            boolean removed = m_msgListeners.remove(item);
             
-            return m_listeners.remove(id);
             
+            if (m_msgListeners.size() == 0) {
+                stop();
+            }
+            return removed;
         }
+
         return false;
     }
 
-    public String getListener(int index){
-           
-        return index > -1 && index < m_listeners.size() ? m_listeners.get(index) : null;
+    public void stop(){
+        m_connectionStatus = SpectrumFinance.STOPPED;
+        m_data = null;
+        m_lastTimeStamp = 0;
+    }
+    
+    public void sendMessage(int msg){
+        long timestamp = System.currentTimeMillis();
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(msg, timestamp);
+        }
+    }
+
+    public void sendMessage(int msg, long timestamp){
+
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(msg, timestamp);
+        }
+    }
+    public void sendMessage(int code, long timestamp, String msg){
+
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(code, timestamp, msg);
+        }
     }
 
 
@@ -217,23 +289,26 @@ public class SpectrumChartView {
                         m_data = (SpectrumPrice[]) sourceObject;
                         if(m_data.length > 2){
                             m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
-                            m_dataListChanged.set(currentTime);
+                            m_connectionStatus = SpectrumFinance.STARTED;
+                            sendMessage(SpectrumFinance.LIST_CHANGED, m_lastTimeStamp);
                         }
                     }
                 }, (onFailed)->{
-                  
+                    m_connectionStatus = SpectrumFinance.ERROR;
+                    sendMessage(SpectrumFinance.ERROR, currentTime, onFailed.getSource().getException().toString());
                 });
 
             
             }
-          
+        
         }, (onFailed)->{
-            //noConnection?
-            try {
-                Files.writeString(App.logFile.toPath(),"\ninitChart SMD: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
+            
+            Throwable throwable = onFailed.getSource().getException();
+            
+            String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
+            
+            sendMessage(SpectrumFinance.ERROR, currentTime, msg);
 
-            }
          });
 
         
@@ -242,10 +317,11 @@ public class SpectrumChartView {
     
 
     public void update(){
-        int numListeners = m_listeners.size();
-        long currentTime = Utils.getNowEpochMillis();
         
-        if(numListeners > 0 && m_lastTimeStamp > 0){
+        long currentTime = System.currentTimeMillis();
+        SpectrumPrice[] data = m_data;
+        
+        if(m_connectionStatus == SpectrumFinance.STARTED && m_lastTimeStamp > 0 && data != null){
 
             String poolId = m_marketData.getPoolId();
             
@@ -261,14 +337,21 @@ public class SpectrumChartView {
                             if(sourceObject != null && sourceObject instanceof SpectrumPrice[]){
                                 SpectrumPrice[] prices = (SpectrumPrice[]) sourceObject;
                                 if(prices.length > 0){
-                                addPrices(prices); 
-                                    m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
-                                    m_dataListChanged.set(m_lastTimeStamp);
+                                    long lastTimeStamp = addPrices(prices); 
+                                    
+                                    sendMessage(lastTimeStamp > 0 ? SpectrumFinance.LIST_UPDATED : SpectrumFinance.LIST_CHECKED);
+                                
+                                }else{
+                                    sendMessage(SpectrumFinance.LIST_CHECKED);
                                 }
                                 
                             }
                         }, (onFailed)->{
-                        
+                            
+                            Throwable throwable = onFailed.getSource().getException();
+                            
+            
+                            sendMessage(SpectrumFinance.ERROR, currentTime, throwable.toString());
                         });
                     }
     
@@ -276,12 +359,13 @@ public class SpectrumChartView {
                 }
               
             }, (onFailed)->{
-                //noConnection?
-                try {
-                    Files.writeString(App.logFile.toPath(),"\ninitChart SMD: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-    
-                }
+                
+                Throwable throwable = onFailed.getSource().getException();
+                
+                String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
+                
+                sendMessage(SpectrumFinance.ERROR, currentTime, msg);
+
              });
         }
        // m_data.setPriceData(updateLastItem(m_data.getPriceData(), new SpectrumPrice(m_marketData.getLastPrice(), m_marketData.getTimeStamp())));
@@ -697,6 +781,19 @@ public class SpectrumChartView {
             }
         }
     }
+    public SpectrumPrice getPrice(long startTimeStamp){
+        SpectrumPrice[] data = m_data;
+        if(data != null){
+            int size = data.length;
+            for(int i = 0; i < size ; i++){
+                SpectrumPrice p = data[i];
+                if(p.getTimeStamp() >= startTimeStamp){
+                    return p;
+                }
+            }
+        }
+        return null;
+    }
     
     public static SpectrumNumbers process(SpectrumPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime) throws ArithmeticException{
         SpectrumNumbers numbers = new SpectrumNumbers();
@@ -740,7 +837,10 @@ public class SpectrumChartView {
             priceList[i] = priceData;
 
             numbers.updateData(priceData);
+          
         }
+        SpectrumPrice sDxm2 = sDArray[sDArray.length-2]; 
+        numbers.setLastCloseDirection(sDxm2.getPrice().compareTo(numbers.getClose()) == -1);
         numbers.setSpectrumPriceData(priceList);
         numbers.setLastIndex(index.get());
         return numbers;
@@ -1523,11 +1623,7 @@ public class SpectrumChartView {
          }
     } */
 
-    public void shutdown(String id){
-       m_shutdownIdProperty.set(id);
-
-       removeListener(id);
-    }
+    
 
 
 

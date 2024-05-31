@@ -83,7 +83,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public final static int STARTED = 2;
     public final static int ERROR = 3;
 
-
+    public static final int LIST_CHECKED = 9;
     public static final int LIST_CHANGED = 10;
     public static final int LIST_UPDATED = 11;
 
@@ -126,6 +126,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private boolean m_isMax = false;
     private double m_prevHeight = -1;
+    private double m_prevWidth = -1;
     private double m_prevX = -1;
     private double m_prevY = -1;
     private int m_listenerSize = 0;
@@ -923,8 +924,45 @@ public class SpectrumFinance extends Network implements NoteInterface {
             });
 
             maxBtn.setOnAction(e->{
-            
-                m_appStage.setMaximized(!m_appStage.isMaximized());
+                if(m_isMax){
+                    
+                    m_appStage.setWidth(m_prevWidth);
+                    m_appStage.setHeight(m_prevHeight);
+                    FxTimer.runLater(Duration.ofMillis(100), ()->{
+                        m_appStage.setY(m_prevY);
+                        m_appStage.setX(m_prevX);
+
+                        m_prevX = -1;
+                        m_prevY = -1;
+                    });
+                    m_prevHeight = -1;
+                    m_prevWidth = -1;  
+                    m_isMax = false;
+                }else{
+                    
+                    m_isMax = true;
+                    m_prevY = m_appStage.getY();
+                    m_prevX = m_appStage.getX();
+                    m_prevHeight = m_appStage.getScene().getHeight();
+                    m_prevWidth = m_appStage.getScene().getWidth();
+                    m_appStage.setMaximized(true);
+
+                    FxTimer.runLater(Duration.ofMillis(100), ()->{
+                        double height = m_appStage.getScene().getHeight();
+                        double width = m_appStage.getScene().getWidth();
+                        double x = m_appStage.getX();
+                        double y = m_appStage.getY();
+                        m_appStage.setMaximized(false);
+                        FxTimer.runLater(Duration.ofMillis(100), ()->{
+                            m_appStage.setX(x);
+                            m_appStage.setY(y);
+                            m_appStage.setHeight(height);
+                            m_appStage.setWidth(width);
+                        });
+                    });
+                
+                }
+                
                     
                
             });
@@ -932,18 +970,26 @@ public class SpectrumFinance extends Network implements NoteInterface {
            fillLeftBtn.setOnAction(e -> {
                 if(m_isMax){
                     
-                    m_appStage.setX(m_prevX);
+                    
                     m_appStage.setHeight(m_prevHeight);
-                    m_appStage.setY(m_prevY);
-                    m_prevX = -1;
-                    m_prevY = -1;
+                    m_appStage.setWidth(m_prevWidth);
+                    
+                    FxTimer.runLater(Duration.ofMillis(100), ()->{
+                        m_appStage.setY(m_prevY);
+                        m_appStage.setX(m_prevX);
+
+                        m_prevX = -1;
+                        m_prevY = -1;
+                    });
                     m_prevHeight = -1;  
+                    m_prevWidth = -1;
                     m_isMax = false;
                 }else{
                     m_isMax = true;
                     m_prevY = m_appStage.getY();
                     m_prevX = m_appStage.getX();
                     m_prevHeight = m_appStage.getScene().getHeight();
+                    m_prevWidth = m_appStage.getScene().getWidth();
                     m_appStage.setMaximized(true);
                     FxTimer.runLater(Duration.ofMillis(100), ()->{
                         double height = m_appStage.getScene().getHeight();

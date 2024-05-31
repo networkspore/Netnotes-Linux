@@ -87,6 +87,8 @@ public class SpectrumNumbers {
         return m_lastTimeStamp;
     }
 
+ 
+
 
     public void updateData(SpectrumPriceData data){
 
@@ -107,9 +109,8 @@ public class SpectrumNumbers {
 
         setLow(data.getLow().min(m_low));
         
-        setCount(m_count + 1);
+        setCount(m_count + data.getCount());
 
-        m_lastCloseDirection = data.getLastCloseDirection();
 
         m_lastTimeStamp = data.getLastTimeStamp();
     }
@@ -308,6 +309,17 @@ public class SpectrumNumbers {
         }
         
     }
+    public BigDecimal getPercentIncrease(BigDecimal open){
+        
+        try{
+            BigDecimal increase = m_close.subtract(open);
+            return  increase.equals(BigDecimal.ZERO) ? BigDecimal.ZERO :  increase.divide(m_open, m_open.precision(), RoundingMode.HALF_UP);
+        }catch(ArithmeticException e){
+            return BigDecimal.ZERO;
+        }
+        
+    }
+
     public BigDecimal getPercentIncrease(){
         
         try{

@@ -291,7 +291,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         
         shutdownNowProperty().addListener((obs, oldval, newVal) -> {
             m_marketsList.forEach((item)->{
-                item.shutdown(getNetworkId());
+                item.shutdown();
             });
             spectrum.removeMsgListener(m_msgListener);
 
