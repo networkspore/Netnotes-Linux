@@ -22,9 +22,7 @@ import com.google.gson.JsonObject;
 import com.utils.Utils;
 
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -107,15 +105,12 @@ public class SpectrumChartView {
 
    // private volatile int m_tries = 0;
 
-    private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
+    private ArrayList<SpectrumMarketInterface> m_msgListeners = new ArrayList<>();
 
     public SpectrumChartView(SpectrumMarketData marketData, SpectrumFinance spectrumFinance) {
         m_marketData = marketData;
         m_spectrumFinance = spectrumFinance;
-     
-      
     }
-
  
     public long addPrices(SpectrumPrice[] prices){
         
@@ -149,7 +144,7 @@ public class SpectrumChartView {
               
                 SpectrumPrice newLastItem = data[newSize -1];
                 m_data = data;
-                
+
                 return newLastItem.getTimeStamp();
             }
 
@@ -160,8 +155,11 @@ public class SpectrumChartView {
     public void addMsgListener(SpectrumMarketInterface item) {
         if (!m_msgListeners.contains(item)) {
 
-            
-            start();
+            if(m_connectionStatus == SpectrumFinance.STARTED && m_data != null && m_data.length > 0){
+                item.sendMessage(SpectrumFinance.STARTED, m_data[m_data.length-1].getTimeStamp());
+            }else{
+                start();
+            }
             
             m_msgListeners.add(item);
         }
@@ -169,55 +167,15 @@ public class SpectrumChartView {
     }
 
     public void start(){
-        if(m_connectionStatus == SpectrumFinance.STOPPED){
-            m_connectionStatus = SpectrumFinance.STARTING;
-            getPoolData();
-        }
+
+ 
+ 
+        getPoolData();
+       
     }
 
 
-   /* public int addDataListener(String id){
-        if(id == null){
-            return -2;
-        }
 
-        int size = m_listeners.size();
-
-        if(!m_listeners.contains(id)){
-            
-            if(size == 0){
-                getPoolData();
-               // addUpdateListener();
-            }
-            m_listeners.add(id);
-
-            return m_listeners.size() -1;
-        }
-
-        return -1;
-        
-    }
-
-    public int listenerIndex(String id){
-        if(id != null){
-            
-                for(int i = 0; i < m_listeners.size() ; i++){
-                    if(m_listeners.get(i).equals(id)){
-                        return i;
-                    }
-                }
-            
-        }else{
-            return -2;
-        }
-        return -1;
-    }*/
-
-
-   /* public String getListener(int index){
-           
-        return index > -1 && index < m_listeners.size() ? m_listeners.get(index) : null;
-    }*/
     public SpectrumMarketInterface getListener(String id) {
         
         for (int i = 0; i < m_msgListeners.size(); i++) {
@@ -230,9 +188,6 @@ public class SpectrumChartView {
     }
 
     public boolean removeMsgListener(SpectrumMarketInterface item) {
-   
-
-       // SpectrumMarketInterface listener = getListener(item.getId());
         
         if (item != null) {
             boolean removed = m_msgListeners.remove(item);
@@ -290,7 +245,7 @@ public class SpectrumChartView {
                         if(m_data.length > 2){
                             m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
                             m_connectionStatus = SpectrumFinance.STARTED;
-                            sendMessage(SpectrumFinance.LIST_CHANGED, m_lastTimeStamp);
+                            sendMessage(SpectrumFinance.STARTED, m_lastTimeStamp);
                         }
                     }
                 }, (onFailed)->{
@@ -306,7 +261,7 @@ public class SpectrumChartView {
             Throwable throwable = onFailed.getSource().getException();
             
             String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
-            
+            m_connectionStatus = SpectrumFinance.ERROR;
             sendMessage(SpectrumFinance.ERROR, currentTime, msg);
 
          });
@@ -319,14 +274,14 @@ public class SpectrumChartView {
     public void update(){
         
         long currentTime = System.currentTimeMillis();
-        SpectrumPrice[] data = m_data;
+   
         
-        if(m_connectionStatus == SpectrumFinance.STARTED && m_lastTimeStamp > 0 && data != null){
+        if(m_connectionStatus != SpectrumFinance.STOPPED){
 
             String poolId = m_marketData.getPoolId();
             
     
-            m_spectrumFinance.getPoolChart(poolId,m_lastTimeStamp + 1 , currentTime, (onSucceeded)->{
+            m_spectrumFinance.getPoolChart(poolId, m_lastTimeStamp + 1, currentTime, (onSucceeded)->{
                 Object succededObject = onSucceeded.getSource().getValue();
                 if(succededObject != null && succededObject instanceof JsonArray){
                     JsonArray json = (JsonArray) succededObject;
@@ -336,13 +291,17 @@ public class SpectrumChartView {
                             Object sourceObject = onSpectrumData.getSource().getValue();
                             if(sourceObject != null && sourceObject instanceof SpectrumPrice[]){
                                 SpectrumPrice[] prices = (SpectrumPrice[]) sourceObject;
+                                m_connectionStatus = SpectrumFinance.STARTED;
+                                
                                 if(prices.length > 0){
                                     long lastTimeStamp = addPrices(prices); 
-                                    
-                                    sendMessage(lastTimeStamp > 0 ? SpectrumFinance.LIST_UPDATED : SpectrumFinance.LIST_CHECKED);
+                                    m_lastTimeStamp = lastTimeStamp;
+
+                                    sendMessage(lastTimeStamp > 0 ? SpectrumFinance.LIST_UPDATED : SpectrumFinance.LIST_CHECKED, m_lastTimeStamp);
                                 
                                 }else{
-                                    sendMessage(SpectrumFinance.LIST_CHECKED);
+
+                                    sendMessage(SpectrumFinance.LIST_CHECKED, m_data[m_data.length-1].getTimeStamp());
                                 }
                                 
                             }
@@ -564,6 +523,9 @@ public class SpectrumChartView {
         return numZeros;
     }
     
+    public int getConnectionStatus(){
+        return m_connectionStatus;
+    }
 
 
     
@@ -806,11 +768,11 @@ public class SpectrumChartView {
         long sd0TimeStamp = sd0.getTimeStamp();
         //int numItems = (int) Math.ceil((currentTime - startTimeStamp) / timeSpanMillis);
 
-        startTimeStamp = (((int)((startTimeStamp - sd0TimeStamp) / timeSpanMillis)) * timeSpanMillis) + sd0TimeStamp;
-        currentTime = (((int)((currentTime - sd0TimeStamp) / timeSpanMillis)) * timeSpanMillis) + sd0TimeStamp;
+      //  startTimeStamp = (((int)((startTimeStamp - sd0TimeStamp) / timeSpanMillis)) * timeSpanMillis) + sd0TimeStamp;
+       // currentTime = (((int)((currentTime - sd0TimeStamp) / timeSpanMillis)) * timeSpanMillis) + sd0TimeStamp;
 
 
-        int numItems = (int) Math.ceil(((currentTime + timeSpanMillis) - startTimeStamp) / timeSpanMillis);
+        int numItems = (int) Math.ceil((currentTime - startTimeStamp) / timeSpanMillis);
 
        
 
@@ -1239,10 +1201,10 @@ public class SpectrumChartView {
         int halfLabelHeight = (labelHeight / 2);
         int halfCellWidth = cellWidth / 2;
 
-        int i = numCells > priceListSize ? 0 : priceListSize - numCells;
+        int startPostion = numCells > priceListSize ? 0 : priceListSize - numCells;
 
-        int items = priceListSize - i;
-        int colLabelSpacing = (int) Math.floor(items / (priceListWidth / m_labelSpacingSize));
+        int items = priceListSize - startPostion;
+        int colLabelSpacing = (int)(items / (int)(priceListWidth / m_labelSpacingSize));
 
     
 
@@ -1286,7 +1248,7 @@ public class SpectrumChartView {
             
         }
         j = 0;
-
+        int i = startPostion;
         while (i < priceList.length) {
             SpectrumPriceData priceData = priceList[i];
 
@@ -1334,25 +1296,41 @@ public class SpectrumChartView {
 
             boolean positive = !((height - closeY) > (height - openY));
             boolean neutral = open == nextOpen && open == close;
+    
+            
+            drawBar(img, neutral, positive, x, highY, lowY, openY, closeY,  cellWidth, chartHeight);
 
+            i++;
+        }
+        j--;
+        int chartLabelOffset = 13;
+
+        for(i = priceList.length-1; i >= startPostion; i--){
+            SpectrumPriceData priceData = priceList[i];
+            
+            int x = ((priceListWidth < chartWidth) ? (chartWidth - priceListWidth) : 0) + (j * (cellWidth + cellPadding));
+            j--;
             LocalDateTime localTimestamp = priceData.getLocalDateTime();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("hh:mm a");
             DateTimeFormatter yearFormatter = DateTimeFormatter.ofPattern("MM/dd/YYYY");
+          
             if (localTimestamp != null) {
-                if (i % colLabelSpacing == 0) {
-
-                    Drawing.fillAreaDotted(2, img, 0x10ffffff, x + halfCellWidth - 1, 0, x + halfCellWidth, chartHeight);
-                    Drawing.fillArea(img, 0x80000000, x + halfCellWidth - 1, chartHeight, x + halfCellWidth + 1, chartHeight + 4, true);
-
+                if ((i-(priceList.length-1)) % colLabelSpacing == 0) {
+                  
+                    if(i != (priceList.length-1)){
+                        Drawing.fillAreaDotted(2, img, 0x10ffffff, x + halfCellWidth - 1, 0, x + halfCellWidth, chartHeight);
+                        Drawing.fillArea(img, 0x80000000, x + halfCellWidth - 1, chartHeight, x + halfCellWidth + 1, chartHeight + 4, true);
+                    }
                    
 
-                    String timeString = formatter.format(localTimestamp);
+                    String timeString = formatter.format(i == (priceList.length-1) ? now : localTimestamp);
+                    
                     int timeStringWidth = labelMetrics.stringWidth(timeString);
 
                     int timeStringX = x - ((timeStringWidth - amStringWidth) / 2);
 
 
-                    g2d.drawString(timeString, timeStringX, chartHeight + 4 + lblCenter );
+                    g2d.drawString(timeString, timeStringX, chartHeight + chartLabelOffset + lblCenter );
         
 
                     if (!(localTimestamp.getDayOfYear() == now.getDayOfYear() && localTimestamp.getYear() == now.getYear())) {
@@ -1365,18 +1343,14 @@ public class SpectrumChartView {
 
                         timeStringX = x - ((timeStringWidth - amStringWidth) / 2);
 
-                        g2d.drawString(timeString, timeStringX, chartHeight + 4 + labelHeight + 4 + lblCenter);
+                        g2d.drawString(timeString, timeStringX, chartHeight + chartLabelOffset + labelHeight + 4 + lblCenter);
                         
                     }
                 }
 
             }
-    
-            
-            drawBar(img, neutral, positive, x, highY, lowY, openY, closeY,  cellWidth, chartHeight);
-
-            i++;
         }
+
 
         int currentCloseY = rangeActive ? currentPrice.subtract(botRangePrice).multiply(scale2).intValue() : currentPrice.multiply(scale).intValue();
 

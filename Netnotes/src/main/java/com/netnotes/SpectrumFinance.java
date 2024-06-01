@@ -36,12 +36,10 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.collections.ListChangeListener.Change;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -55,12 +53,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -112,8 +108,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static final String TICKER_DATA_ID = "tickerData";
 
     private SimpleObjectProperty<JsonObject> m_cmdObjectProperty = new SimpleObjectProperty<>(null);
-
-    private ArrayList<String> m_favoriteIds = new ArrayList<>();
     private ArrayList<SpectrumMarketData> m_marketsList = new ArrayList<>();
 
     private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
@@ -122,7 +116,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> m_scheduledFuture = null;
     private TimeSpan m_itemTimeSpan= new TimeSpan("1day");
-
 
     private boolean m_isMax = false;
     private double m_prevHeight = -1;
@@ -371,29 +364,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return -1;
     }
 
- 
-    public boolean getIsFavorite(String id){
-        return m_favoriteIds.contains(id);
-    }
-
-
-    public void addFavorite(String id, boolean doSave) {
- 
-        m_favoriteIds.add(id);
-        if (doSave) {
-            getLastUpdated().set(LocalDateTime.now());
-        }   
-    }
-
-    public void removeFavorite(String symbol, boolean doSave) {
-        m_favoriteIds.remove(symbol);
-
-        if (doSave) {
-            getLastUpdated().set(LocalDateTime.now());
-        }
-        
-    }
-
 
     
     /*public SpectrumMarketItem getMarketItem(String id) {
@@ -430,15 +400,23 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private void showAppStage() {
         if (m_appStage == null) {
-            
-
-            SpectrumDataList spectrumData = new SpectrumDataList(getNetworkId(), this);
-
-            SimpleObjectProperty<TimeSpan> itemTimeSpanObject = new SimpleObjectProperty<TimeSpan>(m_itemTimeSpan);
-
-
             double appStageWidth = 670;
             double appStageHeight = 600;
+
+            double defaultGridWidth = appStageWidth - 30;
+            double defaultGridHeight = appStageHeight - 100;      
+
+            SimpleObjectProperty<TimeSpan> itemTimeSpanObject = new SimpleObjectProperty<TimeSpan>(m_itemTimeSpan);
+            SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
+            SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
+            SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
+
+            SpectrumDataList spectrumData = new SpectrumDataList(getNetworkId(), this, gridWidth,gridHeight, itemTimeSpanObject, currentBox);
+
+            
+
+
+  
 
             m_appStage = new Stage();
             m_appStage.getIcons().add(SpectrumFinance.getSmallAppIcon());
@@ -460,7 +438,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             titleBox.setPadding(new Insets(7, 8, 5, 10));
 
-            m_appStage.titleProperty().bind(Bindings.concat(NAME, " - ", spectrumData.statusProperty()));
+            m_appStage.titleProperty().bind(Bindings.concat(NAME, " - ", spectrumData.statusMsgProperty()));
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -771,50 +749,43 @@ public class SpectrumFinance extends Network implements NoteInterface {
             menuBar.setId("menuBar");
             menuBar.setPadding(new Insets(1, 2, 1, 5));
 
-            VBox favoritesVBox = spectrumData.getFavoriteGridBox();
 
-            SimpleObjectProperty<ScrollPane> selectedScroll = new SimpleObjectProperty<>(null);
 
-            ScrollPane favoriteScroll = new ScrollPane(favoritesVBox);
-            favoriteScroll.setPadding(new Insets(5, 0, 5, 5));
-            favoriteScroll.setId("darkBox");
-            favoriteScroll.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
-                selectedScroll.set(favoriteScroll);
-            });
-            double defaultGridWidth = appStageWidth -30;
-            double defaultGridHeight = appStageHeight - 100;            
+      
 
-            SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
-            SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
-            SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
-
-            VBox chartList = spectrumData.getGridBox(gridWidth, gridHeight, itemTimeSpanObject, currentBox);
+            VBox chartList = spectrumData.getGridBox();
   
             ScrollPane scrollPane = new ScrollPane(chartList);
             scrollPane.setPadding(new Insets(2));
             HBox headingsBox = new HBox();
 
-            scrollPane.addEventFilter(MouseEvent.MOUSE_CLICKED,(e)->{
-                selectedScroll.set(scrollPane);
-            });
-
-            VBox bodyPaddingBox = new VBox(headingsBox,
-                scrollPane);
+ 
+            VBox bodyPaddingBox = new VBox(headingsBox, scrollPane);
             bodyPaddingBox.setPadding(new Insets(5,5,0,5));
 
-            Font smallerFont = Font.font("OCR A Extended", 10);
+     
 
             Text lastUpdatedTxt = new Text("Updated ");
             lastUpdatedTxt.setFill(App.formFieldColor);
-            lastUpdatedTxt.setFont(smallerFont);
+            lastUpdatedTxt.setFont(App.titleFont);
 
             TextField lastUpdatedField = new TextField();
             lastUpdatedField.setEditable(false);
-            lastUpdatedField.setId("formField");
-            lastUpdatedField.setFont(smallerFont);
-            lastUpdatedField.setPrefWidth(245);
+            lastUpdatedField.setId("formFieldSmall");
+            lastUpdatedField.setPrefWidth(230);
 
-            HBox lastUpdatedBox = new HBox(lastUpdatedTxt, lastUpdatedField);
+            Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(spectrumData.statusMsgProperty().get().startsWith("Error") ? spectrumData.statusMsgProperty().get() : "") ,spectrumData.statusMsgProperty());
+
+            Text errorText = new Text("");
+            errorText.setFont(App.titleFont);
+            errorText.setFill(App.altColor);
+            errorText.textProperty().bind(errorTxtBinding);
+            
+            Region lastUpdatedRegion = new Region();
+            lastUpdatedRegion.setMinWidth(10);
+            HBox.setHgrow(lastUpdatedRegion, Priority.ALWAYS);
+
+            HBox lastUpdatedBox = new HBox(errorText, lastUpdatedRegion, lastUpdatedTxt, lastUpdatedField);
             lastUpdatedBox.setAlignment(Pos.CENTER_RIGHT);
             HBox.setHgrow(lastUpdatedBox, Priority.ALWAYS);
 
@@ -831,47 +802,18 @@ public class SpectrumFinance extends Network implements NoteInterface {
             HBox menuPaddingBox = new HBox(menuBar);
             menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
 
-            spectrumData.statusProperty().addListener((obs, oldVal, newVal) -> {
+            spectrumData.statusMsgProperty().addListener((obs, oldVal, newVal) -> {
                 if (newVal != null && (newVal.startsWith("Top"))) {
                     if (!headerVBox.getChildren().contains(menuPaddingBox)) {
                         headerVBox.getChildren().add(1, menuPaddingBox);
 
                     }
 
-                } else {
-                    if (headerVBox.getChildren().contains(menuPaddingBox)) {
-                        headerVBox.getChildren().remove(menuPaddingBox);
-
-                    }
-
-                }
+                } 
             });
-            Runnable updateFavorites = ()->{
-                    int numFavorites = favoritesVBox.getChildren().size();
-                    if (numFavorites > 0) {
-                        if (!headerVBox.getChildren().contains(favoriteScroll)) {
-    
-                            headerVBox.getChildren().add(favoriteScroll);
-                            menuPaddingBox.setPadding(new Insets(0, 0, 5, 0));
-                        }
-                        int favoritesHeight = (numFavorites * 32) + 37 + (currentBox.get() != null && selectedScroll.get() != null && selectedScroll.get().equals(favoriteScroll) ? 128 : 0);
-                        favoriteScroll.setPrefViewportHeight(favoritesHeight > 175 ? 175 : favoritesHeight);
-                    } else {
-                        if (headerVBox.getChildren().contains(favoriteScroll)) {
-    
-                            headerVBox.getChildren().remove(favoriteScroll);
-                            menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
-                        }
-                    }
-                
-            };
-            favoritesVBox.getChildren().addListener((Change<? extends Node> changeEvent) -> updateFavorites.run());
+           
+       
 
-            selectedScroll.addListener((obs,oldval,newval)->{
-                updateFavorites.run();
-            });
-
-            currentBox.addListener((obs,oldval,newval)->updateFavorites.run());
 
             Scene appScene = new Scene(layoutBox, appStageWidth, appStageHeight);
             appScene.setFill(null);
@@ -882,25 +824,35 @@ public class SpectrumFinance extends Network implements NoteInterface {
             bodyPaddingBox.prefWidthProperty().bind(m_appStage.widthProperty());
             scrollPane.prefViewportWidthProperty().bind(m_appStage.widthProperty());
 
-            Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
-            gridWidth.bind(scrollWidth);
+           // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
+           
+         
+           
+           scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+              
+            double width = newval.getWidth();
+           
+                gridWidth.set( width < 300 ? 300 : width );
+       
+            
+                
+            });
 
             Binding<Double> scrollHeight = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? scrollPane.viewportBoundsProperty().get().getHeight() : defaultGridHeight, scrollPane.viewportBoundsProperty());
             gridHeight.bind(scrollHeight);
 
-            favoriteScroll.prefViewportWidthProperty().bind(m_appStage.widthProperty());
-
+        
             scrollPane.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(headerVBox.heightProperty()).subtract(footerVBox.heightProperty()));
 
             chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
-            favoritesVBox.prefWidthProperty().bind(favoriteScroll.prefViewportWidthProperty().subtract(40));
-
-          
+       
             spectrumData.addUpdateListener((obs,oldval,newval)->{
                 if(newval != null){
+         
                     lastUpdatedField.setText(Utils.formatDateTimeString(newval));
+                    
                 }else{
-                    lastUpdatedField.setText("");
+                    lastUpdatedField.setText(spectrumData.statusMsgProperty().get());
                 }
             });
 

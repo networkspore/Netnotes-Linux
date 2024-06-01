@@ -10,6 +10,7 @@ import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,7 +33,6 @@ import com.google.gson.JsonObject;
 
 import com.utils.Utils;
 
-import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
@@ -45,9 +45,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.image.Image;
-import javafx.scene.image.PixelReader;
-import javafx.scene.image.PixelWriter;
-import javafx.scene.image.WritableImage;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -62,7 +59,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private File logFile = new File("netnotes-log.txt");
     private SpectrumFinance m_spectrumFinance;
 
-    private VBox m_favoriteGridBox = new VBox();
+
     private VBox m_gridBox = new VBox();
     
     private ArrayList<SpectrumMarketItem> m_marketsList = new ArrayList<SpectrumMarketItem>();
@@ -74,12 +71,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private SpectrumSort m_sortMethod = new SpectrumSort();
     private String m_searchText = null;
 
-    private BufferedImage m_symbolImage = null;
-    private Graphics2D m_symbolGraphics = null;
-    private BufferedImage m_emojiLayer; 
-
-    private BufferedImage m_imgCache = null;
-    private Graphics2D m_g2d = null;
+    
+    private int m_connectionStatus = SpectrumFinance.STOPPED;
     
     private int MIN_BTN_IMG_HEIGHT = 30;
     public static final int MIN_BTN_IMG_WIDTH = 350;
@@ -99,7 +92,12 @@ public class SpectrumDataList extends Network implements NoteInterface {
     
     private SimpleLongProperty m_doGridUpdate = new SimpleLongProperty(0);
 
-    public SpectrumDataList(String id, SpectrumFinance spectrumFinance) {
+    private SimpleDoubleProperty m_gridWidth;
+    private SimpleDoubleProperty m_gridHeight;
+    private SimpleObjectProperty<TimeSpan> m_timeSpanObject; 
+    private SimpleObjectProperty<HBox> m_currentBox;
+
+    public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<HBox> currentBox) {
         
         super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
         m_spectrumFinance = spectrumFinance;
@@ -107,6 +105,10 @@ public class SpectrumDataList extends Network implements NoteInterface {
         setup(m_spectrumFinance.getNetworksData().getAppData().appKeyProperty().get());
         
         updateTokensList();
+        m_gridWidth = gridWidth;
+        m_gridHeight = gridHeight;
+        m_timeSpanObject = timeSpanObject;
+        m_currentBox = currentBox;
 
         m_isInvert.addListener((obs,oldval,newval)->{
             SpectrumSort sortMethod = getSortMethod();
@@ -115,6 +117,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
             updateGridBox();
         }); 
     }
+
+
+   
 
     public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SecretKey oldval, SecretKey newval ) {
         super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
@@ -132,6 +137,21 @@ public class SpectrumDataList extends Network implements NoteInterface {
     public SimpleObjectProperty<Network> tokensListNetwork(){
         return m_tokensList;
     }
+
+    
+    public SimpleDoubleProperty gridWidthProperty(){
+        return m_gridWidth;
+    };
+    public SimpleDoubleProperty gridHeightProperty(){
+        return m_gridHeight;
+    }
+    public SimpleObjectProperty<TimeSpan> timeSpanObjectProperty(){
+        return m_timeSpanObject;
+    } 
+    public SimpleObjectProperty<HBox> currentBoxProperty(){
+        return m_currentBox;
+    }
+
 
     
     private java.awt.Font m_headingFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 18);
@@ -219,26 +239,28 @@ public class SpectrumDataList extends Network implements NoteInterface {
             for(int i = 0; i< updateSize ; i++){
                 
                 SpectrumMarketData marketData = marketsArray.get(i);
-                boolean isFavorite = getIsFavorite(marketData.getId());
+          
 
             
                 SpectrumMarketItem item = getMarketItem(marketData.getId());
                 if(item == null){
-                    SpectrumMarketItem newItem = new SpectrumMarketItem(isFavorite, marketData, getSpectrumDataList());
+                    SpectrumMarketItem newItem = new SpectrumMarketItem( marketData, getSpectrumDataList());
                     m_marketsList.add(newItem);
-                    newItem.init(getNetworkId());
+                    newItem.init();
                     update.set(true);
                 }
                 
             }
-            if(update.get()){
+          
+            if(update.get() || m_connectionStatus == SpectrumFinance.ERROR){
                 sort();
                 m_doGridUpdate.set(System.currentTimeMillis());
             }
                    
 
     }
-    
+
+
     
     public void connectToExchange(SpectrumFinance spectrum){
       
@@ -248,7 +270,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
         }; */
 
-        
     
 
         m_msgListener = new SpectrumMarketInterface() {
@@ -258,28 +279,27 @@ public class SpectrumDataList extends Network implements NoteInterface {
             }
 
             public void sendMessage(int msg, long timestamp){
-                 if(spectrum.marketsList().size() > 0){
-                    switch(msg){
-                        case SpectrumFinance.LIST_CHANGED:
-                        case SpectrumFinance.LIST_UPDATED:
-                        
-                                updateMarkets(spectrum.marketsList());
-                        
-                        case SpectrumFinance.STOPPED:
+                
+                switch(msg){
+                    case SpectrumFinance.LIST_CHANGED:
+                    case SpectrumFinance.LIST_UPDATED:
+                    
+                        updateMarkets(spectrum.marketsList());
+                        m_connectionStatus = SpectrumFinance.STARTED;
+                        getLastUpdated().set(LocalDateTime.now());
 
-                        break;
-                    }   
-                }else{
-                    statusProperty().set(ErgoMarketsData.ERROR);
-                    m_doGridUpdate.set(System.currentTimeMillis());
-                }
+                    case SpectrumFinance.STOPPED:
+
+                    break;
+                }   
+               
             }
             public void sendMessage(int code, long timestamp, String msg){
                 switch(code){
                     case SpectrumFinance.ERROR:
-                        
-                        statusProperty().set("Error: " + msg);
-                        m_doGridUpdate.set(System.currentTimeMillis());
+                        m_connectionStatus = SpectrumFinance.ERROR;
+                        statusMsgProperty().set("Error: " + msg);
+                        getLastUpdated().set(LocalDateTime.now());
                     break;
                 }
             }
@@ -294,16 +314,14 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 item.shutdown();
             });
             spectrum.removeMsgListener(m_msgListener);
-
-            statusProperty().set(ErgoMarketsData.STOPPED);
+            m_connectionStatus = SpectrumFinance.STOPPED;
+            statusMsgProperty().set(ErgoMarketsData.STOPPED);
         });
         
     }
 
 
-    public boolean getIsFavorite(String id){
-        return m_favoriteIds.contains(id);
-    }
+
 
     public void updateGridBox(){
         m_doGridUpdate.set(System.currentTimeMillis());
@@ -330,7 +348,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         
     }
 
-    public SimpleStringProperty statusProperty() {
+    public SimpleStringProperty statusMsgProperty() {
         return m_statusMsg;
     }
 
@@ -408,32 +426,24 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     }
 
-    public VBox getGridBox(SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<HBox> currentBox) {
+    public VBox getGridBox() {
         VBox gridBox = m_gridBox;
         
         gridBox.setId("darkBox");
         Runnable updateGrid = ()->{
-            m_favoriteGridBox.getChildren().clear();
             m_gridBox.getChildren().clear();
+         
           
     
             if (m_marketsList.size() > 0) {
           
-                int numFavorites = m_favoriteIds.size();
-    
-                for (int i = 0; i < numFavorites; i++) {
-                    String favId = m_favoriteIds.get(i);
-                    SpectrumMarketItem favMarketItem = getMarketItem(favId);
-                    m_favoriteGridBox.getChildren().add(favMarketItem.getRowBox(gridWidth, timeSpanObject, currentBox));
-                }
-    
                 if (m_searchText == null) {
                 
                     int numCells = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
                     for (int i = 0; i < numCells; i++) {
                         SpectrumMarketItem marketItem = m_marketsList.get(i);
     
-                        HBox rowBox = marketItem.getRowBox(gridWidth, timeSpanObject, currentBox);
+                        HBox rowBox = marketItem.getRowBox();
     
                         m_gridBox.getChildren().add(rowBox);
     
@@ -451,11 +461,11 @@ public class SpectrumDataList extends Network implements NoteInterface {
                         if (sourceObject instanceof SpectrumMarketItem[]) {
                             SpectrumMarketItem[] searchResults = (SpectrumMarketItem[]) sourceObject;
                             int numResults = searchResults.length > 100 ? 100 : searchResults.length;
-    
+                            m_gridBox.getChildren().clear();
                             for (int i = 0; i < numResults; i++) {
                                 SpectrumMarketItem marketItem = searchResults[i];
     
-                                HBox rowBox = marketItem.getRowBox(gridWidth, timeSpanObject, currentBox);
+                                HBox rowBox = marketItem.getRowBox();
     
                                 m_gridBox.getChildren().add(rowBox);
                             }
@@ -466,21 +476,21 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 }
             } else {
                 HBox imageBox = new HBox();
-                imageBox.prefHeightProperty().bind(gridHeight);
+                imageBox.prefHeightProperty().bind(m_gridHeight);
                 imageBox.setId("transparentColor");
                 imageBox.setAlignment(Pos.TOP_CENTER);
                 HBox.setHgrow(imageBox, Priority.ALWAYS);
                 VBox.setVgrow(imageBox, Priority.ALWAYS);
                 
           
-                Button loadingBtn = new Button(statusProperty().get());
+                Button loadingBtn = new Button();
                 loadingBtn.setFont(App.txtFont);
                 loadingBtn.setTextFill(Color.WHITE);
                 loadingBtn.setId("transparentColor");
                 loadingBtn.setGraphicTextGap(15);
                 loadingBtn.setGraphic(IconButton.getIconView(new Image("/assets/spectrum-150.png"), 150));
                 loadingBtn.setContentDisplay(ContentDisplay.TOP);
-
+                loadingBtn.textProperty().bind(statusMsgProperty());
                 imageBox.getChildren().add(loadingBtn);
 
                 
@@ -498,9 +508,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return gridBox;
     }
 
-    public VBox getFavoriteGridBox() {
-        return m_favoriteGridBox;
-    }
+
 
     public void sort(){
         sort(true);
@@ -563,7 +571,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         }
     
         int maxItems = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
-        Platform.runLater(()->m_statusMsg.set("Top "+maxItems+" - " + m_sortMethod.getType() + " " + (m_sortMethod.isAsc() ? "(Low to High)" : "(High to Low)")));
+        m_statusMsg.set("Top "+maxItems+" - " + m_sortMethod.getType() + " " + (m_sortMethod.isAsc() ? "(Low to High)" : "(High to Low)"));
         if(doSave){
             save();
         }
@@ -593,7 +601,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private void doSearch( EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         Task<SpectrumMarketItem[]> task = new Task<SpectrumMarketItem[]>() {
             @Override
-            public SpectrumMarketItem[] call() {List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
+            public SpectrumMarketItem[] call() {List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().toUpperCase().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
 
                 SpectrumMarketItem[] results = new SpectrumMarketItem[searchResultsList.size()];
 
@@ -687,101 +695,10 @@ public class SpectrumDataList extends Network implements NoteInterface {
     @Override
     public void shutdown(){
 
-        if(m_g2d != null){
-            m_g2d.dispose();
-           
-        }
-        if(m_symbolGraphics != null){
-            m_symbolGraphics.dispose();
-        }
-        
-        m_symbolImage = null;
-        m_imgCache = null;
-        m_g2d = null;
-        m_symbolGraphics = null;
         super.shutdown();
     }
 
 
-
-    public void getButtonImage(SpectrumMarketData data, WritableImage wImg,int width, boolean isInvert) {
-        
-        int height = MIN_BTN_IMG_HEIGHT;
-    
-        String symbolString = String.format("%-24s", data.getCurrentSymbol(isInvert) );
-
-        width = width < MIN_BTN_IMG_WIDTH ? MIN_BTN_IMG_WIDTH : width - 70;
-
-       if(m_symbolImage == null ){ 
-            m_symbolImage = new BufferedImage(MIN_BTN_IMG_WIDTH, height, BufferedImage.TYPE_INT_ARGB);
-   
-        }else{
-            Drawing.fillArea(m_symbolImage, App.DEFAULT_RGBA,0,0,m_symbolImage.getWidth(), m_symbolImage.getHeight(),false );
-        }
-      
-        int fontHeight = m_imageText.getStandarFontMetrics().getHeight();
-
-        m_emojiLayer = m_imageText.updateLineImage(0, (height /2) - (fontHeight/2), m_symbolImage, symbolString);
-        
-        if(m_emojiLayer != null){
-            Drawing.drawImageExact(m_symbolImage, m_emojiLayer, 0, 0, true);
-        }
-        m_emojiLayer = null;
-
-        if(m_imgCache == null){
-            m_imgCache = new BufferedImage(MIN_BTN_IMG_WIDTH, height, BufferedImage.TYPE_INT_ARGB);
-        }else{    
-            Drawing.clearImage(m_imgCache);
-        }
-
-    
-        Drawing.drawImageExact(m_imgCache, m_symbolImage, 0, m_imgCache.getHeight() - m_symbolImage.getHeight(), true);
-
-
-        PixelReader pR = wImg.getPixelReader();
-        PixelWriter pW = wImg.getPixelWriter();
-        int w = (int) m_imgCache.getWidth();
-        int h = (int) m_imgCache.getHeight();
-        Drawing.clearImage(wImg);
-
-        if(m_tokensList.get()!= null && m_tokensList.get() instanceof ErgoTokensList){
-
-            
-            ErgoTokensList tokensList = (ErgoTokensList) m_tokensList.get();
-
-            String baseTokenId =  isInvert ? data.getQuoteId() : data.getBaseId();
-            String baseTokenName = isInvert ? data.getQuoteSymbol() : data.getBaseSymbol();
-            int baseDecimals = isInvert ? data.getQuoteDecimals() : data.getBaseDecimals();
-            ErgoNetworkToken baseToken = tokensList.getAddErgoToken(baseTokenId, baseTokenName , baseDecimals);
-
-            String quoteTokenId =  isInvert ? data.getBaseId() : data.getQuoteId();
-            String quoteTokenName =  isInvert ? data.getBaseSymbol() : data.getQuoteSymbol();
-            int quoteDecimals = isInvert ? data.getBaseDecimals() : data.getQuoteDecimals();
-            ErgoNetworkToken quoteToken = tokensList.getAddErgoToken(quoteTokenId, quoteTokenName, quoteDecimals);
-
-
-            Image baseImage = baseToken != null ? baseToken.getIcon() : null;
-            Image quoteImage = quoteToken != null ? quoteToken.getIcon() : null;
-            
-            if(baseImage != null){
-     
-                Drawing.drawImageLimit(wImg,pR,pW, baseImage,(width/2), (int)((m_imgCache.getHeight() /2) - (baseImage.getHeight() /2)), 0x30);
-               
-             }
-             if(quoteImage != null){
-                 
-                 Drawing.drawImageLimit(wImg, pR, pW, quoteImage, (width/2)+50, (int)((m_imgCache.getHeight() /2) - (quoteImage.getHeight() /2)), 0x30);
-                
-                 
-             }
-        }
-
-
-
-        Drawing.drawImageExact(wImg, pR, pW, m_imgCache, 0, 0, w, h, true);
-
-    
-    }
 
   
     

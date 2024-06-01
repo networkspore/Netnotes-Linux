@@ -4,8 +4,6 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
@@ -65,6 +63,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import com.google.gson.JsonObject;
 
 public class SpectrumMarketItem {
     public class StageKeyPress{
@@ -103,7 +102,7 @@ public class SpectrumMarketItem {
     private SpectrumDataList m_dataList = null;
     private final SpectrumMarketData m_marketData;
     private Stage m_stage = null;
-    private SimpleBooleanProperty m_isFavorite = new SimpleBooleanProperty(false);
+
     private SimpleBooleanProperty m_showSwap = new SimpleBooleanProperty(false);
     private SimpleLongProperty m_shutdown = new SimpleLongProperty(0);
 
@@ -113,15 +112,18 @@ public class SpectrumMarketItem {
     private double m_prevX = -1;
     private double m_prevY = -1;
 
+    private SimpleStringProperty m_statusProperty = new SimpleStringProperty();
 
     private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty();
+    private BufferedImage m_rowImg = null;
+    private HBox m_rowBox;
 
 
-    public SpectrumMarketItem(boolean favorite, SpectrumMarketData marketData, SpectrumDataList dataList) {
+    public SpectrumMarketItem(SpectrumMarketData marketData, SpectrumDataList dataList) {
         m_dataList = dataList;
         m_marketData = marketData;
-        m_isFavorite.set(favorite);
-        
+
+       
 
         m_dataList.isInvertProperty().addListener((obs,oldval,newval)->{
             boolean invert = newval;
@@ -133,20 +135,24 @@ public class SpectrumMarketItem {
     }  
     
 
-    public SimpleBooleanProperty isFavoriteProperty() {
-        return m_isFavorite;
+
+
+    public SimpleStringProperty statusProperty(){
+        return m_statusProperty;
     }
-
-
 
 
     public SpectrumMarketData getMarketData() {
         return m_marketData;
     }
 
-    private BufferedImage m_rowImg = null;
 
-    public HBox getRowBox(SimpleDoubleProperty widthObject, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<HBox> currentBox) {
+   
+    HBox getRowBox(){
+        return m_rowBox;
+    }
+
+    public void setupRowBox() {
 
         
         double regularHeight = 32;
@@ -155,9 +161,10 @@ public class SpectrumMarketItem {
 
         SimpleDoubleProperty chartHeightObject = new SimpleDoubleProperty(regularHeight);
 
-        Button favoriteBtn = new Button();
-        favoriteBtn.setId("menuBtn");
-        favoriteBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
+        BufferedMenuButton menuBtn = new BufferedMenuButton();
+        menuBtn.setId("menuBtn");
+        menuBtn.getBufferedImageView().setFitWidth(15);
+        /*menuBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
         favoriteBtn.setOnAction(e -> {
             boolean newVal = !m_isFavorite.get();
             m_isFavorite.set(newVal);
@@ -170,7 +177,7 @@ public class SpectrumMarketItem {
 
         m_isFavorite.addListener((obs, oldVal, newVal) -> {
             favoriteBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
-        });
+        });*/
       
 
 
@@ -199,13 +206,13 @@ public class SpectrumMarketItem {
         rowChartBox.setPadding(new Insets(0,5, 0, 0));
 
        ImageView rowChartImgView = new ImageView();
-       rowChartImgView.setPreserveRatio(true);
+       rowChartImgView.setPreserveRatio(false);
      
         HBox chartBox = new HBox(rowChartImgView);
         
     
         chartBox.setPadding(new Insets(0));
-        chartBox.minWidthProperty().bind(widthObject.subtract(chartWidthOffset));
+        chartBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
         
         Text priceText = new Text(m_isInvert.get() ?String.format("%-12s", m_marketData.getInvertedLastPrice()+ "").substring(0,12) : String.format("%-12s", m_marketData.getLastPrice()+ "").substring(0,12));
         priceText.setFont(Font.font("OCR A Extended", FontWeight.NORMAL, 14));
@@ -268,7 +275,7 @@ public class SpectrumMarketItem {
         
         StackPane rowImgBox = new StackPane(chartBox, imagesBox, symbolTextPaddingBox);
         HBox.setHgrow(rowImgBox,Priority.ALWAYS);
-        rowImgBox.minWidthProperty().bind(widthObject.subtract(chartWidthOffset));
+        rowImgBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
         rowImgBox.setAlignment(Pos.CENTER_LEFT);
         rowImgBox.setPadding(new Insets(0,30,0,0));
 
@@ -325,11 +332,11 @@ public class SpectrumMarketItem {
         
         numbersObject.addListener((obs,oldval,newval)->{
             if(newval != null){
+                
                 if(!statsBox.getChildren().contains(statsVbox)){
                     statsBox.getChildren().add(statsVbox);
                 }
-                
-              
+
                 openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
                 highText.setText(String.format("%-12s",  newval.getHigh().doubleValue() + "").substring(0,12) );
                 lowText.setText(String.format("%-12s",newval.getLow().doubleValue() + "").substring(0,12) );
@@ -342,29 +349,36 @@ public class SpectrumMarketItem {
                 
                 percentChangeText.setText(increaseDirection == 0 ? "" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
                 percentChangeText.setFill(increaseDirection == 0 ? Color.WHITE  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
+            
             }else{
+                
                 statsBox.getChildren().clear();
+            
             }
         });
+
 
   
         Runnable updateRowImg = () ->{
             SpectrumChartView chartView =  m_marketData.getSpectrumChartView().get();
-            if(chartView != null){
-                int height = (int) chartHeightObject.get();
-                boolean isCurrent = height > (int) regularHeight;
-                int w = (int) widthObject.get() - (isCurrent ? chartWidthOffset : (chartWidthOffset-30));
-       
-                int width = w < chartWidthOffset ? chartWidthOffset : w  ;
-                int cellWidth = 3;
+            int height = (int) chartHeightObject.get();
+            boolean isCurrent = height > (int) regularHeight;
+            int w = (int) m_dataList.gridWidthProperty().get() - (isCurrent ? chartWidthOffset : (chartWidthOffset-30));
+    
+            int width = w < chartWidthOffset ? chartWidthOffset : w  ;
+
+            if(chartView != null ){
+                if(chartView.getConnectionStatus() != SpectrumFinance.ERROR ){
+            
+                int cellWidth = 1;
                 int maxBars = width / cellWidth;
                 boolean invert = m_isInvert.get();
-                TimeSpan durationSpan = timeSpanObject.get();
+                TimeSpan durationSpan = m_dataList.timeSpanObjectProperty().get();
                 long durationSeconds = durationSpan.getSeconds();
                 long colSpanSeconds = (durationSeconds / maxBars);
                 TimeSpan colSpan = new TimeSpan("custom","id1", colSpanSeconds);
                 
-             
+            
                 long currentTime =  System.currentTimeMillis();
 
                 long startTimeStamp = currentTime - durationSpan.getMillis();
@@ -386,24 +400,32 @@ public class SpectrumMarketItem {
                         priceText.setText( String.format("%-12s", numbers.getClose() + "").substring(0,12) );
                         
                         chartView.updateRowChart(numbers, colSpan, cellWidth, m_rowImg);
-             
-                    
-
-                        rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, null));
-                        rowChartImgView.setFitWidth(m_rowImg.getWidth());
                         
-                    
+                 
+
+                        rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, m_rowWImg));
+                        rowChartImgView.setFitWidth(m_rowImg.getWidth());
+                        rowChartImgView.setFitHeight(m_rowImg.getHeight());
                     
                     }
 
                 }, (onFailed)->{
-
+                   
+                    rowChartImgView.setFitWidth(width);
+                    rowChartImgView.setFitHeight(height);
                 });
+                }else{
+                     
+                rowChartImgView.setFitWidth(width);
+                rowChartImgView.setFitHeight(height);
+                }
+
+                
+            }else{
                
-
-
             }
         };
+        
 
         ChangeListener<Number> widthListener = (obs,oldval,newval) ->{
             updateRowImg.run();
@@ -421,7 +443,6 @@ public class SpectrumMarketItem {
         String friendlyId = FriendlyId.createFriendlyId();
 
         SimpleObjectProperty<SpectrumMarketInterface> listListenerObject = new SimpleObjectProperty<>(null);
-        File saveFile = new File(m_marketData.getCurrentSymbol(false) + ".json");
 
         Runnable addListListener = ()->{
             SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
@@ -434,25 +455,20 @@ public class SpectrumMarketItem {
         
                     public void sendMessage(int msg, long timestamp){
                         switch(msg){
-                            case SpectrumFinance.LIST_CHANGED:
+                            case SpectrumFinance.STARTED:
                             case SpectrumFinance.LIST_UPDATED:
-                            
+                                
                                 updateRowImg.run();
+                            break;
                 
                             case SpectrumFinance.STOPPED:
-    
+
                             break;
                         }   
                         
                     }
                     public void sendMessage(int code, long timestamp, String msg){
-                        switch(code){
-                            case SpectrumFinance.ERROR:
-                                
-                                //statusProperty().set("Error: " + msg);
-                               
-                            break;
-                        }
+                        
                     }
                 };
                 
@@ -461,8 +477,8 @@ public class SpectrumMarketItem {
                 chartView.addMsgListener(msgInterface);
                 
                 chartHeightObject.addListener(heightListener);
-                widthObject.addListener(widthListener);
-                timeSpanObject.addListener(timeSpanListener);
+                m_dataList.gridWidthProperty().addListener(widthListener);
+                m_dataList.timeSpanObjectProperty().addListener(timeSpanListener);
             }
         };
 
@@ -482,23 +498,23 @@ public class SpectrumMarketItem {
         HBox.setHgrow(priceVBox,Priority.ALWAYS);
         priceVBox.setAlignment(Pos.CENTER_RIGHT);
 
-        HBox favoriteBtnBox = new HBox(favoriteBtn);
-        favoriteBtnBox.setMaxHeight(32);
-        favoriteBtnBox.setAlignment(Pos.CENTER_LEFT);
+        HBox menuBtnBox = new HBox(menuBtn);
+        menuBtnBox.setMaxHeight(32);
+        menuBtnBox.setAlignment(Pos.CENTER_LEFT);
 
-        VBox leftMarginVBox = new VBox(favoriteBtnBox);
+        VBox leftMarginVBox = new VBox(menuBtnBox);
         leftMarginVBox.setAlignment(Pos.TOP_CENTER);
         leftMarginVBox.setId("darkBox");
 
         HBox rowBox = new HBox(leftMarginVBox, rowImgBox,  priceVBox, rowChartBox );
         rowBox.setId("rowBox");
         rowBox.setAlignment(Pos.TOP_LEFT);
-        rowBox.maxWidthProperty().bind(widthObject);
+        rowBox.maxWidthProperty().bind(m_dataList.gridWidthProperty());
         rowBox.setFocusTraversable(true);
 
         rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
             
-            currentBox.set(rowBox);
+            m_dataList.currentBoxProperty().set(rowBox);
             
             if(e.getClickCount() == 2){
                 open();
@@ -578,7 +594,7 @@ public class SpectrumMarketItem {
         };
 
   
-        currentBox.addListener(currentBoxChangeListener);
+        m_dataList.currentBoxProperty().addListener(currentBoxChangeListener);
         
 
         ChangeListener<LocalDateTime> marketDataUpdated = (obs, oldVal, newVal) -> update.run();
@@ -616,6 +632,13 @@ public class SpectrumMarketItem {
         m_marketData.getSpectrumChartView().addListener(chartViewChangeListener);
         
         m_dataList.tokensListNetwork().addListener(dataListNetworklistener);
+
+        ChangeListener<String> statusChangeListener = (obs,oldval,newval)->{
+            updateRowImg.run();
+        };
+
+        m_dataList.statusMsgProperty().addListener(statusChangeListener);
+        
         Button removeShutdown = new Button();
 
         Runnable shutdown = () ->
@@ -629,13 +652,17 @@ public class SpectrumMarketItem {
                 chartView.removeMsgListener(listListenerObject.get());
                 listListenerObject.set(null);
             }
-              
+
             chartHeightObject.removeListener(heightListener);
-            widthObject.removeListener(widthListener);
-            timeSpanObject.removeListener(timeSpanListener);
+            m_dataList.gridWidthProperty().removeListener(widthListener);
+            m_dataList.timeSpanObjectProperty().removeListener(timeSpanListener);
+            m_dataList.currentBoxProperty().removeListener(currentBoxChangeListener);
+
             m_marketData.getLastUpdated().removeListener(marketDataUpdated);
             m_dataList.tokensListNetwork().removeListener(dataListNetworklistener);
-            currentBox.removeListener(currentBoxChangeListener);
+            m_dataList.statusMsgProperty().removeListener(statusChangeListener);
+
+           
             removeShutdown.fire();
 
         };
@@ -647,20 +674,21 @@ public class SpectrumMarketItem {
         removeShutdown.setOnAction(e->{
             m_shutdown.removeListener(shutdownListener);
         });
-        return rowBox;
+        m_rowBox = rowBox;
     }
 
-    public void init(String id){
+    public void init(){
         if(m_marketData.isPool()){
             boolean isSet = m_marketData.getSpectrumChartView().get() == null;            
             SpectrumChartView chartView = isSet ? new SpectrumChartView(m_marketData, m_dataList.getSpectrumFinance()) : m_marketData.getSpectrumChartView().get();
 
             if(isSet){
                 m_marketData.getSpectrumChartView().set(chartView);
+                
             }
 
         }
-        
+        setupRowBox();
     }
 
 
@@ -873,9 +901,13 @@ public class SpectrumMarketItem {
     }
   
     private BufferedImage m_img = null;
-    private WritableImage m_wImg = null;
     private Graphics2D m_g2d = null;
+    private WritableImage m_wImg = null;
+
+    private WritableImage m_rowWImg = null;
+    
     private SpectrumNumbers m_numbers = null;
+    
 
     public void showStage() {
         if (m_stage == null) {
@@ -944,24 +976,7 @@ public class SpectrumMarketItem {
              */
             menuButton.getItems().addAll(setChartRangeItem);
 
-            Button favoriteBtn = new Button();
-            favoriteBtn.setId("menuBtn");
-            favoriteBtn.setContentDisplay(ContentDisplay.LEFT);
-            favoriteBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
-            favoriteBtn.setOnAction(e -> {
-                boolean newVal = !m_isFavorite.get();
-                m_isFavorite.set(newVal);
-                if (newVal) {
-                    m_dataList.addFavorite(getId(), true);
-                } else {
-                    m_dataList.removeFavorite(getId(), true);
-                }
-            });
-
-            m_isFavorite.addListener((obs, oldVal, newVal) -> {
-                favoriteBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
-            });
-
+    
             Text headingText = new Text(m_marketData.getCurrentSymbol(isInvert()) + "  - ");
             headingText.setFont(App.txtFont);
             headingText.setFill(Color.WHITE);
@@ -987,7 +1002,7 @@ public class SpectrumMarketItem {
 
   
 
-            HBox headingBox = new HBox(favoriteBtn, headingSpacerL, headingText, timeSpanBtn, headingBoxSpacerR);
+            HBox headingBox = new HBox(headingSpacerL, headingText, timeSpanBtn, headingBoxSpacerR);
             headingBox.prefHeight(40);
             headingBox.setAlignment(Pos.CENTER_LEFT);
             HBox.setHgrow(headingBox, Priority.ALWAYS);
@@ -1001,7 +1016,7 @@ public class SpectrumMarketItem {
             chartImageView.setPreserveRatio(true);
             ScrollPane chartScroll = new ScrollPane(chartImageView);
             
-            headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(favoriteBtn.widthProperty()).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
+            headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
          
 
             Region headingPaddingRegion = new Region();
@@ -1343,7 +1358,9 @@ public class SpectrumMarketItem {
 
         Runnable addListListeners = ()->{
             SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
+            
             if(chartView != null && listListenerObject.get() == null){
+              
                 SpectrumMarketInterface msgInterface = new SpectrumMarketInterface() {
                     public String getId() {
                         return friendlyId;
@@ -2815,7 +2832,7 @@ public class SpectrumMarketItem {
 
 
     public String getSymbol() {
-        return m_marketData != null ? m_marketData.getSymbol() : "Unknown";
+        return m_marketData != null ? m_marketData.getCurrentSymbol(m_isInvert.get()) : "Unknown";
     }
 
     public String getId(){
