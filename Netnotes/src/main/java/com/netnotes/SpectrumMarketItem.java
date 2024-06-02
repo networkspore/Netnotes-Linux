@@ -381,8 +381,8 @@ public class SpectrumMarketItem {
                     if(sourceValue != null && sourceValue instanceof SpectrumNumbers){
                         SpectrumNumbers numbers =(SpectrumNumbers) sourceValue;
                         
-                        SpectrumPrice oP = m_marketData.getSpectrumChartView().get().getPrice(startTimeStamp);
-                        numbers.setOpen(oP != null ? (invert ? oP.getInvertedPrice() : oP.getPrice()) : numbers.getOpen());
+               
+                       
 
                         numbersObject.set( isCurrent ? numbers : null);
                         
@@ -613,14 +613,11 @@ public class SpectrumMarketItem {
                 if(!statsBox.getChildren().contains(statsVbox)){
                     statsBox.getChildren().add(statsVbox);
                 }
-          
-
-               
-        
-
+              
                 openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
                 highText.setText(String.format("%-12s",  newval.getHigh().doubleValue() + "").substring(0,12) );
                 lowText.setText(String.format("%-12s",newval.getLow().doubleValue() + "").substring(0,12) );
+
                 BigDecimal increase = newval.getPercentIncrease();
                 increase = increase == null ? BigDecimal.ZERO : increase;
 
@@ -1418,7 +1415,13 @@ public class SpectrumMarketItem {
                             case SpectrumFinance.LIST_CHECKED:
                             case SpectrumFinance.LIST_CHANGED:
                                 createChart.run();  
-                                
+                                 if(m_marketData.getQuoteSymbol().equals("SigUSD")){
+                                        try {
+                                            Files.writeString(App.logFile.toPath(),"received " + timestamp, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                                        } catch (IOException e) {
+                                    
+                                        }
+                                    }  
                             break;
                             case SpectrumFinance.STOPPED:
     

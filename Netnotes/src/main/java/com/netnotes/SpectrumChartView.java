@@ -289,7 +289,13 @@ public class SpectrumChartView {
     public void update(){
         
         long currentTime = System.currentTimeMillis();
-   
+        if(m_marketData.getQuoteSymbol().equals("SigUSD")){
+            try {
+                Files.writeString(App.logFile.toPath(),"received " + currentTime, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+            } catch (IOException e) {
+        
+            }
+        } 
         
         if(m_connectionStatus != SpectrumFinance.STOPPED && m_lastTimeStamp > 0){
 
@@ -599,8 +605,12 @@ public class SpectrumChartView {
         rows = rows == 0 ? 1 : rows;
   
   
-        boolean isPositive = openValue.compareTo(closeValue)  <  1;
+        BigDecimal increase = spectrumNumbers.getClose().subtract(spectrumNumbers.getOpen());
+        increase = increase == null ? BigDecimal.ZERO : increase;
 
+        int increaseDirection = BigDecimal.ZERO.compareTo(increase);
+
+        boolean isPositive = increaseDirection < 1;
 
         while (i < priceListSize) {
             SpectrumPriceData priceData = priceList[i];
@@ -756,20 +766,7 @@ public class SpectrumChartView {
             }
         }
     }
-    public SpectrumPrice getPrice(long startTimeStamp){
-        SpectrumPrice[] data = m_data;
-        if(data != null){
-            int size = data.length;
-            for(int i = 0; i < size ; i++){
-                SpectrumPrice p = data[i];
-                if(p.getTimeStamp() >= startTimeStamp){
-                    return p;
-                }
-            }
-        }
-        return null;
-    }
-    
+
     public static SpectrumNumbers process(SpectrumPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime) throws ArithmeticException{
         SpectrumNumbers numbers = new SpectrumNumbers();
 

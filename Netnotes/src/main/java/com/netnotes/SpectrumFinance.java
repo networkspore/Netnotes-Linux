@@ -122,7 +122,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private double m_prevWidth = -1;
     private double m_prevX = -1;
     private double m_prevY = -1;
-    private int m_listenerSize = 0;
 
 
     public SpectrumFinance(NetworksData networksData) {
@@ -959,7 +958,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             });
 
             
-            FxTimer.runLater(Duration.ofMillis(50), ()->spectrumData.connectToExchange(this));
+            FxTimer.runLater(Duration.ofMillis(50), ()->spectrumData.connectToExchange());
             
 
             m_appStage.setOnCloseRequest(e -> runClose.run());
@@ -1314,10 +1313,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public void stop(){
         setConnectionStatus(STOPPED);
-        
+        m_marketsList.clear();
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
             m_scheduledFuture.cancel(false);
-         
+            
         }
 
     }
@@ -1365,32 +1364,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             m_scheduledFuture = m_schedualedExecutor.scheduleAtFixedRate(submitExec, 0, 7000, TimeUnit.MILLISECONDS);
 
-        
-            m_msgListeners.addListener((ListChangeListener.Change<? extends SpectrumMarketInterface> c) ->{
-                int newSize = m_msgListeners.size();
-                boolean added = newSize > m_listenerSize;
-                
-                if(added){
-      
-                    
-                }else{
-                    if(newSize == 0){
-                    
-                        stop();
-                    }
-                }
 
-                m_listenerSize = newSize;
-            });
        
-            addShutdownListener((obs,oldval,newval)->{
-            
-                stop();
-               
-            // dataArrayObject.removeListener(dataChangeListener);
-                removeShutdownListener();
-          
-            });
+           
         }
     }
 
@@ -1408,14 +1384,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public boolean removeMsgListener(SpectrumMarketInterface item) {
    
-
-        SpectrumMarketInterface listener = getListener(item.getId());
-        
-        if (listener != null) {
-            boolean removed = m_msgListeners.remove(listener);
+     
+        if (item != null) {
+            boolean removed = m_msgListeners.remove(item);
             
             
             if (m_msgListeners.size() == 0) {
+                
+                
                 shutdown();
             }
             return removed;
@@ -1425,6 +1401,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public int getConnectionStatus(){
         return m_connectionStatus;
+    }
+
+    @Override
+    public void shutdown(){
+        stop();
+        super.shutdown();
     }
  
 

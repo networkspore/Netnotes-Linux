@@ -262,20 +262,19 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
 
     
-    public void connectToExchange(SpectrumFinance spectrum){
+    public void connectToExchange(){
       
-
-
         /*ChangeListener<LocalDateTime> changeListener = (obs, oldval, newval)->{
 
         }; */
 
+        String id = FriendlyId.createFriendlyId();
     
 
         m_msgListener = new SpectrumMarketInterface() {
             
             public String getId() {
-                return m_exchangeId;
+                return id;
             }
 
             public void sendMessage(int msg, long timestamp){
@@ -284,16 +283,17 @@ public class SpectrumDataList extends Network implements NoteInterface {
                     case SpectrumFinance.LIST_CHANGED:
                     case SpectrumFinance.LIST_UPDATED:
                     
-                        updateMarkets(spectrum.marketsList());
+                        updateMarkets(m_spectrumFinance.marketsList());
                         m_connectionStatus = SpectrumFinance.STARTED;
-                        getLastUpdated().set(LocalDateTime.now());
+                     
 
                     case SpectrumFinance.STOPPED:
 
                     break;
                 }   
-               
+                getLastUpdated().set(LocalDateTime.now());
             }
+
             public void sendMessage(int code, long timestamp, String msg){
                 switch(code){
                     case SpectrumFinance.ERROR:
@@ -303,20 +303,11 @@ public class SpectrumDataList extends Network implements NoteInterface {
                     break;
                 }
             }
+
         };
 
-        spectrum.addMsgListener(m_msgListener);
-
+        m_spectrumFinance.addMsgListener(m_msgListener);
   
-        
-        shutdownNowProperty().addListener((obs, oldval, newVal) -> {
-            m_marketsList.forEach((item)->{
-                item.shutdown();
-            });
-            spectrum.removeMsgListener(m_msgListener);
-            m_connectionStatus = SpectrumFinance.STOPPED;
-            statusMsgProperty().set(ErgoMarketsData.STOPPED);
-        });
         
     }
 
@@ -694,7 +685,15 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     @Override
     public void shutdown(){
+        m_connectionStatus = SpectrumFinance.STOPPED;
 
+        m_marketsList.forEach((item)->{
+            item.shutdown();
+        });
+        
+        statusMsgProperty().set(ErgoMarketsData.STOPPED);
+
+        m_spectrumFinance.removeMsgListener(m_msgListener);
         super.shutdown();
     }
 

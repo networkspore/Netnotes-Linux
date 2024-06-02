@@ -223,6 +223,9 @@ public class Network extends IconButton {
     }
 
     public void shutdown() {
+        
+       
+
         shutdownNowProperty().set(LocalDateTime.now());
     }
 
