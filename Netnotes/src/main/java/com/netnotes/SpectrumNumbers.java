@@ -23,11 +23,11 @@ public class SpectrumNumbers {
 
     public SpectrumNumbers(){}
 
-    public int getLastIndex(){
+    public int getDataLength(){
         return m_lastIndex;
     }
 
-    public void setLastIndex(int index){
+    public void setDataLength(int index){
         m_lastIndex = index;
     }
 

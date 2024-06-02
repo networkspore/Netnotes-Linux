@@ -580,6 +580,15 @@
     -fx-opacity: .8;
 }
 
+#priceFieldRegular {
+
+    -fx-font-family: 'OCR A Extended';
+    -fx-font-size: 16px;
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-padding: 0;
+}
+
 #selectedField:hover {
     -fx-opacity: 1;
 }

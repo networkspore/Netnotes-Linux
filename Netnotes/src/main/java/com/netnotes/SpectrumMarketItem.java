@@ -4,6 +4,7 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Files;
@@ -63,7 +64,6 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import com.google.gson.JsonObject;
 
 public class SpectrumMarketItem {
     public class StageKeyPress{
@@ -156,7 +156,7 @@ public class SpectrumMarketItem {
 
         
         double regularHeight = 32;
-        double focusedHeight = 140;
+        double focusedHeight = 150;
         int  chartWidthOffset = 240;
 
         SimpleDoubleProperty chartHeightObject = new SimpleDoubleProperty(regularHeight);
@@ -213,12 +213,24 @@ public class SpectrumMarketItem {
     
         chartBox.setPadding(new Insets(0));
         chartBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
-        
-        Text priceText = new Text(m_isInvert.get() ?String.format("%-12s", m_marketData.getInvertedLastPrice()+ "").substring(0,12) : String.format("%-12s", m_marketData.getLastPrice()+ "").substring(0,12));
-        priceText.setFont(Font.font("OCR A Extended", FontWeight.NORMAL, 14));
-        priceText.setFill(App.txtColor);
-        
 
+        DropShadow ds = new DropShadow();
+        ds.setColor(Color.web("0xffffff", .6));
+        ds.setOffsetX(0);
+        ds.setOffsetY(0);
+        ds.setRadius(4);
+        ds.setSpread(0.2);
+        String initialValue = m_isInvert.get() ? m_marketData.getInvertedLastPrice().doubleValue() + "" :  m_marketData.getLastPrice().doubleValue() + "";
+        initialValue = initialValue.substring(0,Math.min(12, initialValue.length()));
+        
+        TextField priceText = new TextField(initialValue);
+        priceText.setEditable(false);
+        priceText.setFont(Font.font("OCR A Extended", FontWeight.BOLD, 16));
+   
+       
+        HBox.setHgrow(priceText, Priority.ALWAYS);
+        
+        
         Text symbolText = new Text(m_marketData.getCurrentSymbol(m_isInvert.get()));
         symbolText.setFont(Font.font("Deja Vu Sans", FontWeight.NORMAL, 14));
         symbolText.setFill(App.txtColor);
@@ -277,10 +289,15 @@ public class SpectrumMarketItem {
         HBox.setHgrow(rowImgBox,Priority.ALWAYS);
         rowImgBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
         rowImgBox.setAlignment(Pos.CENTER_LEFT);
-        rowImgBox.setPadding(new Insets(0,30,0,0));
+        rowImgBox.setPadding(new Insets(0,0,0,0));
 
         SimpleObjectProperty<SpectrumNumbers> numbersObject = new SimpleObjectProperty<>(null);
         
+        int posColor = 0xff028A0F;
+        int negColor = 0xff9A2A2A;
+
+                       
+
         HBox statsBox = new HBox();
         statsBox.setId("transparentColor");
         HBox.setHgrow(statsBox, Priority.ALWAYS);
@@ -303,7 +320,7 @@ public class SpectrumMarketItem {
         lblLowText.setFont(App.txtFont);
         lblLowText.setFill(Color.web("#777777"));
 
-        Text percentChangeText = new Text();
+        Text percentChangeText = new Text("0.00%");
 
         Text openText = new Text();
         openText.setFont(App.txtFont);
@@ -329,34 +346,9 @@ public class SpectrumMarketItem {
         VBox statsVbox = new VBox( openHbox,changeHBox, highHBox, lowHBox);
         VBox.setVgrow(statsVbox, Priority.ALWAYS);
         statsVbox.setId("transparentColor");
+        NumberFormat percentFormat = NumberFormat.getPercentInstance();
+        percentFormat.setMaximumFractionDigits(2);
         
-        numbersObject.addListener((obs,oldval,newval)->{
-            if(newval != null){
-                
-                if(!statsBox.getChildren().contains(statsVbox)){
-                    statsBox.getChildren().add(statsVbox);
-                }
-
-                openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
-                highText.setText(String.format("%-12s",  newval.getHigh().doubleValue() + "").substring(0,12) );
-                lowText.setText(String.format("%-12s",newval.getLow().doubleValue() + "").substring(0,12) );
-                BigDecimal increase = newval.getPercentIncrease();
-                increase = increase == null ? BigDecimal.ZERO : increase;
-
-                int increaseDirection = BigDecimal.ZERO.compareTo(increase);
-                NumberFormat percentFormat = NumberFormat.getPercentInstance();
-                percentFormat.setMaximumFractionDigits(2);
-                
-                percentChangeText.setText(increaseDirection == 0 ? "" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
-                percentChangeText.setFill(increaseDirection == 0 ? Color.WHITE  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
-            
-            }else{
-                
-                statsBox.getChildren().clear();
-            
-            }
-        });
-
 
   
         Runnable updateRowImg = () ->{
@@ -374,12 +366,12 @@ public class SpectrumMarketItem {
                 int maxBars = width / cellWidth;
                 boolean invert = m_isInvert.get();
                 TimeSpan durationSpan = m_dataList.timeSpanObjectProperty().get();
-                long durationSeconds = durationSpan.getSeconds();
-                long colSpanSeconds = (durationSeconds / maxBars);
-                TimeSpan colSpan = new TimeSpan("custom","id1", colSpanSeconds);
+                long durationMillis = durationSpan.getMillis();
+                long colSpanMillis = (durationMillis / maxBars);
+                TimeSpan colSpan = new TimeSpan("custom","id1", BigDecimal.valueOf(colSpanMillis).multiply(BigDecimal.valueOf(0.001)).longValue());
                 
             
-                long currentTime =  System.currentTimeMillis();
+                long currentTime = (long) (Math.ceil(System.currentTimeMillis() / durationSpan.getMillis())* durationSpan.getMillis());
 
                 long startTimeStamp = currentTime - durationSpan.getMillis();
 
@@ -397,16 +389,27 @@ public class SpectrumMarketItem {
                         boolean isNewImage = (m_rowImg == null) ||  (m_rowImg != null &&(m_rowImg.getWidth() != width || m_rowImg.getHeight() != height));
                         m_rowImg = isNewImage ? new BufferedImage(width , height, BufferedImage.TYPE_INT_ARGB) : m_rowImg; 
                         
-                        priceText.setText( String.format("%-12s", numbers.getClose() + "").substring(0,12) );
                         
-                        chartView.updateRowChart(numbers, colSpan, cellWidth, m_rowImg);
+                        chartView.updateRowChart(numbers, colSpan, cellWidth, m_rowImg, posColor, negColor);
                         
-                 
-
                         rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, m_rowWImg));
                         rowChartImgView.setFitWidth(m_rowImg.getWidth());
                         rowChartImgView.setFitHeight(m_rowImg.getHeight());
+
+                        String priceString = String.format("%-12s", numbers.getClose().doubleValue()).substring(0,12).trim();
+        
+                        priceText.setText(priceString);
+                        priceText.setAlignment(isCurrent ? Pos.CENTER : Pos.CENTER_LEFT);
+               
+                        
+                        boolean isPositive = numbers.getOpen().compareTo(numbers.getClose())  <  1;
+                        int ARGB = isPositive ? posColor : negColor;
+                        int r = (ARGB >> 16) & 0xff;
+                        int g = (ARGB >> 8) & 0xff;
+                        int b = ARGB & 0xff;
                     
+                        ds.setColor(Color.rgb(r, g, b,.65));
+                        priceText.setEffect(ds);
                     }
 
                 }, (onFailed)->{
@@ -486,17 +489,24 @@ public class SpectrumMarketItem {
 
      
 
-       
+        Region phb0 = new Region();
+        phb0.setMinWidth(15);
+        HBox.setHgrow(phb0,Priority.ALWAYS);
+
+        Region phb1 = new Region();
+        HBox.setHgrow(phb1,Priority.ALWAYS);
+
         
-        HBox priceHBox = new HBox(priceText);
+        HBox priceHBox = new HBox(priceText, rowChartBox);
         HBox.setHgrow(priceHBox, Priority.ALWAYS);
-        priceHBox.setAlignment(Pos.CENTER_RIGHT);
-        priceHBox.setPadding(new Insets(6,20,5,0));
-        priceHBox.setMinHeight(32);
+        priceHBox.setAlignment(Pos.CENTER_LEFT);
+        priceHBox.setPadding(new Insets(5,0,5,0));
+        priceHBox.setId("darkBox");
+        priceHBox.setMinWidth(90);
 
         VBox priceVBox = new VBox(priceHBox, statsBox);
         HBox.setHgrow(priceVBox,Priority.ALWAYS);
-        priceVBox.setAlignment(Pos.CENTER_RIGHT);
+        priceVBox.setAlignment(Pos.CENTER_LEFT);
 
         HBox menuBtnBox = new HBox(menuBtn);
         menuBtnBox.setMaxHeight(32);
@@ -506,7 +516,7 @@ public class SpectrumMarketItem {
         leftMarginVBox.setAlignment(Pos.TOP_CENTER);
         leftMarginVBox.setId("darkBox");
 
-        HBox rowBox = new HBox(leftMarginVBox, rowImgBox,  priceVBox, rowChartBox );
+        HBox rowBox = new HBox(leftMarginVBox, rowImgBox,  priceVBox );
         rowBox.setId("rowBox");
         rowBox.setAlignment(Pos.TOP_LEFT);
         rowBox.maxWidthProperty().bind(m_dataList.gridWidthProperty());
@@ -590,11 +600,43 @@ public class SpectrumMarketItem {
             chartHeightObject.set(isCurrent ? focusedHeight : regularHeight);
             symbolTextPaddingBox.setAlignment(isCurrent ? Pos.TOP_LEFT: Pos.CENTER_LEFT);
             imagesBox.setAlignment(isCurrent ? Pos.TOP_LEFT : Pos.CENTER);
-      
+        
         };
 
   
         m_dataList.currentBoxProperty().addListener(currentBoxChangeListener);
+
+        
+        numbersObject.addListener((obs,oldval,newval)->{
+            if(newval != null){
+                
+                if(!statsBox.getChildren().contains(statsVbox)){
+                    statsBox.getChildren().add(statsVbox);
+                }
+          
+
+               
+        
+
+                openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
+                highText.setText(String.format("%-12s",  newval.getHigh().doubleValue() + "").substring(0,12) );
+                lowText.setText(String.format("%-12s",newval.getLow().doubleValue() + "").substring(0,12) );
+                BigDecimal increase = newval.getPercentIncrease();
+                increase = increase == null ? BigDecimal.ZERO : increase;
+
+                int increaseDirection = BigDecimal.ZERO.compareTo(increase);
+               
+                
+                percentChangeText.setText(increaseDirection == 0 ? "0.00%" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
+                percentChangeText.setFill(increaseDirection == 0 ? App.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
+            
+            }else{
+                
+                statsBox.getChildren().clear();
+            
+            }
+        });
+
         
 
         ChangeListener<LocalDateTime> marketDataUpdated = (obs, oldVal, newVal) -> update.run();
@@ -1356,7 +1398,10 @@ public class SpectrumMarketItem {
 
         SimpleObjectProperty<SpectrumMarketInterface> listListenerObject = new SimpleObjectProperty<>(null);
 
-        Runnable addListListeners = ()->{
+     
+       
+
+        FxTimer.runLater(Duration.ofMillis(150),()->{
             SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
             
             if(chartView != null && listListenerObject.get() == null){
@@ -1368,10 +1413,12 @@ public class SpectrumMarketItem {
         
                     public void sendMessage(int msg, long timestamp){
                         switch(msg){
+                            case SpectrumFinance.STARTED:
+                            case SpectrumFinance.LIST_UPDATED:
                             case SpectrumFinance.LIST_CHECKED:
                             case SpectrumFinance.LIST_CHANGED:
-                            case SpectrumFinance.LIST_UPDATED:
-                                createChart.run();    
+                                createChart.run();  
+                                
                             break;
                             case SpectrumFinance.STOPPED:
     
@@ -1391,16 +1438,12 @@ public class SpectrumMarketItem {
                 };
                 
                 listListenerObject.set(msgInterface);
+                chartView.addMsgListener(msgInterface);
                 chartScroll.viewportBoundsProperty().addListener(boundsChangeListener);
             }
-        };
-       
-
-            FxTimer.runLater(Duration.ofMillis(150),()->{
-                
-                addListListeners.run();
-                createChart.run();
-            });
+            
+            createChart.run();
+        });
 
             
             
