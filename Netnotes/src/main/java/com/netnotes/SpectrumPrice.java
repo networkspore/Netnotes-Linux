@@ -52,7 +52,7 @@ public class SpectrumPrice{
         }
         public void invert(){
             if(!m_price.equals(BigDecimal.ZERO)){
-                m_price = BigDecimal.ONE.divide(m_price, 8, RoundingMode.HALF_UP);
+                m_price = BigDecimal.ONE.divide(m_price, 15, RoundingMode.HALF_UP);
             }
         }
 

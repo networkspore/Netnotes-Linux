@@ -2,7 +2,7 @@ package com.netnotes;
 
 public interface InstallerInterface {
 
-    void installNetwork(String id);
+    void installApp(String id);
 
-    void removeNetwork(String id);
+    void removeApp(String id);
 }

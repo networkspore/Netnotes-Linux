@@ -83,6 +83,7 @@ import com.google.gson.JsonParser;
 import com.netnotes.App;
 import com.netnotes.FreeMemory;
 import com.netnotes.HashData;
+import com.netnotes.NetworksData;
 import com.netnotes.PriceAmount;
 import com.netnotes.PriceCurrency;
 import com.satergo.extra.AESEncryption;
@@ -128,7 +129,12 @@ public class Utils {
     }
 
     public static boolean findPathPrefixInRoots(String filePathString){
-        File roots[] = File.listRoots();
+        File roots[] = App.getRoots();
+        return findPathPrefixInRoots(roots, filePathString);
+    }
+
+    public static boolean findPathPrefixInRoots(File roots[], String filePathString){
+        
 
         if(roots != null && roots.length > 0 && filePathString != null && filePathString.length() > 0){
 
@@ -144,6 +150,13 @@ public class Utils {
         }
 
         return false;
+    }
+
+    public static JsonObject getMsgObject(int code, String msg){
+        JsonObject json = new JsonObject();
+        json.addProperty("code", code);
+        json.addProperty("msg", msg);
+        return json;
     }
 
     public static byte[] digestFileBlake2b(File file, int digestLength) throws IOException {
@@ -549,6 +562,24 @@ public class Utils {
     public static int getDifference(int num1, int num2 ){
         return Math.abs(Math.max(num1, num2) - Math.min(num1, num2));
     }
+    public static void checkDrive(File dir, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+        Task<Boolean> task = new Task<Boolean>() {
+            @Override
+            public Boolean call() throws IOException {
+                String path = dir.getCanonicalPath();
+                return findPathPrefixInRoots(path);
+             
+            }
+        };
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        execService.submit(task);
+    }
+
 
     public static void returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
@@ -1115,44 +1146,45 @@ public class Utils {
 
 
     public static void writeEncryptedString(SecretKey secretKey, File dataFile, String jsonString) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, IOException {
+        if( secretKey != null && dataFile != null && jsonString != null){
+            SecureRandom secureRandom = SecureRandom.getInstanceStrong();
+            byte[] iV = new byte[12];
+            secureRandom.nextBytes(iV);
 
-        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-        byte[] iV = new byte[12];
-        secureRandom.nextBytes(iV);
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
 
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
 
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
+            byte[] encryptedData = cipher.doFinal(jsonString.getBytes());
 
-        byte[] encryptedData = cipher.doFinal(jsonString.getBytes());
-
-        if (dataFile.isFile()) {
-            Files.delete(dataFile.toPath());
-        }
-
-        FileOutputStream outputStream = new FileOutputStream(dataFile);
-        FileChannel fc = outputStream.getChannel();
-
-        ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
-
-        fc.write(byteBuffer);
-
-        int written = 0;
-        int bufferLength = 1024 * 8;
-
-        while (written < encryptedData.length) {
-
-            if (written + bufferLength > encryptedData.length) {
-                byteBuffer = ByteBuffer.wrap(encryptedData, written, encryptedData.length - written);
-            } else {
-                byteBuffer = ByteBuffer.wrap(encryptedData, written, bufferLength);
+            if (dataFile.isFile()) {
+                Files.delete(dataFile.toPath());
             }
 
-            written += fc.write(byteBuffer);
-        }
+            FileOutputStream outputStream = new FileOutputStream(dataFile);
+            FileChannel fc = outputStream.getChannel();
 
-        outputStream.close();
+            ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
+
+            fc.write(byteBuffer);
+
+            int written = 0;
+            int bufferLength = 1024 * 8;
+
+            while (written < encryptedData.length) {
+
+                if (written + bufferLength > encryptedData.length) {
+                    byteBuffer = ByteBuffer.wrap(encryptedData, written, encryptedData.length - written);
+                } else {
+                    byteBuffer = ByteBuffer.wrap(encryptedData, written, bufferLength);
+                }
+
+                written += fc.write(byteBuffer);
+            }
+
+            outputStream.close();
+        }
 
     }
 
@@ -2104,6 +2136,35 @@ public class Utils {
                 return false;
             }
         }
+        return true;
+    }
+
+    public static boolean textZero(String str){
+        str = str.strip();
+        
+        if(str.length() == 0){
+            return true;
+        }
+
+        int index = str.indexOf(".");
+
+        String leftSide = index != -1 ? str.substring(0, index + 1) : str;
+        String rightSide = index != -1 ? str.substring(index + 1) : "";
+        
+        for (int i = 0 ; i < leftSide.length() ; i++){
+            String c = leftSide.substring(i, i+1);
+            if(!c.equals("0")){
+                return false;
+            }
+        }
+
+        for (int i = 0 ; i < rightSide.length() ; i++){
+            String c = rightSide.substring(i, i+1);
+            if(!c.equals("0")){
+                return false;
+            }
+        }
+        
         return true;
     }
     

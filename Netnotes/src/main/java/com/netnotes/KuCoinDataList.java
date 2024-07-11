@@ -62,7 +62,7 @@ public class KuCoinDataList extends Network implements NoteInterface {
         super(null, "Ergo Charts List", "KUCOIN_CHARTS_LIST", kuCoinExchange);
         m_kucoinExchange = kuCoinExchange;
 
-        setup(m_kucoinExchange.getNetworksData().getAppData().appKeyProperty().get());
+        setup();
 
     }
     public KuCoinDataList(KucoinExchange kuCoinExchange, SecretKey oldval, SecretKey newval ) {
@@ -72,8 +72,12 @@ public class KuCoinDataList extends Network implements NoteInterface {
         updateFile(oldval, newval);
     }
 
-    private void setup(SecretKey secretKey) {
-        getFile(secretKey);
+    public Image getSmallAppIcon(){
+        return null;
+    }
+
+    private void setup() {
+        getData();
         updateGridBox();
 
         m_kucoinExchange.getAllTickers(success -> {
@@ -351,30 +355,10 @@ public class KuCoinDataList extends Network implements NoteInterface {
         }
     }
 
-    private void getFile(SecretKey secretKey) {
+    private void getData() {
 
-        File dataFile = m_kucoinExchange.getDataFile();
-        if (dataFile != null && dataFile.isFile()) {
-            try {
-                JsonObject json = Utils.readJsonFile(secretKey, dataFile);
-               
-                if(json!= null){
-           
-                    openJson(json);
-                }
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-
-                try {
-                    Files.writeString(logFile.toPath(), "\nKuCoin getfile error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
-
-            }
-
-        }
+        m_kucoinExchange.getNetworksData().getData("data", ".", getNetworkId(), KucoinExchange.NETWORK_ID);
+        
 
     }
 
@@ -511,7 +495,12 @@ public class KuCoinDataList extends Network implements NoteInterface {
     public String getSearchText() {
         return m_searchText;
     }
-
+    public String getType(){
+        return "DATA";
+    }
+    public String getDescription(){
+        return "data";
+    }
     private void doSearch(List<KucoinMarketItem> marketItems, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         Task<KucoinMarketItem[]> task = new Task<KucoinMarketItem[]>() {
             @Override
@@ -687,7 +676,7 @@ public class KuCoinDataList extends Network implements NoteInterface {
     }
 
     public void save(){
-        save(getNetworksData().getAppData().appKeyProperty().get());
+        m_kucoinExchange.getNetworksData().save("data", ".", getNetworkId(), KucoinExchange.NETWORK_ID, getJsonObject());
     }
 
     public void save(SecretKey secretKey) {

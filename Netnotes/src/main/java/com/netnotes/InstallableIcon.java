@@ -63,54 +63,49 @@ public class InstallableIcon extends IconButton {
         m_networkId = networkId;
         switch (m_networkId) {
             case ErgoExplorers.NETWORK_ID:
-                setIcon(m_installed ? ErgoExplorers.getSmallAppIcon() : ErgoExplorers.getAppIcon());
+                setIcon(m_installed ? new Image(ErgoExplorers.getSmallAppIconString()): new Image(ErgoExplorers.getAppIconString()));
                 setName(ErgoExplorers.NAME);
                 setDescription(ErgoExplorers.DESCRIPTION);
                 setSummary(ErgoExplorers.SUMMARY);
                 break;
             case ErgoWallets.NETWORK_ID:
-                setIcon(m_installed ? ErgoWallets.getSmallAppIcon() : ErgoWallets.getAppIcon());
+                setIcon(m_installed ? new Image(ErgoWallets.getSmallAppIconString()) : new Image(ErgoWallets.getAppIconString()));
                 setName(ErgoWallets.NAME);
                 setDescription(ErgoWallets.DESCRIPTION);
                 setSummary(ErgoWallets.SUMMARY);
                 break;
             case ErgoNetwork.NETWORK_ID:
-                setIcon(m_installed ? ErgoNetwork.getSmallAppIcon() : ErgoNetwork.getAppIcon());
+                setIcon(m_installed ? new Image(ErgoNetwork.getSmallAppIconString()) : new Image(ErgoNetwork.getAppIconString()));
                 setName(ErgoNetwork.NAME);
                 setDescription(ErgoNetwork.DESCRIPTION);
                 setSummary(ErgoNetwork.SUMMARY);
                 break;
             case KucoinExchange.NETWORK_ID:
-                setIcon(m_installed ? KucoinExchange.getSmallAppIcon() : KucoinExchange.getAppIcon());
+                setIcon(m_installed ? new Image(KucoinExchange.getSmallAppIconString()) : new Image(KucoinExchange.getAppIconString()));
                 setName(KucoinExchange.NAME);
                 setDescription(KucoinExchange.DESCRIPTION);
                 setSummary(KucoinExchange.SUMMARY);
                 break;
             case SpectrumFinance.NETWORK_ID:
-                setIcon(m_installed ? SpectrumFinance.getSmallAppIcon() : SpectrumFinance.getAppIcon());
+                setIcon(m_installed ? new Image(SpectrumFinance.getSmallAppIconString() ): new Image(SpectrumFinance.getAppIconString()));
                 setName(SpectrumFinance.NAME);
                 setDescription(SpectrumFinance.DESCRIPTION);
                 setSummary(SpectrumFinance.SUMMARY);
                 break;
 
             case ErgoTokens.NETWORK_ID:
-                setIcon(m_installed ? ErgoTokens.getSmallAppIcon() : ErgoTokens.getAppIcon());
+                setIcon(m_installed ? new Image(ErgoTokens.getSmallAppIconString()) : new Image(ErgoTokens.getAppIconString()));
                 setName(ErgoTokens.NAME);
                 setDescription(ErgoTokens.DESCRIPTION);
                 setSummary(ErgoTokens.SUMMARY);
                 break;
             case ErgoNodes.NETWORK_ID:
-                setIcon(m_installed ? ErgoNodes.getSmallAppIcon() : ErgoNodes.getAppIcon());
+                setIcon(m_installed ? new Image(ErgoNodes.getSmallAppIconString()) : new Image( ErgoNodes.getAppIconString()));
                 setName(ErgoNodes.NAME);
                 setDescription(ErgoNodes.DESCRIPTION);
                 setSummary(ErgoNodes.SUMMARY);
                 break;
-            case ErgoMarkets.NETWORK_ID:
-                setIcon(m_installed ? ErgoMarkets.getSmallAppIcon() : ErgoMarkets.getAppIcon());
-                setName(ErgoMarkets.NAME);
-                setDescription(ErgoMarkets.DESCRIPTION);
-                setSummary(ErgoMarkets.SUMMARY);
-                break;
+            
 
         }
 
@@ -168,7 +163,7 @@ public class InstallableIcon extends IconButton {
         footerBtn.setOnAction(e -> {
             String networkId = getNetworkId();
             close();
-            m_networksData.installNetwork(networkId);
+            m_networksData.installApp(networkId);
 
         });
 
@@ -229,7 +224,7 @@ public class InstallableIcon extends IconButton {
         footerBtn.setFont(App.titleFont);
         footerBtn.setId("menuBarBtn");
         footerBtn.setOnAction(e -> {
-            m_networksData.removeNetwork(getNetworkId());
+            m_networksData.removeApp(getNetworkId());
             close();
         });
 

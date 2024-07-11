@@ -15,12 +15,9 @@ import com.google.gson.JsonElement;
 public class SpectrumMarketData extends PriceQuote {
 
     private String m_id;
-    private String m_baseId; 
-    private String m_baseSymbol;
-    private String m_quoteId;
-    private String m_quoteSymbol;
-    private BigDecimal m_lastPrice = BigDecimal.ZERO;
-    private BigDecimal m_invertedPrice = BigDecimal.ZERO;
+
+  
+
     private BigDecimal m_baseVolume = BigDecimal.ZERO;
     private BigDecimal m_quoteVolume = BigDecimal.ZERO;
     private int m_baseDecimals;
@@ -40,8 +37,8 @@ public class SpectrumMarketData extends PriceQuote {
 
     private SimpleObjectProperty<SpectrumChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
 
-    private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
-    
+   
+
     public SpectrumMarketData(JsonObject json, long timeStamp) throws Exception{
         super(json.get("lastPrice").getAsString(), json.get("baseSymbol").getAsString(), json.get("quoteSymbol").getAsString(), timeStamp);
        
@@ -89,30 +86,16 @@ public class SpectrumMarketData extends PriceQuote {
             
             m_defaultInvert = !quoteSymbol.equals("SigUSD");
 
-            m_quoteId = quoteId;
-            m_quoteSymbol = quoteSymbol;
-
-            m_baseId = baseId;
-            m_baseSymbol = baseSymbol;
-        
             m_quoteVolume = quoteVolumeBigDecimal; 
             m_baseVolume = baseVolumeBigDecimal;
 
             m_baseDecimals = baseVolumeDecimals;
             m_quoteDecimals = quoteVolumeDecimals;
 
-            try{
             
-                m_lastPrice = lastPriceElement.getAsBigDecimal();
-                m_invertedPrice = BigDecimal.ONE.divide(m_lastPrice, m_lastPrice.precision(), RoundingMode.CEILING);
 
-                setPrices(m_lastPrice.toString(), m_baseSymbol,m_quoteSymbol, m_baseId, m_quoteId);
-            }catch(ArithmeticException ae){
-                m_invertedPrice = BigDecimal.ZERO;
-                setPrices("0", m_baseSymbol, m_quoteSymbol, m_baseId, m_quoteId);
-                // Files.writeString(logFile.toPath(), "\nspectrumMarketData (Arithmetic exception): " + ae.toString() + "|n" + json.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            //   throw new Exception("Divide by zero");
-            }
+            setPrices(lastPriceElement.getAsBigDecimal(), baseSymbol,quoteSymbol, baseId, quoteId);
+            
             
 
           
@@ -175,8 +158,8 @@ public class SpectrumMarketData extends PriceQuote {
         }
     }
 
-    public PriceQuote getPriceQuote(){
-        boolean invert = getDefaultInvert();
+    public PriceQuote getPriceQuote(boolean invert){
+
         String price = invert ? getInvertedLastPrice().toString() : lastPriceString();
         return new PriceQuote(price, invert ? getQuoteSymbol() : getBaseSymbol(), invert ? getBaseSymbol() : getQuoteSymbol());
     }
@@ -200,41 +183,43 @@ public class SpectrumMarketData extends PriceQuote {
 
     public BigDecimal getLastPrice(){
         
-        return m_lastPrice;
+        return getAmount();
     }
 
     public void setLastPrice(BigDecimal lastPrice){
-        m_lastPrice = lastPrice;
+        setAmount(lastPrice);
     }
 
 
     public String getSymbol(){
-        return m_baseSymbol + "-" + m_quoteSymbol;
+        return getBaseSymbol() + "-" + getQuoteSymbol();
     }
 
     public String lastPriceString(){
-        return m_lastPrice.toString();
+        return getAmount() + "";
     }
 
 
     public String getId(){
         return m_id;
     }
+
     public String getBaseId(){
-        return m_baseId;
+        return getTransactionCurrencyId();
     }
     public String getBaseSymbol(){
-        return m_baseSymbol;
+        return getTransactionCurrency();
     }
+
     public String getQuoteId(){
-        return m_quoteId;
+        return getQuoteCurrencyId();
     }
     public String getQuoteSymbol(){
-        return m_quoteSymbol;
+        return getQuoteCurrency();
     }
 
     public BigDecimal getInvertedLastPrice(){
-        return m_invertedPrice;
+        return getInvertedAmount();
     }
     public BigDecimal getBaseVolume(){
         return m_baseVolume;
@@ -246,13 +231,13 @@ public class SpectrumMarketData extends PriceQuote {
     public JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
         json.addProperty("id", m_id);
-        json.addProperty("base_id", m_baseId);
-        json.addProperty("base_symbol", m_baseSymbol);
-        json.addProperty("quote_id", m_quoteId);
-        json.addProperty("quote_symbol", m_quoteSymbol);
-        json.addProperty("last_price", m_lastPrice);
-        json.addProperty("base_volume", m_baseVolume);
-        json.addProperty("quote_volume", m_quoteVolume);
+        json.addProperty("base_id", getBaseId());
+        json.addProperty("base_symbol", getBaseSymbol());
+        json.addProperty("quote_id", getQuoteId());
+        json.addProperty("quote_symbol", getQuoteSymbol());
+        json.addProperty("last_price", getAmount());
+        json.addProperty("base_volume", getBaseVolume());
+        json.addProperty("quote_volume", getQuoteVolume());
         return json;
     }
 
@@ -384,26 +369,22 @@ public class SpectrumMarketData extends PriceQuote {
     }
 
     public void update(SpectrumMarketData updateData){
-        m_lastPrice = updateData.getLastPrice();
-        m_invertedPrice = updateData.getInvertedLastPrice();
+        setAmount(updateData.getAmount());
+       
         m_baseVolume = updateData.getBaseVolume();
         m_quoteVolume = updateData.getQuoteVolume();
         m_liquidityUSD = updateData.getLiquidityUSD();
         setTimeStamp(updateData.getTimeStamp());
         
-        if(m_chartViewProperty.get() != null && m_chartViewProperty.get().getConnectionStatus() != SpectrumFinance.STOPPED){
+        if(m_chartViewProperty.get() != null && m_chartViewProperty.get().getConnectionStatus() != App.STOPPED){
             m_chartViewProperty.get().update();
         }
 
-        m_lastUpdated.set(LocalDateTime.now());
+       getLastUpdated().set(LocalDateTime.now());
     
     }
 
 
-
-    public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
-        return m_lastUpdated;
-    }
 
     
     public class PoolStats{

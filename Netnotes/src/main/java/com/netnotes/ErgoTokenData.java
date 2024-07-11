@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 import org.ergoplatform.appkit.NetworkType;
 
@@ -31,6 +32,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -41,7 +43,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-public class ErgoNetworkToken extends PriceCurrency {
+public class ErgoTokenData extends PriceCurrency implements NoteMsgInterface  {
 
     private File logFile = new File("netnotes-log.txt");
 
@@ -49,13 +51,11 @@ public class ErgoNetworkToken extends PriceCurrency {
 
     private SimpleDoubleProperty m_sceneWidth = new SimpleDoubleProperty(450);
     private SimpleDoubleProperty m_sceneHeight = new SimpleDoubleProperty(575);
-    private String m_urlString;
+    private String m_urlString = null;
     private Stage m_ergoTokenStage = null;
     private ErgoTokensList m_tokensList = null;
 
-
-  
-    public ErgoNetworkToken(String name, String tokenId, NetworkType networkType, JsonObject jsonObject, ErgoTokensList tokensList) {
+    public ErgoTokenData(String name, String tokenId, NetworkType networkType, JsonObject jsonObject, ErgoTokensList tokensList) {
         super(tokenId, name, name, name, 0,  ErgoNetwork.NETWORK_ID, "/assets/unknown-unit.png", networkType.toString(),0, 0);
         m_tokensList = tokensList;
 
@@ -65,6 +65,8 @@ public class ErgoNetworkToken extends PriceCurrency {
         JsonElement sceneHeightElement = jsonObject.get("sceneHeight");
         JsonElement tokenDataElement = jsonObject.get("tokenData");
         JsonElement hashDataElement = jsonObject.get("hashData");
+
+
 
         if (sceneWidthElement != null) {
             m_sceneWidth.set(sceneWidthElement.getAsDouble());
@@ -96,10 +98,11 @@ public class ErgoNetworkToken extends PriceCurrency {
         if(getTimeStamp() == 0){
             updateTokenInfo();
         }
+
      
     }
 
-    public ErgoNetworkToken(String name, String url, String tokenId, String fileString, HashData hashData, NetworkType networkType, ErgoTokensList tokensList) {
+    public ErgoTokenData(String name, String url, String tokenId, String fileString, HashData hashData, NetworkType networkType, ErgoTokensList tokensList) {
          super(tokenId, name, name, name, 0,  ErgoNetwork.NETWORK_ID, fileString, networkType.toString(),0, 0);
         m_tokensList = tokensList;
         m_urlString = url;
@@ -107,10 +110,9 @@ public class ErgoNetworkToken extends PriceCurrency {
         setNetworkType(networkType.toString());
 
         updateTokenInfo();
-   
     }
     //tokenId, decimals, name, tokenType
-    public ErgoNetworkToken(String tokenId, String name, int decimals, NetworkType networkType, ErgoTokensList tokensList) {
+    public ErgoTokenData(String tokenId, String name, int decimals, NetworkType networkType, ErgoTokensList tokensList) {
        
         super(tokenId, name, name, name, decimals,  ErgoNetwork.NETWORK_ID, "", networkType.toString(),0, 0);
         m_tokensList = tokensList;
@@ -119,21 +121,24 @@ public class ErgoNetworkToken extends PriceCurrency {
        setNetworkType(networkType.toString());
 
        updateTokenInfo();
-  
    }
    
-    public ErgoNetworkToken(ErgoTokensList tokensList,long emissionAmount, String description, String tokenId, String name, String symbol, int fractionalPrecision, String networkId, String networkType, String imageString, String tokenType, String fontSymbol){
+    public ErgoTokenData(ErgoTokensList tokensList,long emissionAmount, String description, String tokenId, String name, String symbol, int fractionalPrecision, String networkId, String networkType, String imageString, String tokenType, String fontSymbol){
         super(tokenId, name, symbol, fractionalPrecision, networkId, networkType, imageString, tokenType, fontSymbol);
         m_tokensList = tokensList;
 
         setEmissionAmount(emissionAmount);
         setDescription(description);
         updateTokenInfo();
-        
+
     }
 
+
+    
+    
+
     public void open() {
-        
+            
         showTokenStage();
     }
 
@@ -163,9 +168,6 @@ public class ErgoNetworkToken extends PriceCurrency {
         }
     }
 
-    public ErgoTokensList getErgoTokensList(){
-        return m_tokensList;
-    }
 
 
     public SimpleBooleanProperty explorerVerifiedProperty() {
@@ -177,27 +179,29 @@ public class ErgoNetworkToken extends PriceCurrency {
         return networkTypeString != null ? (networkTypeString.equals(NetworkType.MAINNET.toString()) ? NetworkType.MAINNET : NetworkType.TESTNET) : NetworkType.MAINNET;
     }
 
+    private NoteInterface getExplorer(){
+        return m_tokensList.getErgoTokens().getErgoNetworkData().selectedExplorerData().get();
+    }
 
 
     public void updateTokenInfo() {
-        ErgoExplorerData ergoExplorerData =  m_tokensList.selectedExplorerData().get();
+        NoteInterface noteInterface = getExplorer();
+        if(noteInterface != null){
+            JsonObject note = Utils.getCmdObject("getTokenInfo");
+            note.addProperty("tokenId",getTokenId());
+            note.addProperty("networkId", m_tokensList.getErgoTokens().getErgoNetworkData().getId());
 
-
-        if(ergoExplorerData != null){
-
-            ergoExplorerData.getTokenInfo(getTokenId(), succeededEvent -> {
+            noteInterface.sendNote(note,succeededEvent -> {
                 WorkerStateEvent workerEvent = succeededEvent;
                 Object sourceObject = workerEvent.getSource().getValue();
 
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject sourceJson = (JsonObject) sourceObject;
-         
-                
+            
                     setTokenData(sourceJson, true);
                     m_explorerVerified.set(true);
                     getLastUpdated().set(LocalDateTime.now());
-                    
-                    
+
                 }
             }, failedEvent -> {
                 m_explorerVerified.set(false);
@@ -207,23 +211,52 @@ public class ErgoNetworkToken extends PriceCurrency {
 
                 }
             });
-    
-        }
-
         
-      
-
+        }
     }
 
-    @Override
-    public PriceQuote getPriceQuote(){
- 
-        return m_tokensList.findPriceQuoteById(getTokenId(), SpectrumMarketItem.ERG_ID);            
-        
+    private ArrayList<NoteMsgInterface> m_msgInterfaces = new ArrayList<>();
+
+    public void addMsgListener(NoteMsgInterface msgInterface){
+        m_msgInterfaces.add(msgInterface);
+    }
+
+    public void removeMsgListener(NoteMsgInterface msgInterface){
+        m_msgInterfaces.remove(msgInterface);
+    }
+
+    public String getId(){
+        return getNetworkId();
+    }
+
+    public void sendMessage(String networkId, int code, long timestamp){
+        for(int i = 0; i < m_msgInterfaces.size(); i ++){
+            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
+            noteMsgInterface.sendMessage(networkId, code, timestamp);
+        }
+    }
+    public void sendMessage(int code, long timestamp){
+        for(int i = 0; i < m_msgInterfaces.size(); i ++){
+            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
+            noteMsgInterface.sendMessage(code, timestamp);
+        }
+    }
+    public void sendMessage(int code, long timestamp, String msg){
+        for(int i = 0; i < m_msgInterfaces.size(); i ++){
+            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
+            noteMsgInterface.sendMessage(code, timestamp, msg);
+        }
+    }
+
+    public void sendMessage(String networkId, int code, long timestamp, String msg){
+        for(int i = 0; i < m_msgInterfaces.size(); i ++){
+            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
+            noteMsgInterface.sendMessage(networkId, code, timestamp);
+        }
     }
 
     public void visitUrl(){
-         m_tokensList.getErgoTokens().getNetworksData().getHostServices().showDocument(m_urlString);
+         m_tokensList.getErgoTokens().getNetworksData().getHostServices().showDocument(getUrlString());
     }
 
 
@@ -273,57 +306,8 @@ public class ErgoNetworkToken extends PriceCurrency {
                 m_ergoTokenStage.setMaximized(!m_ergoTokenStage.isMaximized());
             });
 
-            Tooltip explorerTip = new Tooltip();
-            explorerTip.setShowDelay(new javafx.util.Duration(100));
-            explorerTip.setFont(App.txtFont);
-
-            
-            BufferedMenuButton explorerBtn = new BufferedMenuButton("/assets/ergo-explorer-30.png", App.MENU_BAR_IMAGE_WIDTH);
-            explorerBtn.setPadding(new Insets(2, 0, 0, 2));
-            explorerBtn.setTooltip(explorerTip);
-
-            
-
+       
            
-
-            Runnable updateExplorerBtn = () ->{
-                ErgoExplorers ergoExplorers = (ErgoExplorers) m_tokensList.getErgoTokens().getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-            
-                ErgoExplorerData explorerData = m_tokensList.selectedExplorerData().get();            
-            
-                if(explorerData != null && ergoExplorers != null){
-                
-                    explorerTip.setText("Ergo Explorer: " + explorerData.getName());
-                    
-
-                }else{
-                    
-                    if(ergoExplorers == null){
-                        explorerTip.setText("(install 'Ergo Explorer')");
-                    }else{
-                        explorerTip.setText("Select Explorer...");
-                    }
-                }
-                
-            };
-
-            Runnable getAvailableExplorerMenu = () ->{
-            
-                ErgoExplorers ergoExplorers = (ErgoExplorers) m_tokensList.getErgoTokens().getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-                if(ergoExplorers != null){
-                    explorerBtn.setId("menuBtn");
-                    m_tokensList.ergoExplorerListProperty().get().getMenu(explorerBtn, m_tokensList.selectedExplorerData());
-                }else{
-                    explorerBtn.getItems().clear();
-                    explorerBtn.setId("menuBtnDisabled");
-                
-                }
-                updateExplorerBtn.run();
-            };
-
-            HBox rightSideMenu = new HBox(explorerBtn);
-            rightSideMenu.setId("rightSideMenuBar");
-            rightSideMenu.setPadding(new Insets(0, 10, 0, 20));
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -343,7 +327,7 @@ public class ErgoNetworkToken extends PriceCurrency {
 
             });
 
-            HBox menuBar = new HBox(editButton, spacer, rightSideMenu);
+            HBox menuBar = new HBox(editButton, spacer);
             HBox.setHgrow(menuBar, Priority.ALWAYS);
             menuBar.setAlignment(Pos.CENTER_LEFT);
             menuBar.setId("menuBar");
@@ -378,7 +362,7 @@ public class ErgoNetworkToken extends PriceCurrency {
             emissionAmountField.setEditable(false);
             emissionAmountField.setId("formField");
 
-            Button urlLink = new Button("visit: " + m_urlString);
+            Button urlLink = new Button("visit: " + getUrlString());
             urlLink.setFont(App.txtFont);
             urlLink.setId("addressBtn");
             urlLink.setOnAction(e -> {
@@ -450,13 +434,8 @@ public class ErgoNetworkToken extends PriceCurrency {
             descriptionTextArea.prefWidthProperty().bind(m_ergoTokenStage.widthProperty().subtract(40));
             descriptionTextArea.prefHeightProperty().bind(tokenScene.heightProperty().subtract(titleBox.heightProperty()).subtract(imageBox.heightProperty()).subtract(promptBox.heightProperty()).subtract(footerHBox.heightProperty()));
 
-             m_tokensList.getErgoTokens().getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
-    
-                getAvailableExplorerMenu.run();
-        
-            });
+          
 
-            getAvailableExplorerMenu.run();
 
             Runnable updateData = ()->{
               
@@ -496,7 +475,6 @@ public class ErgoNetworkToken extends PriceCurrency {
             });
 
             closeBtn.setOnAction(event -> {
-
                 m_ergoTokenStage.close();
                 m_ergoTokenStage = null;
             });
@@ -559,7 +537,8 @@ public class ErgoNetworkToken extends PriceCurrency {
         return getName();
     }
 
-
+    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+    }
 
 
     public String getNetworkId(){

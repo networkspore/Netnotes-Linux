@@ -167,7 +167,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private boolean m_autoUpdate = false;
     private boolean m_deleteOldFiles = true;
     private final AtomicBoolean m_checking =  new AtomicBoolean(false);
-
+    
 
     private GitHubAPI m_gitHubAPI = new GitHubAPI("ergoplatform", "ergo");
 
@@ -183,14 +183,14 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public ErgoNodeLocalData(String id, ErgoNodesList ergoNodesList) {
         super(ergoNodesList, LOCAL_NODE, new NamedNodeUrl(id, "Not Installed", "127.0.0.1", ErgoNodes.MAINNET_PORT, "", NetworkType.MAINNET));
-        m_update = ergoNodesList.getErgoNodes().getNetworksData().getAppData().getUpdates();
+
         setListeners();
     
     }
 
     public ErgoNodeLocalData(NamedNodeUrl namedNode, JsonObject json, ErgoNodesList ergoNodesList) {
         super(ergoNodesList, LOCAL_NODE, namedNode);
-        m_update = ergoNodesList.getErgoNodes().getNetworksData().getAppData().getUpdates();
+   
         openJson(json);
         setListeners();
         if (m_runOnStart) {
@@ -208,10 +208,10 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
 
         Runnable updateSynced = () -> {
-            String status = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
+            String status = statusProperty().get() == null ? App.STATUS_STOPPED : statusProperty().get();
             long networkBlockHeight = m_networkBlockHeightProperty.get();
             long nodeBlockHeight = m_nodeBlockHeightProperty.get();
-            boolean running = !status.equals(ErgoMarketsData.STOPPED);
+            boolean running = !status.equals(App.STATUS_STOPPED);
             boolean synced = nodeBlockHeight != -1 && networkBlockHeight != -1 && nodeBlockHeight >= networkBlockHeight && running;
             
             isAvailableProperty().set(synced);
@@ -700,7 +700,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         if (m_future != null) {
             m_future.cancel(false);
         }
-        statusProperty().set(ErgoMarketsData.STOPPED);
+        statusProperty().set(App.STATUS_STOPPED);
         isAvailableProperty().set(false);
         m_nodeBlockHeightProperty.set(-1);
         m_networkBlockHeightProperty.set(-1);
@@ -776,7 +776,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         if(proc.isAlive()){
                             Utils.returnObject(null,getNetworksData().getExecService(), (onSucceeded)->{
                                 Utils.addAppResource(m_appFileName);
-                                statusProperty().set(ErgoMarketsData.STARTED);
+                                statusProperty().set(App.STATUS_STARTED);
                                 statusString().set(STARTUP_STRING);
                             }, (onFailed)->{});
                         }
@@ -893,7 +893,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             }
               
         }*/
-        if (m_isSetupProperty.get() && currentStatus.equals(ErgoMarketsData.STOPPED)) {
+        if (m_isSetupProperty.get() && currentStatus.equals(App.STATUS_STOPPED)) {
       
             
             Runnable runError = () -> {
@@ -901,9 +901,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                 stop();
             };
 
-            statusProperty().set(ErgoMarketsData.STARTING);
+            statusProperty().set(App.STATUS_STARTING);
 
-            checkDrive(m_appDir, (onSuccess)->{
+            Utils.checkDrive(m_appDir,getErgoNodesList().getErgoNodes().getNetworksData().getExecService(), (onSuccess)->{
                 
                 Object sourceValue = onSuccess.getSource().getValue();
 
@@ -965,7 +965,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         String titleString = "Setup - Local Node - " + ErgoNodes.NAME;
         stage.setTitle(titleString);
 
-        Image icon = ErgoNodes.getSmallAppIcon();
+        Image icon = new Image(ErgoNodes.getSmallAppIconString());
         double defaultRowHeight = 30;
         Button closeBtn = new Button();
 
@@ -1413,7 +1413,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         String titleString = "Core File - Setup - Local Node - " + ErgoNodes.NAME;
         stage.setTitle(titleString);
 
-        Image icon = ErgoNodes.getSmallAppIcon();
+        Image icon = new Image(ErgoNodes.getSmallAppIconString());
         double defaultRowHeight = 30;
         Button closeBtn = new Button();
 
@@ -1739,27 +1739,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         return 20L * 1024L * 1024L * 1024L;
     }
 
-    public static void checkDrive(File appDir, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-
-        Task<Boolean> task = new Task<Boolean>() {
-            @Override
-            public Boolean call() throws IOException {
-                String path = appDir.getCanonicalPath();
-                return Utils.findPathPrefixInRoots(path);
-             
-            }
-        };
-
-        task.setOnFailed(onFailed);
-
-        task.setOnSucceeded(onSucceeded);
-
-        Thread t = new Thread(task);
-        t.setDaemon(true);
-        t.start();
-
-    }
-
 
 
     public boolean checkValidSetup() {
@@ -1988,7 +1967,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         if (isDownload) {
                             File appFile = new File(installDir + "/" + downloadFileName.get());
                             Button closeBtn = new Button();
-                            Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Setup - " + ErgoNodes.NAME, downloadFileName.get(), progressBar, m_stage, closeBtn);
+                            Scene progressScene = App.getProgressScene(new Image(ErgoNodes.getSmallAppIconString()), "Downloading", "Setup - " + ErgoNodes.NAME, downloadFileName.get(), progressBar, m_stage, closeBtn);
                             m_stage.setScene(progressScene);
                             m_stage.setHeight(260);
                             SimpleBooleanProperty cancelDl = new SimpleBooleanProperty(false);
@@ -2037,7 +2016,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                                 File appFile = new File(installDir.getAbsolutePath() + "/" + fileNameProperty.get());
                                 Button closeBtn = new Button();
                                 closeBtn.setDisable(true);
-                                Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Setup - " + ErgoNodes.NAME, fileNameProperty.get(), progressBar, m_stage, closeBtn);
+                                Scene progressScene = App.getProgressScene(new Image(ErgoNodes.getSmallAppIconString()), "Downloading", "Setup - " + ErgoNodes.NAME, fileNameProperty.get(), progressBar, m_stage, closeBtn);
                                 m_stage.setScene(progressScene);
 
                                 if (customFile.getAbsolutePath().equals(appFile.getAbsolutePath())) {
@@ -2126,7 +2105,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     @Override
     public void stop() {
 
-        if (!statusProperty().get().equals(ErgoMarketsData.STOPPED)) {
+        if (!statusProperty().get().equals(App.STATUS_STOPPED)) {
 
             if(!Utils.sendTermSig(m_appFileName)){
                 reset();
@@ -2138,7 +2117,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     }
 
     public void kill() {
-        if (!statusProperty().get().equals(ErgoMarketsData.STOPPED)) {
+        if (!statusProperty().get().equals(App.STATUS_STOPPED)) {
         
             Alert a = new Alert(AlertType.NONE, "This mode may be corrupted. Would you like to force shutdown and re-sync?", ButtonType.YES, ButtonType.NO);
             Optional<ButtonType> result = a.showAndWait();
@@ -2175,7 +2154,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     }
     public String getCurrentStatus(){
         String currentStatus = "Offline";
-        if (!statusProperty().get().equals(ErgoMarketsData.STOPPED)) {
+        if (!statusProperty().get().equals(App.STATUS_STOPPED)) {
 
             boolean synced = isAvailableProperty().get();
           //  int peerCount = m_peerCountProperty.get();
@@ -2341,23 +2320,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     @Override
     public HBox getRowItem() {
 
-        Tooltip defaultIdTip = new Tooltip(getErgoNodesList().defaultNodeIdProperty().get() != null && getErgoNodesList().defaultNodeIdProperty().get().equals(getId()) ? "Default Node" : "Set default");
-        defaultIdTip.setShowDelay(new Duration(100));
-        BufferedButton defaultIdBtn = new BufferedButton(getErgoNodesList().defaultNodeIdProperty().get() != null && getErgoNodesList().defaultNodeIdProperty().get().equals(getId()) ? getRadioOnUrl() : getRadioOffUrl(), 15);
-        defaultIdBtn.setTooltip(defaultIdTip);
-        defaultIdBtn.setOnAction(e -> {
-            String currentDefaultId = getErgoNodesList().defaultNodeIdProperty().get();
-            if (currentDefaultId != null && currentDefaultId.equals(getId())) {
-                getErgoNodesList().defaultNodeIdProperty().set(null);
-            } else {
-                getErgoNodesList().defaultNodeIdProperty().set(getId());
-            }
-        });
-
-        getErgoNodesList().defaultNodeIdProperty().addListener((obs, oldval, newval) -> {
-            defaultIdBtn.setImage(new Image(newval != null && newval.equals(getId()) ? getRadioOnUrl() : getRadioOffUrl()));
-            defaultIdTip.setText(newval != null && newval.equals(getId()) ? "Default Node" : "Set default");
-        });
 
 
 
@@ -2432,13 +2394,13 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         Tooltip statusBtnTip = new Tooltip("");
         statusBtnTip.setShowDelay(new Duration(100));
         //m_startImgUrl : m_stopImgUrl
-        String statusBtnImg = statusProperty().get().equals(ErgoMarketsData.STOPPED) ? (getIsSetup() && getAppFile() != null ? getStartImgUrl() : getInstallImgUrl()) : getStopImgUrl();
+        String statusBtnImg = statusProperty().get().equals(App.STATUS_STOPPED) ? (getIsSetup() && getAppFile() != null ? getStartImgUrl() : getInstallImgUrl()) : getStopImgUrl();
         BufferedButton statusBtn = new BufferedButton(statusBtnImg, 15);
         statusBtn.setId("statusBtn");
         statusBtn.setPadding(new Insets(0, 10, 0, 10));
         statusBtn.setTooltip(statusBtnTip);
         statusBtn.setOnAction(action -> {
-            if (statusProperty().get().equals(ErgoMarketsData.STOPPED)) {
+            if (statusProperty().get().equals(App.STATUS_STOPPED)) {
 
                 start();
 
@@ -2448,7 +2410,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             }
         });
 
-        HBox leftBox = new HBox(defaultIdBtn);
+        HBox leftBox = new HBox();
         leftBox.setPadding(new Insets(5));
         HBox rightBox = new HBox(statusBtn);
 
@@ -2539,9 +2501,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         
         Runnable checkStatus = () -> {
             itemMenuBtn.getItems().clear();
-            String value = statusProperty().get() == null ? ErgoMarketsData.STOPPED : statusProperty().get();
+            String value = statusProperty().get() == null ? App.STATUS_STOPPED : statusProperty().get();
 
-            if (value.equals(ErgoMarketsData.STOPPED)) {
+            if (value.equals(App.STATUS_STOPPED)) {
                 String stoppedString = getIsSetup() ? "Start" : "Setup";
                 startItem.setText(stoppedString);
                 statusBtnTip.setText(stoppedString);
@@ -2606,7 +2568,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         if(getIsSetup()){
             String statusString = statusProperty().get();
 
-            if(statusString.equals( ErgoMarketsData.STOPPED)){
+            if(statusString.equals( App.STATUS_STOPPED)){
                 openSettings();
             }else{
                 openInBrowser();
@@ -2753,7 +2715,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         m_stage.getIcons().add(getIcon());
                         m_stage.initStyle(StageStyle.UNDECORATED);
                         if(!m_autoUpdate){
-                            App.showGetTextInput("Update? ("+newVersion.get()+") (Y/n)", "Update", ErgoNodes.getAppIcon(), updateConfirmField, closeBtn, m_stage);
+                            App.showGetTextInput("Update? ("+newVersion.get()+") (Y/n)", "Update", new Image(ErgoNodes.getAppIconString()), updateConfirmField, closeBtn, m_stage);
                             
                             closeBtn.setOnAction(e->{
                                 if(m_stage != null){
@@ -2781,7 +2743,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                                 };
 
                                 if(keyCode == KeyCode.ENTER || keyCode == KeyCode.Y){
-                                    if(!statusProperty().get().equals(ErgoMarketsData.STOPPED)){
+                                    if(!statusProperty().get().equals(App.STATUS_STOPPED)){
                                         statusProperty().addListener((obs,oldval,newval)->{
                                             updateAppFile(assets, m_stage, null, ()->{
                                                 
@@ -2802,7 +2764,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                                 }
                             });
                         }else{
-                             if(!statusProperty().get().equals(ErgoMarketsData.STOPPED)){
+                             if(!statusProperty().get().equals(App.STATUS_STOPPED)){
                                 statusProperty().addListener((obs,oldval,newval)->{
                                     updateAppFile(assets, m_stage, null, ()->{
                                          m_checking.set( false);
@@ -2867,7 +2829,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             ProgressBar progressBar = new ProgressBar();
             Button closeBtn = new Button();
             if (stage != null) {
-                Scene progressScene = App.getProgressScene(ErgoNodes.getSmallAppIcon(), "Downloading", "Settings - Ergo Local Node - " + ErgoNodes.NAME, name, progressBar, stage, closeBtn);
+                Scene progressScene = App.getProgressScene(new Image(ErgoNodes.getSmallAppIconString()), "Downloading", "Settings - Ergo Local Node - " + ErgoNodes.NAME, name, progressBar, stage, closeBtn);
                 stage.setScene(progressScene);
 
             }
@@ -2999,7 +2961,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         settingsScene.getStylesheets().add("/css/startWindow.css");
 
 
-        Image icon = ErgoNodes.getSmallAppIcon();
+        Image icon = new Image(ErgoNodes.getSmallAppIconString());
         double defaultRowHeight = 40;
         Button closeBtn = new Button();
 
@@ -3190,9 +3152,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         });
 
         showKeyBtn.setOnAction(e ->{
-            App.verifyAppKey(()->{
+            getNetworksData().verifyAppKey(()->{
                 showKey.run();
-            }, getErgoNodesList().getErgoNodes().getNetworksData().getAppData().getAppKeyBytes());
+            });
             
         });
 
@@ -3630,8 +3592,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     public void openSettings() {
         if (checkValidSetup()) {
             if (m_settingsStage == null) {
-
-                checkDrive(m_appDir, (onSuccess)->{
+                Utils.checkDrive(m_appDir,getErgoNodesList().getErgoNodes().getNetworksData().getExecService(), (onSuccess)->{
                     Object sourceValue = onSuccess.getSource().getValue();
 
                     if(sourceValue != null && sourceValue instanceof Boolean && (Boolean) sourceValue){

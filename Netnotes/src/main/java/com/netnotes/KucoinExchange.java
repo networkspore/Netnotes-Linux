@@ -106,31 +106,28 @@ public class KucoinExchange extends Network implements NoteInterface {
     public KucoinExchange(NetworksData networksData) {
         this(null, networksData);
         setup(null);
-        addListeners();
     }
 
     public KucoinExchange(JsonObject jsonObject, NetworksData networksData) {
-        super(getAppIcon(), NAME, NETWORK_ID, networksData);
+        super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
 
         setup(jsonObject);
-        addListeners();
     }
 
-    public void addListeners(){
-        getNetworksData().getAppData().appKeyProperty().addListener((obs,oldval,newval)->{
-            new KuCoinDataList(this, oldval, newval);
-        });
-    }
 
     public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
 
         return m_cmdObjectProperty;
     }
 
-    public void addMsgListener(MessageInterface item) {
+    public static NetworkInformation getNetworkInformation(){
+        return new NetworkInformation(NETWORK_ID, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+    }
+
+    public void addListener(MessageInterface item) {
         if (!m_msgListeners.contains(item)) {
 
-            if (m_connectionStatus.get() == 0) {
+            if (m_connectionStatusProperty.get() == 0) {
                 connectToExchange();
             }
 
@@ -143,56 +140,50 @@ public class KucoinExchange extends Network implements NoteInterface {
             }
 
         }
-
     }
+    
 
-    public MessageInterface getListener(String id) {
-        for (int i = 0; i < m_msgListeners.size(); i++) {
-            MessageInterface listener = m_msgListeners.get(i);
-            if (listener.getId().equals(id)) {
-                return listener;
-            }
-        }
-        return null;
-    }
-
-    public boolean removeMsgListener(MessageInterface item) {
+    
+    public boolean removeListener(MessageInterface item) {
         /*try {
             Files.writeString(logFile.toPath(), "removing listener:" + item.getId(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
 
         }*/
-        MessageInterface listener = getListener(item.getId());
-        if (listener != null) {
-            boolean removed = m_msgListeners.remove(listener);
+     
+        boolean removed = m_msgListeners.remove(item);
 
-            /*try {
-                Files.writeString(logFile.toPath(), "removed listener:" + item.getId() + " " + removed, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
+        /*try {
+            Files.writeString(logFile.toPath(), "removed listener:" + item.getId() + " " + removed, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
 
-            }*/
+        }*/
 
-            if (m_msgListeners.size() == 0) {
-                m_websocketClient.close();
+        if (m_msgListeners.size() == 0) {
+            m_websocketClient.close();
 
-            }
-            return removed;
         }
-        return false;
+        return removed;
+    
     }
 
     public File getAppDir() {
         return m_appDir;
     }
 
-    public static Image getAppIcon() {
-        return App.kucoinImg;
+  
+    public static String getAppIconString(){
+        return "/assets/kucoin-100.png";
+    }
+    private Image m_smallAppIcon = new Image(getSmallAppIconString());
+    public Image getSmallAppIcon() {
+        return m_smallAppIcon;
     }
 
-    public static Image getSmallAppIcon() {
-        return new Image("/assets/kucoin-30.png");
+    public static String getSmallAppIconString()
+    {
+        return "/assets/kucoin-30.png";
     }
-
     public File getDataFile() {
         return m_dataFile;
     }
@@ -232,10 +223,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     }
 
-    public void open() {
-        super.open();
-        showAppStage();
-    }
+
 
     public Stage getAppStage() {
         return m_appStage;
@@ -292,7 +280,7 @@ public class KucoinExchange extends Network implements NoteInterface {
                 openTunnel(getNetworkId());
             }
 
-            m_connectionStatus.addListener((obs, oldVal, newVal) -> {
+            m_connectionStatusProperty.addListener((obs, oldVal, newVal) -> {
                 if (newVal.intValue() == 4) {
                     openTunnel(getNetworkId());
                 }
@@ -324,13 +312,13 @@ public class KucoinExchange extends Network implements NoteInterface {
                 }
 
             };
-            addMsgListener(msgInterface);
+            addListener(msgInterface);
 
             double appStageWidth = 450;
             double appStageHeight = 600;
 
             m_appStage = new Stage();
-            m_appStage.getIcons().add(KucoinExchange.getSmallAppIcon());
+            m_appStage.getIcons().add(getSmallAppIcon());
             m_appStage.initStyle(StageStyle.UNDECORATED);
             m_appStage.setTitle(NAME);
 
@@ -341,7 +329,7 @@ public class KucoinExchange extends Network implements NoteInterface {
                 if (isClientReady()) {
                     closeTunnel(getNetworkId());
                 }
-                removeMsgListener(msgInterface);
+                removeListener(msgInterface);
                 kucoinData.closeAll();
                 kucoinData.removeUpdateListener();
 
@@ -404,11 +392,11 @@ public class KucoinExchange extends Network implements NoteInterface {
             VBox chartList = kucoinData.getGridBox();
 
             ScrollPane scrollPane = new ScrollPane(chartList);
-            scrollPane.setPadding(SMALL_INSETS);
+         
             scrollPane.setId("bodyBox");
 
             VBox bodyPaddingBox = new VBox(scrollPane);
-            bodyPaddingBox.setPadding(SMALL_INSETS);
+          
 
             Font smallerFont = Font.font("OCR A Extended", 10);
 
@@ -428,7 +416,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             VBox footerVBox = new VBox(lastUpdatedBox);
             HBox.setHgrow(footerVBox, Priority.ALWAYS);
-            footerVBox.setPadding(SMALL_INSETS);
+    
 
             VBox headerVBox = new VBox(titleBox);
             headerVBox.setPadding(new Insets(0, 5, 0, 5));
@@ -545,7 +533,7 @@ public class KucoinExchange extends Network implements NoteInterface {
             Platform.runLater(()->m_appStage.requestFocus());
         }
     }
-    private SimpleIntegerProperty m_connectionStatus = new SimpleIntegerProperty(0);
+    private SimpleIntegerProperty m_connectionStatusProperty = new SimpleIntegerProperty(0);
 
     public static String PUBLIC_TOKEN_URL = "https://api.kucoin.com/api/v1/bullet-public";
 
@@ -624,8 +612,9 @@ public class KucoinExchange extends Network implements NoteInterface {
     }
 
     private void connectToExchange() {
-        if (m_connectionStatus.get() == 0) {
-            m_connectionStatus.set(1);
+        if (m_connectionStatusProperty.get() == 0) {
+            setConnectionStatus(1);
+            m_connectionStatusProperty.set(1);
 
             requestSocket(e -> {
 
@@ -726,14 +715,16 @@ public class KucoinExchange extends Network implements NoteInterface {
     }
 
     private void openKucoinSocket(String tokenString, String endpointURL, int pingInterval) {
-        m_connectionStatus.set(2);
+        setConnectionStatus(2);
+        m_connectionStatusProperty.set(2);
         m_clientId = FriendlyId.createFriendlyId();
         
         URI uri;
         try {
             uri = new URI(endpointURL + "?token=" + tokenString + "&[connectId=" + m_clientId + "]");
         } catch (URISyntaxException e) {
-            m_connectionStatus.set(0);
+            setConnectionStatus(0);
+            m_connectionStatusProperty.set(0);
             return;
         }
 
@@ -742,7 +733,8 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             @Override
             public void onOpen(ServerHandshake serverHandshake) {
-                m_connectionStatus.set(3);
+                setConnectionStatus(3);
+                m_connectionStatusProperty.set(3);
             }
 
           
@@ -779,7 +771,8 @@ public class KucoinExchange extends Network implements NoteInterface {
 
                                 switch (type) {
                                     case "welcome":
-                                        m_connectionStatus.set(4);
+                                        setConnectionStatus(4);
+                                        m_connectionStatusProperty.set(4);
                                         JsonElement idElement = messageObject.get("id");
                                         m_clientId = idElement.getAsString();
                                         startPinging(m_clientId, pingInterval);
@@ -818,7 +811,8 @@ public class KucoinExchange extends Network implements NoteInterface {
                 m_openTunnels.clear();
 
                 m_socketMsg.set(Utils.getCmdObject("close"));
-                m_connectionStatus.set(0);
+                setConnectionStatus(0);
+                m_connectionStatusProperty.set(0);
             
                 /*ArrayList<WebClientListener> listeners = getMessageListeners();
                 for (WebClientListener messagelistener : listeners) {
@@ -872,11 +866,11 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     public boolean isClientReady() {
         /*try {
-            Files.writeString(logFile.toPath(), "isClientReady():" + (m_websocketClient != null && m_websocketClient.isOpen() && m_connectionStatus.get() == 4), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            Files.writeString(logFile.toPath(), "isClientReady():" + (m_websocketClient != null && m_websocketClient.isOpen() && m_connectionStatusProperty.get() == 4), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
 
         }*/
-        return m_websocketClient != null && m_websocketClient.isOpen() && m_connectionStatus.get() == 4;
+        return m_websocketClient != null && m_websocketClient.isOpen() && m_connectionStatusProperty.get() == 4;
     }
 
     public void getCandlesDataset(String symbol, String timespan, EventHandler<WorkerStateEvent> onSuccess, EventHandler<WorkerStateEvent> onFailed) {
@@ -984,8 +978,9 @@ public class KucoinExchange extends Network implements NoteInterface {
         return messageObj.toString();
     }
 
+    @Override
     public int getConnectionStatus() {
-        return m_connectionStatus.get();
+        return m_connectionStatusProperty.get();
     }
 
     public void subscribeToCandles(String symbol, String timespan) {
@@ -1075,16 +1070,12 @@ public class KucoinExchange extends Network implements NoteInterface {
         }
     }
 
-    @Override
-    public IconButton getButton(String iconStyle) {
 
-        IconButton iconButton = new IconButton(iconStyle.equals(IconStyle.ROW) ? getSmallAppIcon() : getAppIcon(), getName(), iconStyle) {
-            @Override
-            public void open() {
-                getOpen();
-            }
-        };
-
-        return iconButton;
+    public String getDescription(){
+        return DESCRIPTION;
+    }
+    
+    public String getType(){
+        return App.APP_TYPE;
     }
 }

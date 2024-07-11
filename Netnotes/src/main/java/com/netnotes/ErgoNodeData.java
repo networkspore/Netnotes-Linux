@@ -76,7 +76,7 @@ public class ErgoNodeData {
     private String m_startImgUrl = "/assets/play-30.png";
     private String m_stopImgUrl = "/assets/stop-30.png";
    
-    private final SimpleStringProperty m_statusProperty = new SimpleStringProperty(ErgoMarketsData.STOPPED);
+    private final SimpleStringProperty m_statusProperty = new SimpleStringProperty(App.STATUS_STOPPED);
     private final SimpleStringProperty m_statusString = new SimpleStringProperty("");
     private final SimpleObjectProperty<LocalDateTime> m_shutdownNow = new SimpleObjectProperty<>(LocalDateTime.now());
     private final SimpleStringProperty m_cmdProperty = new SimpleStringProperty("");
@@ -376,19 +376,7 @@ public class ErgoNodeData {
     public HBox getRowItem() {
 
        
-        Tooltip defaultIdTip = new Tooltip(getErgoNodesList().defaultNodeIdProperty().get() != null && getErgoNodesList().defaultNodeIdProperty().get().equals(getId()) ? "Default Node" : "Set default");
-        defaultIdTip.setShowDelay(new Duration(100));
-        
-        BufferedButton defaultIdBtn = new BufferedButton(m_ergoNodesList.defaultNodeIdProperty().get() != null && m_ergoNodesList.defaultNodeIdProperty().get().equals(getId()) ? m_radioOnUrl : m_radioOffUrl, 15);
-        defaultIdBtn.setTooltip(defaultIdTip);
-        defaultIdBtn.setOnAction(e->{
-            String currentDefaultId = m_ergoNodesList.defaultNodeIdProperty().get();
-            if(currentDefaultId != null && currentDefaultId.equals(getId())){
-                m_ergoNodesList.defaultNodeIdProperty().set(null);
-            }else{
-                m_ergoNodesList.defaultNodeIdProperty().set(getId());
-            }
-        });
+       
 
         BufferedMenuButton itemMenuBtn = new BufferedMenuButton();
         itemMenuBtn.setPadding(new Insets(0));
@@ -414,10 +402,7 @@ public class ErgoNodeData {
         
         itemMenuBtn.getItems().addAll(openItem, removeItem);
 
-        m_ergoNodesList.defaultNodeIdProperty().addListener((obs, oldval, newval)->{
-            defaultIdBtn.setImage(new Image(newval != null && newval.equals(getId()) ? m_radioOnUrl : m_radioOffUrl));
-             defaultIdTip.setText(newval != null && newval.equals(getId()) ? "Default Node" : "Set default");
-        });
+    
 
         String centerString = "";
 
@@ -458,14 +443,14 @@ public class ErgoNodeData {
 
         VBox.setVgrow(centerRightBox, Priority.ALWAYS);
 
-        Tooltip statusBtnTip = new Tooltip(m_statusProperty.get().equals(ErgoMarketsData.STOPPED) ? "Ping" : "Stop");
+        Tooltip statusBtnTip = new Tooltip(m_statusProperty.get().equals(App.STATUS_STOPPED) ? "Ping" : "Stop");
         statusBtnTip.setShowDelay(new Duration(100));
-        BufferedButton statusBtn = new BufferedButton(m_statusProperty.get().equals(ErgoMarketsData.STOPPED) ? m_startImgUrl : m_stopImgUrl, 15);
+        BufferedButton statusBtn = new BufferedButton(m_statusProperty.get().equals(App.STATUS_STOPPED) ? m_startImgUrl : m_stopImgUrl, 15);
         statusBtn.setId("statusBtn");
         statusBtn.setPadding(new Insets(0, 10, 0, 10));
         statusBtn.setTooltip(statusBtnTip);
         statusBtn.setOnAction(action -> {
-            if (m_statusProperty.get().equals(ErgoMarketsData.STOPPED)) {
+            if (m_statusProperty.get().equals(App.STATUS_STOPPED)) {
                 start();
             } else {
                 m_shutdownNow.set(LocalDateTime.now());
@@ -474,7 +459,7 @@ public class ErgoNodeData {
 
         m_statusProperty.addListener((obs, oldVal, newVal) -> {
             switch (m_statusProperty.get()) {
-                case ErgoMarketsData.STOPPED:
+                case App.STATUS_STOPPED:
 
                     statusBtnTip.setText("Ping");
                     statusBtn.getBufferedImageView().setDefaultImage(new Image(m_startImgUrl), 15);
@@ -497,7 +482,7 @@ public class ErgoNodeData {
             }
         });
 
-        HBox leftBox = new HBox(defaultIdBtn);
+        HBox leftBox = new HBox();
         leftBox.setPadding(new Insets(5));
         HBox rightBox = new HBox(statusBtn);
 
@@ -614,7 +599,7 @@ public class ErgoNodeData {
         return rowBox;
     }
     public boolean isStopped(){
-        return statusProperty().get().equals(ErgoMarketsData.STOPPED);
+        return statusProperty().get().equals(App.STATUS_STOPPED);
     }
    
     private ChangeListener<Ping> m_pingListener = (obs,oldval,newval) ->{
@@ -642,7 +627,7 @@ public class ErgoNodeData {
             }
            
         }
-        m_statusProperty.set(ErgoMarketsData.STOPPED);
+        m_statusProperty.set(App.STATUS_STOPPED);
 
     };
 
@@ -652,11 +637,11 @@ public class ErgoNodeData {
     
     public void start() {
         NamedNodeUrl namedNodeUrl = m_namedNodeUrlProperty.get();
-        if (namedNodeUrl != null && namedNodeUrl.getIP() != null &&  m_statusProperty.get().equals(ErgoMarketsData.STOPPED)) {
+        if (namedNodeUrl != null && namedNodeUrl.getIP() != null &&  m_statusProperty.get().equals(App.STATUS_STOPPED)) {
             
 
 
-            m_statusProperty.set(ErgoMarketsData.STARTED);
+            m_statusProperty.set(App.STATUS_STARTED);
             m_statusString.set("Pinging...");
                 
             m_cmdProperty.set("PING");
@@ -730,7 +715,7 @@ public class ErgoNodeData {
 
 
 
-                HBox titleBox = App.createTopBar(ErgoNodes.getSmallAppIcon(), "Edit - Remote Node Config - Ergo Nodes", closeBtn, m_settingsStage);
+                HBox titleBox = App.createTopBar(m_ergoNodesList.getErgoNodes().getSmallAppIcon(), "Edit - Remote Node Config - Ergo Nodes", closeBtn, m_settingsStage);
                 
                 Text headingText = new Text("Node Config");
                 headingText.setFont(App.txtFont);
@@ -876,9 +861,9 @@ public class ErgoNodeData {
                 });
 
                 showKeyBtn.setOnAction(e ->{
-                    App.verifyAppKey(()->{
+                    getNetworksData().verifyAppKey(()->{
                         showKey.run();
-                    }, getErgoNodesList().getErgoNodes().getNetworksData().getAppData().getAppKeyBytes());
+                    });
                     
                 });
 

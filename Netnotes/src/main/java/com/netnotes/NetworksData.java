@@ -3,58 +3,67 @@ package com.netnotes;
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
 
 import org.reactfx.util.FxTimer;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 import com.netnotes.IconButton.IconStyle;
-import com.satergo.extra.AESEncryption;
+import com.utils.Utils;
 
+import at.favre.lib.crypto.bcrypt.BCrypt;
+import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import javafx.application.HostServices;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringExpression;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
@@ -69,20 +78,20 @@ public class NetworksData implements InstallerInterface {
     public final static long DEFAULT_CYCLE_PERIOD = 7;
 
     public final static String[] INTALLABLE_NETWORK_IDS = new String[]{
-        ErgoNetwork.NETWORK_ID,
+   
         KucoinExchange.NETWORK_ID,
         SpectrumFinance.NETWORK_ID
         
     };
-
+    
+    
+    private Tooltip m_networkToolTip = new Tooltip("Network");
 
     
     private ExecutorService m_execService = Executors.newFixedThreadPool(6);
     
     private ObservableList<NoteInterface> m_noteInterfaceList = FXCollections.observableArrayList();
-    private File m_networksFile;
-    private String m_selectedId;
-    private VBox m_networksBox;
+    private ObservableList<NoteInterface> m_networkList = FXCollections.observableArrayList();
 
     private double m_leftColumnWidth = 175;
 
@@ -99,11 +108,10 @@ public class NetworksData implements InstallerInterface {
 
     private File m_notesDir;
     private File m_outDir;
-    private SimpleObjectProperty<com.grack.nanojson.JsonObject> m_cmdSwitch = new SimpleObjectProperty<com.grack.nanojson.JsonObject>(null);
+    private File m_inDir;
 
     private NoteWatcher m_noteWatcher = null;
 
-    private File logFile = new File("netnotes-log.txt");
     private SimpleStringProperty m_stageIconStyle = new SimpleStringProperty(IconStyle.ICON);
 
     private double m_stageWidth = 700;
@@ -112,13 +120,34 @@ public class NetworksData implements InstallerInterface {
     private double m_stagePrevHeight = 500;
     private boolean m_stageMaximized = false;
     private AppData m_appData;
+    private String m_networkId;
 
+    private StringExpression m_titleExpression = null;
+    private Stage m_appStage = null;
+    private ChangeListener<Bounds> m_boundsListener = null;
+    private SimpleObjectProperty<NoteInterface> m_currentNetwork = new SimpleObjectProperty<>(null);
+    private String m_currentNetworkId = null;
+    private ScrollPane m_menuScroll;
+    private ScrollPane m_subMenuScroll;
+    private HBox m_subMenuBox = new HBox();
 
-    public NetworksData(AppData appData,  HostServices hostServices, File networksFile, boolean isFile) {
+    private SimpleObjectProperty<TabInterface> m_currentTab = new SimpleObjectProperty<TabInterface>();
+    private ImageView m_networkImgView = new ImageView();
+    private Button m_settingsBtn = new Button();
+    private Button m_appsBtn = new Button();
+    private Button m_networkBtn = new Button();
+
+    private SettingsTab m_settingsTab = null;
+    private NetworkTab m_networkTab = null;
+    private AppsTab m_appsTab = null;
+
+    private SimpleDoubleProperty m_widthObject = new SimpleDoubleProperty(300);
+    private SimpleDoubleProperty m_heightObject = new SimpleDoubleProperty(200);
+
+    public NetworksData(AppData appData,  HostServices hostServices) {
         m_appData = appData;
-   
-        m_networksFile = networksFile;
-        m_networksBox = new VBox();
+        m_networkId = FriendlyId.createFriendlyId();
+     
         m_hostServices = hostServices;
        
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -141,12 +170,11 @@ public class NetworksData implements InstallerInterface {
             
         } 
 
-        if (isFile) {
-            readFile(m_appData.appKeyProperty().get(), networksFile.toPath());
-        }
-
+        
         m_notesDir = new File(m_appData.getAppDir().getAbsolutePath() + "/notes");
-        m_outDir = new File(m_appData.getAppDir().getAbsolutePath() + "/out");
+        m_outDir = new File(m_notesDir + "/out");
+        m_inDir = new File(m_notesDir + "/in");
+
         if (!m_notesDir.isDirectory()) {
             try {
                 Files.createDirectory(m_notesDir.toPath());
@@ -157,6 +185,13 @@ public class NetworksData implements InstallerInterface {
         if (!m_outDir.isDirectory()) {
             try {
                 Files.createDirectory(m_outDir.toPath());
+            } catch (IOException e) {
+
+            }
+        }
+        if(!m_inDir.isDirectory()){
+            try {
+                Files.createDirectory(m_inDir.toPath());
             } catch (IOException e) {
 
             }
@@ -172,12 +207,46 @@ public class NetworksData implements InstallerInterface {
 
         }*/
 
+       
+        openJson(getData("data",  ".", "main","root"));
+       
+        m_appData.appKeyProperty().addListener((obs,oldval,newval)->updateIdDataFile(oldval, newval));
+        
 
-        m_appData.appKeyProperty().addListener((obs,oldval,newval)->save());
+    }
+    public final static NetworkInformation NO_NETWORK = new NetworkInformation("NO_NETWORK", "No network","/assets/globe-outline-white-120.png", "/assets/globe-outline-white-30.png", "No network selected" );
+    
+    public static NetworkInformation[] SUPPORTED_NETWORKS = new NetworkInformation[]{ ErgoNetwork.getNetworkInformation()};
+
+    public static boolean isNetworkSupported(String networkId){
+        if(networkId != null){
+            for(int i =0; i < SUPPORTED_NETWORKS.length ; i++){
+                if(SUPPORTED_NETWORKS[i].getNetworkId().equals(networkId)){
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
+    public void setCurrentNetwork(String networkId){
 
+        
+        if(networkId == null || (m_currentNetworkId != null && m_currentNetworkId.equals(networkId))){
+            return;
+        }
+            
+        m_currentNetworkId = networkId;
+       
 
+        updateNetworks();
+        
+        save();
+    }
+
+    public String getNetworkId(){
+        return m_networkId;
+    }
 
     public ExecutorService getExecService(){
         return m_execService;
@@ -189,61 +258,52 @@ public class NetworksData implements InstallerInterface {
     }
 
 
-    private void readFile(SecretKey appKey, Path filePath) {
 
-        byte[] fileBytes;
-        try {
-            fileBytes = Files.readAllBytes(filePath);
 
-            byte[] iv = new byte[]{
-                fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3],
-                fileBytes[4], fileBytes[5], fileBytes[6], fileBytes[7],
-                fileBytes[8], fileBytes[9], fileBytes[10], fileBytes[11]
-            };
-
-            ByteBuffer encryptedData = ByteBuffer.wrap(fileBytes, 12, fileBytes.length - 12);
-
-            try {
-                JsonElement jsonElement = new JsonParser().parse(new String(AESEncryption.decryptData(iv, appKey, encryptedData)));
-                if (jsonElement != null && jsonElement.isJsonObject()) {
-                    openJson(jsonElement.getAsJsonObject());
-                }
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-                    try {
-                        Files.writeString(logFile.toPath(), "\nNetworksData: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e1) {
-
-                    }
+     protected void updateNetworks(){
+        
+        NoteInterface network = getNetwork(m_currentNetworkId);
+        if(network != null){
+            if(m_currentNetwork.get() != null && m_currentNetwork.get().getNetworkId().equals(network.getNetworkId())){
+                
+            }else{
+               
+                m_currentNetwork.set(network);   
             }
 
-        } catch (IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "\nNetworks Data:" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
+        }else{
+            if(m_currentNetwork.get() != null){
+                m_currentNetwork.set(null);
             }
         }
-
     }
 
-   
-
-
-
+    public SimpleObjectProperty<NoteInterface> currentNetworkProperty(){
+        return m_currentNetwork;
+    }
   
 
-    public AppData getAppData() {
+    private AppData getAppData() {
         return m_appData;
+    }
+
+    public boolean verifyAppPassword(String password){
+        BCrypt.Result result = BCrypt.verifyer(BCrypt.Version.VERSION_2A, LongPasswordStrategies.hashSha512(BCrypt.Version.VERSION_2A)).verify(password.toCharArray(), getAppData().getAppKeyBytes());
+        return result.verified;
     }
 
     private void openJson(JsonObject networksObject) {
         if (networksObject != null) {
 
             JsonElement jsonArrayElement = networksObject == null ? null : networksObject.get("networks");
+            JsonElement jsonNetArrayElement = networksObject == null ? null : networksObject.get("netArray");
             JsonElement stageElement = networksObject.get("stage");
-            JsonArray jsonArray = jsonArrayElement.getAsJsonArray();
+            JsonElement currentNetworkIdElement = networksObject.get("currentNetworkId");
 
+          
+            JsonArray jsonArray = jsonNetArrayElement != null && jsonNetArrayElement.isJsonArray() ? jsonNetArrayElement.getAsJsonArray() : new JsonArray();
+            
+        
             for (JsonElement element : jsonArray) {
                 JsonObject jsonObject = element.getAsJsonObject();
                 JsonElement networkIdElement = jsonObject.get("networkId");
@@ -252,10 +312,34 @@ public class NetworksData implements InstallerInterface {
                     String networkId = networkIdElement.getAsString();
 
                     switch (networkId) {
+                    
                         case ErgoNetwork.NETWORK_ID:
-                            addNoteInterface(new ErgoNetwork(jsonObject, this), false);
-                            break;
+                            addNetwork(new ErgoNetwork(this));
+                            break;                          
 
+                    }
+
+                }
+
+            }
+
+            m_currentNetworkId = currentNetworkIdElement != null && currentNetworkIdElement.isJsonPrimitive() ? currentNetworkIdElement.getAsString() : null; 
+            
+        
+
+
+            jsonArray = jsonArrayElement != null && jsonArrayElement.isJsonArray() ? jsonArrayElement.getAsJsonArray() : new JsonArray();
+
+          
+            for (JsonElement element : jsonArray) {
+                JsonObject jsonObject = element.getAsJsonObject();
+                JsonElement networkIdElement = jsonObject.get("networkId");
+
+                if (networkIdElement != null) {
+                    String networkId = networkIdElement.getAsString();
+
+                    switch (networkId) {
+                    
                         case KucoinExchange.NETWORK_ID:
                             addNoteInterface(new KucoinExchange(jsonObject, this), false);
                             break;
@@ -269,9 +353,13 @@ public class NetworksData implements InstallerInterface {
                 }
 
             }
+            
             if (stageElement != null && stageElement.isJsonObject()) {
 
                 JsonObject stageObject = stageElement.getAsJsonObject();
+                JsonElement stagePrevXElement = stageObject.get("prevX");
+                JsonElement stagePrevYElement = stageObject.get("prevY");
+
                 JsonElement stageWidthElement = stageObject.get("width");
                 JsonElement stageHeightElement = stageObject.get("height");
                 JsonElement stagePrevWidthElement = stageObject.get("prevWidth");
@@ -282,6 +370,8 @@ public class NetworksData implements InstallerInterface {
 
                 boolean maximized = stageMaximizedElement == null ? false : stageMaximizedElement.getAsBoolean();
                 String iconStyle = iconStyleElement != null ? iconStyleElement.getAsString() : IconStyle.ICON;
+                m_prevX = stagePrevXElement != null && stagePrevXElement.isJsonPrimitive() ? stagePrevXElement.getAsDouble() : -1;
+                m_prevY = stagePrevYElement != null && stagePrevYElement.isJsonPrimitive() ? stagePrevYElement.getAsDouble() : -1;
 
                 m_stageIconStyle.set(iconStyle);
                 setStagePrevWidth(Network.DEFAULT_STAGE_WIDTH);
@@ -300,7 +390,7 @@ public class NetworksData implements InstallerInterface {
                 }
                 setStageMaximized(maximized);
             }
-            updateNetworksGrid();
+          
 
         }
     }
@@ -353,6 +443,8 @@ public class NetworksData implements InstallerInterface {
 
     public JsonObject getStageJson() {
         JsonObject json = new JsonObject();
+        json.addProperty("prevX", m_prevX);
+        json.addProperty("prevY", m_prevY);
         json.addProperty("maximized", getStageMaximized());
         json.addProperty("width", getStageWidth());
         json.addProperty("height", getStageHeight());
@@ -362,9 +454,6 @@ public class NetworksData implements InstallerInterface {
         return json;
     }
 
-    public SimpleObjectProperty<com.grack.nanojson.JsonObject> cmdSwitchProperty() {
-        return m_cmdSwitch;
-    }
 
     public File getAppDir() {
         return m_appData.getAppDir();
@@ -386,7 +475,7 @@ public class NetworksData implements InstallerInterface {
         } catch (Exception e) {
 
         }
-        updateNetworksGrid();
+
 
     }
 
@@ -401,15 +490,55 @@ public class NetworksData implements InstallerInterface {
 
         if (getNoteInterface(networkId) == null) {
             m_noteInterfaceList.add(noteInterface);
-            noteInterface.addUpdateListener((obs, oldValue, newValue) -> save());
-
-            if (update) {
-                updateNetworksGrid();
-            }
+           
+          
             return true;
         }
         return false;
     }
+
+    public boolean addNetwork(NoteInterface noteInterface) {
+        // int i = 0;
+
+        String networkId = noteInterface.getNetworkId();
+
+        if (getNetwork(networkId) == null) {
+            m_networkList.add(noteInterface);
+            
+     
+           
+            return true;
+        }
+        return false;
+    }
+
+    public boolean removeNet(String networkId){
+        
+       
+        for (int i = 0; i < m_networkList.size(); i++) {
+            NoteInterface noteInterface = m_networkList.get(i);
+            if (networkId.equals(noteInterface.getNetworkId())) {
+                m_networkList.remove(i);
+                noteInterface.remove();
+
+                return true;
+            }
+        }
+     
+        return false;
+        
+    }
+
+    public void addNetworkListListener(ListChangeListener<? super NoteInterface> listener){
+        m_networkList.addListener(listener);
+    }
+
+    public void removeNetworkListListener(ListChangeListener<? super NoteInterface> listener){
+        m_networkList.removeListener(listener);
+    }
+
+
+
 
     public void addNetworkListener(ListChangeListener<? super NoteInterface> listener){
         m_noteInterfaceList.addListener(listener);
@@ -419,17 +548,7 @@ public class NetworksData implements InstallerInterface {
         m_noteInterfaceList.removeListener(listener);
     }
 
-    public VBox getNetworksBox() {
-
-        updateNetworksGrid();
-        m_stageIconStyle.addListener((obs, oldVal, newVal) -> {
-            updateNetworksGrid();
-            save();
-        });
-
-        return m_networksBox;
-    }
-
+  
     private SimpleObjectProperty<LocalDateTime> m_shutdownNow = new SimpleObjectProperty<>(null);
 
     public SimpleObjectProperty<LocalDateTime> shutdownNowProperty() {
@@ -452,18 +571,7 @@ public class NetworksData implements InstallerInterface {
         closeNetworksStage();
     }
 
-    public void show() {
-  
-        
-        com.grack.nanojson.JsonObject showJson = new com.grack.nanojson.JsonObject();
 
-        showJson.put("type", "CMD");
-        showJson.put("cmd", App.CMD_SHOW_APPSTAGE);
-        showJson.put("timeStamp", System.currentTimeMillis());
-
-
-        m_cmdSwitch.set(showJson);
-    }
 
     public void showManageNetworkStage() {
 
@@ -480,7 +588,7 @@ public class NetworksData implements InstallerInterface {
             HBox.setHgrow(m_notInstalledVBox, Priority.ALWAYS);
             updateInstallables();
 
-            String topTitle = "Manage - Netnotes: Networks";
+            String topTitle = "Netnotes - Manage Apps";
             m_addNetworkStage = new Stage();
             m_addNetworkStage.setTitle(topTitle);
             m_addNetworkStage.getIcons().add(App.logo);
@@ -647,14 +755,14 @@ public class NetworksData implements InstallerInterface {
             installBtn.setOnAction(e -> {
 
                 if (m_focusedInstallable != null && (!m_focusedInstallable.getInstalled())) {
-                    installNetwork(m_focusedInstallable.getNetworkId());
+                    installApp(m_focusedInstallable.getNetworkId());
                 }
                 m_focusedInstallable = null;
             });
 
             removeBtn.setOnAction(e -> {
                 if (m_focusedInstallable != null && (m_focusedInstallable.getInstalled())) {
-                    removeNetwork(m_focusedInstallable.getNetworkId());
+                    removeApp(m_focusedInstallable.getNetworkId());
                 }
                 m_focusedInstallable = null;
             });
@@ -696,6 +804,28 @@ public class NetworksData implements InstallerInterface {
         m_installables = null;
         m_focusedInstallable = null;
     }
+
+    private double m_prevX = -1;
+    private double m_prevY = -1;
+  
+
+    public double getPrevX(){
+        return m_prevX;
+    }
+
+    public double getPrevY(){
+        return m_prevY;
+    }
+
+    public void setPrevX(double value){
+        m_prevX = value;
+    }
+
+    public void setPrevY(double value){
+        m_prevY = value;
+    }
+
+
 
     public void updateAvailableLists() {
         if (m_installables != null && m_installedVBox != null && m_notInstalledVBox != null) {
@@ -770,71 +900,31 @@ public class NetworksData implements InstallerInterface {
    // private SimpleDoubleProperty m_gridWidth = new SimpleDoubleProperty(200);
     
 
-    public void updateNetworksGrid() {
-        m_networksBox.getChildren().clear();
-        double minSize = m_stageWidth - 110;
 
-        int numCells = m_noteInterfaceList.size();
-        double width = m_networksBox.widthProperty().get();
-        width = width < minSize ? minSize : width;
-        
-        String currentIconStyle = m_stageIconStyle.get();
+    public void installNetwork(String networkId){
+        if(getNetwork(networkId) == null && isNetworkSupported(networkId)){
+            switch (networkId) {
 
-        if (numCells != 0) {
+            
+                case ErgoNetwork.NETWORK_ID:
+                try {
+                    Files.writeString(App.logFile.toPath(), "\nNetworksData: adding ergo", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
 
-            m_networksBox.setAlignment(Pos.TOP_LEFT);
-            if (currentIconStyle.equals(IconStyle.ROW)) {
-                for (int i = 0; i < numCells; i++) {
-                    NoteInterface network = m_noteInterfaceList.get(i);
-                    IconButton iconButton = network.getButton(currentIconStyle);
-                    iconButton.setPrefWidth(width);
-                    m_networksBox.getChildren().add(iconButton);
                 }
-            } else {
-
-                double imageWidth = 75;
-                double cellPadding = 15;
-                double cellWidth = imageWidth + (cellPadding * 2);
-
-                int floor = (int) Math.floor(width / cellWidth);
-                int numCol = floor == 0 ? 1 : floor;
-                // currentNumCols.set(numCol);
-              //  int numRows = numCells > 0 && numCol != 0 ? (int) Math.ceil(numCells / (double) numCol) : 1;
-
-              ArrayList<HBox> rowsBoxes = new ArrayList<HBox>();
-
-              ItemIterator grid = new ItemIterator();
-              //j = row
-              //i = col
-  
-              for (NoteInterface noteInterface : m_noteInterfaceList) {
-                  if(rowsBoxes.size() < (grid.getJ() + 1)){
-                      HBox newHBox = new HBox();
-                      rowsBoxes.add(newHBox);
-                      m_networksBox.getChildren().add(newHBox);
-                  }
-                  HBox rowBox = rowsBoxes.get(grid.getJ());
-                  rowBox.getChildren().add(noteInterface.getButton(currentIconStyle));
-  
-                  if (grid.getI() < numCol) {
-                      grid.setI(grid.getI() + 1);
-                  } else {
-                      grid.setI(0);
-                      grid.setJ(grid.getJ() + 1);
-                  }
-              }
-
+                    addNetwork(new ErgoNetwork(this));
+                    break;
+            
             }
         }
+        save();
     }
 
-    public void installNetwork(String networkId) {
+    public void installApp(String networkId) {
 
         switch (networkId) {
 
-            case ErgoNetwork.NETWORK_ID:
-                addNoteInterface(new ErgoNetwork(this));
-                break;
+           
             case KucoinExchange.NETWORK_ID:
                 addNoteInterface(new KucoinExchange(this));
                 break;
@@ -849,7 +939,7 @@ public class NetworksData implements InstallerInterface {
         save();
     }
 
-    public void removeNetwork(String networkId) {
+    public void removeApp(String networkId) {
         removeNoteInterface(networkId);
 
         m_installedVBox.getChildren().clear();
@@ -863,7 +953,7 @@ public class NetworksData implements InstallerInterface {
     public void addAll() {
         for (String networkId : INTALLABLE_NETWORK_IDS) {
             if (getNoteInterface(networkId) == null) {
-                installNetwork(networkId);
+                installApp(networkId);
             }
         }
         updateInstallables();
@@ -888,26 +978,7 @@ public class NetworksData implements InstallerInterface {
 
 
 
-    public void setSelected(String networkId) {
-        if (m_selectedId != null) {
-            NoteInterface prevInterface = getNoteInterface(m_selectedId);
-            if (prevInterface != null) {
-                prevInterface.getButton().setCurrent(false);
-            }
-        }
-        m_selectedId = networkId;
-        if (networkId != null) {
-            NoteInterface currentInterface = getNoteInterface(networkId);
-            if (currentInterface != null) {
-                currentInterface.getButton().setCurrent(true);
-            }
-        }
-    }
-
-    public String getSelected() {
-        return m_selectedId;
-    }
-
+  
     public boolean removeNoteInterface(String networkId) {
         return removeNoteInterface(networkId, true);
     }
@@ -924,10 +995,7 @@ public class NetworksData implements InstallerInterface {
                 break;
             }
         }
-        if (success && update) {
-            updateNetworksGrid();
-        }
-
+    
         return success;
     }
 
@@ -957,6 +1025,27 @@ public class NetworksData implements InstallerInterface {
         });
     }
 
+    public NoteInterface getNetwork(String networkId) {
+        if (networkId != null) {
+            for (int i = 0; i < m_networkList.size(); i++) {
+                NoteInterface noteInterface = m_networkList.get(i);
+
+                if (noteInterface.getNetworkId().equals(networkId)) {
+                    return noteInterface;
+                }
+            }
+        }
+        return null;
+    }
+
+    public TabInterface getNetworkTab(String networkId){
+        NoteInterface noteInterface = getNetwork(networkId);
+        if(noteInterface != null){
+            return noteInterface.getTab(m_appStage, m_heightObject, m_widthObject, m_networkBtn);
+        }
+        return null;
+    }
+
     public NoteInterface getNoteInterface(String networkId) {
         if (networkId != null) {
             for (int i = 0; i < m_noteInterfaceList.size(); i++) {
@@ -979,85 +1068,896 @@ public class NetworksData implements InstallerInterface {
         });
     }
 
-  
-
-    public void save() {
+    private JsonObject getJsonObject(){
         JsonObject fileObject = new JsonObject();
         JsonArray jsonArray = new JsonArray();
-
+        JsonArray netArray = new JsonArray();
         for (NoteInterface noteInterface : m_noteInterfaceList) {
 
             JsonObject jsonObj = noteInterface.getJsonObject();
             jsonArray.add(jsonObj);
 
         }
-
+        for (NoteInterface noteInterface : m_networkList){
+            JsonObject jsonObj = noteInterface.getJsonObject();
+            netArray.add(jsonObj);
+        }
+        fileObject.addProperty("currentNetworkId", m_currentNetworkId);
+        fileObject.add("netArray", netArray);
         fileObject.add("networks", jsonArray);
         fileObject.add("stage", getStageJson());
+        return fileObject;
+    }
+  
 
-        String jsonString = fileObject.toString();
+    public void save() {
+       
+        save("data", ".", "main","root", getJsonObject());
 
+    }
    
 
-        try {
 
-            SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-            byte[] iV = new byte[12];
-            secureRandom.nextBytes(iV);
+    public void open(String networkId, String type){
+       // NoteInterface noteInterface = getNoteInterface(networkId);
 
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
+      //  noteInterface.getPane();
+        String currentTabId = m_currentTab.get() != null ? m_currentTab.get().getTabId() : null;
 
-            cipher.init(Cipher.ENCRYPT_MODE, getAppData().appKeyProperty().get(), parameterSpec);
+        if(type == null || networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
+            return;
+        }
+      
+        TabInterface tab = null;
+        switch(type){
+            case App.STATIC_TYPE:
+                tab = getStaticTab(networkId);
+            break;
+            case App.NETWORK_TYPE:
+                tab = getNetworkTab(networkId);
+            break;
+        }
+ 
+        m_currentTab.set(tab != null ? tab : null);
+        
+    }
 
-            byte[] encryptedData = cipher.doFinal(jsonString.getBytes());
 
-            try {
 
-                if (m_networksFile.isFile()) {
-                    Files.delete(m_networksFile.toPath());
-                }
+    private TabInterface getStaticTab(String networkId){
 
-                FileOutputStream outputStream = new FileOutputStream(m_networksFile);
-                FileChannel fc = outputStream.getChannel();
+        switch(networkId){
+            case AppsTab.NAME:
+                m_appsTab = m_appsTab == null ?  new AppsTab(m_appStage,this, m_widthObject , m_settingsBtn) : m_appsTab;
+            return m_appsTab;
 
-                ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
+            case SettingsTab.NAME:
+                
+                m_settingsTab = m_settingsTab == null ?  new SettingsTab(m_appStage,this, getAppData(), m_widthObject , m_settingsBtn) : m_settingsTab;
+              
+            return m_settingsTab;
+            
+            case NetworkTab.NAME:
+                m_networkTab = m_networkTab == null ? new NetworkTab(m_appStage, this,m_heightObject, m_widthObject, m_networkBtn) : m_networkTab;
+            return m_networkTab;
+            
+        }
 
-                fc.write(byteBuffer);
+        return null;
+    }
 
-                int written = 0;
-                int bufferLength = 1024 * 8;
-
-                while (written < encryptedData.length) {
-
-                    if (written + bufferLength > encryptedData.length) {
-                        byteBuffer = ByteBuffer.wrap(encryptedData, written, encryptedData.length - written);
-                    } else {
-                        byteBuffer = ByteBuffer.wrap(encryptedData, written, bufferLength);
-                    }
-
-                    written += fc.write(byteBuffer);
-                }
-
-                outputStream.close();
-
-            } catch (IOException e) {
-                try {
-                    Files.writeString(logFile.toPath(), "\nIO exception:" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
-            }
-
-        } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-            try {
-                Files.writeString(logFile.toPath(), "\nKey error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
-            }
+    private void shutdownStaticTab(String id){
+        switch(id){
+            case AppsTab.NAME:
+                m_appsTab = null;
+            break;
+            case SettingsTab.NAME:
+                
+                m_settingsTab = null;
+                
+            break;
+            case NetworkTab.NAME:
+                m_networkTab = null;
+            break;
+            
         }
 
     }
+
+  
+    public SimpleObjectProperty<TabInterface> menuTabProperty() {
+        return m_currentTab;
+    };
+
+
+    private VBox m_menuBox = null;
+    private ObservableList<TabInterface> m_appTabs = FXCollections.observableArrayList();
+    private VBox m_appTabsBox;
+    private VBox m_menuContentBox;
+
+    private NoteMsgInterface m_networkMsgInterface = null;
+ 
+ 
+    private void initMenu(){
+        double menuSize = 30;
+
+        m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
+
+
+        Tooltip appsToolTip = new Tooltip("Apps");
+        appsToolTip.setShowDelay(new javafx.util.Duration(100));
+
+
+        ImageView appsImgView = new ImageView();
+        appsImgView.setImage(new Image("/assets/apps-outline-35.png"));
+        appsImgView.setFitHeight(menuSize);
+        appsImgView.setPreserveRatio(true);
+
+        m_appsBtn.setGraphic(appsImgView);
+        m_appsBtn.setId("menuTabBtn");
+        m_appsBtn.setTooltip(appsToolTip);
+
+        ImageView settingsImageView = new ImageView();
+        settingsImageView.setImage(App.settingsImg);
+        settingsImageView.setFitHeight(menuSize);
+        settingsImageView.setPreserveRatio(true);
+
+        Tooltip settingsTooltip = new Tooltip("Settings");
+        settingsTooltip.setShowDelay(new javafx.util.Duration(100));
+
+        m_settingsBtn.setGraphic(settingsImageView);
+        m_settingsBtn.setId("menuTabBtn");
+        m_settingsBtn.setTooltip(settingsTooltip);
+
+        
+        m_networkImgView.setImage(App.globeImage30);
+        m_networkImgView.setPreserveRatio(true);
+        m_networkImgView.setFitWidth(menuSize);
+
+        m_networkBtn.setGraphic(m_networkImgView);
+        m_networkBtn.setId("menuTabBtn");
+        m_networkBtn.setTooltip(m_networkToolTip);
+  
+       
+
+        m_appTabsBox = new VBox();
+        m_menuContentBox = new VBox(m_appTabsBox);
+
+
+    }
+    private ImageView m_selectNewtorkImgView;
+    private HBox m_selectNetworkBox;
+    private StackPane m_prevPositionBox;
+
+    public void createMenu(Stage appStage,VBox menuBox,ScrollPane menuScroll,ScrollPane subMenuScroll, VBox contentBox){
+        m_appStage = appStage;
+        m_subMenuScroll = subMenuScroll;
+        m_boundsListener = (obs,oldval,newval)->{
+            m_widthObject.set(newval.getWidth());
+            m_heightObject.set(newval.getHeight());
+        };    
+        m_subMenuScroll.viewportBoundsProperty().addListener(m_boundsListener);
+
+        m_subMenuBox.setAlignment(Pos.TOP_LEFT);
+
+        HBox vBar = new HBox();
+        vBar.setAlignment(Pos.CENTER);
+        vBar.setId("vGradient");
+        vBar.setMinWidth(1);
+        VBox.setVgrow(vBar, Priority.ALWAYS);
+        
+        initMenu();
+
+        
+        m_menuScroll = menuScroll;
+        
+        int imgSize = 17;
+        m_selectNewtorkImgView = new ImageView();
+        m_selectNewtorkImgView.setPreserveRatio(true);
+        m_selectNewtorkImgView.setFitWidth(imgSize);
+
+        
+     
+        m_selectNetworkBox = new HBox();
+        m_selectNetworkBox.setMinWidth(imgSize);
+        m_selectNetworkBox.setMinHeight(imgSize);
+        m_selectNetworkBox.setMaxWidth(imgSize);
+        m_selectNetworkBox.setMaxHeight(imgSize);
+        m_selectNetworkBox.setMouseTransparent(true);
+
+
+      
+
+        HBox socketBox = new HBox();
+        // fx-background-color:radial-gradient(radius 100%, #33333350 2%, #00000000);
+        socketBox.setId("socketBox");
+        VBox.setVgrow(socketBox, Priority.ALWAYS);
+        HBox.setHgrow(socketBox, Priority.ALWAYS);
+        socketBox.setMouseTransparent(true);
+        socketBox.setMaxWidth(32);
+        socketBox.setMaxHeight(30);
+        //socketBox.addEventFilter(null, null);
+   
+
+        StackPane btnPos = new StackPane(m_networkBtn,socketBox);
+        HBox.setHgrow(btnPos, Priority.ALWAYS);
+        btnPos.setAlignment(Pos.CENTER);
+
+        m_prevPositionBox = new StackPane(btnPos, m_selectNewtorkImgView, m_selectNetworkBox);
+
+        m_prevPositionBox.setAlignment(Pos.BOTTOM_RIGHT);
+
+     
+        menuBox.getChildren().addAll(m_appsBtn, m_menuScroll, m_settingsBtn, m_prevPositionBox);
+        
+     
+        m_appsBtn.setOnAction(e -> {
+    
+        });
+    
+        m_settingsBtn.setOnAction(e -> {
+            open(SettingsTab.NAME, App.STATIC_TYPE);
+        });
+
+        m_networkBtn.setOnAction(e->{
+            if(currentNetworkProperty().get() == null){
+                open(NetworkTab.NAME, App.STATIC_TYPE);
+            }else{
+                open(currentNetworkProperty().get().getNetworkId(), App.NETWORK_TYPE);
+            }
+        });
+
+        EventHandler<MouseEvent> selectNetworkBoxOnClick = (e)->{
+            open(NetworkTab.NAME, App.STATIC_TYPE);
+        };
+
+
+
+        m_currentNetwork.addListener((obs,oldval,newval)->{
+            if(oldval != null){
+                if(m_networkMsgInterface != null){
+                    oldval.removeMsgListener(m_networkMsgInterface);
+                    m_networkMsgInterface = null;
+                }
+            }
+            
+            if(newval != null){
+
+                m_networkMsgInterface = new NoteMsgInterface() {
+                    private String m_msgId = FriendlyId.createFriendlyId();
+                    public String getId(){
+                        return m_msgId;
+                    }
+                    public void sendMessage(String networkId, int code, long timestamp){
+
+                    }
+                    public void sendMessage(int code, long timestamp){
+
+                    }
+                    public void sendMessage(int code, long timestamp, String msg){
+
+                    }
+                    public void sendMessage(String networkId, int code, long timestamp, String msg){
+
+                    }
+                    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+                    }
+                };
+
+                newval.addMsgListener(m_networkMsgInterface);
+                m_networkImgView.setImage(newval.getSmallAppIcon());
+                m_networkToolTip.setText("Network: " + newval.getName());
+
+                m_selectNetworkBox.setId("socketBox");
+                m_selectNewtorkImgView.setImage(App.globeImage30);
+
+                m_selectNetworkBox.setMouseTransparent(false);
+                m_selectNetworkBox.addEventFilter(MouseEvent.MOUSE_CLICKED, selectNetworkBoxOnClick);
+
+            }else{
+                m_selectNetworkBox.setMouseTransparent(true);
+                m_selectNetworkBox.setId(null);
+                m_selectNewtorkImgView.setImage(null);
+
+                m_networkImgView.setImage(App.globeImage30);
+                m_networkToolTip.setText("Network: Select");
+                m_selectNetworkBox.removeEventFilter(MouseEvent.MOUSE_CLICKED, selectNetworkBoxOnClick);
+
+            }
+        });
+
+
+        
+        m_currentTab.addListener((obs,oldval,newval)->{
+
+            if(oldval != null){
+                appStage.titleProperty().unbind();
+                oldval.setCurrent(false);
+                oldval.shutdown();
+                switch(oldval.getType()){
+                    case App.STATIC_TYPE:
+                        shutdownStaticTab(oldval.getTabId());
+                    break;
+                    case App.NETWORK_TYPE:
+                    break;
+                }
+            }
+
+          
+            m_subMenuBox.getChildren().clear();
+
+            if(newval != null && newval instanceof Pane){
+                m_subMenuBox.getChildren().addAll((Pane) newval, vBar);
+                m_subMenuScroll.setContent( m_subMenuBox );
+
+                newval.setCurrent(true);
+                appStage.titleProperty().unbind();
+                m_titleExpression = Bindings.concat("Netnotes - ", newval.titleProperty());
+                appStage.titleProperty().bind(m_titleExpression);
+            }else{
+                  m_subMenuScroll.setContent(null);
+                appStage.setTitle("Netnotes");
+            }
+          
+
+        }); 
+        
+        updateNetworks();   
+       
+    }
+
+    
+
+    
+    public File getDataDir(){
+        File dataDir = new File(getAppDir().getAbsolutePath() + "/data");
+        if(!dataDir.isDirectory()){
+            try{
+                Files.createDirectory(dataDir.toPath());
+            }catch(IOException e){
+                try {
+                    Files.writeString(App.logFile.toPath(),"\ncannot create data directory: " + e.toString()  , StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+
+                }
+                
+            }
+        }
+        return dataDir;
+    }
+
+    public File getIdDataFile(){
+        File dataDir = getDataDir();
+
+        File idDataFile = new File(dataDir.getAbsolutePath() + "/data.dat");
+        return idDataFile;
+    }
+
+    public File createNewDataFile(File dataDir, JsonObject dataFileJson) {
+        
+     
+        String friendlyId = FriendlyId.createFriendlyId();
+
+        while(dataFileJson != null && isFriendlyId(friendlyId, dataFileJson)){
+            friendlyId = FriendlyId.createFriendlyId();
+        }
+        File dataFile = new File(dataDir.getAbsolutePath() + "/" + friendlyId + ".dat");
+        return dataFile;
+    }
+    
+    
+    private boolean isFriendlyId(String friendlyId, JsonObject dataFileJson) {
+        if(dataFileJson != null){
+            
+            friendlyId = "/" + friendlyId + ".dat";
+            JsonElement idsArrayElement = dataFileJson.get("ids");
+            if(idsArrayElement != null && idsArrayElement.isJsonArray()){
+                JsonArray idsArray = idsArrayElement.getAsJsonArray();
+
+                for(int i = 0; i < idsArray.size() ; i++){
+                    JsonElement idFileObjectElement = idsArray.get(i);
+
+                    if(idFileObjectElement != null && idFileObjectElement.isJsonObject()){
+                        JsonObject idFileObject = idFileObjectElement.getAsJsonObject();
+                        JsonElement dataElement = idFileObject.get("data");
+
+                        if(dataElement != null && dataElement.isJsonArray()){
+                            JsonArray dataArray = dataElement.getAsJsonArray();
+
+                            for(int j = 0; j< dataArray.size(); j++){
+                                JsonElement dataFileObjectElement = dataArray.get(j);
+
+                                if(dataFileObjectElement != null && dataFileObjectElement.isJsonObject()){
+                                    JsonObject dataFileObject = dataFileObjectElement.getAsJsonObject();
+
+                                    JsonElement fileElement = dataFileObject.get("file");
+                                    if(fileElement != null && fileElement.isJsonPrimitive()){
+                                        if(fileElement.getAsString().endsWith(friendlyId)){
+                                            return true;
+                                        }
+                                        
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private void updateIdDataFile(SecretKey oldval, SecretKey newval){
+        try {
+              File idDataFile = getIdDataFile();
+              if(idDataFile.isFile()){
+                  try {
+                      JsonObject dataFileJson = Utils.readJsonFile(oldval, idDataFile);
+                      if(dataFileJson != null){
+                          Utils.saveJson(newval, dataFileJson, idDataFile);
+
+                          JsonElement idsArrayElement = dataFileJson.get("ids");
+                          if(idsArrayElement != null && idsArrayElement.isJsonArray()){
+                              JsonArray idsArray = idsArrayElement.getAsJsonArray();
+
+                              for(int i = 0; i < idsArray.size() ; i++){
+                                  JsonElement idFileObjectElement = idsArray.get(i);
+
+                                  if(idFileObjectElement != null && idFileObjectElement.isJsonObject()){
+                                      JsonObject idFileObject = idFileObjectElement.getAsJsonObject();
+                                      JsonElement dataElement = idFileObject.get("data");
+
+                                      if(dataElement != null && dataElement.isJsonArray()){
+                                          JsonArray dataArray = dataElement.getAsJsonArray();
+
+                                          for(int j = 0; j< dataArray.size(); j++){
+                                              JsonElement dataFileObjectElement = dataArray.get(j);
+
+                                              if(dataFileObjectElement != null && dataFileObjectElement.isJsonObject()){
+                                                  JsonObject dataFileObject = dataFileObjectElement.getAsJsonObject();
+
+                                                  JsonElement fileElement = dataFileObject.get("file");
+                                                  if(fileElement != null && fileElement.isJsonPrimitive()){
+                                                      File file = new File(fileElement.getAsString());
+                                                      if(file.isFile()){
+                                                          String fileString = Utils.readStringFile(oldval, file);
+                                                          if(fileString != null){
+                                                              Utils.writeEncryptedString(newval, file, fileString);
+                                                          }
+                                                      }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                          | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+                      try {
+                          Files.writeString(App.logFile.toPath(),"Error updating wallets idDataFile key: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                      } catch (IOException e1) {
+                      
+                      }
+                   
+                  }
+
+              }
+          } catch (IOException e) {
+           
+          }
+  }
+
+
+    public void save(String subId, String id, String subParent, String parent, JsonObject json) {
+        if(id != null && parent != null){
+           
+            try {
+                File idDataFile = getIdDataFile(subId, id, subParent, parent);
+                
+                if(idDataFile != null && idDataFile.isFile() && json == null){
+                    
+                }
+
+                Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+            } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                    | IOException e) {
+                try {
+                    Files.writeString(App.logFile.toPath(),"Error saving networks data" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+                
+                }
+            }
+        }
+    }
+
+    public void removeData(  String subParent, String parent){
+        String id2 =subParent +  parent;
+        removeData(id2);
+    }
+    
+    public void removeData(String id2){
+         
+        try {
+            File idDataFile =  getIdDataFile();
+            if(idDataFile.isFile()){
+              
+                JsonObject json = Utils.readJsonFile(getAppData().appKeyProperty().get(), idDataFile);
+                JsonElement idsElement = json.get("ids");
+        
+                if(idsElement != null && idsElement.isJsonArray()){
+                    JsonArray idsArray = idsElement.getAsJsonArray();
+                    SimpleIntegerProperty indexProperty = new SimpleIntegerProperty(-1);
+                    for(int i = 0; i < idsArray.size(); i ++){
+                        JsonElement dataFileElement = idsArray.get(i);
+                        if(dataFileElement != null && dataFileElement.isJsonObject()){
+                            JsonObject fileObject = dataFileElement.getAsJsonObject();
+                            JsonElement dataIdElement = fileObject.get("id");
+
+                            if(dataIdElement != null && dataIdElement.isJsonPrimitive()){
+                                String fileId2String = dataIdElement.getAsString();
+                                if(fileId2String.equals(id2)){
+                                    indexProperty.set(i);
+                                    JsonElement dataArrayElement = fileObject.get("data");
+                                    if(dataArrayElement != null && dataArrayElement.isJsonArray()){
+                                        JsonArray dataArray = dataArrayElement.getAsJsonArray();
+                                        for(int j = 0; j< dataArray.size();j++){
+                                            JsonElement fileDataObjectElement = dataArray.get(j);
+                                            if(fileDataObjectElement != null && fileDataObjectElement.isJsonObject()){
+                                                JsonObject fileDataObject = fileDataObjectElement.getAsJsonObject();
+                                                JsonElement fileElement = fileDataObject.get("file");
+                                                if(fileElement != null && fileElement.isJsonPrimitive()){
+                                                    File file = new File(fileElement.getAsString());
+                                                    if(file.isFile()){
+                                                        Files.delete(file.toPath());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    int index = indexProperty.get();
+                    if(index > -1){
+                        idsArray.remove(index);
+                        json.remove("ids");
+                        json.add("ids",idsArray);
+                        Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                    }
+                }
+            }
+        }catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
+            try {
+                Files.writeString(App.logFile.toPath(),"Error reading Wallets data Array(getAddressInfo): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+            
+            }
+        }
+    }
+
+    public JsonObject getData(String subId, String id, String subParent, String parent){
+        
+        try {
+            File idDataFile = getIdDataFile(subId,id, subParent, parent);
+            return idDataFile != null && idDataFile.isFile() ? Utils.readJsonFile(getAppData().appKeyProperty().get(), idDataFile) : null;
+        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
+            try {
+                Files.writeString(App.logFile.toPath(),"Error reading Wallets data Array(getAddressInfo): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+            
+            }
+        }
+        
+        return null;
+    }
+
+
+    public File getIdDataFile(String subId, String id, String subParent, String parent) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
+        id = id +":" + subId;
+        String id2 = parent + ":" + subParent;
+        File idDataFile = getIdDataFile();
+    
+        File dataDir = idDataFile.getParentFile();
+           
+        if(idDataFile.isFile()){
+            
+            JsonObject json = Utils.readJsonFile(getAppData().appKeyProperty().get(), idDataFile);
+            JsonElement idsElement = json.get("ids");
+            json.remove("ids");
+            if(idsElement != null && idsElement.isJsonArray()){
+                JsonArray idsArray = idsElement.getAsJsonArray();
+        
+                for(int i = 0; i < idsArray.size(); i ++){
+                    JsonElement dataFileElement = idsArray.get(i);
+                    if(dataFileElement != null && dataFileElement.isJsonObject()){
+                        JsonObject fileObject = dataFileElement.getAsJsonObject();
+                        JsonElement dataIdElement = fileObject.get("id");
+
+                        if(dataIdElement != null && dataIdElement.isJsonPrimitive()){
+                            String fileId2String = dataIdElement.getAsString();
+                            if(fileId2String.equals(id2)){
+                                JsonElement dataElement = fileObject.get("data");
+
+                                if(dataElement != null && dataElement.isJsonArray()){
+                                    JsonArray dataIdArray = dataElement.getAsJsonArray();
+                                    fileObject.remove("data");
+                                    for(int j =0; j< dataIdArray.size() ; j++){
+                                        JsonElement dataIdArrayElement = dataIdArray.get(j);
+                                        if(dataIdArrayElement != null && dataIdArrayElement.isJsonObject()){
+                                            JsonObject fileIdObject = dataIdArrayElement.getAsJsonObject();
+                                            JsonElement idElement = fileIdObject.get("id");
+                                            if(idElement != null && idElement.isJsonPrimitive()){
+                                                String fileIdString = idElement.getAsString();
+                                                if(fileIdString.equals(id)){
+                                                    
+                                                    JsonElement fileElement = fileIdObject.get("file");
+
+                                                    if(fileElement != null && fileElement.isJsonPrimitive()){
+                                                        return new File(fileElement.getAsString());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    File newFile = createNewDataFile(dataDir, json);
+                                    JsonObject fileJson = new JsonObject();
+                                    fileJson.addProperty("id", id);
+                                    fileJson.addProperty("file", newFile.getCanonicalPath());
+
+                                    dataIdArray.add( fileJson);
+                                    
+                                    fileObject.add("data", dataIdArray);
+
+                                    idsArray.set(i, fileObject);
+
+                                    json.add("ids", idsArray);
+
+                                    
+                                    Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                                    
+                                
+                                    return newFile;
+
+                                }
+
+                            }
+                        }
+                    }
+                }
+
+                File newFile = createNewDataFile(dataDir, json);
+
+                JsonObject fileJson = new JsonObject();
+                fileJson.addProperty("id", id);
+                fileJson.addProperty("file", newFile.getCanonicalPath());
+
+                JsonArray dataIdArray = new JsonArray();
+                dataIdArray.add(fileJson);
+
+                JsonObject fileObject = new JsonObject();
+                fileObject.addProperty("id", id2);
+                fileObject.add("data", dataIdArray);
+
+                idsArray.add(fileObject);
+                
+                json.add("ids", idsArray);
+                
+                Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                    
+                return newFile;
+            }
+        }
+      
+        
+   
+        File newFile = createNewDataFile(dataDir, null);
+
+        JsonObject fileJson = new JsonObject();
+        fileJson.addProperty("id", id);
+        fileJson.addProperty("file", newFile.getCanonicalPath());
+
+        JsonArray dataIdArray = new JsonArray();
+        dataIdArray.add(fileJson);
+
+        JsonObject fileObject = new JsonObject();
+        fileObject.addProperty("id", id2);
+        fileObject.add("data", dataIdArray);
+        
+        JsonArray idsArray = new JsonArray();
+        idsArray.add(fileObject);
+
+        JsonObject json = new JsonObject();
+        json.add("ids", idsArray);
+
+       
+        Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+        return newFile;
+        
+    }
+
+     public void verifyAppKey(Runnable runnable) {
+
+        String title = "Netnotes - Enter Password";
+
+        Stage passwordStage = new Stage();
+        passwordStage.getIcons().add(App.logo);
+        passwordStage.setResizable(false);
+        passwordStage.initStyle(StageStyle.UNDECORATED);
+        passwordStage.setTitle(title);
+
+        Button closeBtn = new Button();
+
+        HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
+
+        Button imageButton = App.createImageButton(App.logo, "Netnotes");
+
+        HBox imageBox = new HBox(imageButton);
+        imageBox.setAlignment(Pos.CENTER);
+
+        Text passwordTxt = new Text("〉 Enter password:");
+        passwordTxt.setFill(App.txtColor);
+        passwordTxt.setFont(App.txtFont);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setFont(App.txtFont);
+        passwordField.setId("passField");
+        HBox.setHgrow(passwordField, Priority.ALWAYS);
+
+        HBox passwordBox = new HBox(passwordTxt, passwordField);
+        passwordBox.setAlignment(Pos.CENTER_LEFT);
+        passwordBox.setPadding(new Insets(20, 0, 0, 0));
+
+        Button clickRegion = new Button();
+        clickRegion.setPrefWidth(Double.MAX_VALUE);
+        clickRegion.setId("transparentColor");
+        clickRegion.setPrefHeight(500);
+
+        clickRegion.setOnAction(e -> {
+            passwordField.requestFocus();
+
+        });
+
+        VBox.setMargin(passwordBox, new Insets(5, 10, 0, 20));
+
+        VBox layoutVBox = new VBox(titleBox, imageBox, passwordBox, clickRegion);
+        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+
+        Scene passwordScene = new Scene(layoutVBox, App.STAGE_WIDTH, App.STAGE_HEIGHT);
+        passwordScene.setFill(null);
+        passwordScene.getStylesheets().add("/css/startWindow.css");
+        passwordStage.setScene(passwordScene);
+
+        Stage statusStage = App.getStatusStage("Verifying - Netnotes", "Verifying...");
+
+        passwordField.setOnKeyPressed(e -> {
+
+            KeyCode keyCode = e.getCode();
+
+            if (keyCode == KeyCode.ENTER) {
+
+                if (passwordField.getText().length() < 6) {
+                    passwordField.setText("");
+                } else {
+          
+                    statusStage.show();
+                    String txt = passwordField.getText();
+                    
+                    FxTimer.runLater(Duration.ofMillis(100), () -> {
+                        boolean verified = verifyAppPassword(txt);
+                       
+                        Platform.runLater(() -> passwordField.setText(""));
+                        statusStage.close();
+                        if (verified) {
+                            passwordStage.close();
+
+                            runnable.run();
+
+                        }
+
+                    });
+                }
+            }
+        });
+
+        closeBtn.setOnAction(e -> {
+            passwordStage.close();
+
+        });
+
+        passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
+            if (newVal != null && !(newVal instanceof PasswordField)) {
+                Platform.runLater(() -> passwordField.requestFocus());
+            }
+        });
+             passwordStage.show();
+            
+        Platform.runLater(() ->{
+
+            passwordStage.toBack();
+            passwordStage.toFront();
+            
+        }
+        );
+    }
+
+   /* private void showNetworks(Scene appScene, VBox header, VBox bodyVBox) {
+        bodyVBox.setPadding(new Insets(0,2,2,0));
+        bodyVBox.setId("darkBox");
+        bodyVBox.getChildren().clear();
+
+        Tooltip addTip = new Tooltip("Networks");
+        addTip.setShowDelay(new javafx.util.Duration(100));
+        addTip.setFont(App.txtFont);
+
+        BufferedButton manageButton = new BufferedButton("assets/filter.png", App.MENU_BAR_IMAGE_WIDTH);
+        manageButton.setTooltip(addTip);
+        manageButton.setOnAction(e -> m_networksData.showManageNetworkStage());
+
+        Region menuSpacer = new Region();
+        HBox.setHgrow(menuSpacer, Priority.ALWAYS);
+
+        Tooltip gridTypeToolTip = new Tooltip("Toggle: List view");
+        gridTypeToolTip.setShowDelay(new javafx.util.Duration(50));
+        gridTypeToolTip.setHideDelay(new javafx.util.Duration(200));
+
+        BufferedButton toggleGridTypeButton = new BufferedButton("/assets/list-outline-white-25.png", App.MENU_BAR_IMAGE_WIDTH);
+        toggleGridTypeButton.setTooltip(gridTypeToolTip);
+  
+
+        HBox menuBar = new HBox(manageButton, menuSpacer, toggleGridTypeButton);
+        HBox.setHgrow(menuBar, Priority.ALWAYS);
+        menuBar.setAlignment(Pos.CENTER_LEFT);
+        menuBar.setId("menuBar");
+        menuBar.setPadding(new Insets(1, 5, 1, 5));
+
+        HBox menuBarPadding = new HBox(menuBar);
+        menuBarPadding.setId("darkBox");
+        HBox.setHgrow(menuBarPadding, Priority.ALWAYS);
+        menuBarPadding.setPadding(new Insets(0,0,4,2));
+
+        header.getChildren().clear();
+        header.setPadding(new Insets(0,1,0,1));
+        header.setId("darkBox");
+        header.getChildren().add(menuBarPadding);
+
+
+        VBox gridBox = m_networksData.getNetworksBox();
+
+
+        ScrollPane scrollPane = new ScrollPane(gridBox);
+        scrollPane.setId("bodyBox");
+        scrollPane.setPadding(new Insets(5));
+        scrollPane.prefViewportWidthProperty().bind(appScene.widthProperty());
+        scrollPane.prefViewportHeightProperty().bind(appScene.heightProperty());
+
+        Binding<Double> viewportWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get().getWidth(), scrollPane.viewportBoundsProperty());
+
+        gridBox.prefWidthProperty().bind(viewportWidth);
+
+        VBox scrollPanePadding = new VBox(scrollPane);
+        VBox.setVgrow(scrollPanePadding,Priority.ALWAYS);
+        HBox.setHgrow(scrollPanePadding, Priority.ALWAYS);
+        scrollPanePadding.setPadding(new Insets(0,0,0,3));
+        bodyVBox.getChildren().addAll(scrollPanePadding);
+
+        toggleGridTypeButton.setOnAction(e -> {
+
+            m_networksData.iconStyleProperty().set(m_networksData.iconStyleProperty().get().equals(IconStyle.ROW) ? IconStyle.ICON : IconStyle.ROW);
+
+        });
+
+       
+    }*/
+
+
 
     /*public String getAckString(String id, long timeStamp) {
         return "{\"id\": \"" + id + "\", \"type\": \"ack\", \"timeStamp\": " + timeStamp + "}";

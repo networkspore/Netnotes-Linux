@@ -5,19 +5,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 
 import org.ergoplatform.appkit.Mnemonic;
 import org.ergoplatform.appkit.MnemonicValidationException;
@@ -28,17 +19,12 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.netnotes.IconButton.IconStyle;
 import com.satergo.Wallet;
-import com.utils.Utils;
 
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 
@@ -52,14 +38,11 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 
 import javafx.stage.FileChooser;
@@ -68,57 +51,18 @@ import javafx.stage.StageStyle;
 
 public class ErgoWalletDataList {
 
-    private File logFile = new File("netnotes-log.txt");
-    private ArrayList<NoteInterface> m_noteInterfaceList = new ArrayList<>();
-    private String m_selectedId;
-
-    private SimpleObjectProperty<LocalDateTime> m_doUpdate = new SimpleObjectProperty<>(null);
-    
-
-    //  private double m_width = 400;
-    // private String m_direction = "column";
-
-  //  private final SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(0);
-
-
+    private ArrayList<ErgoWalletData> m_walletDataList = new ArrayList<>();
     private ErgoWallets m_ergoWallet;
-    private File m_dataFile;
     private SimpleDoubleProperty m_gridWidth;
     private SimpleStringProperty m_iconStyle;
-    private double m_stageWidth = 600;
-    private double m_stageHeight = 450;
-    private long m_timeStamp = 0;
 
-    public ErgoWalletDataList(double width, String iconStyle, File dataFile, ErgoWallets ergoWallet) {
-        m_gridWidth = new SimpleDoubleProperty(width);
-        m_iconStyle = new SimpleStringProperty(iconStyle);
-    
-        
 
+    public ErgoWalletDataList(ErgoWallets ergoWallet) {
 
         m_ergoWallet = ergoWallet;
-        m_dataFile = dataFile;
-        readFile(m_ergoWallet.getNetworksData().getAppData().appKeyProperty().get());
-
-        m_iconStyle.addListener((obs, oldval, newval) -> updateGrid());
-
-        m_ergoWallet.timeStampProperty().addListener((obs,oldVal,newVal)->{
-            long newTimestamp = newVal.longValue();
-            if(newTimestamp != m_timeStamp){
-                m_timeStamp = newTimestamp;
-                readFile(m_ergoWallet.getNetworksData().getAppData().appKeyProperty().get());
-            }
-        });
+        getData();
     }
 
-     public ErgoWalletDataList(SecretKey secretKey, File dataFile, ErgoWallets ergoWallet) {
-      
-    
-        m_ergoWallet = ergoWallet;
-        m_dataFile = dataFile;
-        readFile(secretKey);
-        save();
-    }
 
     public SimpleDoubleProperty gridWidthProperty() {
         return m_gridWidth;
@@ -128,37 +72,18 @@ public class ErgoWalletDataList {
         return m_iconStyle;
     }
 
-    public void readFile(SecretKey secretKey) {
-        if (m_dataFile != null && m_dataFile.isFile()) {
-            try {
-
-                openJson(Utils.readJsonFile(secretKey, m_dataFile));
-
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-
-            }
-        }
+    private void getData(){
+        
+        openJson(m_ergoWallet.getNetworksData().getData("data", ".list", ErgoWallets.NETWORK_ID, ErgoNetwork.NETWORK_ID));
     }
 
     public void openJson(JsonObject json) {
         if (json != null) {
-            m_noteInterfaceList.clear();
-            JsonElement stageElement = json.get("stage");
+            
+            m_walletDataList.clear();
             JsonElement walletsElement = json.get("wallets");
 
-            if (stageElement != null && stageElement.isJsonObject()) {
-                JsonObject stageObject = stageElement.getAsJsonObject();
-                JsonElement widthElement = stageObject.get("width");
-                JsonElement heightElement = stageObject.get("height");
-
-                if (widthElement != null && widthElement.isJsonPrimitive()) {
-                    m_stageWidth = widthElement.getAsDouble();
-                }
-                m_stageHeight = heightElement != null && heightElement.isJsonPrimitive() ? heightElement.getAsDouble() : m_stageHeight;
-            }
-
+    
             if (walletsElement != null && walletsElement.isJsonArray()) {
                 JsonArray jsonArray = walletsElement.getAsJsonArray();
 
@@ -169,586 +94,93 @@ public class ErgoWalletDataList {
                         JsonObject jsonObject = jsonElement.getAsJsonObject();
 
                         if (jsonObject != null) {
+                            JsonElement fileElement = jsonObject.get("file");
                             JsonElement nameElement = jsonObject.get("name");
                             JsonElement idElement = jsonObject.get("id");
-                            JsonElement fileLocationElement = jsonObject.get("file");
-
+                            JsonElement networkTypeElement = jsonObject.get("networkType");
+                        
                             String id = idElement == null ? FriendlyId.createFriendlyId() : idElement.getAsString();
                             String name = nameElement == null ? "Wallet " + id : nameElement.getAsString();
-                            File walletFile = fileLocationElement != null && fileLocationElement.isJsonPrimitive() ? new File(fileLocationElement.getAsString()) : null;
+                            String fileString = fileElement != null && fileElement.isJsonPrimitive() ? fileElement.getAsString() : null;
+                            NetworkType networkType = networkTypeElement == null ? NetworkType.MAINNET : networkTypeElement.getAsString().equals(NetworkType.TESTNET.toString()) ? NetworkType.TESTNET : NetworkType.MAINNET;
+                            
+                            File file = fileString != null ? new File(fileString) : null;
 
-                            if(walletFile != null && walletFile.isFile()){
-                                ErgoWalletData walletData = new ErgoWalletData(id, name, jsonObject, m_ergoWallet);
-                                
-                                m_noteInterfaceList.add(walletData);
 
-                                walletData.addUpdateListener((obs, oldValue, newValue) -> save());
-                            }
+                            ErgoWalletData walletData = new ErgoWalletData(id,FriendlyId.createFriendlyId(), name, file,  networkType, m_ergoWallet);
+                            
+                            add(walletData, false);
+
+                            
                         }
                     }
                 }
 
             }
-            updateGrid();
+           
         }
     }
 
-    public File getWalletsDirectory() {
-        return m_ergoWallet.getWalletsDirectory();
+    public void save(){
+        m_ergoWallet.getNetworksData().save("data", ".list", ErgoWallets.NETWORK_ID, ErgoNetwork.NETWORK_ID, getJsonObject());
     }
 
-    public void add(ErgoWalletData walletData) {
-        m_noteInterfaceList.add(walletData);
-        walletData.addUpdateListener((obs, oldval, newVal) -> save());
-        updateGrid();
+    public void add(ErgoWalletData walletData, boolean isSave) {
+        m_walletDataList.add(walletData);
+        walletData.addUpdateListener((obs,oldval,newval)->{
+            m_ergoWallet.sendMessage(App.UPDATED, System.currentTimeMillis(), walletData.getNetworkId());
+            save();
+        }); 
 
+        
+
+        if(isSave){
+            save();
+            m_ergoWallet.sendMessage(App.LIST_ITEM_ADDED, System.currentTimeMillis(), walletData.getNetworkId());
+        }
     }
 
-    public void remove(String id) {
-        for (NoteInterface noteInterface : m_noteInterfaceList) {
-            if (noteInterface.getNetworkId().equals(id)) {
-                noteInterface.removeUpdateListener();
-                m_noteInterfaceList.remove(noteInterface);
+    public void remove(String id, boolean isSave) {
+        for (int i =0; i< m_walletDataList.size(); i++) {
+            ErgoWalletData walletData = m_walletDataList.get(i);
+            if (walletData.getNetworkId().equals(id)) {
+                walletData.removeUpdateListener();
+                walletData.shutdown();
+                m_walletDataList.remove(i);
+               
+                if(isSave){
+                    save();
+                    m_ergoWallet.sendMessage(App.LIST_ITEM_REMOVED, System.currentTimeMillis(), walletData.getNetworkId());
+                }
                 break;
             }
         }
+    }
+    
 
-        updateGrid();
-
+    public NoteInterface getWalletByPath(String path) {
+        
+        for (ErgoWalletData walletData : m_walletDataList) {
+            if(path.equals(walletData.getWalletPath())){
+                return walletData.getNoteInterface();
+            }
+        }
+        return null;
     }
 
-    public final static String INSTALL_NODES = "(install 'Ergo Nodes')";
-    public final static String INSTALL_EXPLORERS = "(install 'Ergo Explorer')";
-    public final static String INSTALL_MARKETS = "(install 'Ergo Markets')";
-
-    public void showAddWalletStage() {
-        String friendlyId = FriendlyId.createFriendlyId();
-
-
-        
-        SimpleObjectProperty<ErgoNodeData> selectedNodeData = new SimpleObjectProperty<>(null);
-        SimpleObjectProperty<ErgoExplorerData> selectedExplorerData = new SimpleObjectProperty<ErgoExplorerData>(null);
-        SimpleObjectProperty<ErgoMarketsData> selectedMarketsData = new SimpleObjectProperty<>(null);
-        SimpleBooleanProperty ergoTokensEnabledProperty = new SimpleBooleanProperty(m_ergoWallet.getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) != null ? true : false);
-        SimpleObjectProperty<NetworkType> selectedNetworkType = new SimpleObjectProperty<>(NetworkType.MAINNET);
-
-      
-
-        Image icon = m_ergoWallet.getIcon();
-        String name = m_ergoWallet.getName();
-
-        VBox layoutBox = new VBox();
-
-        Stage stage = new Stage();
-        stage.getIcons().add(ErgoWallets.getSmallAppIcon());
-        stage.setResizable(false);
-        stage.initStyle(StageStyle.UNDECORATED);
-
-        Scene walletScene = new Scene(layoutBox, m_stageWidth, m_stageHeight);
-        walletScene.setFill(null);
-        Button maximizeBtn = new Button();
-
-        String heading = "New";
-        Button closeBtn = new Button();
-
-        HBox titleBox = App.createTopBar(icon, maximizeBtn, closeBtn, stage);
-        String titleString = heading + " - " + name;
-        stage.setTitle(titleString);
-
-        Text headingText = new Text(heading);
-        headingText.setFont(App.txtFont);
-        headingText.setFill(Color.WHITE);
-
-        HBox headingBox = new HBox(headingText);
-        headingBox.prefHeight(40);
-        headingBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(headingBox, Priority.ALWAYS);
-        headingBox.setPadding(new Insets(10, 15, 10, 15));
-        headingBox.setId("headingBox");
-
-
-        HBox headingPaddingBox = new HBox(headingBox);
-
-        headingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
-
-        VBox headerBox = new VBox(headingPaddingBox);
-
-        headerBox.setPadding(new Insets(2, 5, 0, 5));
-
-        Text walletName = new Text(String.format("%-15s", "Name"));
-        walletName.setFill(App.txtColor);
-        walletName.setFont(App.txtFont);
-
-        TextField walletNameField = new TextField("Wallet #" + friendlyId);
-        walletNameField.setFont(App.txtFont);
-        walletNameField.setId("formField");
-        HBox.setHgrow(walletNameField, Priority.ALWAYS);
-
-        HBox walletNameBox = new HBox(walletName, walletNameField);
-        walletNameBox.setAlignment(Pos.CENTER_LEFT);
-
-        Text networkTxt = new Text(String.format("%-15s", "Node"));
-        networkTxt.setFill(App.txtColor);
-        networkTxt.setFont(App.txtFont);
-
-    
-        MenuButton nodesMenuBtn = new MenuButton();
-        nodesMenuBtn.setFont(App.txtFont);
-        nodesMenuBtn.setTextFill(App.altColor);
-        nodesMenuBtn.setOnAction(e->{
-            if(nodesMenuBtn.getText().equals(INSTALL_NODES)){
-                m_ergoWallet.getErgoNetworkData().showwManageStage();
-            }
-        });
-    
-        Runnable updateNodeBtn = () ->{
-            NoteInterface noteInterface = m_ergoWallet.getErgoNetworkData().getNetwork(ErgoNodes.NETWORK_ID);
-
-            if(selectedNodeData.get() != null && noteInterface != null){
-                
-                ErgoNodeData selectedNode = selectedNodeData.get();
-
-                nodesMenuBtn.setText(selectedNode.getName());
-            
-            }else{
-                
-                if(noteInterface == null){
-                    nodesMenuBtn.setText(INSTALL_NODES);
-                }else{
-                    nodesMenuBtn.setText("Select node...");
-                }
-            }
-        
-        };
-       
-        Runnable getAvailableNodes = () ->{
-            ErgoNodes ergoNodes = (ErgoNodes) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoNodes.NETWORK_ID);
-            if(ergoNodes != null){
-                ergoNodes.getErgoNodesList().getMenu(nodesMenuBtn, selectedNodeData);
-              
-            }else{
-                nodesMenuBtn.getItems().clear();
-                selectedNodeData.set(null);
-            }
-            updateNodeBtn.run();
-        };
-        
-        
-      
-        Text networkTypeTxt = new Text(String.format("%-15s", "Network type"));
-        networkTypeTxt.setFill(App.txtColor);
-        networkTypeTxt.setFont(App.txtFont);
-
-        MenuButton walletTypeMenuBtn = new MenuButton();
-        walletTypeMenuBtn.setFont(App.txtFont);
-        walletTypeMenuBtn.setTextFill(App.altColor);
-
-        walletTypeMenuBtn.textProperty().bind(selectedNetworkType.asString());
-     
-
-        MenuItem testnetItem = new MenuItem(NetworkType.TESTNET.toString());
-        testnetItem.setOnAction(e -> {
-            selectedNetworkType.set(NetworkType.TESTNET);
-        });
-        MenuItem mainnetItem = new MenuItem(NetworkType.MAINNET.toString());
-        mainnetItem.setOnAction(e -> {
-           selectedNetworkType.set(NetworkType.MAINNET);
-        });
-        walletTypeMenuBtn.getItems().add(mainnetItem);
-        walletTypeMenuBtn.getItems().add(testnetItem);
-
-        HBox networkSelectBox = new HBox(networkTxt, nodesMenuBtn);
-        networkSelectBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(networkSelectBox, Priority.ALWAYS);
-        nodesMenuBtn.prefWidthProperty().bind(networkSelectBox.widthProperty().subtract(networkTxt.getLayoutBounds().getWidth()).subtract(10));
-
-        HBox networkTypeBox = new HBox(networkTypeTxt, walletTypeMenuBtn);
-        networkTypeBox.setAlignment(Pos.CENTER_LEFT);
-
-        Text explorerText = new Text(String.format("%-15s", "Explorer"));
-        explorerText.setFill(App.txtColor);
-        explorerText.setFont(App.txtFont);
-
-       
-
-        MenuButton explorersBtn = new MenuButton(ErgoExplorers.NAME);
-        explorersBtn.setFont(App.txtFont);
-        explorersBtn.setTextFill(App.altColor);
-
-
-        HBox explorerBox = new HBox(explorerText, explorersBtn);
-        explorerBox.setAlignment(Pos.CENTER_LEFT);
-
-        Runnable updateExplorerBtn = () ->{
-            NoteInterface noteInterface = m_ergoWallet.getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-            ErgoExplorerData explorerData = selectedExplorerData.get();
-            if(explorerData != null && noteInterface != null){
-            
-                explorersBtn.setText(explorerData.getName());
-            
-            }else{
-                
-                if(noteInterface == null){
-                    explorersBtn.setText(INSTALL_EXPLORERS);
-                }else{
-                    explorersBtn.setText("Select Explorer...");
-                }
-            }
-        
-        };
-
-        Runnable getAvailableExplorers = () ->{
-            ErgoExplorers ergoExplorers = (ErgoExplorers) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-            if(ergoExplorers != null){
-                ergoExplorers.getErgoExplorersList().getMenu(explorersBtn, selectedExplorerData);
-            }else{
-                explorersBtn.getItems().clear();
-                selectedExplorerData.set(null);
-            }
-            updateExplorerBtn.run();
-        };
-
-        
-
-        Text marketTxt = new Text(String.format("%-15s", "Market"));
-        marketTxt.setFill(App.txtColor);
-        marketTxt.setFont(App.txtFont);
-
-        MenuButton marketBtn = new MenuButton();
-        marketBtn.setFont(App.txtFont);
-
-        HBox marketBox = new HBox(marketTxt, marketBtn);
-        marketBox.setAlignment(Pos.CENTER_LEFT);
-        
-        Runnable updateMarketsBtn = () ->{
-            ErgoMarketsData marketsData = selectedMarketsData.get();
-            NoteInterface noteInterface = m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-
-            if(marketsData != null && noteInterface != null){
-                marketBtn.setText(marketsData.getName());
-            }else{
-               
-                if(noteInterface == null){
-                    marketBtn.setText(INSTALL_MARKETS);
-                }else{
-                    marketBtn.setText("Select market...");
-                }
-            }
-        
-        };
-
-        Runnable getAvailableMarkets = () ->{
-            ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-            if(ergoMarkets != null){
-                ergoMarkets.getErgoMarketsList().getMenu(marketBtn, selectedMarketsData);
-             
-            }else{
-                marketBtn.getItems().clear();
-                selectedMarketsData.set(null);
-            }
-            updateMarketsBtn.run();
-        };
-
-       
-
-        
-        Text tokensTxt = new Text(String.format("%-15s", "Ergo Tokens"));
-        tokensTxt.setFill(App.txtColor);
-        tokensTxt.setFont(App.txtFont);
-
-        
-
-        
-
-        MenuButton tokensBtn = new MenuButton();
-        tokensBtn.setFont(App.txtFont);
-    
-        tokensBtn.setPrefWidth(200);
-        tokensBtn.setOnAction(e->{
-            if(tokensBtn.getText().equals("(install 'Ergo Tokens')")){
-                m_ergoWallet.getErgoNetworkData().showwManageStage();
-            }
-        });
-
-        Runnable updateTokensBtn = ()->{
-            boolean ergoTokensAvailable = m_ergoWallet.getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) != null;
-
-            if(!ergoTokensAvailable)
-            {
-                tokensBtn.setText("(install 'Ergo Tokens')");
-            }else{
-                tokensBtn.setText( ergoTokensEnabledProperty.get() ? "Enabled" : "Disabled");
-            }
-        };
-        
-        ergoTokensEnabledProperty.addListener((obs,oldval,newval)->updateTokensBtn.run());
-
-        HBox tokensBox = new HBox(tokensTxt, tokensBtn);
-        tokensBox.setAlignment(Pos.CENTER_LEFT);
-
-      
-        MenuItem tokensEnabledItem = new MenuItem("Enabled");
-        tokensEnabledItem.setOnAction(e->{
-            ergoTokensEnabledProperty.set(true);
-        });
-
-        MenuItem tokensDisabledItem = new MenuItem("Disabled");
-        tokensDisabledItem.setOnAction(e->{
-            ergoTokensEnabledProperty.set(false);
-        });
-
-        Runnable getAvailabledErgoTokens = ()->{
-            tokensBtn.getItems().clear();
-            ErgoTokens ergoTokens = (ErgoTokens) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID);  
-            if(ergoTokens != null){
-                tokensBtn.getItems().addAll(tokensEnabledItem, tokensDisabledItem);
-            }
-            updateTokensBtn.run();
-        };
-
-        Text walletTxt = new Text(String.format("%-15s", ""));
-        walletTxt.setFont(App.txtFont);
-        walletTxt.setFill(App.txtColor);
-
-        Button newWalletBtn = new Button("Create");
-        newWalletBtn.setId("menuBarBtn");
-        newWalletBtn.setPadding(new Insets(2, 10, 2, 10));
-        newWalletBtn.setFont(App.txtFont);
-
-        getAvailableNodes.run();
-        getAvailableMarkets.run();
-        getAvailableExplorers.run();
-        getAvailabledErgoTokens.run();
-
-      
-        
-        
-        
-
-
-        m_ergoWallet.getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
-            getAvailableNodes.run();
-            getAvailableExplorers.run();
-            getAvailableMarkets.run();
-            getAvailabledErgoTokens.run();
-        });
-
-        selectedExplorerData.addListener((obs, oldval,newval) -> updateExplorerBtn.run());
-        selectedNodeData.addListener((obs, oldval,newval) -> updateNodeBtn.run());
-        selectedMarketsData.addListener((obs, oldVal, newVal)-> updateMarketsBtn.run());
-        ergoTokensEnabledProperty.addListener((obs,oldval,newVal)->updateTokensBtn.run());
-
-           
-
-        if(m_ergoWallet.getErgoNetworkData().getNetwork(ErgoNodes.NETWORK_ID) != null){
-            ErgoNodes ergoNodes = (ErgoNodes) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoNodes.NETWORK_ID);
-            String defaultId = ergoNodes.getErgoNodesList().defaultNodeIdProperty().get();
-         
-            if(defaultId != null){
-                ErgoNodeData ergoNodeData = ergoNodes.getErgoNodesList().getErgoNodeData(defaultId);
-                selectedNodeData.set(ergoNodeData);
-             
+    public boolean containsName(String name) {
+        for (ErgoWalletData walletData : m_walletDataList) {
+          
+            if(walletData.getName().equals(name)){
+                return true;
             }
         }
-
-        if(m_ergoWallet.getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID) != null){
-            ErgoExplorers ergoExplorers = (ErgoExplorers) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-            String defaultId = ergoExplorers.getErgoExplorersList().defaultIdProperty().get();
-            if(defaultId != null){
-                ErgoExplorerData ergoExplorerData = ergoExplorers.getErgoExplorersList().getErgoExplorerData(defaultId);
-                selectedExplorerData.set(ergoExplorerData);
-            }
-        }
-
-        if(m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID ) != null){
-            ErgoMarkets ergoMarkets = (ErgoMarkets) m_ergoWallet.getErgoNetworkData().getNetwork(ErgoMarkets.NETWORK_ID);
-            String defaultId = ergoMarkets.getErgoMarketsList().defaultIdProperty().get();
-            if(defaultId != null){
-                ErgoMarketsData ergoMarketsData = ergoMarkets.getErgoMarketsList().getMarketsData(defaultId);
-                selectedMarketsData.set(ergoMarketsData);
-            }
-        }
-
-      
-
-        newWalletBtn.setOnAction(newWalletEvent -> {
-            NetworkType networkType = selectedNetworkType.get();
-            String nodeId = selectedNodeData.get() == null ? null : selectedNodeData.get().getId();
-            String explorerId = selectedExplorerData.get() == null ? null : selectedExplorerData.get().getId();
-            String marketsId = selectedMarketsData.get() == null ? null : selectedMarketsData.get().getId();
-            boolean tokensEnabled = ergoTokensEnabledProperty.get();
-            
-            Scene mnemonicScene = createMnemonicScene(friendlyId, walletNameField.getText(), nodeId, explorerId, marketsId, tokensEnabled, networkType, stage);
-            stage.setScene(mnemonicScene);
-            ResizeHelper.addResizeListener(stage, 500, 425, Double.MAX_VALUE, Double.MAX_VALUE);
-        });
-
-        Button existingWalletBtn = new Button("Open");
-        existingWalletBtn.setId("menuBarBtn");
-        existingWalletBtn.setPadding(new Insets(2, 10, 2, 10));
-
-        existingWalletBtn.setFont(App.txtFont);
-
-        existingWalletBtn.setOnAction(clickEvent -> {
-            FileChooser openFileChooser = new FileChooser();
-            openFileChooser.setInitialDirectory(getWalletsDirectory());
-            openFileChooser.setTitle("Open: Wallet file");
-            openFileChooser.getExtensionFilters().add(ErgoWallets.ergExt);
-            openFileChooser.setSelectedExtensionFilter(ErgoWallets.ergExt);
-
-            File walletFile = openFileChooser.showOpenDialog(stage);
-
-            if (walletFile != null) {
-
-                NetworkType networkType = selectedNetworkType.get();
-                String nodeId = selectedNodeData.get() != null ? selectedNodeData.get().getId() : null;
-                String explorerId = selectedExplorerData.get() == null ? null : selectedExplorerData.get().getId();
-                String marketId = selectedMarketsData.get() == null ? null : selectedMarketsData.get().getId();
-                boolean tokensEnabled = ergoTokensEnabledProperty.get();
-
-                ErgoWalletData walletData = new ErgoWalletData(friendlyId, walletNameField.getText(), walletFile, nodeId, explorerId, marketId, tokensEnabled, networkType, m_ergoWallet);
-
-                add(walletData);
-                save();
-                stage.close();
-
-            }
-        });
-
-        Button restoreWalletBtn = new Button("Restore");
-        restoreWalletBtn.setId("menuBarBtn");
-        restoreWalletBtn.setPadding(new Insets(2, 5, 2, 5));
-        restoreWalletBtn.setFont(App.txtFont);
-
-        restoreWalletBtn.setOnAction(clickEvent -> {
-            String seedPhrase = restoreMnemonicStage();
-            if (!seedPhrase.equals("")) {
-                Button passBtn = new Button();
-                Stage passwordStage = App.createPassword(m_ergoWallet.getName() + " - Restore wallet: Password", m_ergoWallet.getIcon(), ErgoWallets.getAppIcon(),passBtn, m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
-                    Object sourceObject = onSuccess.getSource().getValue();
-
-                    if (sourceObject != null && sourceObject instanceof String) {
-
-                        String passwordString = (String) sourceObject;
-                        if (!passwordString.equals("")) {
-                            Mnemonic mnemonic = Mnemonic.create(SecretString.create(seedPhrase), SecretString.create(passwordString));
-
-                            FileChooser saveFileChooser = new FileChooser();
-                            saveFileChooser.setInitialDirectory(getWalletsDirectory());
-                            saveFileChooser.setTitle("Save: Wallet file");
-                            saveFileChooser.getExtensionFilters().add(ErgoWallets.ergExt);
-                            saveFileChooser.setSelectedExtensionFilter(ErgoWallets.ergExt);
-
-                            File walletFile = saveFileChooser.showSaveDialog(stage);
-
-                            if (walletFile != null) {
-
-                                try {
-                                    
-
-                                    Wallet.create(walletFile.toPath(), mnemonic, seedPhrase, passwordString.toCharArray());
-
-                                    NetworkType networkType = selectedNetworkType.get();
-                                    String nodeId = selectedNodeData.get() == null ? null : selectedNodeData.get().getId();
-                                    String explorerId =  selectedExplorerData.get() == null ? null : selectedExplorerData.get().getId();
-                                    String marketsId = selectedMarketsData.get() == null ? null : selectedMarketsData.get().getId();
-                                    boolean tokensEnabled =ergoTokensEnabledProperty.get();
-
-                                    ErgoWalletData walletData = new ErgoWalletData(friendlyId, walletNameField.getText(), walletFile, nodeId, explorerId, marketsId, tokensEnabled, networkType, m_ergoWallet);
-                                    add(walletData);
-                                    save();
-
-                                   
-                                } catch (Exception e1) {
-                                    Alert a = new Alert(AlertType.NONE, "Wallet creation: Cannot be saved.\n\n" + e1.toString(), ButtonType.OK);
-                                    a.initOwner(stage);
-                                    a.show();
-                                }
-                            }
-
-                        }
-                        stage.setScene(walletScene);
-                        passBtn.fire();
-                    }
-                });
-                passwordStage.show();
-            }
-
-        });
-
-        HBox newWalletBox = new HBox(newWalletBtn, existingWalletBtn, restoreWalletBtn);
-        newWalletBox.setAlignment(Pos.CENTER);
-        HBox.setHgrow(newWalletBox, Priority.ALWAYS);
-
-        HBox walletBox = new HBox(walletTxt);
-        walletBox.setAlignment(Pos.CENTER_LEFT);
-
-        SimpleDoubleProperty rowHeight = new SimpleDoubleProperty(40);
-
-        walletNameBox.minHeightProperty().bind(rowHeight);
-        networkSelectBox.minHeightProperty().bind(rowHeight);
-        networkTypeBox.minHeightProperty().bind(rowHeight);
-        explorerBox.minHeightProperty().bind(rowHeight);
-        marketBox.minHeightProperty().bind(rowHeight);
-        walletBox.minHeightProperty().bind(rowHeight);
-        newWalletBox.minHeightProperty().bind(rowHeight);
-        tokensBox.minHeightProperty().bind(rowHeight);
-
-        newWalletBtn.prefHeightProperty().bind(rowHeight);
-        restoreWalletBtn.prefHeightProperty().bind(rowHeight);
-        existingWalletBtn.prefHeightProperty().bind(rowHeight);
-
-        newWalletBtn.prefWidthProperty().bind(walletScene.widthProperty().subtract(20).divide(3));
-
-        existingWalletBtn.prefWidthProperty().bind(walletScene.widthProperty().subtract(20).divide(3));
-
-        restoreWalletBtn.prefWidthProperty().bind(walletScene.widthProperty().subtract(30).divide(3));
-
-        VBox mainBodyBox = new VBox(walletNameBox, networkTypeBox, networkSelectBox, explorerBox, marketBox,tokensBox, walletBox);
-        HBox.setHgrow(mainBodyBox, Priority.ALWAYS);
-        Region leftP = new Region();
-        leftP.setPrefWidth(40);
-
-        HBox bodyBox = new HBox(leftP, mainBodyBox);
-        bodyBox.setId("bodyBox");
-        bodyBox.setPadding(new Insets(0, 5, 0, 20));
-
-        VBox bodyPaddBox = new VBox(bodyBox);
-        bodyPaddBox.setPadding(new Insets(0, 5, 10, 5));
-
-        VBox footerBox = new VBox(newWalletBox);
-        footerBox.setAlignment(Pos.CENTER_RIGHT);
-        footerBox.setPadding(new Insets(5, 20, 0, 20));
-
-        layoutBox.getChildren().addAll(titleBox, headerBox, bodyPaddBox, footerBox);
-        walletScene.getStylesheets().add("/css/startWindow.css");
-        stage.setScene(walletScene);
-
-
-        ResizeHelper.addResizeListener(stage, 380, 460, Double.MAX_VALUE, Double.MAX_VALUE);
-
-        ChangeListener<Number> walletWidthListener = (obs, oldval, newVal) -> {
-            m_stageWidth = newVal.doubleValue();
-        };
-
-        ChangeListener<Number> walletHeightListener = (obs, oldval, newVal) -> {
-            m_stageHeight = newVal.doubleValue();
-            // double height = m_stageHeight - titleBox.heightProperty().get() - headerBox.heightProperty().get();
-            // rowHeight.set((height-5) / 6);
-        };
-
-        rowHeight.bind(stage.heightProperty().subtract(titleBox.heightProperty()).subtract(headerBox.heightProperty()).subtract(35).divide(8));
-        walletScene.widthProperty().addListener(walletWidthListener);
-
-        walletScene.heightProperty().addListener(walletHeightListener);
-        closeBtn.setOnAction(e -> {
-            stage.close();
-        });
-        stage.show();
-
+        return false;
     }
 
-    public Scene createMnemonicScene(String id, String name, String nodeId,  String explorerId, String marketsId,boolean ergoTokensEnabled, NetworkType networkType, Stage stage) {        //String oldStageName = mnemonicStage.getTitle();
+
+
+    public Scene createMnemonicScene(String id, String name,  NetworkType networkType, Stage stage) {        //String oldStageName = mnemonicStage.getTitle();
 
         String titleStr = "Mnemonic phrase - " + m_ergoWallet.getName();
 
@@ -757,7 +189,7 @@ public class ErgoWalletDataList {
         Button closeBtn = new Button();
         Button maximizeBtn = new Button();
 
-        HBox titleBox = App.createTopBar(ErgoWallets.getSmallAppIcon(), maximizeBtn, closeBtn, stage);
+        HBox titleBox = App.createTopBar(m_ergoWallet.getSmallAppIcon(), maximizeBtn, closeBtn, stage);
 
         //Region spacer = new Region();
         //HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -851,7 +283,7 @@ public class ErgoWalletDataList {
             if(result != null && result.isPresent() && result.get() == ButtonType.OK){
 
                  Button closePassBtn = new Button();
-                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, ErgoWallets.getSmallAppIcon(), ErgoWallets.getAppIcon(), closePassBtn,m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
+                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, m_ergoWallet.getSmallAppIcon(), m_ergoWallet.getAppIcon(), closePassBtn,m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
                     Object sourceObject = onSuccess.getSource().getValue();
 
                     if (sourceObject != null && sourceObject instanceof String) {
@@ -860,7 +292,7 @@ public class ErgoWalletDataList {
                         if (!password.equals("")) {
 
                             FileChooser saveFileChooser = new FileChooser();
-                            saveFileChooser.setInitialDirectory(getWalletsDirectory());
+                          //  saveFileChooser.setInitialDirectory(getWalletsDirectory());
                             saveFileChooser.setTitle("Save: Wallet file");
                             saveFileChooser.getExtensionFilters().add(ErgoWallets.ergExt);
                             saveFileChooser.setSelectedExtensionFilter(ErgoWallets.ergExt);
@@ -873,11 +305,10 @@ public class ErgoWalletDataList {
 
                                 Wallet.create(walletFile.toPath(), Mnemonic.create(SecretString.create(mnemonicField.getText()), SecretString.create(password)), walletFile.getName(), password.toCharArray());
                                 mnemonicField.setText("-");
-
-                                ErgoWalletData walletData = new ErgoWalletData(id, name, walletFile, nodeId, explorerId, marketsId, ergoTokensEnabled, networkType, m_ergoWallet);
-                                add(walletData);
-                                save();
-                              
+                                String configId = FriendlyId.createFriendlyId();
+                                ErgoWalletData walletData = new ErgoWalletData(id,configId, name, walletFile, networkType, m_ergoWallet);
+                                add(walletData, true);
+                                
                             }
                   
                             
@@ -916,6 +347,7 @@ public class ErgoWalletDataList {
 
         return mnemonicScene;
     }
+
 
     public String restoreMnemonicStage() {
         String titleStr = m_ergoWallet.getName() + " - Restore wallet: Mnemonic phrase";
@@ -1047,211 +479,165 @@ public class ErgoWalletDataList {
 
     }
 
-    public void setSelected(String networkId) {
+    public Object getWalletById(JsonObject json){
+        JsonElement idElement = json.get("id");
 
-        if (m_selectedId != null) {
-            NoteInterface prevInterface = getNoteInterface(m_selectedId);
-            if (prevInterface != null) {
-                prevInterface.getButton().setCurrent(false);
-            }
+        if(idElement != null && idElement.isJsonPrimitive()){
+            ErgoWalletData walletData = getWallet(idElement.getAsString());
+            return walletData.getNoteInterface();
         }
-        if (networkId != null) {
-            NoteInterface currentInterface = getNoteInterface(networkId);
-            if (currentInterface != null) {
-                currentInterface.getButton().setCurrent(true);
-            }
-        }
+
+        return null;
     }
 
-    public String getSelected() {
-        return m_selectedId;
-    }
-
-    public NoteInterface getNoteInterface(String networkId) {
-
-        for (NoteInterface noteInterface : m_noteInterfaceList) {
-            if (noteInterface.getNetworkId().equals(networkId)) {
-                return noteInterface;
+    private ErgoWalletData getWallet(String id){
+ 
+        for (ErgoWalletData walletData : m_walletDataList) {
+            if (walletData.getNetworkId().equals(id)) {
+                return walletData;
             }
         }
         return null;
     }
+    private String m_tmpStr = "";
+
+    public Object openWallet(JsonObject note){
+        JsonElement pathElement = note.get("path");
+        JsonElement networkTypeElement = note.get("networkType");
+
+        if( pathElement != null && pathElement.isJsonPrimitive()){
+            
+            String path = pathElement.getAsString();
+
+            File file = new File(path);
+            
+            NoteInterface existingWalletData = getWalletByPath(file.getAbsolutePath());
+
+            if(existingWalletData != null){
+                return existingWalletData;
+            }
+
+            m_tmpStr = "Wallet #" + FriendlyId.createFriendlyId();
+
+            while(containsName(m_tmpStr)){
+                m_tmpStr = "Wallet #" + FriendlyId.createFriendlyId();
+            }
+
+            String name = m_tmpStr;
+
+            m_tmpStr = FriendlyId.createFriendlyId();
+
+            while(getWallet(m_tmpStr) != null){
+                m_tmpStr = FriendlyId.createFriendlyId(); 
+            }
+
+            String id = m_tmpStr;
+            m_tmpStr = null;
+            String configId = FriendlyId.createFriendlyId();
+            NetworkType networkType = networkTypeElement != null && networkTypeElement.isJsonPrimitive() && networkTypeElement.getAsString().equals(NetworkType.TESTNET.toString()) ? NetworkType.TESTNET : NetworkType.MAINNET;
+            ErgoWalletData walletData = new ErgoWalletData(id, configId, name, file, networkType, m_ergoWallet);
+            add(walletData, true);
+
+            JsonObject json = walletData.getJsonObject();
+            json.addProperty("configId", configId);
+            return json;
+            
+            
+        }
+
+        return null;
+    }
+
 
     public void sendNoteToNetworkId(JsonObject note, String networkId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        m_noteInterfaceList.forEach(noteInterface -> {
-            if (noteInterface.getNetworkId().equals(networkId)) {
+        m_walletDataList.forEach(walletData -> {
+            if (walletData.getNetworkId().equals(networkId)) {
 
-                noteInterface.sendNote(note, onSucceeded, onFailed);
+                walletData.sendNote(note, onSucceeded, onFailed);
             }
         });
     }
 
     public int size() {
-        return m_noteInterfaceList.size();
+        return m_walletDataList.size();
     }
 
-    public JsonArray getJsonArray() {
-        JsonArray jsonArray = new JsonArray();
 
-        for (NoteInterface noteInterface : m_noteInterfaceList) {
 
-            JsonObject jsonObj = noteInterface.getJsonObject();
-            jsonArray.add(jsonObj);
+    public void getMenu(MenuButton menuBtn, SimpleObjectProperty<ErgoWalletData> selected){
 
+        menuBtn.getItems().clear();
+        ErgoWalletData newSelectedWallet =  selected.get();
+
+        MenuItem noneMenuItem = new MenuItem("(disabled)");
+        if(selected.get() == null){
+            noneMenuItem.setId("selectedMenuItem");
         }
+        noneMenuItem.setOnAction(e->{
+            selected.set(null);
+        });
+        menuBtn.getItems().add(noneMenuItem);
 
-        return jsonArray;
-    }
+        int numCells = m_walletDataList.size();
 
-    public VBox getButtonGrid() {
-        int numCells = m_noteInterfaceList.size();
-        String currentIconStyle = m_iconStyle.get();
-        VBox gridBox = new VBox();
+        for (int i = 0; i < numCells; i++) {
+            
+            ErgoWalletData walletData = (ErgoWalletData) m_walletDataList.get(i);
 
-        Runnable updateGridBox = () ->{
-            gridBox.getChildren().clear();
-
-            if (currentIconStyle.equals(IconStyle.ROW)) {
-                for (int i = 0; i < numCells; i++) {
-                    NoteInterface network = m_noteInterfaceList.get(i);
-                    IconButton iconButton = network.getButton(currentIconStyle);
-                    iconButton.prefWidthProperty().bind(m_gridWidth);
-                    gridBox.getChildren().add(iconButton);
-                }
-            } else {
-
-                double width = m_gridWidth.get();
-                double imageWidth = 75;
-                double cellPadding = 15;
-                double cellWidth = imageWidth + (cellPadding * 2);
-
-                int floor = (int) Math.floor(width / cellWidth);
-                int numCol = floor == 0 ? 1 : floor;
-                // currentNumCols.set(numCol);
-                //int numRows = numCells > 0 && numCol != 0 ? (int) Math.ceil(numCells / (double) numCol) : 1;
-
-                ArrayList<HBox> rowsBoxes = new ArrayList<HBox>();
-
-                ItemIterator grid = new ItemIterator();
-                //j = row
-                //i = col
-
-                for (NoteInterface noteInterface : m_noteInterfaceList) {
-                    if(rowsBoxes.size() < (grid.getJ() + 1)){
-                        HBox newHBox = new HBox();
-                        rowsBoxes.add(newHBox);
-                        gridBox.getChildren().add(newHBox);
-                    }
-                    HBox rowBox = rowsBoxes.get(grid.getJ());
-                    rowBox.getChildren().add(noteInterface.getButton(currentIconStyle));
-
-                    if (grid.getI() < numCol) {
-                        grid.setI(grid.getI() + 1);
-                    } else {
-                        grid.setI(0);
-                        grid.setJ(grid.getJ() + 1);
-                    }
-                }
-
+                MenuItem menuItem = new MenuItem(walletData.getName());
+            if(newSelectedWallet != null && newSelectedWallet.getNetworkId().equals(walletData.getNetworkId())){
+                menuItem.setId("selectedMenuItem");
+                //  menuItem.setText(menuItem.getText());
             }
-        };
-        updateGridBox.run();
-        m_doUpdate.addListener((obs,oldval,newval)->updateGridBox.run());
-        
-        return gridBox;
-    }
+            menuItem.setOnAction(e->{
+                
+                selected.set(walletData);
+            });
 
+            menuBtn.getItems().add(menuItem);
+        }
 
 
     
-    public void getMenu(MenuButton menuBtn, SimpleObjectProperty<ErgoWalletData> selected){
-
-        Runnable updateMenu = () -> {
-
-            menuBtn.getItems().clear();
-            ErgoWalletData newSelectedWallet =  selected.get();
-
-            MenuItem noneMenuItem = new MenuItem("(disabled)");
-            if(selected.get() == null){
-                noneMenuItem.setId("selectedMenuItem");
-            }
-            noneMenuItem.setOnAction(e->{
-                selected.set(null);
-            });
-            menuBtn.getItems().add(noneMenuItem);
-
-            int numCells = m_noteInterfaceList.size();
-
-            for (int i = 0; i < numCells; i++) {
-                
-                ErgoWalletData noteInterface = (ErgoWalletData) m_noteInterfaceList.get(i);
-
-                 MenuItem menuItem = new MenuItem(noteInterface.getName());
-                if(newSelectedWallet != null && newSelectedWallet.getNetworkId().equals(noteInterface.getNetworkId())){
-                    menuItem.setId("selectedMenuItem");
-                  //  menuItem.setText(menuItem.getText());
-                }
-                menuItem.setOnAction(e->{
-                  
-                    selected.set(noteInterface);
-                });
-
-                menuBtn.getItems().add(menuItem);
-            }
-
-
-
-        };
-
-        updateMenu.run();
-
-        selected.addListener((obs,oldval, newval) -> updateMenu.run());
-        m_doUpdate.addListener((obs, oldval, newval) -> updateMenu.run());
 
     }
 
-    public void updateGrid() {
 
-        m_doUpdate.set(LocalDateTime.now());
-
+    public void shutdown(){
+        
+        m_walletDataList.forEach(item->shutdown());
     }
 
-    public JsonArray getWalletsJsonArray() {
+    public JsonArray getWallets(){
+
         JsonArray jsonArray = new JsonArray();
 
-        for (NoteInterface noteInterface : m_noteInterfaceList) {
+        for (ErgoWalletData walletData : m_walletDataList) {
+            JsonObject result =  walletData.getWallet();
+            jsonArray.add(result);
 
-            JsonObject jsonObj = noteInterface.getJsonObject();
+        }
+        return jsonArray;
+    }
+
+    private JsonArray getWalletsJsonArray() {
+        JsonArray jsonArray = new JsonArray();
+
+        for (NoteInterface walletData : m_walletDataList) {
+
+            JsonObject jsonObj = walletData.getJsonObject();
             jsonArray.add(jsonObj);
 
         }
         return jsonArray;
     }
 
-    public JsonObject getStageJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty("width", m_stageWidth);
-        json.addProperty("height", m_stageHeight);
-        return json;
-    }
 
-    public void save() {
+    private JsonObject getJsonObject(){
         JsonObject fileObject = new JsonObject();
-        fileObject.add("stage", getStageJson());
         fileObject.add("wallets", getWalletsJsonArray());
-
-        try{
-            Utils.saveJson(m_ergoWallet.getNetworksData().getAppData().appKeyProperty().get(), fileObject, m_dataFile);
-        } catch (NoSuchAlgorithmException | InvalidKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "\nKey error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
-            }
-        }
-        m_timeStamp = System.currentTimeMillis();
-        m_ergoWallet.timeStampProperty().set(m_timeStamp);
+        return fileObject;
     }
     
 }

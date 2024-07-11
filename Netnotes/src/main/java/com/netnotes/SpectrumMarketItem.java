@@ -12,18 +12,15 @@ import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
-
 import javax.crypto.SecretKey;
 
 import org.reactfx.util.FxTimer;
 
 import com.devskiller.friendly_id.FriendlyId;
-import com.netnotes.IconButton.IconStyle;
+import com.google.gson.JsonObject;
 import com.utils.Utils;
 
 import javafx.application.Platform;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
@@ -45,9 +42,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
@@ -113,10 +109,12 @@ public class SpectrumMarketItem {
     private double m_prevY = -1;
 
     private SimpleStringProperty m_statusProperty = new SimpleStringProperty();
-
+    private SimpleLongProperty m_ergoTokensUpdated = new SimpleLongProperty();
     private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty();
     private BufferedImage m_rowImg = null;
     private HBox m_rowBox;
+
+    // private ArrayList<SpectrumMarketInterface> m_msgListeners = new ArrayList<>();
 
 
     public SpectrumMarketItem(SpectrumMarketData marketData, SpectrumDataList dataList) {
@@ -135,7 +133,9 @@ public class SpectrumMarketItem {
     }  
     
 
-
+    public SimpleLongProperty ergoTokensUpdatedProeprty(){
+        return m_ergoTokensUpdated;
+    }
 
     public SimpleStringProperty statusProperty(){
         return m_statusProperty;
@@ -152,9 +152,11 @@ public class SpectrumMarketItem {
         return m_rowBox;
     }
 
+    private JsonObject m_tmpObj = null;
+
     public void setupRowBox() {
 
-        
+        String friendlyId = FriendlyId.createFriendlyId();
         double regularHeight = 32;
         double focusedHeight = 150;
         int  chartWidthOffset = 240;
@@ -214,12 +216,7 @@ public class SpectrumMarketItem {
         chartBox.setPadding(new Insets(0));
         chartBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
 
-        DropShadow ds = new DropShadow();
-        ds.setColor(Color.web("0xffffff", .6));
-        ds.setOffsetX(0);
-        ds.setOffsetY(0);
-        ds.setRadius(4);
-        ds.setSpread(0.2);
+
         String initialValue = m_isInvert.get() ? m_marketData.getInvertedLastPrice().doubleValue() + "" :  m_marketData.getLastPrice().doubleValue() + "";
         initialValue = initialValue.substring(0,Math.min(12, initialValue.length()));
         
@@ -232,9 +229,9 @@ public class SpectrumMarketItem {
         
         
         Text symbolText = new Text(m_marketData.getCurrentSymbol(m_isInvert.get()));
-        symbolText.setFont(Font.font("Deja Vu Sans", FontWeight.NORMAL, 14));
+        symbolText.setFont(Font.font("DejaVu Sans Mono, Book", FontWeight.NORMAL, 14));
         symbolText.setFill(App.txtColor);
-      
+        
         DropShadow shadow = new DropShadow();
         symbolText.setEffect(shadow);
 
@@ -261,27 +258,57 @@ public class SpectrumMarketItem {
         HBox.setHgrow(imagesBox,Priority.ALWAYS);
         VBox.setVgrow(imagesBox,Priority.ALWAYS);
 
+      
+
+
         Runnable updateImages = ()->{
-            
-            if(m_dataList.tokensListNetwork().get() != null && m_dataList.tokensListNetwork().get() instanceof ErgoTokensList){
-               
-                ErgoTokensList tokensList = (ErgoTokensList)m_dataList.tokensListNetwork().get();
-
-                String baseTokenId =  m_marketData.getBaseId();
-                String baseTokenName = m_marketData.getBaseSymbol();
-                int baseDecimals = m_marketData.getBaseDecimals();
-                ErgoNetworkToken baseToken = tokensList.getAddErgoToken(baseTokenId, baseTokenName , baseDecimals);
-
-                String quoteTokenId = m_marketData.getQuoteId();
-                String quoteTokenName = m_marketData.getQuoteSymbol();
-                int quoteDecimals = m_marketData.getQuoteDecimals();
-                ErgoNetworkToken quoteToken = tokensList.getAddErgoToken(quoteTokenId, quoteTokenName, quoteDecimals);
-
-
-                baseImg.set(baseToken != null ? baseToken.getIcon() : null);
-                quoteImg.set(quoteToken != null ? quoteToken.getIcon() : null);
-          
+            String networkId = m_dataList.getSpectrumFinance().getCurrentNetworkId();;
+            //getAddErgoToken(baseTokenId, baseTokenName , baseDecimals)
+            if(networkId == null){
+                return;
             }
+
+            NoteInterface tokensInterface = m_dataList.getSpectrumFinance().tokensInterface().get();
+                    
+            String baseTokenId =  m_marketData.getBaseId();
+            String baseTokenName = m_marketData.getBaseSymbol();
+            int baseDecimals = m_marketData.getBaseDecimals();
+
+            
+
+            m_tmpObj = Utils.getCmdObject("getAddToken");
+            m_tmpObj.addProperty("baseNetworkId",networkId);
+            m_tmpObj.addProperty("tokenId", baseTokenId);
+            m_tmpObj.addProperty("name",baseTokenName);
+            m_tmpObj.addProperty("decimals", baseDecimals);
+
+            PriceCurrency baseToken = tokensInterface != null ? (PriceCurrency) tokensInterface.sendNote(m_tmpObj) : null;
+            if(baseToken != null){
+                baseImg.set(baseToken.getIcon());
+            }else{
+                baseImg.set(null);
+            }
+
+            String quoteTokenId = m_marketData.getQuoteId();
+            String quoteTokenName = m_marketData.getQuoteSymbol();
+            int quoteDecimals = m_marketData.getQuoteDecimals();
+
+            m_tmpObj = Utils.getCmdObject("getAddToken");
+            m_tmpObj.addProperty("baseNetworkId",networkId);
+            m_tmpObj.addProperty("tokenId", quoteTokenId);
+            m_tmpObj.addProperty("name", quoteTokenName);
+            m_tmpObj.addProperty("decimals", quoteDecimals);
+
+            PriceCurrency quoteToken = tokensInterface != null ? (PriceCurrency) tokensInterface.sendNote(m_tmpObj) : null;
+
+            if(quoteToken != null){
+                quoteImg.set(quoteToken.getIcon());
+            }else{
+                quoteImg.set(null);
+            }
+
+                
+            m_tmpObj = null;
         };
        
         
@@ -321,6 +348,7 @@ public class SpectrumMarketItem {
         lblLowText.setFill(Color.web("#777777"));
 
         Text percentChangeText = new Text("0.00%");
+        percentChangeText.setFont(App.txtFont);
 
         Text openText = new Text();
         openText.setFont(App.txtFont);
@@ -360,7 +388,7 @@ public class SpectrumMarketItem {
             int width = w < chartWidthOffset ? chartWidthOffset : w  ;
 
             if(chartView != null ){
-                if(chartView.getConnectionStatus() != SpectrumFinance.ERROR ){
+                if(chartView.getConnectionStatus() != App.ERROR ){
             
                 int cellWidth = 1;
                 int maxBars = width / cellWidth;
@@ -368,10 +396,10 @@ public class SpectrumMarketItem {
                 TimeSpan durationSpan = m_dataList.timeSpanObjectProperty().get();
                 long durationMillis = durationSpan.getMillis();
                 long colSpanMillis = (durationMillis / maxBars);
-                TimeSpan colSpan = new TimeSpan("custom","id1", BigDecimal.valueOf(colSpanMillis).multiply(BigDecimal.valueOf(0.001)).longValue());
+                TimeSpan colSpan = new TimeSpan(colSpanMillis, "custom","id1");
                 
-            
-                long currentTime = (long) (Math.ceil(System.currentTimeMillis() / durationSpan.getMillis())* durationSpan.getMillis());
+       
+                long currentTime = (long) (Math.ceil(System.currentTimeMillis() / colSpanMillis)* colSpanMillis) + colSpanMillis;
 
                 long startTimeStamp = currentTime - durationSpan.getMillis();
 
@@ -400,16 +428,8 @@ public class SpectrumMarketItem {
         
                         priceText.setText(priceString);
                         priceText.setAlignment(isCurrent ? Pos.CENTER : Pos.CENTER_LEFT);
-               
-                        
-                        boolean isPositive = numbers.getOpen().compareTo(numbers.getClose())  <  1;
-                        int ARGB = isPositive ? posColor : negColor;
-                        int r = (ARGB >> 16) & 0xff;
-                        int g = (ARGB >> 8) & 0xff;
-                        int b = ARGB & 0xff;
-                    
-                        ds.setColor(Color.rgb(r, g, b,.65));
-                        priceText.setEffect(ds);
+
+             
                     }
 
                 }, (onFailed)->{
@@ -443,32 +463,42 @@ public class SpectrumMarketItem {
             updateRowImg.run();
         };
       
-        String friendlyId = FriendlyId.createFriendlyId();
+  
 
-        SimpleObjectProperty<SpectrumMarketInterface> listListenerObject = new SimpleObjectProperty<>(null);
+        SimpleObjectProperty<NoteMsgInterface> listListenerObject = new SimpleObjectProperty<>(null);
 
-        Runnable addListListener = ()->{
+        Runnable addChartViewListener = ()->{
             SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
             
             if(chartView != null && listListenerObject.get() == null){
-                SpectrumMarketInterface msgInterface = new SpectrumMarketInterface() {
+                NoteMsgInterface msgInterface = new NoteMsgInterface() {
                     public String getId() {
                         return friendlyId;
                     }
-        
+                    
+                    public void sendMessage(String networkId, int code, long timeStamp){
+
+                    }
+
+                    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+                    }
+
                     public void sendMessage(int msg, long timestamp){
                         switch(msg){
-                            case SpectrumFinance.STARTED:
-                            case SpectrumFinance.LIST_UPDATED:
-                                
+                            case App.STARTED:
+                            case App.LIST_UPDATED:
                                 updateRowImg.run();
+                                
                             break;
                 
-                            case SpectrumFinance.STOPPED:
+                            case App.STOPPED:
 
                             break;
                         }   
                         
+                    }
+                    public void sendMessage(String networkId, int code, long timestamp, String msg){
+                
                     }
                     public void sendMessage(int code, long timestamp, String msg){
                         
@@ -478,13 +508,14 @@ public class SpectrumMarketItem {
                 listListenerObject.set(msgInterface);
 
                 chartView.addMsgListener(msgInterface);
-                
-                chartHeightObject.addListener(heightListener);
-                m_dataList.gridWidthProperty().addListener(widthListener);
-                m_dataList.timeSpanObjectProperty().addListener(timeSpanListener);
+       
             }
         };
 
+                 
+        chartHeightObject.addListener(heightListener);
+        m_dataList.gridWidthProperty().addListener(widthListener);
+        m_dataList.timeSpanObjectProperty().addListener(timeSpanListener);
    
 
      
@@ -642,7 +673,7 @@ public class SpectrumMarketItem {
             updateLogo.run();
             updateRowImg.run();
         };
-        ChangeListener<Network> dataListNetworklistener = (obs,oldval,newval)->updateImages.run();
+      
         m_isInvert.addListener(invertChanged);
 
         m_marketData.getLastUpdated().addListener(marketDataUpdated);
@@ -652,7 +683,7 @@ public class SpectrumMarketItem {
         updateImages.run();
 
         if(m_marketData.isPool()){
-            addListListener.run();
+            addChartViewListener.run();
         }
 
         ChangeListener<SpectrumChartView> chartViewChangeListener = (obs,oldval,newval)->{
@@ -663,14 +694,14 @@ public class SpectrumMarketItem {
             updateRowImg.run();
             
             if(newval != null){
-                addListListener.run();
+               addChartViewListener.run();
             }
             
         };
         
         m_marketData.getSpectrumChartView().addListener(chartViewChangeListener);
         
-        m_dataList.tokensListNetwork().addListener(dataListNetworklistener);
+
 
         ChangeListener<String> statusChangeListener = (obs,oldval,newval)->{
             updateRowImg.run();
@@ -698,7 +729,7 @@ public class SpectrumMarketItem {
             m_dataList.currentBoxProperty().removeListener(currentBoxChangeListener);
 
             m_marketData.getLastUpdated().removeListener(marketDataUpdated);
-            m_dataList.tokensListNetwork().removeListener(dataListNetworklistener);
+       
             m_dataList.statusMsgProperty().removeListener(statusChangeListener);
 
            
@@ -974,7 +1005,7 @@ public class SpectrumMarketItem {
            
 
             m_stage = new Stage();
-            m_stage.getIcons().add(SpectrumFinance.getSmallAppIcon());
+            m_stage.getIcons().add(m_dataList.getSpectrumFinance().getSmallAppIcon());
             m_stage.initStyle(StageStyle.UNDECORATED);
             m_stage.setTitle(exchange.getName() + " - " + m_marketData.getCurrentSymbol(isInvert()) + (m_marketData != null ? " - " +(isInvert() ? m_marketData.getInvertedLastPrice().toString() : m_marketData.getLastPrice()) + "" : ""));
 
@@ -982,7 +1013,7 @@ public class SpectrumMarketItem {
             Button closeBtn = new Button();
             Button fillRightBtn = new Button();
 
-            HBox titleBox = App.createTopBar(SpectrumFinance.getSmallAppIcon(), fillRightBtn, maximizeBtn, closeBtn, m_stage);
+            HBox titleBox = App.createTopBar(m_dataList.getSpectrumFinance().getSmallAppIcon(), fillRightBtn, maximizeBtn, closeBtn, m_stage);
 
             BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
             BufferedButton invertBtn = new BufferedButton( m_isInvert.get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
@@ -1393,7 +1424,7 @@ public class SpectrumMarketItem {
             
         String friendlyId = FriendlyId.createFriendlyId();
 
-        SimpleObjectProperty<SpectrumMarketInterface> listListenerObject = new SimpleObjectProperty<>(null);
+        SimpleObjectProperty<NoteMsgInterface> listListenerObject = new SimpleObjectProperty<>(null);
 
      
        
@@ -1403,17 +1434,24 @@ public class SpectrumMarketItem {
             
             if(chartView != null && listListenerObject.get() == null){
               
-                SpectrumMarketInterface msgInterface = new SpectrumMarketInterface() {
+                NoteMsgInterface msgInterface = new NoteMsgInterface() {
                     public String getId() {
                         return friendlyId;
+                    }
+
+                    public void sendMessage(String networkId, int code, long timestamp){
+
+                    }
+
+                    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
                     }
         
                     public void sendMessage(int msg, long timestamp){
                         switch(msg){
-                            case SpectrumFinance.STARTED:
-                            case SpectrumFinance.LIST_UPDATED:
-                            case SpectrumFinance.LIST_CHECKED:
-                            case SpectrumFinance.LIST_CHANGED:
+                            case App.STARTED:
+                            case App.LIST_UPDATED:
+                            case App.LIST_CHECKED:
+                            case App.LIST_CHANGED:
                                 createChart.run();  
                                  if(m_marketData.getQuoteSymbol().equals("SigUSD")){
                                         try {
@@ -1423,15 +1461,21 @@ public class SpectrumMarketItem {
                                         }
                                     }  
                             break;
-                            case SpectrumFinance.STOPPED:
+                            case App.STOPPED:
     
                             break;
                         }   
                         
                     }
+
+                    public void sendMessage(String networkId, int code, long timestamp, String msg){
+                
+
+                    }
+
                     public void sendMessage(int code, long timestamp, String msg){
                         switch(code){
-                            case SpectrumFinance.ERROR:
+                            case App.ERROR:
                                 
                                 //statusProperty().set("Error: " + msg);
                                
@@ -1676,23 +1720,14 @@ public class SpectrumMarketItem {
 
     public VBox getSwapBox(Scene scene, SimpleBooleanProperty shutdownSwap){
 
-        ErgoNetwork ergoNetwork = getErgoNetwork();
-        ErgoWallets ergoWallets = ergoNetwork != null ? (ErgoWallets) ergoNetwork.getNetwork(ErgoWallets.NETWORK_ID) : null;
-        ErgoNodes ergoNodes = ergoNetwork != null ? (ErgoNodes) ergoNetwork.getNetwork(ErgoNodes.NETWORK_ID) : null;
+      
 
-        SimpleObjectProperty<ErgoWalletDataList> walletsListObject = new SimpleObjectProperty<>();
-        SimpleObjectProperty<ErgoWalletData> ergoWalletObject = new SimpleObjectProperty<>(null);
-        SimpleObjectProperty<AddressesData> addressesDataObject = new SimpleObjectProperty<>(null);
-
-        SimpleObjectProperty<ErgoAmount> ergoPriceAmountObject = new SimpleObjectProperty<ErgoAmount>(null);
        // SimpleObjectProperty<PriceAmount> spfPriceAmountObject = new SimpleObjectProperty<>(null);
         SimpleObjectProperty<PriceAmount> basePriceAmountObject = new SimpleObjectProperty<>(null); 
         SimpleObjectProperty<PriceAmount> quotePriceAmountObject = new SimpleObjectProperty<>(null);
 
         SimpleObjectProperty<BigDecimal> orderPriceObject = new SimpleObjectProperty< BigDecimal>();
-        
-        SimpleBooleanProperty nodeAvailableObject = new SimpleBooleanProperty(false);
-        SimpleStringProperty nodeStatusObject = new SimpleStringProperty(null);
+ 
         SimpleBooleanProperty isBuyObject = new SimpleBooleanProperty(true);
      //   SimpleBooleanProperty isSpfFeesObject = new SimpleBooleanProperty(false);
         SimpleObjectProperty<BigDecimal> currentAmount = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -1710,205 +1745,7 @@ public class SpectrumMarketItem {
         };
 
         updateOrderPriceObject.run();
-        MenuButton walletBtn = new MenuButton();
 
-        
-
-        if(ergoNetwork != null){
-            if(ergoWallets != null && ergoNodes != null){
-                ErgoWalletDataList ergoWalletDataList = new ErgoWalletDataList(160,IconStyle.ROW,ergoWallets.getDataFile(), ergoWallets);
-                walletsListObject.set(ergoWalletDataList);
-                ergoWalletDataList.getMenu(walletBtn, ergoWalletObject);
-                
-                if(ergoWalletObject.get() == null){
-                    walletBtn.show();
-                }
-
-            }else{
-                String missingString = (ergoNodes == null ? " 'Ergo Nodes" : "" +  (ergoWallets == null ? (ergoNodes == null ? "," : "") + " 'Ergo wallets'" : ""));
-
-                Alert a = new Alert(AlertType.NONE, "Please install" + missingString + " in 'Ergo Network' to use this feature.", ButtonType.OK);
-                a.setHeaderText("Required: " + missingString);
-                a.setTitle("Required: " + missingString);
-                a.showAndWait();
-                return null;
-            }
-        }else{
-            
-            Alert a = new Alert(AlertType.NONE, "Please install 'Ergo Network' to use this feature.", ButtonType.OK);
-            a.setHeaderText("Required: Ergo Network");
-            a.setTitle("Required: Ergo Network");
-            a.showAndWait();
-
-            return null;
-        }
-
-    
-
-        HBox nodeAvailableBox = new HBox();
-        nodeAvailableBox.setMaxHeight(15);
-        nodeAvailableBox.setMinWidth(10);
-        nodeAvailableBox.setId("offlineBtn");
-        nodeAvailableBox.setFocusTraversable(true);
-        nodeAvailableBox.setOnMouseClicked(e->{
-            ergoNodes.open();
-        });
-
-        Binding<String> nodeAvailableStringBinding = Bindings.createObjectBinding(()->(nodeAvailableObject.get()  ? "Available" : "Unavailable"), nodeAvailableObject);
-
-        Tooltip nodeAvailableTooltip = new Tooltip("Offline");
-        nodeAvailableTooltip.setShowDelay(new javafx.util.Duration(100));
-
-        Binding<String> nodeStatusStringBinding = Bindings.createObjectBinding( ()->nodeStatusObject.get() == null ? "Offline" : nodeStatusObject.get(),  nodeStatusObject);
-
-        nodeAvailableTooltip.textProperty().bind(Bindings.concat(nodeAvailableStringBinding, " - ", nodeStatusStringBinding));
-        Tooltip.install(nodeAvailableBox, nodeAvailableTooltip);
-        
-
-        nodeAvailableObject.addListener((obs,oldVal,newVal)->{
-            nodeAvailableBox.setId(newVal ? "onlineBtn" : "offlineBtn");
-        });
-
-
-        
-
-        final String walletBtnDefaultString = "[Select]           ";
-
-
-        
-        SimpleBooleanProperty showWallet = new SimpleBooleanProperty(true);
-        
-        walletBtn.setMaxHeight(40);
-        walletBtn.setContentDisplay(ContentDisplay.LEFT);
-        walletBtn.setAlignment(Pos.CENTER_LEFT);
-        walletBtn.setText(walletBtnDefaultString);
-        walletBtn.setMinWidth(90);
-        walletBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-            walletBtn.show();
-        });
-        Text walletText = new Text(String.format("%-9s","Wallet"));
-        walletText.setFont(App.txtFont);
-        walletText.setFill(App.txtColor);
-
-        HBox walletBtnBox = new HBox(walletBtn);
-        HBox.setHgrow(walletBtnBox, Priority.ALWAYS);
-        walletBtnBox.setId("darkBox");
-        walletBtnBox.setAlignment(Pos.CENTER_LEFT);
-
-        walletBtn.prefWidthProperty().bind(walletBtnBox.widthProperty());
-
-        HBox walletBox = new HBox(walletText, walletBtnBox);
-        walletBox.setPadding(new Insets(3,3,3,5));
-        HBox.setHgrow(walletBox, Priority.ALWAYS);
-        walletBox.setAlignment(Pos.CENTER_LEFT);
-
-        
-        final String nodeBtnDefaultString = "[select]";
-        MenuButton nodeBtn = new MenuButton(nodeBtnDefaultString);
-        nodeBtn.setMaxHeight(40);
-        nodeBtn.setContentDisplay(ContentDisplay.LEFT);
-        nodeBtn.setAlignment(Pos.CENTER_LEFT);
-        nodeBtn.setText(nodeBtnDefaultString);
-        nodeBtn.setMinWidth(90);
-        nodeBtn.setTooltip(nodeAvailableTooltip);
-        nodeBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-            nodeBtn.show();
-        });
-
-        Text nodeText = new Text("Node ");
-        nodeText.setFont(App.txtFont);
-        nodeText.setFill(App.txtColor);
-
-     
-
-        HBox nodeBtnBox = new HBox(nodeBtn, nodeAvailableBox);
-        HBox.setHgrow(nodeBtnBox, Priority.ALWAYS);
-        nodeBtnBox.setId("darkBox");
-        nodeBtnBox.setAlignment(Pos.CENTER_LEFT);
-        nodeBtnBox.setPadding(new Insets(0,3,0,0));
-
-        nodeBtn.prefWidthProperty().bind(nodeBtnBox.widthProperty());
-
-        HBox nodeBox = new HBox(nodeText, nodeBtnBox);
-        nodeBox.setPadding(new Insets(3,3,3,5));
-        HBox.setHgrow(nodeBox, Priority.ALWAYS);
-        nodeBox.setAlignment(Pos.CENTER_LEFT);
-
-        final String adrBtnDefaultString = "[none]";
-        MenuButton adrBtn = new MenuButton();
-        adrBtn.setContentDisplay(ContentDisplay.LEFT);
-        adrBtn.setAlignment(Pos.CENTER_LEFT);
-        adrBtn.setText(adrBtnDefaultString);
-        adrBtn.setMinWidth(100);
-        adrBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-            adrBtn.show();
-        });
-
-        Text addressText = new Text(String.format("%-9s", "Address"));
-        addressText.setFont(App.txtFont);
-        addressText.setFill(App.txtColor);
-
-        HBox adrBtndarkBox = new HBox(adrBtn);
-        adrBtndarkBox.setId("darkBox");
-        HBox.setHgrow(adrBtndarkBox, Priority.ALWAYS);
-
-        adrBtn.prefWidthProperty().bind(adrBtndarkBox.widthProperty());
-
-        HBox adrBtnBox = new HBox(addressText, adrBtndarkBox);
-        adrBtnBox.setPadding(new Insets(3,3,3,5));
-        adrBtnBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(adrBtnBox, Priority.ALWAYS);
-
-
-      
-
-        ///   
-
-        TextField ergoQuantityField = new TextField();
-        HBox.setHgrow(ergoQuantityField, Priority.ALWAYS);
-        ergoQuantityField.setId("formField");
-        ergoQuantityField.setEditable(false);
-        ergoQuantityField.setAlignment(Pos.CENTER_RIGHT);
-
-        ImageView ergoImgView = new ImageView();
-        ergoImgView.setPreserveRatio(true);
-        
-
-        StackPane ergoQuantityFieldBox = new StackPane(ergoImgView, ergoQuantityField);
-        ergoQuantityFieldBox.setPadding(new Insets(0,3,0,0));
-        ergoQuantityFieldBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(ergoQuantityFieldBox, Priority.ALWAYS);
-        ergoQuantityFieldBox.setId("darkBox");
-
-
-        HBox ergoQuantityBox = new HBox(ergoQuantityFieldBox);
-        ergoQuantityBox.setPadding(new Insets(0,0,0,0));
-        ergoQuantityBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(ergoQuantityBox, Priority.ALWAYS);
-
-        TextField quoteQuantityField = new TextField();
-        HBox.setHgrow(quoteQuantityField, Priority.ALWAYS);
-        quoteQuantityField.setId("formField");
-        quoteQuantityField.setEditable(false);
-        quoteQuantityField.setAlignment(Pos.CENTER_RIGHT);
-
-        ImageView quoteImgView = new ImageView();
-        quoteImgView.setPreserveRatio(true);
-        
-
-
-        StackPane quoteQuantityFieldBox = new StackPane(quoteImgView, quoteQuantityField);
-        quoteQuantityFieldBox.setPadding(new Insets(0,3,0,0));
-        quoteQuantityFieldBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(quoteQuantityFieldBox, Priority.ALWAYS);
-        quoteQuantityFieldBox.setId("darkBox");
-
-        HBox quoteQuantityBox = new HBox( quoteQuantityFieldBox);
-        quoteQuantityBox.setPadding(new Insets(0,5,0,3));
-        quoteQuantityBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(quoteQuantityBox, Priority.ALWAYS);
-
-        ///
 
         TextField baseQuantityField = new TextField();
         HBox.setHgrow(baseQuantityField, Priority.ALWAYS);
@@ -1932,85 +1769,11 @@ public class SpectrumMarketItem {
         baseQuantityBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(baseQuantityBox, Priority.ALWAYS);
 
-        Region addressBoxSeperator = new Region();
-        HBox.setHgrow(addressBoxSeperator, Priority.ALWAYS);
-        addressBoxSeperator.setMinHeight(2);
-        addressBoxSeperator.setId("hGradient");
-        
-
-        HBox addressBoxSepBox = new HBox(addressBoxSeperator);
-        HBox.setHgrow(addressBoxSepBox, Priority.ALWAYS);
-        addressBoxSepBox.setPadding(new Insets(1,0,5,0));
-
-        Region botAddressBoxSeperator = new Region();
-        HBox.setHgrow(botAddressBoxSeperator, Priority.ALWAYS);
-        botAddressBoxSeperator.setMinHeight(2);
-        botAddressBoxSeperator.setId("hGradient");
-
-        HBox bottomGradientBox = new HBox(botAddressBoxSeperator);
-        bottomGradientBox.setPadding(new Insets(5, 0,0,0));
-
-        HBox addressFeesBox = new HBox(ergoQuantityBox);
-        HBox.setHgrow(addressFeesBox, Priority.ALWAYS);
-
-        VBox selectedAddressBox = new VBox(adrBtnBox);
-        HBox.setHgrow(selectedAddressBox,Priority.ALWAYS);
-
-        ImageView walletIconView = new ImageView(ErgoWallets.getSmallAppIcon());
-        walletIconView.setFitWidth(20);
-        walletIconView.setPreserveRatio(true);
-
-        Label ergoWalletsLbl = new Label("Ergo Wallets");
-        ergoWalletsLbl.setFont(App.titleFont);
-        ergoWalletsLbl.setTextFill(App.txtColor);
-        ergoWalletsLbl.setPadding(new Insets(0, 0, 0, 10));
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        ImageView closeImage = App.highlightedImageView(App.closeImg);
-        closeImage.setFitHeight(20);
-        closeImage.setFitWidth(20);
-        closeImage.setPreserveRatio(true);
-
-        
-
-        
-        BufferedButton toggleShowWallets = new BufferedButton("/assets/caret-up-15.png", 15);
-        toggleShowWallets.setId("toolBtn");
-        toggleShowWallets.setPadding(new Insets(0, 5, 0, 3));
-        toggleShowWallets.setOnAction(e->{
-            showWallet.set(!showWallet.get());
-           
-        });
-        
-
-        
-        
-        BufferedButton openErgoWalletsBtn = new BufferedButton("/assets/open-outline-white-20.png", App.MENU_BAR_IMAGE_WIDTH);
-        openErgoWalletsBtn.setId("toolBtn");
-        openErgoWalletsBtn.setPadding(new Insets(0, 5, 0, 3));
-        openErgoWalletsBtn.setOnAction(e->{
-            ergoWallets.open();
-        });   
-
-        HBox walletsTopBar = new HBox(walletIconView, ergoWalletsLbl, spacer, openErgoWalletsBtn,toggleShowWallets);
-        walletsTopBar.setAlignment(Pos.CENTER_LEFT);
-        walletsTopBar.setPadding(new Insets(5,1, 5, 5));
-        walletsTopBar.setId("networkTopBar");
-
-
-
-        VBox selectWalletBox = new VBox( walletBox);
-        selectWalletBox.setPadding(new Insets(0,0,0,5));
-        selectWalletBox.setId("networkBox");
-
-        VBox selectWalletPaddingBox = new VBox(walletsTopBar, selectWalletBox);
-        selectWalletPaddingBox.setPadding(new Insets(0));
+   
         
 
 
-        ImageView poolStatsIconView = new ImageView(SpectrumFinance.getSmallAppIcon());
+        ImageView poolStatsIconView = new ImageView(m_dataList.getSpectrumFinance().getSmallAppIcon());
         poolStatsIconView.setFitWidth(20);
         poolStatsIconView.setPreserveRatio(true);
 
@@ -2044,18 +1807,15 @@ public class SpectrumMarketItem {
 
         VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
         
+        
         showPoolStats.addListener((obs,oldval,newval)->{
             
             poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
         
             if(newval){
-                if(!poolStatsPaddingBox.getChildren().contains(selectWalletBox)){
-                    poolStatsPaddingBox.getChildren().add(selectWalletBox);
-                }
+                
             }else{
-                if(poolStatsPaddingBox.getChildren().contains(selectWalletBox)){
-                    poolStatsPaddingBox.getChildren().remove(selectWalletBox);
-                }
+               
             }
         });
 
@@ -2230,7 +1990,7 @@ public class SpectrumMarketItem {
             currentVolume.set(volume);
             PriceAmount amountAvailable = isBuyObject.get() ? basePriceAmountObject.get() : quotePriceAmountObject.get();
             if(amountAvailable != null){
-                if(amountAvailable.getBigDecimalAmount().compareTo(bigAmount) == -1){
+                if(amountAvailable.amountProperty().get().compareTo(bigAmount) == -1){
                     amountField.setId("swapBtnUnavailable");
                     volumeField.setId("swapBtnUnavailable");
                 }else{
@@ -2280,13 +2040,7 @@ public class SpectrumMarketItem {
             
         });
 
-        Button disableWalletBtn = new Button();
-        disableWalletBtn.setId("toolBtn");
-        disableWalletBtn.setGraphic(closeImage);
-        disableWalletBtn.setPadding(new Insets(0, 1, 0, 3));
-        disableWalletBtn.setOnAction(e->{
-            ergoWalletObject.set(null);
-        });
+
 
         amountField.focusedProperty().addListener((obs,oldval,newval)->{
             if(!newval){
@@ -2346,31 +2100,13 @@ public class SpectrumMarketItem {
         marketBox.setPadding(new Insets(5));
         marketBox.setId("bodyBox");
 
-        ScrollPane walletBoxScroll = new ScrollPane(selectWalletPaddingBox);
-        selectWalletPaddingBox.prefWidthProperty().bind(Bindings.createObjectBinding(()->walletBoxScroll.viewportBoundsProperty().get().getWidth() - 2, walletBoxScroll.viewportBoundsProperty()));
-
-        showWallet.addListener((obs,oldval,newval)->{
-            
-            toggleShowWallets.setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
-        
-            if(newval){
-                if(!selectWalletPaddingBox.getChildren().contains(selectWalletBox)){
-                    selectWalletPaddingBox.getChildren().add(selectWalletBox);
-                }
-            }else{
-                if(selectWalletPaddingBox.getChildren().contains(selectWalletBox)){
-                    selectWalletPaddingBox.getChildren().remove(selectWalletBox);
-                }
-            }
-        });
-    
+     
 
         VBox marketPaddingBox = new VBox(orderTypeBox, marketBox);
 
-        VBox swapBox = new VBox(walletBoxScroll, marketPaddingBox);
+        VBox swapBox = new VBox( marketPaddingBox);
         
-        walletBoxScroll.prefViewportHeightProperty().bind(swapBox.heightProperty().subtract(marketPaddingBox.heightProperty()));
-        walletBoxScroll.prefViewportWidthProperty().bind(swapBox.widthProperty());
+        
         VBox.setVgrow(swapBox, Priority.ALWAYS);
         swapBox.setMinWidth(SWAP_BOX_MIN_WIDTH);
 
@@ -2401,158 +2137,9 @@ public class SpectrumMarketItem {
 
         updateOrderType.run();
 
-        Runnable addOpenItem = ()->{
-            adrBtn.setText("[Locked]");
-            adrBtn.getItems().clear();
-
-            MenuItem openItem = new MenuItem(" (open)                     ");
-            openItem.setOnAction(e->{
-                ErgoWalletData walletData = ergoWalletObject.get();
-                if(walletData != null){
-                    walletData.getWallet((onSucceeded)->{
-                        Object successObject = onSucceeded.getSource().getValue();
-                        if(successObject != null){
-                            addressesDataObject.set((AddressesData) successObject);
-                        }else{
-                            addressesDataObject.set(null);
-                        }
-    
-                    }, (onFailed)->{
-                        addressesDataObject.set(null);
-                    });
-                }
-            });
-            
-            adrBtn.getItems().add(openItem);
-        };
-
-        Runnable updateErgoWallet = ()->{
-            ErgoWalletData walletData = ergoWalletObject.get();
-            addressesDataObject.set(null);
-
-            
-            if(walletData == null){
-                walletBtn.setText(walletBtnDefaultString);
-                if(walletBtn.getText().equals(walletBtnDefaultString)){
-                    if(selectWalletBox.getChildren().contains(selectedAddressBox)){
-                        selectWalletBox.getChildren().remove(selectedAddressBox);
-                    }
-                }
-                if(walletBtnBox.getChildren().contains(disableWalletBtn)){
-                    walletBtnBox.getChildren().remove(disableWalletBtn);
-                }
-            }else{
-                if(!selectWalletBox.getChildren().contains(selectedAddressBox)){
-                    selectWalletBox.getChildren().add(selectedAddressBox);
-                }
-                if(!walletBtnBox.getChildren().contains(disableWalletBtn)){
-                    walletBtnBox.getChildren().add(disableWalletBtn);
-                }
-                walletBtn.setText(walletData.getName());
-                addOpenItem.run();
-                walletData.getWallet((onSucceeded)->{
-                    Object successObject = onSucceeded.getSource().getValue();
-
-                    if(successObject != null){
-                       
-                        addressesDataObject.set((AddressesData) successObject);
-                    }else{
-                        addressesDataObject.set(null);
-                    }
-
-                }, (onFailed)->{
-                    addressesDataObject.set(null);
-                });
-            }
-          
-        };
-   
-
-        ergoWalletObject.addListener((obs, oldVal, newVal)->updateErgoWallet.run());
-
       
 
-        Runnable updateBalances = () ->{
-            boolean isInvert = isInvert();
-            boolean isBuy = isBuyObject.get();
-
-            String baseId = isInvert ? m_marketData.getQuoteId() :  m_marketData.getBaseId();
-            String quoteId = isInvert ? m_marketData.getBaseId() :  m_marketData.getQuoteId();
-
-            String baseSymbol = isInvert ? m_marketData.getQuoteSymbol() : m_marketData.getBaseSymbol();
-            String quoteSymbol = isInvert ? m_marketData.getBaseSymbol() : m_marketData.getQuoteSymbol();
-
-            AddressData adrData = addressesDataObject.get() != null ? addressesDataObject.get().selectedAddressDataProperty().get() : null;
-
-            ErgoAmount ergoPriceAmount = adrData != null ? adrData.ergoAmountProperty().get() : null;
-        //    PriceAmount spfPriceAmount = adrData != null ? adrData.getConfirmedTokenAmount(SPF_ID) : null;
-            PriceAmount basePriceAmount = adrData != null ? (!baseId.equals(ERG_ID) ?  adrData.getConfirmedTokenAmount(baseId) : adrData.ergoAmountProperty().get()) : null; 
-            PriceAmount quotePriceAmount = adrData != null ? (!quoteId.equals(ERG_ID) ? adrData.getConfirmedTokenAmount(quoteId) : adrData.ergoAmountProperty().get()) : null;
-
-            ergoPriceAmountObject.set(ergoPriceAmount);
-          //  spfPriceAmountObject.set(spfPriceAmount);
-            basePriceAmountObject.set(basePriceAmount);
-            quotePriceAmountObject.set(quotePriceAmount);
-
-            updateOrderPriceObject.run();
-            updateVolumeFromAmount.run();
-           /*ergoAmount*/
-            Image ergoCurrencyImage = ergoPriceAmount != null ? ergoPriceAmount.getCurrency().getBackgroundIcon(38) : PriceCurrency.getBlankBgIcon(38, "ERG");   
-            ergoQuantityField.setText(ergoPriceAmount != null ? ergoPriceAmount.getAmountString() : "0.0");
-            ergoImgView.setImage(ergoCurrencyImage);
-            ergoImgView.setFitWidth(ergoCurrencyImage.getWidth());
-         
-            /*spf amount*/
-           // Image spfCurrencyImage = spfPriceAmount != null ? spfPriceAmount.getCurrency().getBackgroundIcon(38) : PriceCurrency.getBlankBgIcon(38, "SPF");   
-           // spfQuantityField.setText(spfPriceAmount != null ? spfPriceAmount.getAmountString() : "0.0");
-           // spfImgView.setImage(spfCurrencyImage);
-        //    spfImgView.setFitWidth(spfCurrencyImage.getWidth());
         
-        
-            /*base Amount*/
-            PriceCurrency baseCurrency = basePriceAmount != null ? basePriceAmount.getCurrency() : null;
-            Image baseCurrencyImage = baseCurrency != null ?  baseCurrency.getBackgroundIcon(38) : PriceCurrency.getBlankBgIcon(38, baseSymbol);
-
-            baseQuantityField.setText(basePriceAmount != null ? basePriceAmount.getAmountString() : "0.0");
-            baseImgView.setImage(baseCurrencyImage);
-            baseImgView.setFitWidth(baseCurrencyImage.getWidth());
-
-            if(isBuy){
-                double basePriceAmountDouble = basePriceAmount != null ? basePriceAmount.getDoubleAmount() : 0;
-                amountFieldImage.setImage(baseCurrencyImage);
-                amountFieldImage.setFitWidth(baseCurrencyImage.getWidth());
-                amountSlider.setMax(basePriceAmountDouble);
-
-                amountSlider.setMajorTickUnit(basePriceAmountDouble > 0 ? basePriceAmountDouble /4 : 1);
-
-            }else{
-                volumeFieldImage.setImage(baseCurrencyImage);
-                volumeFieldImage.setFitWidth(baseCurrencyImage.getWidth());
-            }
-            
-            /*quote Amount*/
-            PriceCurrency quoteCurrency = quotePriceAmount != null ? quotePriceAmount.getCurrency() : null;
-            Image quoteCurrencyImage = quoteCurrency != null ?  quoteCurrency.getBackgroundIcon(38) : PriceCurrency.getBlankBgIcon(38, quoteSymbol);
-
-            quoteQuantityField.setText(quotePriceAmount != null ? quotePriceAmount.getAmountString() : "0.0");
-            quoteImgView.setImage(quoteCurrencyImage);
-            quoteImgView.setFitWidth(quoteCurrencyImage.getWidth());
-
-            if(!isBuy){
-                double quotePriceAmountDouble = quotePriceAmount != null ? quotePriceAmount.getDoubleAmount() : 0;
-                amountFieldImage.setImage(quoteCurrencyImage);
-                amountFieldImage.setFitWidth(quoteCurrencyImage.getWidth());
-                amountSlider.setMax(quotePriceAmountDouble);
-                amountSlider.setMajorTickUnit(quotePriceAmountDouble > 0 ? quotePriceAmountDouble /4 : 1);
-            
-            }else{
-                volumeFieldImage.setImage(quoteCurrencyImage);
-                volumeFieldImage.setFitWidth(quoteCurrencyImage.getWidth());
-            }
-
-      
-        };
-        updateBalances.run();
 
         Runnable updateBuySellBtns = ()->{
             boolean isBuy = isBuyObject.get();
@@ -2616,13 +2203,13 @@ public class SpectrumMarketItem {
 
         isBuyObject.addListener((obs,oldval,newval)->{
             updateBuySellBtns.run();
-            updateBalances.run();
+ 
          
         });
 
         m_isInvert.addListener((obs,oldval, newval)->{
             updateBuySellBtns.run();
-            updateBalances.run();
+
             orderPriceImageView.setImage(PriceCurrency.getBlankBgIcon(38, m_marketData.getCurrentSymbol(newval)));
         });
 
@@ -2643,22 +2230,7 @@ public class SpectrumMarketItem {
      //   isSpfFeesObject.addListener((obs,oldval,newval)->updateFeesBtn.run());
        //AddressData update
             
-        ChangeListener<LocalDateTime> addressUpdateListener = (obs,oldval,newval)->{
-            
-            updateBalances.run();
    
-        };
-
-        ChangeListener<AddressData> selectedAddressListener = (obs,oldval,newval)->{
-            if(oldval != null){
-                oldval.getLastUpdated().removeListener(addressUpdateListener);
-            }
-            if(newval != null){
-                newval.getLastUpdated().addListener(addressUpdateListener);
-            }
-            updateBalances.run();
-        
-        };
 
         ChangeListener<LocalDateTime> marketDataUpdateListener = (obs,oldVal,newVal)->{
             String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
@@ -2677,179 +2249,12 @@ public class SpectrumMarketItem {
         
         m_marketData.getLastUpdated().addListener(marketDataUpdateListener);
 
-        Runnable updateNodeBtn = () ->{
-            
-            AddressesData addressesData = addressesDataObject.get();
-            if(addressesData != null){
-                ErgoNodeData nodeData = addressesData != null ? addressesData.selectedNodeData().get() : null;
+      
+       
 
-                
-                if(nodeData != null && ergoNodes != null){
 
-                    nodeBtn.setText(nodeData.getName());
-                
-                }else{
-                    
-                    if(ergoNodes == null){
-                        nodeBtn.setText("[Install]");
-                    }else{
-                        nodeBtn.setText("[Select]");
-                    }
-                }
-            }
-          
-            
-        };
-        ChangeListener<Boolean> isAvailableListener = (obs,oldval,newval)->nodeAvailableObject.set(newval);
-        ChangeListener<String> statusListener = (obs,oldVal, newVal)->{
-            ErgoNodeData ergoNodeData = addressesDataObject.get() != null && addressesDataObject.get().selectedNodeData().get() != null ? addressesDataObject.get().selectedNodeData().get() : null;
-            
-            nodeStatusObject.set(ergoNodeData == null ? null : ergoNodeData.statusString().get());
-            
-        };
-
-        ChangeListener<ErgoNodeData> selectedNodeListener = (obs,oldval,newval) -> {
-           // nodeAvailableObject.unbind();
-           // nodeStatusObject.unbind();
-            ErgoWalletData ergoWalletData =  ergoWalletObject.get();
-            if(oldval != null){
-                oldval.isAvailableProperty().removeListener(isAvailableListener);
-                oldval.statusString().removeListener(statusListener);
-            }
-            if(newval != null){
-                if(newval.isStopped()){ 
-                    newval.start();
-                }
-                //nodeAvailableListenerstatusListener
-                newval.isAvailableProperty().addListener(isAvailableListener);
-                newval.statusString().addListener(statusListener);
-                
-                nodeAvailableObject.set(newval.isAvailable());
-              //  nodeStatusObject.bind(newval.nodeStatusInfo());
-            }
-            if(ergoWalletData != null){
-                ergoWalletData.setNodesId(newval == null ? null : newval.getId());
-            }
-            updateNodeBtn.run();
-            
-            
-        };
+        Button shutdownMenu = new Button();
         
-        ChangeListener<AddressesData> addressesDataObjChangeListener = (obs,oldval,newval)->{
-            adrBtn.getItems().clear();
-            nodeBtn.getItems().clear();
-
-            if(oldval != null){
-                if(oldval.selectedAddressDataProperty().get() != null){
-                    oldval.selectedAddressDataProperty().get().getLastUpdated().removeListener(addressUpdateListener);
-                
-                }
-                oldval.selectedAddressDataProperty().removeListener(selectedAddressListener);
-                oldval.selectedNodeData().removeListener(selectedNodeListener);
-
-                if(oldval.selectedNodeData().get() != null){
-                    ErgoNodeData selectedErgoNodeData = oldval.selectedNodeData().get();
-                    selectedErgoNodeData.isAvailableProperty().removeListener(isAvailableListener);
-                    selectedErgoNodeData.statusString().removeListener(statusListener);
-
-                
-                }
-                oldval.shutdown();
-            }
-
-            HBox marketItemsBox = new HBox(baseQuantityBox, quoteQuantityBox);
-            marketItemsBox.setPadding(new Insets(5,0,5,0));
-            HBox.setHgrow(marketItemsBox, Priority.ALWAYS);
-
-            VBox balancesBox = new VBox(addressBoxSepBox, addressFeesBox, marketItemsBox , nodeBox, bottomGradientBox);
-            balancesBox.setId("bodyBox");
-
-            Region nodeBoxSpacer = new Region();
-            nodeBoxSpacer.setMinHeight(5);
-
-            Region addressPaddingBoxRegion = new Region();
-            addressPaddingBoxRegion.setId("hGradient");
-            addressPaddingBoxRegion.setMinHeight(2);
-
-            HBox.setHgrow(addressPaddingBoxRegion, Priority.ALWAYS);
-
-            HBox addressPaddingBoxRegionBox = new HBox(addressPaddingBoxRegion);
-            addressPaddingBoxRegionBox.setPadding(new Insets(1,0,4,0));
-
-            VBox addressPaddingBox = new VBox(balancesBox );
-           
-
-            if(newval == null){
-             
-
-                if(selectedAddressBox.getChildren().contains(addressPaddingBox)){
-                    selectedAddressBox.getChildren().remove(addressPaddingBox);
-                }
-                
-                if(ergoWalletObject.get() == null){
-                    adrBtn.setText(adrBtnDefaultString);
-                    
-                    if(selectWalletBox.getChildren().contains(selectedAddressBox)){
-                        selectWalletBox.getChildren().remove(selectedAddressBox);
-                    }
-                    
-                }else{
-                    if(!selectWalletBox.getChildren().contains(selectedAddressBox)){
-                        selectWalletBox.getChildren().add(selectedAddressBox);
-                    }
-                    addOpenItem.run();
-                }
-                
-            }else{
-               
-                if(!selectedAddressBox.getChildren().contains(addressPaddingBox)){
-                    selectedAddressBox.getChildren().add(addressPaddingBox);
-                   
-                }
-                if(!selectWalletBox.getChildren().contains(selectedAddressBox)){
-                    selectWalletBox.getChildren().add(selectedAddressBox);
-                }
-                if(newval.selectedNodeData().get() != null){
-                    ErgoNodeData selectedErgoNodeData = newval.selectedNodeData().get();
-
-                    if(!selectedErgoNodeData.statusProperty().get().equals(ErgoMarketsData.STARTED)){
-                        selectedErgoNodeData.start();
-                    }
-
-                    selectedErgoNodeData.isAvailableProperty().addListener(isAvailableListener);
-                    selectedErgoNodeData.statusString().addListener(statusListener);
-                    nodeAvailableObject.set(selectedErgoNodeData.isAvailableProperty().get());
-                    nodeStatusObject.set(selectedErgoNodeData.statusString().get());
-                }
-
-                if(newval.selectedAddressDataProperty().get() != null){
-                    newval.selectedAddressDataProperty().get().getLastUpdated().addListener(addressUpdateListener);
-                }
-     
-                newval.getMenu(adrBtn);
-                ergoNodes.getErgoNodesList().getMenu(nodeBtn, newval.selectedNodeData());
-                newval.selectedNodeData().addListener(selectedNodeListener);
-                updateNodeBtn.run();
-
-                AddressData selectedAddressData = newval.selectedAddressDataProperty().get();
-                
-                if( selectedAddressData == null && adrBtn.getItems().size() > 0){
-                    adrBtn.getItems().get(0).fire();
-                }
-                
-                if(selectedAddressData == null){
-                    adrBtn.setText("[Select address]");
-                }
-
-                newval.selectedAddressDataProperty().addListener(selectedAddressListener);
-                
-            }
-            updateBalances.run();
-        };
-        
-        addressesDataObject.addListener(addressesDataObjChangeListener);
-
-        walletsListObject.addListener((obs,oldVal,newVal)->{});
 
         
 
@@ -2857,12 +2262,11 @@ public class SpectrumMarketItem {
 
         shutdownSwap.addListener((obs,oldval,newval)->{
             if(newval){
-                AddressesData addressesData = addressesDataObject.get();
-                if(addressesData != null){
-                    addressesData.shutdown();
-                }
+                shutdownMenu.fire();
+             
+                
                 m_marketData.getLastUpdated().removeListener(marketDataUpdateListener);
-                addressesDataObject.removeListener(addressesDataObjChangeListener);
+              
             }
         });
 
@@ -2871,9 +2275,7 @@ public class SpectrumMarketItem {
 
 
 
-    public SecretKey getAppKey(){
-        return m_dataList.getSpectrumFinance().getAppKey();
-    }
+
 
 
 

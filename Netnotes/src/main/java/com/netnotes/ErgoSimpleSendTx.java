@@ -1,6 +1,10 @@
 package com.netnotes;
 
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
@@ -49,6 +53,9 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         super(txId, parentAddress);
         setTxType(TransactionType.SEND);
         partnerTypeProperty().set(PartnerType.SENDER);
+
+      
+        
    
         JsonElement nanoErgsElement = json.get("nanoErgs");
         JsonElement feeAmountElement = json.get("feeAmount");
@@ -60,11 +67,6 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         JsonElement timeStampElement = json.get("timeStamp");
         JsonElement recipientAddressElement = json.get("recipientAddress");
 
-        if(nanoErgsElement == null || feeAmountElement == null || parentAddress == null){
-            
-            throw new Exception("Invalid arguments: " + (nanoErgsElement == null ? "nanoErgs null" : "") + (feeAmountElement == null ?" feeAmount null" : null) + (parentAddress == null ? " parentAddress null" : ""));
-        }
-
         if(timeStampElement != null && timeStampElement.isJsonPrimitive()){
             setTimeStamp(timeStampElement.getAsLong());
         }else{
@@ -72,9 +74,21 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         }
 
         ErgoAmount parentAmount = new ErgoAmount(nanoErgsElement.getAsLong(), getParentAddress().getNetworkType());
+        
+        ErgoTokens ergoTokens = parentAddress.getErgoNetworkData().getErgoTokens();
+
 
         setErgoAmount(parentAmount);
-        setFeeAmount(new PriceAmount(feeAmountElement.getAsJsonObject()));
+        if(feeAmountElement != null && feeAmountElement.isJsonObject()){
+                 
+            setFeeAmount(new ErgoAmount(feeAmountElement.getAsJsonObject().get("amount").getAsLong(), getParentAddress().getNetworkType()));
+            
+        }else{
+            setFeeAmount(new ErgoAmount(0, getParentAddress().getNetworkType()));
+        }
+
+
+      
 
         m_explorerUrl = explorerUrlElement != null && explorerUrlElement.isJsonPrimitive() ? explorerUrlElement.getAsString() : "";
         m_nodeUrl = nodeUrlElement != null && nodeUrlElement.isJsonPrimitive() ? nodeUrlElement.getAsString() : "";
@@ -85,7 +99,10 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         for(int i = 0; i < tokensArrayLength ; i ++ ){
             JsonElement tokenElement = tokensArray.get(i);
             
-            tokenAmounts[i] = tokenElement != null && tokenElement.isJsonObject() ? new PriceAmount(tokenElement.getAsJsonObject()) : UNKNOWN_PRICE_AMOUNT;
+            PriceAmount tokenAmount = tokenElement != null && tokenElement.isJsonObject() ? new PriceAmount(tokenElement.getAsJsonObject()) : UNKNOWN_PRICE_AMOUNT;
+            tokenAmount.getCurrency().setErgoTokens(ergoTokens);
+          
+            tokenAmounts[i] = tokenAmount;
         }
         String status = statusElement != null && statusElement.isJsonPrimitive() ? statusElement.getAsString() : TransactionStatus.PENDING;
         statusProperty().set(status);
@@ -103,6 +120,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         if(numConfirmationsElement != null && numConfirmationsElement.isJsonPrimitive()){
             numConfirmationsProperty().set(numConfirmationsElement.getAsLong());
         }
+
 
     }
 

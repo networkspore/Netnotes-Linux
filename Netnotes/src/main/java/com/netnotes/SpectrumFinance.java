@@ -11,11 +11,14 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -23,6 +26,7 @@ import javax.crypto.NoSuchPaddingException;
 
 import org.reactfx.util.FxTimer;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -33,9 +37,8 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.FXCollections;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -53,6 +56,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -68,22 +72,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static String NAME = "Spectrum Finance";
     public final static String NETWORK_ID = "SPECTRUM_FINANCE";
 
-    private String m_currentNetworkId = null;
-    private String m_tokensId = null;
+    private static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{ErgoNetwork.getNetworkInformation()};
 
+    private String m_currentNetworkId = ErgoNetwork.NETWORK_ID;
+    private String m_tokensId = null;
+  
 
     public static String API_URL = "https://api.spectrum.fi";
 
-    public final static int STOPPED = 0;
-    public final static int STARTING = 1;
-    public final static int STARTED = 2;
-    public final static int ERROR = 3;
-
-    public static final int LIST_CHECKED = 9;
-    public static final int LIST_CHANGED = 10;
-    public static final int LIST_UPDATED = 11;
-
-
+    private ListChangeListener<NoteInterface> m_networkListener = null;
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
@@ -107,11 +104,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static final String MARKET_DATA_ID = "marketData";
     public static final String TICKER_DATA_ID = "tickerData";
 
-    private SimpleObjectProperty<JsonObject> m_cmdObjectProperty = new SimpleObjectProperty<>(null);
     private ArrayList<SpectrumMarketData> m_marketsList = new ArrayList<>();
 
-    private ObservableList<SpectrumMarketInterface> m_msgListeners = FXCollections.observableArrayList();
-    private int m_connectionStatus = 0;
+
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> m_scheduledFuture = null;
@@ -123,54 +118,35 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private double m_prevX = -1;
     private double m_prevY = -1;
 
+    private ChangeListener<NoteInterface> m_tokensChangeListener = null;
+    private NoteMsgInterface m_tokenMsgInterface = null;
+    private SimpleObjectProperty<NoteInterface> m_tokensInterface = new SimpleObjectProperty<>(null);
+
+    private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
+    private ChangeListener<NoteInterface> m_networkChangeListener = null;
+    private NoteMsgInterface m_networkMsgInterface;
+
+    public String getType(){
+        return App.APP_TYPE;
+    }
+
+  
 
     public SpectrumFinance(NetworksData networksData) {
         this(null, networksData);
         setup(null);
-        addListeners();
+
     }
 
     public SpectrumFinance(JsonObject jsonObject, NetworksData networksData) {
-        super(getAppIcon(), NAME, NETWORK_ID, networksData);
-
+        super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
+      
         setup(jsonObject);
-        addListeners();
     }
+    
 
-    public void addListeners(){
-        getNetworksData().getAppData().appKeyProperty().addListener((obs,oldval,newval)->{
-            File indexFile = getIdIndexFile();
-            if(indexFile != null && indexFile.isFile()){
-                JsonArray jsonArray = getIndexFileArray(oldval, indexFile);
-                saveIndexFile(jsonArray);
-                if(jsonArray != null){
-                int size = jsonArray.size();
-                    for(int i = 0; i< size ; i++){
-                        JsonElement jsonElement = jsonArray.get(i);
-                
-                        JsonObject obj = jsonElement.getAsJsonObject();
 
-                        File file = new File(obj.get("file").getAsString());
-                        if(file.isFile()){
-                            try {
-                                String oldString = Utils.readStringFile(oldval, file);
-                                Utils.writeEncryptedString(newval, file, oldString);
-                            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                                    | IOException e) {
-                                try {
-                                    Files.writeString(App.logFile.toPath(), "SpectrumFinance (addListenersr): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                } catch (IOException e1) {
-                                
-                                }
-                            }
-                        }
-                    }
-                }
-            }     
-        });
-     
-    }
+    
 
     public ArrayList<SpectrumMarketData> marketsList(){
         return m_marketsList;
@@ -178,39 +154,88 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
 
-    public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
+    /*public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
 
         return m_cmdObjectProperty;
+    }*/
+
+    public SimpleObjectProperty<NoteInterface> networkInterface() {
+
+        return m_networkInterface;
     }
 
+    public SimpleObjectProperty<NoteInterface> tokensInterface() {
 
-
+        return m_tokensInterface;
+    }
   
 
     public File getAppDir() {
         return m_appDir;
     }
-
-    public static Image getAppIcon() {
-        return new Image("/assets/spectrum-150.png");
+    public static String getAppIconString(){
+        return "/assets/spectrum-150.png";
     }
 
-    public static Image getSmallAppIcon() {
-        return new Image("/assets/spectrumFinance.png");
+
+    public  Image getSmallAppIcon() {
+        return new Image(getSmallAppIconString());
     }
 
+    public static String getSmallAppIconString(){
+        return "/assets/spectrumFinance.png";
+    }
 
 
     private void setup(JsonObject jsonObject) {
+       
 
         JsonElement currentNetworkElement = jsonObject != null ? jsonObject.get("currentNetworkId") : null;
         JsonElement tokensIdElement = jsonObject != null ? jsonObject.get("tokensId") : null;
         JsonElement stageElement = jsonObject != null ? jsonObject.get("stage") : null; 
-        String currentNetworkId = currentNetworkElement != null && currentNetworkElement.isJsonPrimitive() ? currentNetworkElement.getAsString() : ErgoNetwork.NETWORK_ID;
-        String tokensId = tokensIdElement != null && tokensIdElement.isJsonPrimitive() ? tokensIdElement.getAsString() : m_currentNetworkId != null ? ((m_currentNetworkId.equals(ErgoNetwork.NETWORK_ID) ? ErgoTokens.NETWORK_ID : null)) : null;
+        m_currentNetworkId = currentNetworkElement != null && currentNetworkElement.isJsonPrimitive() ? currentNetworkElement.getAsString() : ErgoNetwork.NETWORK_ID;
+        
+        m_networkChangeListener = (obs,oldval,newval)->{
+            if(oldval != null && m_networkMsgInterface != null){
+               
+                oldval.removeMsgListener(m_networkMsgInterface);
+                m_networkMsgInterface = null;
+            }
+            if(newval != null){
+                addNetworkInterface(newval);
+            
+            }
+            
+        };
+        
+        m_networkInterface.addListener(m_networkChangeListener);
 
-        m_currentNetworkId =currentNetworkId;
-        m_tokensId = tokensId;
+        
+
+        m_tokensId = tokensIdElement != null && tokensIdElement.isJsonPrimitive() ? tokensIdElement.getAsString() : ErgoTokens.NETWORK_ID;
+
+        
+        m_tokensChangeListener = (obs,oldval,newval)->{
+            if(oldval != null && m_tokenMsgInterface != null){
+               
+                oldval.removeMsgListener(m_tokenMsgInterface);
+                m_tokenMsgInterface = null;
+            }
+            if(newval != null){
+                addTokenInterface(newval);
+            
+            }
+            
+        };
+        
+        m_tokensInterface.addListener(m_tokensChangeListener);
+
+      
+        
+        FxTimer.runLater(Duration.ofMillis(200), ()->{
+            updateNetworks();
+            
+        });
 
         String appDirFileString = null;
         if (jsonObject != null) {
@@ -234,10 +259,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         }
 
-   
-
-        setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
-        getDataDir();
 
         if(stageElement != null && stageElement.isJsonObject()){
             JsonObject stageObject =  stageElement.getAsJsonObject();
@@ -252,7 +273,155 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
         }
 
+        
     }
+ 
+    protected void updateNetworks(){
+    
+        NoteInterface network = getNetworksData().getNoteInterface(m_currentNetworkId);
+        if(network != null){
+            if(networkInterface().get() != null && networkInterface().get().getNetworkId().equals(network.getNetworkId())){
+                if(m_tokensInterface.get() == null){
+                    JsonObject networkCmd = Utils.getCmdObject("getNetwork");
+                    networkCmd.addProperty("networkType", "Tokens");
+
+                    Object obj = network != null ? network.sendNote(networkCmd) : null;
+                    m_tokensInterface.set(obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null );
+
+                }
+            }else{
+               
+                m_networkInterface.set(network);
+                
+                JsonObject networkCmd = Utils.getCmdObject("getNetwork");
+                networkCmd.addProperty("networkType", "Tokens");
+
+                Object obj = network != null ? network.sendNote(networkCmd) : null;
+                m_tokensInterface.set(obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null );
+                
+            }
+
+        }else{
+            if(m_networkInterface != null){
+                m_networkInterface.set(null);
+            }
+            if(m_tokensInterface != null){
+                m_tokensInterface.set(null);
+            }
+        }
+    }
+
+    @Override
+    public void addMsgListener(NoteMsgInterface item){
+        try {
+            Files.writeString(App.logFile.toPath(), "\nadd item: " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+ 
+        }
+        super.addMsgListener(item);
+    }
+
+    @Override
+    public boolean removeMsgListener(NoteMsgInterface item){
+        
+
+        boolean removed = super.removeMsgListener(item);
+        try {
+            Files.writeString(App.logFile.toPath(), "\nremove item: " + removed + " " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+ 
+        }
+        return removed;
+    }
+    
+
+    private void addTokenInterface(NoteInterface tokens){
+       
+        String tokensInterfaceId = FriendlyId.createFriendlyId();
+        
+        m_tokenMsgInterface = new NoteMsgInterface(){
+
+           public String getId() {
+               return tokensInterfaceId;
+           }
+           
+           public void sendMessage(String networkId, int code, long timestamp){
+
+           }
+
+           public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+           }
+
+           public void sendMessage(int msg, long timestamp){
+               switch(msg){
+                   case App.STARTED:
+                   
+                   break;
+                   case App.STOPPED:
+                   
+                   break;
+                   case App.LIST_CHANGED:
+                   case App.LIST_UPDATED:
+                   
+                   break;
+               }
+              
+
+           }
+           public void sendMessage(String networkId, int code, long timestamp, String msg){
+               
+           }
+           public void sendMessage(int code, long timestamp, String msg){
+               
+           }
+       };
+       tokens.addMsgListener(m_tokenMsgInterface);
+   }
+
+   private void addNetworkInterface(NoteInterface network){
+       
+    String networkInterfaceId = FriendlyId.createFriendlyId();
+    
+    m_tokenMsgInterface = new NoteMsgInterface(){
+
+       public String getId() {
+           return networkInterfaceId;
+       }
+       
+       public void sendMessage(String networkId, int code, long timestamp){
+
+       }
+       public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+       }
+       public void sendMessage(int msg, long timestamp){
+           switch(msg){
+               case App.STARTED:
+               
+               break;
+               case App.STOPPED:
+               
+               break;
+               case App.LIST_CHANGED:
+               case App.LIST_UPDATED:
+               
+               break;
+           }
+          
+
+       }
+       public void sendMessage(String networkId, int code, long timestamp, String msg){
+           
+       }
+       public void sendMessage(int code, long timestamp, String msg){
+           
+       }
+   };
+   
+   network.addMsgListener(m_tokenMsgInterface);
+}
+
+
+
 
     public void setItemTimeSpan(TimeSpan value){
         m_itemTimeSpan = value;
@@ -284,16 +453,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
         json.addProperty("height", getStageHeight());
         json.addProperty("prevWidth", getStagePrevWidth());
         json.addProperty("prevHeight", getStagePrevHeight());
-        json.addProperty("iconStyle", getStageIconStyle());
         return json;
     }
 
 
-    public void open() {
-        super.open();
-      
-        showAppStage();
-    }
+ 
 
     public Stage getAppStage() {
         return m_appStage;
@@ -378,9 +542,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }*/
 
-    public void setCurrentNetworkId(String networkId){
+
+    public void setCurrentNetworkId(String networkId,boolean update){
         m_currentNetworkId = networkId;
+        if(update){
         getLastUpdated().set(LocalDateTime.now());
+        }    
     }
 
     public String getCurrentNetworkId(){
@@ -396,6 +563,62 @@ public class SpectrumFinance extends Network implements NoteInterface {
         getLastUpdated().set(LocalDateTime.now());
     }
 
+    public void getNetworkMenu(MenuButton networkMenuBtn){
+        networkMenuBtn.getItems().clear();
+
+        String selectedMarketId = m_currentNetworkId;
+      
+        SimpleBooleanProperty found = new SimpleBooleanProperty(false);
+
+        for(NetworkInformation networkInfo : SUPPORTED_NETWORKS ){
+            NoteInterface noteInterface = getNetworksData().getNoteInterface(networkInfo.getNetworkId());
+            ImageView imgView = new ImageView(new Image(networkInfo.iconString()));
+            imgView.setPreserveRatio(true);
+            imgView.setFitHeight(30);
+            
+            boolean selected = selectedMarketId.equals(networkInfo.getNetworkId());
+            MenuItem menuItem = new MenuItem(networkInfo.getNetworkName() + (noteInterface == null ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
+      
+
+            if(selected){
+                ImageView menuBtnGraphic = new ImageView(new Image(networkInfo.iconString()));
+                menuBtnGraphic.setPreserveRatio(true);
+                menuBtnGraphic.setFitWidth(30);
+                networkMenuBtn.setGraphic(menuBtnGraphic);
+
+                menuItem.setId("selectedMenuItem");
+                found.set(true);
+            }
+            
+            menuItem.setUserData(networkInfo);
+        
+            menuItem.setOnAction(e->{
+                NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
+            
+                setCurrentNetworkId(mInfo.getNetworkId(), true);
+
+                ImageView menuBtnGraphic = new ImageView(new Image(mInfo.getSmallIconString()));
+                menuBtnGraphic.setPreserveRatio(true);
+                menuBtnGraphic.setFitWidth(30);
+
+                networkMenuBtn.setGraphic(menuBtnGraphic);
+                updateNetworks();
+
+                getNetworkMenu(networkMenuBtn);
+            });
+
+            networkMenuBtn.getItems().add(menuItem);
+        }
+
+        if(!found.get()){
+            ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-120.png"));
+            menuBtnGraphic.setPreserveRatio(true);
+            menuBtnGraphic.setFitWidth(30);
+
+            networkMenuBtn.setGraphic(menuBtnGraphic);
+        }
+    }
+
 
     private void showAppStage() {
         if (m_appStage == null) {
@@ -409,16 +632,21 @@ public class SpectrumFinance extends Network implements NoteInterface {
             SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
             SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
             SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
+            m_networkListener = (ListChangeListener.Change<? extends NoteInterface> c)->{
+                updateNetworks();
+            };
+            getNetworksData().addNetworkListener(m_networkListener);
+            updateNetworks();
 
-            SpectrumDataList spectrumData = new SpectrumDataList(getNetworkId(), this, gridWidth,gridHeight, itemTimeSpanObject, currentBox);
+            SpectrumDataList spectrumData = new SpectrumDataList(FriendlyId.createFriendlyId(), this, gridWidth,gridHeight, itemTimeSpanObject, currentBox);
 
+            
+        
             
 
 
-  
-
             m_appStage = new Stage();
-            m_appStage.getIcons().add(SpectrumFinance.getSmallAppIcon());
+            m_appStage.getIcons().add(getSmallAppIcon());
             m_appStage.initStyle(StageStyle.UNDECORATED);
             m_appStage.setTitle(NAME);
 
@@ -550,154 +778,53 @@ public class SpectrumFinance extends Network implements NoteInterface {
             currentNetworkTip.setShowDelay(new javafx.util.Duration(100));
             currentNetworkTip.setFont(App.txtFont);
 
-            String tokensDefaultImgString = "/assets/remove-30.png";
-            String networkDefaultImgString = "/assets/globe-outline-white-120.png";
-     
-            /*ImageView currentNetworkImageView = new ImageView(new Image());
-            currentNetworkImageView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
-            currentNetworkImageView.setPreserveRatio(true);*/
-
-            BufferedMenuButton currentNetworkBtn = new BufferedMenuButton(networkDefaultImgString, 25);
-           
-            currentNetworkBtn.setTooltip(currentNetworkTip);
-
-
             
-            BufferedMenuButton tokensMenuBtn = new BufferedMenuButton(tokensDefaultImgString, 25);
-            tokensMenuBtn.setPadding(new Insets(2, 0, 0, 0));
+
+
+            ImageView networkMenuBtnImageView = new ImageView();
+            networkMenuBtnImageView.setPreserveRatio(true);
+            networkMenuBtnImageView.setFitWidth(30);
+
+            MenuButton networkMenuBtn = new MenuButton();
+            networkMenuBtn.setGraphic(networkMenuBtnImageView);
+            networkMenuBtn.setPadding(new Insets(0, 3, 0, 0));
             
-            Tooltip tokensTip = new Tooltip("Tokens: Disabled");
-            tokensTip.setShowDelay(new javafx.util.Duration(50));
-            tokensTip.setFont(App.txtFont);
+            Tooltip networkTip = new Tooltip("Network: (select)");
+            networkTip.setShowDelay(new javafx.util.Duration(50));
+            networkTip.setFont(App.txtFont);
 
-            tokensMenuBtn.setTooltip(tokensTip);
+            networkMenuBtn.setTooltip(networkTip);
+            
+            networkMenuBtn.addEventFilter(MouseEvent.MOUSE_PRESSED, (e)->{
+                getNetworkMenu(networkMenuBtn);
+            });
 
-            SimpleObjectProperty< ListChangeListener<NoteInterface>> tokensChangeListenerObject = new SimpleObjectProperty<>(null);
-
-            Runnable updateTokensMenu = ()->{
-                tokensMenuBtn.getItems().clear();
-                NoteInterface currentNetworkInterface = spectrumData.currentNetwork().get();
-                
-                if(currentNetworkInterface != null && currentNetworkInterface instanceof ErgoNetwork){
-                    
-                    ErgoNetwork ergoNetwork = (ErgoNetwork) currentNetworkInterface;
-                    if(tokensChangeListenerObject.get() != null){
-                        ergoNetwork.removeNetworkListener(tokensChangeListenerObject.get());
-                        ergoNetwork.addNetworkListener(tokensChangeListenerObject.get());
-                    }
-                    currentNetworkBtn.setImage(ErgoNetwork.getSmallAppIcon());
-                    currentNetworkBtn.setId("menuBtn");
-                    currentNetworkTip.setText("Ergo Network");
-
-                    MenuItem ergoNetworksItem = new MenuItem("Ergo Network (selected)");
-                    ergoNetworksItem.setId("selectedMenuItem");
-                    ergoNetworksItem.setOnAction(e->{
-                        setCurrentNetworkId(ErgoNetwork.NETWORK_ID);
-                        setTokensId(ErgoTokens.NETWORK_ID);
-                        spectrumData.updateTokensList();
-                    });
-                    
-                    MenuItem disableNetworkItem = new MenuItem("Disabled");
-                    disableNetworkItem.setOnAction(e->{
-                        setTokensId(null);
-                        setCurrentNetworkId(null);
-                        spectrumData.updateTokensList();
-                    });
-
-                    
-                    currentNetworkBtn.getItems().clear();
-                    currentNetworkBtn.getItems().add(ergoNetworksItem);
-
-                    boolean isEnabled = m_tokensId != null && m_tokensId.equals(ErgoTokens.NETWORK_ID) && ergoNetwork.getNetwork(ErgoTokens.NETWORK_ID) != null;
-                
-                    MenuItem tokensEnabledItem = new MenuItem("Ergo Tokens" + (isEnabled ? " (selected)" : ""));
-                    tokensEnabledItem.setOnAction(e->{
-                        setTokensId(ErgoTokens.NETWORK_ID);
-                        spectrumData.updateTokensList();
-                    });
-
-                    MenuItem tokensDisabledItem = new MenuItem("Tokens Disabled" + (isEnabled ? "" : " (selected)"));
-                    tokensDisabledItem.setOnAction(e->{
-                        setTokensId(null);
-                        spectrumData.updateTokensList();
-                    });
-
-                    if(isEnabled){
-                        tokensTip.setText("Ergo Tokens: Enabled");
-                        tokensEnabledItem.setId("selectedMenuItem");
-                        tokensMenuBtn.setImage(ErgoTokens.getSmallAppIcon());
-                        tokensMenuBtn.setId("menuBtn");
-                    }else{
-                        tokensTip.setText("Tokens: Disabled");
-                        tokensDisabledItem.setId("selectedMenuItem");
-                        tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
-                        tokensMenuBtn.setId("menuBtnDisabled");
-                    }
-
-                    tokensMenuBtn.getItems().addAll(tokensEnabledItem, tokensDisabledItem);
-
-                  
-                }else{
-                    if(getNetworksData().getNoteInterface(ErgoNetwork.NETWORK_ID) == null){
-
-                        tokensMenuBtn.setId("menuBtnDisabled");
-                        tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
-                        
-                        currentNetworkBtn.setId("menuBtnDisabled");
-                        currentNetworkBtn.setImage(new Image(networkDefaultImgString));
-
-                        MenuItem ergoNetworksInstallItem = new MenuItem("(install 'Ergo Network')");
-                        ergoNetworksInstallItem.setOnAction(e->{
-                            getNetworksData().showManageNetworkStage();
-                        });
-                        tokensTip.setText("No network available");
-                        
-                        
-                        currentNetworkBtn.getItems().add(ergoNetworksInstallItem);
-
-                    }else{
-
-                        tokensMenuBtn.setId("menuBtnDisabled");
-                        tokensMenuBtn.setImage(new Image(tokensDefaultImgString));
-
-                        MenuItem unavailableItem = new MenuItem("(unavailable)");
-                        
-                        tokensMenuBtn.getItems().add(unavailableItem);
-
-                        currentNetworkBtn.setId("menuBtnDisabled");
-                        currentNetworkBtn.setImage(new Image(networkDefaultImgString));
-
-                        MenuItem ergoNetworksInstallItem = new MenuItem("Ergo Network");
-                        ergoNetworksInstallItem.setOnAction(e->{
-                            m_tokensId = ErgoTokens.NETWORK_ID;
-                            setCurrentNetworkId(ErgoNetwork.NETWORK_ID);
-                            spectrumData.updateTokensList();
-                        });
-                        tokensTip.setText("Select network");
-               
-                        currentNetworkBtn.getItems().add(ergoNetworksInstallItem);
-
-                    }
-                   
+            ChangeListener<NoteInterface> networkChangeListener = (obs,oldval,newval)->{
+                if(newval != null){
+                    networkMenuBtnImageView.setImage(newval.getSmallAppIcon());
+                    networkTip.setText("Network: " + newval.getName());
                 }
-            
             };
 
-            spectrumData.currentNetwork().addListener((obs,oldval,newval)->updateTokensMenu.run());
+            m_networkInterface.addListener(networkChangeListener);
 
-            ListChangeListener<NoteInterface> tokenChangeListener = (ListChangeListener.Change<? extends NoteInterface> c) -> spectrumData.updateTokensList();
-          
-            tokensChangeListenerObject.set(tokenChangeListener);
+            if(m_networkInterface.get() != null){
+                NoteInterface networkInterface = m_networkInterface.get();
+                networkMenuBtnImageView.setImage(networkInterface.getAppIcon());
+                networkTip.setText("Network: " + networkInterface.getName());
+            }
 
-            getNetworksData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> spectrumData.updateTokensList());
+            VBox networkMenuBtnBox = new VBox( networkMenuBtn);
 
-            updateTokensMenu.run();
-            spectrumData.updateTokensList();
+            getNetworkMenu(networkMenuBtn);
+    
+            VBox.setVgrow(networkMenuBtnBox,Priority.ALWAYS);
 
-            HBox rightSideMenu = new HBox(currentNetworkBtn, tokensMenuBtn);
+
+            HBox rightSideMenu = new HBox(networkMenuBtnBox);
            
             rightSideMenu.setId("rightSideMenuBar");
-            rightSideMenu.setPadding(new Insets(0, 0, 0, 0));
+            rightSideMenu.setPadding(new Insets(0, 3, 0, 10));
             rightSideMenu.setAlignment(Pos.CENTER_RIGHT);
 
             Region menuBarRegion1 = new Region();
@@ -859,8 +986,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
    
             Runnable runClose = () -> {
 
-
                 spectrumData.shutdown();
+               
+                m_networkInterface.removeListener(networkChangeListener);
+
                 spectrumData.removeUpdateListener();
                 if(m_appStage != null){
                     m_appStage.close();
@@ -956,10 +1085,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     });
                 }
             });
-
+           
             
-            FxTimer.runLater(Duration.ofMillis(50), ()->spectrumData.connectToExchange());
-            
+        
 
             m_appStage.setOnCloseRequest(e -> runClose.run());
 
@@ -975,6 +1103,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
     
         return true;
     }
+
+  
 
   
     public ExecutorService getExecService(){
@@ -1111,25 +1241,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
 
-    public void sendMessage(int msg){
-        long timestamp = System.currentTimeMillis();
-        for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(msg, timestamp);
-        }
-    }
 
-    public void sendMessage(int msg, long timestamp){
-
-        for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(msg, timestamp);
-        }
-    }
-    public void sendMessage(int code, long timestamp, String msg){
-
-        for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(code, timestamp, msg);
-        }
-    }
 
     private void updateMarketList(ArrayList<SpectrumMarketData> data){
         int size = data.size();
@@ -1142,7 +1254,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                }
             }
             data.clear();
-            sendMessage(LIST_CHANGED);
+            sendMessage(App.LIST_CHANGED);
         }else{
             SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
             for(int i = 0; i < size; i++){
@@ -1159,9 +1271,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
             data.clear();
             if(changed.get()){
-                sendMessage(LIST_CHANGED);
+                sendMessage(App.LIST_CHANGED);
             }else{
-                sendMessage(LIST_UPDATED);
+                sendMessage(App.LIST_UPDATED);
             }
             
         }
@@ -1234,6 +1346,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         }
      */
+
+    public static NetworkInformation getNetworkInformation(){
+        return new NetworkInformation(NETWORK_ID, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+    }
+
     public void getOrderHistory(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/history/order";
         
@@ -1241,6 +1358,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
 
+    public String getDescription(){
+        return DESCRIPTION;
+    }
 
     // https://api.spectrum.fi/v1/history/addresses?offset=0&limit=100
     /*
@@ -1272,10 +1392,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
     
 
-    public File getMarketFile(SpectrumMarketData data){
-        
-        return data.getPoolId() != null ? getIdDataFile( data.getPoolId()) : null;    
-    }
+   
 
     public void getPoolChart(String poolId, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
@@ -1293,26 +1410,18 @@ public class SpectrumFinance extends Network implements NoteInterface {
         Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
     }
 
-    public void addMsgListener(SpectrumMarketInterface item) {
-        if (!m_msgListeners.contains(item)) {
+ 
 
-            
-            start();
-            
-            m_msgListeners.add(item);
-        }else{
-          
-        }
 
-    }
-
-    private void setConnectionStatus(int status){
-        m_connectionStatus = status;
-        sendMessage(status);
-    }
-
+    @Override
     public void stop(){
-        setConnectionStatus(STOPPED);
+        setConnectionStatus(App.STOPPED);
+        try {
+            Files.writeString(App.logFile.toPath(), "\nStopped", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e1) {
+
+        }
+        
         m_marketsList.clear();
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
             m_scheduledFuture.cancel(false);
@@ -1322,11 +1431,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
  
     //private static volatile int m_counter = 0;
-
+    @Override
     public void start(){
-        if(m_connectionStatus == STOPPED){
+        
+        if(getConnectionStatus() == App.STOPPED){
 
-            m_connectionStatus = STARTING;
+            setConnectionStatus(App.STARTING);
                     
             ExecutorService executor = getNetworksData().getExecService();
             
@@ -1339,21 +1449,21 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     Object sourceObject = success.getSource().getValue();
                     if (sourceObject != null && sourceObject instanceof JsonArray) {
                         JsonArray marketJsonArray = (JsonArray) sourceObject;
-                        try {
+                        /*try {
                             Files.writeString( new File(getDataDir().getAbsolutePath() + "/markets.json").toPath(), marketJsonArray.toString());
                         } catch (IOException e) {
                  
-                        }
-                        m_connectionStatus = STARTED;
+                        }*/
+                        setConnectionStatus(App.STARTED);
                         getMarketUpdate(marketJsonArray);
                     } 
                 }, (onfailed)->{
                     
-                    m_connectionStatus = ERROR;
+                    setConnectionStatus(App.ERROR);
                     Throwable throwable = onfailed.getSource().getException();
                     String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
                   
-                    sendMessage(ERROR, System.currentTimeMillis(), msg);
+                    sendMessage(App.ERROR, System.currentTimeMillis(), msg);
                 });
                 
 
@@ -1370,57 +1480,124 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }
     }
 
-    public SpectrumMarketInterface getListener(String id) {
-        for (int i = 0; i < m_msgListeners.size(); i++) {
-            SpectrumMarketInterface listener = m_msgListeners.get(i);
-            if (listener.getId().equals(id)) {
-                return listener;
-            }
+    
+  
+    @Override
+    public Object sendNote(JsonObject json){
+    
+        JsonElement subjectElement = json.get("subject");
+
+        JsonElement timeStampElement = json.get("timeStamp");
+        
+
+        String subject = subjectElement != null && subjectElement.isJsonPrimitive() ? subjectElement.getAsString() : null;
+        long timeStamp = timeStampElement != null && timeStampElement.isJsonPrimitive() ? timeStampElement.getAsLong() : 0;
+        
+        switch(subject){
+            case "getQuote":
+            
+                return getQuote(json, timeStamp);
+            
+                
         }
         return null;
     }
 
-  
 
-    public boolean removeMsgListener(SpectrumMarketInterface item) {
-   
-     
-        if (item != null) {
-            boolean removed = m_msgListeners.remove(item);
-            
-            
-            if (m_msgListeners.size() == 0) {
-                
-                
-                shutdown();
+    private List<SpectrumMarketData> m_searchList ;
+    private Optional<SpectrumMarketData> m_quoteOptional;
+
+    private Object getQuote(JsonObject json, long timestamp){
+        JsonElement baseTypeElement = json.get("baseType");
+        JsonElement quoteTypeElement = json.get("quoteType");
+        JsonElement baseElement = json.get("base");
+        JsonElement quoteElement = json.get("quote");
+
+        String baseType = baseTypeElement != null && baseTypeElement.isJsonPrimitive() ? baseTypeElement.getAsString() : null;
+        String quoteType = quoteTypeElement != null && quoteTypeElement.isJsonPrimitive() ? quoteTypeElement.getAsString() : null;
+        String base = baseElement != null && baseElement.isJsonPrimitive() ? baseElement.getAsString() : null;
+        String quote = quoteElement != null && quoteElement.isJsonPrimitive() ? quoteElement.getAsString() : null;
+
+        m_searchList = null;
+        if(baseType != null && base != null){
+            switch(baseType){
+                case "symbol":
+                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().equals(base)).collect(Collectors.toList());
+                break;
+                case "id":
+                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseId().equals(base)).collect(Collectors.toList());
+                    try {
+                        Files.writeString(App.logFile.toPath(),"\nfound: " + m_searchList.size() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+                        
+                    }
+                    break;
             }
-            return removed;
         }
-        return false;
-    }
 
-    public int getConnectionStatus(){
-        return m_connectionStatus;
+        m_searchList = m_searchList != null ? m_searchList : m_marketsList;
+
+        if(quoteType != null && quote != null){
+            switch(quoteType){
+                case "firstSymbolContains":
+                    m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteSymbol().contains(quote)).findFirst();
+                    if(m_quoteOptional.isPresent()){
+                        return m_quoteOptional.get();
+                    }
+                break;
+                case "firstId":
+                    m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteId().equals(quote)).findFirst();
+                    try {
+                        Files.writeString(App.logFile.toPath(),"\n m_marketsList: " + m_marketsList.size() + " found: " + json.toString() + " "  , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+                        
+                    }
+                    if(m_quoteOptional.isPresent()){
+                        try {
+                            Files.writeString(App.logFile.toPath(),"\n found: " + m_quoteOptional.get()  , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e) {
+                            
+                        }
+                        return m_quoteOptional.get();
+                    }
+                break;
+            }
+        }
+        m_searchList = null;
+        return null;
+    }
+    
+  
+    public void uninstall(){
+        if(m_networkListener != null){
+            getNetworksData().removeNetworkListener(m_networkListener);
+            m_networkListener = null;
+        }
+        
+        m_tokensInterface.set(null);
+        m_networkInterface.set(null);
+        if(m_tokensInterface != null){
+            m_tokensInterface.removeListener(m_tokensChangeListener);
+            m_tokensInterface = null;
+        }        
+        
+        if(m_networkInterface != null){
+            m_networkInterface.removeListener(m_networkChangeListener);
+            m_networkInterface = null;
+        }
+        while(msgListeners().size() > 0){
+            sendMessage(App.SHUTDOWN);
+            removeMsgListener(msgListeners().get(0));
+        }     
     }
 
     @Override
     public void shutdown(){
-        stop();
+        uninstall();
         super.shutdown();
     }
  
 
-    @Override
-    public IconButton getButton(String iconStyle) {
-
-        IconButton iconButton = new IconButton(iconStyle.equals(IconStyle.ROW) ? getSmallAppIcon() : getAppIcon(), getName(), iconStyle) {
-            @Override
-            public void open() {
-                getOpen();
-            }
-        };
-
-        return iconButton;
-    }
+   
     
 }

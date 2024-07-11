@@ -1,5 +1,6 @@
 package com.netnotes;
 
+import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -135,11 +136,19 @@ public class ErgoTransaction {
 
   
 
-    public void doUpdate(ErgoExplorerData explorerData, boolean force){
-        if(explorerData != null){
+    public void doUpdate( boolean force){
+        NoteInterface noteInterface = getExplorer();
+        if(noteInterface != null){
+
             long numConfirmations = numConfirmationsProperty().get();
+
             if(numConfirmations < m_requiredConfirmations || force){
-                explorerData.getTransaction(getTxId(), (onSucceeded)->{
+          
+                JsonObject note = Utils.getCmdObject("getTransaction");
+                note.addProperty("networkId",getParentAddress().getErgoNetworkData().getId());
+                note.addProperty("txId", getTxId());
+
+                noteInterface.sendNote(note, (onSucceeded)->{
                     Object sourceObject = onSucceeded.getSource().getValue();
                     if(sourceObject != null && sourceObject instanceof JsonObject){
                         Platform.runLater(()-> update((JsonObject) sourceObject));
@@ -292,69 +301,25 @@ public class ErgoTransaction {
             String titleString = partnerTypeProperty().get() +": " + getErgoAmount().toString() + " - " + statusProperty().get()  + " - " + getTxId();
 
             m_stage = new Stage();
-            m_stage.getIcons().add(ErgoWallets.getAppIcon());
+            m_stage.getIcons().add(m_parentAddress.getAddressesData().getWalletData().getErgoWallets().getAppIcon());
             m_stage.initStyle(StageStyle.UNDECORATED);
             m_stage.setTitle(titleString);
+ 
+           
 
             Button closeBtn = new Button();
 
-            HBox titleBox = App.createTopBar(ErgoWallets.getSmallAppIcon(), titleString, closeBtn, m_stage);
+            HBox titleBox = App.createTopBar(new Image(ErgoWallets.getSmallAppIconString()), titleString, closeBtn, m_stage);
 
             Tooltip explorerTip = new Tooltip("Select explorer");
             explorerTip.setShowDelay(new javafx.util.Duration(50));
             explorerTip.setFont(App.txtFont);
 
+            ErgoExplorers ergoExplorers =  getParentAddress().getErgoNetworkData().getErgoExplorers();
 
-
-            BufferedMenuButton explorerBtn = new BufferedMenuButton("/assets/ergo-explorer-30.png", App.MENU_BAR_IMAGE_WIDTH);
-            explorerBtn.setPadding(new Insets(2, 0, 0, 2));
-            explorerBtn.setTooltip(explorerTip);
-
-            Runnable updateExplorerBtn = () ->{
-                ErgoExplorers ergoExplorers = (ErgoExplorers) getParentAddress().getAddressesData().getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-
-                ErgoExplorerData explorerData = getParentAddress().getAddressesData().selectedExplorerData().get();
+    
             
-            
-                if(explorerData != null && ergoExplorers != null){
-                
-                    explorerTip.setText("Ergo Explorer: " + explorerData.getName());
-                    
-
-                }else{
-                    
-                    if(ergoExplorers == null){
-                        explorerTip.setText("(install 'Ergo Explorer')");
-                    }else{
-                        explorerTip.setText("Select Explorer...");
-                    }
-                }
-                
-            };
-            Runnable getAvailableExplorerMenu = () ->{
-            
-                ErgoExplorers ergoExplorers = (ErgoExplorers) getParentAddress().getAddressesData().getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoExplorers.NETWORK_ID);
-                if(ergoExplorers != null){
-                    explorerBtn.setId("menuBtn");
-                    ergoExplorers.getErgoExplorersList().getMenu(explorerBtn, getParentAddress().getAddressesData().selectedExplorerData());
-                }else{
-                    explorerBtn.getItems().clear();
-                    explorerBtn.setId("menuBtnDisabled");
-                
-                }
-                updateExplorerBtn.run();
-            };    
-
-            getParentAddress().getAddressesData().selectedExplorerData().addListener((obs, oldval, newval)->{
-                getParentAddress().getAddressesData().getWalletData().setExplorer(newval == null ? null : newval.getId());
-                updateExplorerBtn.run();
-            });
-
-            HBox rightSideMenu = new HBox( explorerBtn);
-            rightSideMenu.setId("rightSideMenuBar");
-            rightSideMenu.setPadding(new Insets(0, 0, 0, 0));
-            rightSideMenu.setAlignment(Pos.CENTER_RIGHT);
-
+         
              Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -371,13 +336,12 @@ public class ErgoTransaction {
 
             BufferedButton refreshBtn = new BufferedButton("/assets/refresh-white-30.png", App.MENU_BAR_IMAGE_WIDTH);
             refreshBtn.setOnAction(e->{
-                ErgoExplorerData explorerData = getParentAddress().getAddressesData().selectedExplorerData().get();
-                if(explorerData != null){
-                    doUpdate(explorerData, true);
-                }
+          
+                doUpdate(true);
+                
             });
 
-            HBox menuBar = new HBox(refreshBtn, spacer, rightSideMenu);
+            HBox menuBar = new HBox(refreshBtn, spacer);
             HBox.setHgrow(menuBar, Priority.ALWAYS);
             menuBar.setAlignment(Pos.CENTER_LEFT);
             menuBar.setId("menuBar");
@@ -464,7 +428,7 @@ public class ErgoTransaction {
             BufferedButton linkBtn = new BufferedButton("/assets/link-20.png", App.MENU_BAR_IMAGE_WIDTH);
             
             linkBtn.setOnAction(e->{
-                if(isErgoExplorer()){
+                if(getExplorer() != null){
                     openLink();
                 }else{
                     Point2D p = linkBtn.localToScene(0.0, 0.0);
@@ -562,31 +526,11 @@ public class ErgoTransaction {
             toBox.setPadding(new Insets(0,15,0,10));
             toBox.setMinHeight(30);
 
-            ErgoAmountBox ergoAmountBox = new ErgoAmountBox(getErgoAmount(), txScene, getParentAddress().getNetworksData().getHostServices());
+            AmountBox ergoAmountBox = new AmountBox(getErgoAmount(), txScene, m_parentAddress.getAddressesData());
             HBox.setHgrow(ergoAmountBox, Priority.ALWAYS);
        
-            ergoAmountBox.priceAmountProperty().bind(ergoAmountProperty());
-
-            ChangeListener<PriceQuote> quoteChangeListener = (obs,oldval,newval)->{
-                ergoAmountBox.priceQuoteProperty().set(newval);
-            };
-
-            m_parentAddress.getAddressesData().selectedMarketData().addListener((obs, oldval, newVal) -> {
-                if (oldval != null) {
-                    oldval.priceQuoteProperty().removeListener(quoteChangeListener);
-                   // oldval.shutdown();
-                }
-                if (newVal != null) {
-                    newVal.priceQuoteProperty().addListener(quoteChangeListener);
-                    ergoAmountBox.priceQuoteProperty().set(newVal.priceQuoteProperty().get());
-                }
-            });
-
-            if(m_parentAddress.getAddressesData().selectedMarketData().get() != null){
-                ergoAmountBox.priceQuoteProperty().set(m_parentAddress.getAddressesData().selectedMarketData().get().priceQuoteProperty().get());
-            }
-    
-
+   
+           
             HBox amountBoxPadding = new HBox(ergoAmountBox);
             amountBoxPadding.setPadding(new Insets(10, 10, 0, 10));
 
@@ -594,27 +538,6 @@ public class ErgoTransaction {
             amountBoxes.setPadding(new Insets(5, 10, 5, 0));
             amountBoxes.setAlignment(Pos.TOP_LEFT);
 
-            Runnable updateTokens = ()->{
-                amountBoxes.clear();
-                if (getTokens() != null && getTokens().length > 0) {
-                    PriceAmount[] tokens = getTokens();
-                    int numTokens = tokens.length;
-                    for (int i = 0; i < numTokens; i++) {
-                        PriceAmount tokenAmount = tokens[i];
-
-                        AmountBox amountBox = new AmountBox(tokenAmount,txScene, getParentAddress().getAddressesData());
-                        amountBoxes.add(amountBox);
-                        
-                    }
-                }
-            };
-            
-            updateTokens.run();
-
-            getLastUpdated().addListener((obs,oldval,newval)->{
-                updateTokens.run();
-            });
-            
             VBox boxesVBox = new VBox(amountBoxPadding, amountBoxes);
             HBox.setHgrow(boxesVBox, Priority.ALWAYS);
 
@@ -647,12 +570,8 @@ public class ErgoTransaction {
 
             m_stage.setScene(txScene);
             
-            getParentAddress().getAddressesData().getWalletData().getErgoWallets().getErgoNetworkData().addNetworkListener((ListChangeListener.Change<? extends NoteInterface> c) -> {
-               
-                getAvailableExplorerMenu.run();
-            });
+        
 
-            getAvailableExplorerMenu.run();
 
             
             scrollPane.prefViewportWidthProperty().bind(txScene.widthProperty().subtract(60));
@@ -665,10 +584,12 @@ public class ErgoTransaction {
             
             m_stage.show();
             closeBtn.setOnAction(e->{
-              
-                m_stage.close();
-                m_stage = null;
-                
+                amountBoxes.shutdown();
+   
+                if(m_stage != null){
+                    m_stage.close();
+                    m_stage = null;
+                }
             });
 
             m_stage.setOnCloseRequest(e->closeBtn.fire());
@@ -692,12 +613,10 @@ public class ErgoTransaction {
         return m_parentAddress;
     }
 
-    public boolean isErgoExplorer(){
-        return getExplorerData() != null;
-    }
 
-    public ErgoExplorerData getExplorerData(){
-        return getParentAddress().getAddressesData().selectedExplorerData().get();
+
+    public NoteInterface getExplorer(){
+        return getParentAddress().getErgoNetworkData().selectedExplorerData().get();
     }
 
     public SimpleStringProperty partnerTypeProperty(){
@@ -705,41 +624,39 @@ public class ErgoTransaction {
     }
     
     public void openLink(){
-        if(getExplorerData() != null){
-            String explorerUrlString = getExplorerData().getWebsiteTxLink(getTxId());
+        NoteInterface noteInterface = getExplorer();
+        JsonObject note = Utils.getCmdObject("getWebsiteTxLink");
+        note.addProperty("networkId",getParentAddress().getErgoNetworkData().getId());
+        note.addProperty("txId", getTxId());
+
+        Object obj = noteInterface.sendNote(note);
+        if(obj != null && obj instanceof String){
+            String explorerUrlString = (String) obj;
             getParentAddress().getNetworksData().getHostServices().showDocument(explorerUrlString);
         }
     }
 
     public HBox getTxBox(){
-        ImageView txPartnerTypeText = new ImageView();
-        txPartnerTypeText.setPreserveRatio(true);
-    
+        Text txPartnerTypeText = new Text("Unknown");
+        txPartnerTypeText.setFill(App.txtColor);
+        txPartnerTypeText.setFont(App.txtFont);
 
         Runnable updateTextColor = () ->{
+            
             String partnerType = partnerTypeProperty().get();
-            if(partnerType == null){
-               
-               Image img = Drawing.getPosNegText(PartnerType.UNKNOWN, false, true);
-               txPartnerTypeText.setImage(img);
-               txPartnerTypeText.setFitWidth(img.getWidth());
+            txPartnerTypeText.setText(partnerType);
 
-            }else{
+            if(partnerType != null){
+               
                 switch(partnerType){
                     case PartnerType.RECEIVER:
-                        Image img = Drawing.getPosNegText(partnerType, true, false);
-                        txPartnerTypeText.setImage(img);
-                        txPartnerTypeText.setFitWidth(img.getWidth());
+                        txPartnerTypeText.setFill(javafx.scene.paint.Color.WHITE);
                     break;
                     case PartnerType.SENDER:
-                        Image img1 = Drawing.getPosNegText(partnerType, false, false);
-                        txPartnerTypeText.setImage(img1);
-                        txPartnerTypeText.setFitWidth(img1.getWidth());
+                        txPartnerTypeText.setFill(javafx.scene.paint.Color.GRAY);
                     break;
                     default:
-                        Image img2 = Drawing.getPosNegText(partnerType, false, true);
-                        txPartnerTypeText.setImage(img2);
-                        txPartnerTypeText.setFitWidth(img2.getWidth());
+                        txPartnerTypeText.setFill(javafx.scene.paint.Color.DARKGRAY);
                 }
               
             }
@@ -818,7 +735,7 @@ public class ErgoTransaction {
         BufferedButton linkBtn = new BufferedButton("/assets/link-20.png", App.MENU_BAR_IMAGE_WIDTH);
         linkBtn.setTooltip(linkTooltip);
         linkBtn.setOnAction(e->{
-            if(isErgoExplorer()){
+            if(getExplorer() != null){
                     openLink();
                 }else{
                     Point2D p = linkBtn.localToScene(0.0, 0.0);
@@ -936,9 +853,8 @@ public class ErgoTransaction {
     public PriceAmount[] parseAssetsPriceAmount(JsonArray jsonArray){
         
         if(jsonArray != null && jsonArray.size() > 0){
-            ErgoTokens ergoTokens = getParentAddress().getAddressesData().isErgoTokensProperty().get() ? (ErgoTokens) getParentAddress().getAddressesData().getWalletData().getErgoWallets().getErgoNetworkData().getNetwork(ErgoTokens.NETWORK_ID) : null;
-            ErgoTokensList tokensList = ergoTokens != null ? ergoTokens.getTokensList(getParentAddress().getNetworkType()) : null;
-
+            ErgoTokens ergoTokens = getParentAddress().getErgoNetworkData().getErgoTokens();    
+          
             int size = jsonArray.size();
             ArrayList<PriceAmount> tokenArrayList = new ArrayList<>();
 
@@ -953,7 +869,7 @@ public class ErgoTransaction {
                     JsonElement decimalsElement = tokenObject.get("decimals");
                     JsonElement nameElement = tokenObject.get("name");
                     JsonElement tokenTypeElement = tokenObject.get("tokenType");
-
+                  
                     if(tokenIdElement != null && tokenIdElement.isJsonPrimitive() && 
                         amountElement != null && amountElement.isJsonPrimitive() &&
                         decimalsElement != null && decimalsElement.isJsonPrimitive() &&
@@ -963,17 +879,11 @@ public class ErgoTransaction {
                         long amount = amountElement.getAsLong();
                         int decimals = decimalsElement.getAsInt();
                         String name = nameElement.getAsString();
-                        String tokenType = tokenTypeElement != null && tokenTypeElement.isJsonPrimitive() ? tokenTypeElement.getAsString() : "";
-
-                        ErgoNetworkToken networkToken = tokensList != null ? tokensList.getErgoToken(tokenId) : null;
-
-                        if(networkToken != null){
-                            networkToken.setDecimals(decimals);
-                            networkToken.setTokenType(tokenType);
-                        }
-
-                        PriceAmount tokenAmount = networkToken != null ? new PriceAmount(amount, networkToken) : new PriceAmount(amount, new PriceCurrency(tokenId, name, name, decimals, ErgoNetwork.NETWORK_ID, getParentAddress().getNetworkType().toString(), "/assets/unknown-unit.png",tokenType, ""));    
-                        tokenArrayList.add(tokenAmount);
+                        String tokenType = tokenTypeElement.getAsString();
+                        
+                        PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(ergoTokens, tokenId, name, decimals, tokenType, getParentAddress().getNetworkType().toString()));    
+                        tokenArrayList.add(tokenAmount);  
+                        
                     }
                 }                
             }

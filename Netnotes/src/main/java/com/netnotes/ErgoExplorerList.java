@@ -1,77 +1,74 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-
-import com.utils.Utils;
-
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.utils.Utils;
 
 public class ErgoExplorerList {
-    private File logFile = new File("netnotes-log.txt");
     private ErgoExplorers m_ergoExplorer = null;
     private final SimpleStringProperty m_defaultIdProperty = new SimpleStringProperty(null);
     private ArrayList<ErgoExplorerData> m_dataList = new ArrayList<>();
-    private SimpleObjectProperty<LocalDateTime> m_doGridUpdate = new SimpleObjectProperty<LocalDateTime>(null);
-    private final SimpleStringProperty m_selectedIdProperty = new SimpleStringProperty(null);
-   
-
+    
     private double m_stageWidth = 600;
     private double m_stageHeight = 500;
-    private ChangeListener<LocalDateTime> m_nodeUpdateListener = (obs, oldval, newVal) -> save();
+    private ChangeListener<LocalDateTime> m_updateListener = null;
 
     public ErgoExplorerList(ErgoExplorers ergoExplorer) {
         m_ergoExplorer = ergoExplorer;
+        m_updateListener = (obs, oldval, newVal) -> save();
+        getData();
        
-        readFile();
-        m_ergoExplorer.getNetworksData().getAppData().appKeyProperty().addListener((obs, oldVal, newVal) -> save());
     }
 
     public ErgoExplorers getErgoExplorer(){
         return m_ergoExplorer;
     }
 
-    private void readFile(){
-        SecretKey secretKey = m_ergoExplorer.getNetworksData().getAppData().appKeyProperty().get();
-        File dataFile = m_ergoExplorer.getIdDataFile(ErgoExplorers.NAME);
-   
-        if (dataFile != null && dataFile.isFile()) {
-            try {
-                openJson(Utils.readJsonFile(secretKey, dataFile));
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
+    public ArrayList<ErgoExplorerData> getDataList(){
+        return m_dataList;
+    }
 
-            }
+    public NoteInterface getExplorerById(JsonObject note){
+        JsonElement idElement = note.get("id");
 
+        if(idElement != null && idElement.isJsonPrimitive()){
+            ErgoExplorerData explorerData = getErgoExplorerData(idElement.getAsString());
+            return explorerData.getNoteInterface();
+        }
+        return null;
+    }
+
+    private void getData(){
+        JsonObject json = m_ergoExplorer.getNetworksData().getData("data", ".", ErgoExplorers.NETWORK_ID, ErgoNetwork.NETWORK_ID);
+        if(json != null){
+            openJson(json);
         }else{
-            m_defaultIdProperty.set(ErgoPlatformExplorerData.ERGO_PLATFORM_EXPLORER);
-            m_dataList.add(new ErgoPlatformExplorerData(this));
-            save();
+            setDefault();
         }
     }
+
+    public void save() {
+       
+        m_ergoExplorer.getNetworksData().save("data", ".", ErgoExplorers.NETWORK_ID, ErgoNetwork.NETWORK_ID, getJsonObject());
+        
+    }
+
+    private void setDefault(){
+
+    }
+
     public int size(){
         return m_dataList.size();
     }
@@ -125,10 +122,7 @@ public class ErgoExplorerList {
         return m_defaultIdProperty;
     }
 
-    public SimpleStringProperty selectedIdProperty(){
-        return m_selectedIdProperty;
-    }
-
+ 
     public void add(ErgoExplorerData explorerData){
         add(explorerData, true);
     }
@@ -137,11 +131,29 @@ public class ErgoExplorerList {
         if (ergoExplorerData != null) {
             m_dataList.add(ergoExplorerData);
        
-            ergoExplorerData.addUpdateListener(m_nodeUpdateListener);
+            ergoExplorerData.addUpdateListener(m_updateListener);
             if (doSave) {
                 save();
             }
         }
+    }
+
+    public boolean remove(String id, boolean doSave){
+        if (id != null) {
+        
+            for (int i = 0; i < m_dataList.size(); i++) {
+                
+                if (m_dataList.get(i).getId().equals(id)) {
+                    m_dataList.remove(i);
+                    if(doSave){
+                        save();
+                    }
+                    return true;
+                }
+            }
+            
+        }
+        return false;
     }
 
     public ErgoExplorerData getErgoExplorerData(String id) {
@@ -192,96 +204,64 @@ public class ErgoExplorerList {
     }
 
 
-   public void save() {
-        
-        File appDir = m_ergoExplorer.getAppDir();
-        File dataFile = m_ergoExplorer.getDataFile();
-        try {
+   
 
-            JsonObject fileJson = getJsonObject();
-            String jsonString = fileJson.toString();
-
-            if (!appDir.isDirectory()) {
-                Files.createDirectory(appDir.toPath());
-            }
-
-            Utils.writeEncryptedString(m_ergoExplorer.getNetworksData().getAppData().appKeyProperty().get(), dataFile, jsonString);
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
-                | IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "\nErgoExplorerList: " + e.toString());
-            } catch (IOException e1) {
-
-            }
-        }
-    }
-
-    public VBox getGridBox(SimpleDoubleProperty width, SimpleDoubleProperty scrollWidth){
-        VBox gridBox = new VBox();
-
-        Runnable updateGrid = () -> {
-            gridBox.getChildren().clear();
-
-            int numCells = m_dataList.size();
-
-            for (int i = 0; i < numCells; i++) {
-                ErgoExplorerData explorerData = m_dataList.get(i);
-                HBox rowItem = explorerData.getRowItem();
-                rowItem.prefWidthProperty().bind(width.subtract(scrollWidth));
-                gridBox.getChildren().add(rowItem);
-            }
-
-        };
-
-        updateGrid.run();
-
-        m_doGridUpdate.addListener((obs, oldval, newval) -> updateGrid.run());
-
-        return gridBox;
-    }
+   
 
     public void getMenu(MenuButton menuBtn, SimpleObjectProperty<ErgoExplorerData> selectedExplorer){
 
-        Runnable updateMenu = () -> {
-            menuBtn.getItems().clear();
-            ErgoExplorerData selectedExplorerData = selectedExplorer.get();
-            MenuItem noneMenuItem = new MenuItem("(disabled)");
-            if(selectedExplorerData == null){
-                noneMenuItem.setId("selectedMenuItem");
-            }
+    
+        menuBtn.getItems().clear();
 
-            noneMenuItem.setOnAction(e->{
-                selectedExplorer.set(null);
+        
+        MenuItem openItem = new MenuItem("(open)");
+        openItem.setOnAction(e->{
+          
+        });
+        menuBtn.getItems().add(openItem);
+        
+        ImageView noneImgView = new ImageView();
+        noneImgView.setImage(new Image("/assets/cloud-offline-30.png"));
+        noneImgView.setPreserveRatio(true);
+        
+        ErgoExplorerData selectedExplorerData = selectedExplorer.get();
+        MenuItem noneMenuItem = new MenuItem("(disabled)");
+        noneMenuItem.setGraphic(noneImgView);
+        if(selectedExplorerData == null){
+            noneMenuItem.setId("selectedMenuItem");
+        }
+
+        noneMenuItem.setOnAction(e->{
+            selectedExplorer.set(null);
+        });
+        menuBtn.getItems().add(noneMenuItem);
+    
+
+        int numCells = m_dataList.size();
+
+        for (int i = 0; i < numCells; i++) {
+            
+            ErgoExplorerData explorerData = m_dataList.get(i);
+            ImageView itemImageView = new ImageView();
+            itemImageView.setImage(new Image(explorerData.getImgUrl()));
+            itemImageView.setPreserveRatio(true);
+            itemImageView.setFitWidth(25);
+
+            MenuItem menuItem = new MenuItem( explorerData.getName() );
+            menuItem.setGraphic(itemImageView);
+            if(selectedExplorerData != null && selectedExplorerData.getId().equals(explorerData.getId())){
+                menuItem.setId("selectedMenuItem");
+            }
+            menuItem.setOnAction(e->{
+                selectedExplorer.set(explorerData);
             });
-            menuBtn.getItems().add(noneMenuItem);
-     
 
-            int numCells = m_dataList.size();
-
-            for (int i = 0; i < numCells; i++) {
-                
-                ErgoExplorerData explorerData = m_dataList.get(i);
-                
-                MenuItem menuItem = new MenuItem( explorerData.getName() + (selectedExplorerData != null && selectedExplorerData.getId().equals(explorerData.getId()) ? " (selected)" : ""));
-                if(selectedExplorerData != null && selectedExplorerData.getId().equals(explorerData.getId())){
-                    menuItem.setId("selectedMenuItem");
-                }
-                menuItem.setOnAction(e->{
-                    selectedExplorer.set(explorerData);
-                });
-
-                menuBtn.getItems().add(menuItem);
-            }
+            menuBtn.getItems().add(menuItem);
+        }
 
 
-        };
 
-        updateMenu.run();
 
-        selectedExplorer.addListener((obs,oldval, newval)->updateMenu.run());
-
-        m_doGridUpdate.addListener((obs, oldval, newval) -> updateMenu.run());
      
     }
 

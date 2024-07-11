@@ -7,13 +7,14 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.text.DecimalFormat;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.utils.Utils;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -21,45 +22,55 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-public class AmountSendBox extends AmountBox {
+public class AmountSendBox extends HBox implements AmountBoxInterface {
 
-  
+    private long m_timestamp = 0;
 
-    private SimpleObjectProperty<PriceAmount> m_balanceAmount;
-    private SimpleObjectProperty<Image> m_maxAmountImage = new SimpleObjectProperty<>();
+    private PriceAmount m_balanceAmount;
+    private BigDecimal m_sendAmount = BigDecimal.ZERO;
+    private BufferedImage m_unitImage = null;
+
+    private ChangeListener<BigDecimal> m_currentBalanceListener = null;
+
+
+    private int m_minImgWidth = 250;
+    
+    private String m_boxId;
+
     private SimpleBooleanProperty m_isFee = new SimpleBooleanProperty();
     private AmountFeeBox m_feeBox = null;
-    private SimpleObjectProperty<PriceAmount> m_maxAmount = new SimpleObjectProperty<>(null);
+    private BigDecimal m_maxAmount = null;
 
-    public AmountSendBox(PriceAmount priceAmount, Scene scene, boolean editable) {
+    public AmountSendBox(PriceAmount balance, long timeStamp, Scene scene, boolean editable) {
         super();
-        m_balanceAmount =  new SimpleObjectProperty<>(new PriceAmount(0L, priceAmount.getCurrency()));
+        m_boxId = FriendlyId.createFriendlyId();
+        m_timestamp = timeStamp;
+        
+        m_balanceAmount = balance;
+
         setId("darkBox");
         setMinHeight(40);
-        priceAmountProperty().set(priceAmount);
+       
         setAlignment(Pos.CENTER_LEFT);
 
-        m_feeBox = new AmountFeeBox(priceAmount.getCurrency(), scene);
+        m_feeBox = new AmountFeeBox(balance.getCurrency(), scene);
         VBox.setVgrow(m_feeBox, Priority.ALWAYS);
     
-        Button amountBtn = new Button();
-        amountBtn.setId("amountBtn");
+        ImageView amountImageView = new ImageView();
+
+        HBox amountBtn = new HBox(amountImageView); 
        // amountBtn.textProperty().bind(m_currentAmount.asString());
-        amountBtn.setContentDisplay(ContentDisplay.LEFT);
-        amountBtn.setAlignment(Pos.CENTER_LEFT);
+
+        amountBtn.setId("amountBtn");
         amountBtn.setPadding(new Insets(2, 5, 2, 10));
-        amountBtn.setGraphicTextGap(25);
-        imageBufferProperty().addListener((obs,oldval,newval)-> {
-            if(newval != null){    
-                amountBtn.setGraphic(IconButton.getIconView(newval, newval.getWidth()));
-            }
-        });
+        
         
         HBox amountsBox = new HBox(amountBtn);
         amountsBox.setAlignment(Pos.CENTER_LEFT);
@@ -78,31 +89,16 @@ public class AmountSendBox extends AmountBox {
         
         maxAmountBtn.setGraphic(maxAmountBtnImageView);
 
-        Runnable updateImage = ()->{
-        
-            Image newImage = m_maxAmountImage.get();
-            if(newImage != null){
-                maxAmountBtnImageView.setFitWidth(newImage.getWidth());
-                maxAmountBtnImageView.setImage(newImage);
-            }else{
-                maxAmountBtn.setGraphic(null);
-            }
-        
-        };
-        updateImage.run();
-        m_maxAmountImage.addListener((obs,oldval,newval)->updateImage.run());
+       
 
-        String textFieldId = getBoxId() +"TextField";
 
-        int precision = priceAmount.getCurrency().getFractionalPrecision();
-        DecimalFormat df = new DecimalFormat("0");
-        df.setMaximumFractionDigits(precision);
+        String textFieldId = m_boxId +"TextField";
 
 
 
      
 
-        TextField amountField = new TextField(df.format(priceAmount.getDoubleAmount()));
+        TextField amountField = new TextField();
         //  amountField.setMaxHeight(20);
         amountField.setId("amountField");
         amountField.setAlignment(Pos.CENTER_LEFT);
@@ -110,13 +106,13 @@ public class AmountSendBox extends AmountBox {
         amountField.setPadding(new Insets(3, 10, 3, 10));
         amountField.setUserData(textFieldId);
         amountField.textProperty().addListener((obs, oldval, newval)->{
-           
+            PriceCurrency currency = balance.getCurrency();
             String number = newval.replaceAll("[^0-9.]", "");
             int index = number.indexOf(".");
             String leftSide = index != -1 ? number.substring(0, index + 1) : number;
             String rightSide = index != -1 ?  number.substring(index + 1) : "";
             rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
-            rightSide = rightSide.length() > priceAmount.getCurrency().getDecimals() ? rightSide.substring(0, priceAmount.getCurrency().getDecimals()) : rightSide;
+            rightSide = rightSide.length() > currency.getDecimals() ? rightSide.substring(0, currency.getDecimals()) : rightSide;
         
             amountField.setText(leftSide +  rightSide);
         });
@@ -164,14 +160,14 @@ public class AmountSendBox extends AmountBox {
 
         HBox.setHgrow(amountField, Priority.ALWAYS);
 
-        ImageView textViewImage = IconButton.getIconView( priceAmount.getCurrency().getIcon(),35);
+        ImageView textViewImage = IconButton.getIconView(balance.getCurrency().getIcon(),35);
 
         VBox imgPaddingBox = new VBox(textViewImage);
         imgPaddingBox.setPadding(new Insets(0,15,0,10)); 
         imgPaddingBox.setMinHeight(40);
         imgPaddingBox.setAlignment(Pos.CENTER_LEFT);
 
-        amountBtn.setOnAction(actionEvent -> {
+        amountImageView.addEventFilter(MouseEvent.MOUSE_CLICKED, actionEvent -> {
             amountsBox.getChildren().remove(amountBtn);
             if(editable){
                 amountsBox.getChildren().add(0, imgPaddingBox);
@@ -220,69 +216,63 @@ public class AmountSendBox extends AmountBox {
 
             
         };
-        enterButton.setOnAction(e->{
+
+        Runnable enterAction = ()->{
+            
             if(editable){
+
                 String text = amountField.getText();
-                PriceAmount newAmount = new PriceAmount(Double.parseDouble(text.equals("") ? "0" : text), priceAmountProperty().get().getCurrency());
-                priceAmountProperty().set(newAmount);
+                m_sendAmount = Utils.textZero(text) ?BigDecimal.ZERO : new BigDecimal(text);
+
             }
             setNotFocused.run();
-        });
+        
+        };
 
-        amountField.setOnAction(e->{
-            enterButton.fire();
-        });
+        enterButton.setOnAction(e->enterAction.run());
+
+        amountField.setOnAction(e->enterAction.run());
 
         maxAmountBtn.setOnAction(e->{
 
-            PriceAmount maxAmount = m_maxAmount.get();
-            amountField.textProperty().set(maxAmount.getAmountString());    
-            enterButton.fire();
+            BigDecimal maxAmount = m_maxAmount;
+            amountField.textProperty().set(maxAmount + "");    
+            enterAction.run();
             
         });
-
+        updateUnitImage();
     
         Runnable updateMaxAmount = ()->{
-            PriceAmount balanceAmount = m_balanceAmount.get();
+            
+           // PriceCurrency currency = balanceAmount.getCurrency();
+
             boolean isFeeToken = m_isFee.get();
 
             if(isFeeToken){
-                long feeLong = m_feeBox.feeAmountProperty().get().getLongAmount();
-                long balanceLong = balanceAmount.getLongAmount();
-                long maxBalanceLong = balanceLong - feeLong;
+                BigDecimal fee = m_feeBox.feeAmountProperty().get();
+                BigDecimal b = m_balanceAmount.amountProperty().get();
 
-                maxBalanceLong  = maxBalanceLong < 0 ? 0 : maxBalanceLong;
+                BigDecimal maxBalance = b.subtract(fee);
 
-                PriceAmount maxAmount = new PriceAmount(maxBalanceLong, balanceAmount.getCurrency());
+                maxBalance  = maxBalance.max(BigDecimal.ZERO);
 
-                m_maxAmount.set(maxAmount);
+                m_maxAmount = maxBalance;
             }else{
-                m_maxAmount.set(m_balanceAmount.get());
+                m_maxAmount = m_balanceAmount.amountProperty().get();
             }
+            updateAmountImage(amountImageView);
         };
 
-        m_feeBox.feeAmountProperty().addListener((obs, oldval, newval)->{
-            updateMaxAmount.run();
-            updateAmountImage();
-            updateBufferedImage();
-        });
-        
-        priceQuoteProperty().addListener((obs, oldval, newval)->updateBufferedImage());
+        updateMaxAmount.run();
 
-        priceAmountProperty().addListener((obs,oldval, newval)-> updateBufferedImage());
-
-        m_balanceAmount.addListener((obs, oldval, newVal)->{
-            updateMaxAmount.run();
-            updateAmountImage();
-        });
-
+  
        
 
         isFeeProperty().addListener((obs,oldval,newval)->{
             if(newval){
-                PriceCurrency priceCurrency = priceAmountProperty().get().getCurrency();
+                PriceCurrency priceCurrency = m_balanceAmount.getCurrency();
                 if(priceCurrency.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-                    m_feeBox.feeAmountProperty().set(AmountFeeBox.MINIMUM_FEE);
+                    m_feeBox.feeAmountProperty().set(AmountFeeBox.MIN_FEE);
                 }
                 if(!(getChildren().contains(m_feeBox))){
                
@@ -296,49 +286,90 @@ public class AmountSendBox extends AmountBox {
                 
                 }
             }
-           
+            updateMaxAmount.run();
         });
 
-  
-        updateBufferedImage();
+        addBalanceListeners(updateMaxAmount,()->{
+            updateUnitImage();
+            updateAmountImage(amountImageView);
+        });
+
+      
+        updateBufferedImage(amountImageView);
         
     }
 
-    public SimpleObjectProperty<PriceAmount> balanceAmountProperty(){
-        return m_balanceAmount;
+    protected void addBalanceListeners(Runnable balanceChanged, Runnable currencyChanged){
+        
+        m_currentBalanceListener = (obs,oldval,newval)->{
+            balanceChanged.run();
+        };
+
+
+        m_balanceAmount.amountProperty().addListener(m_currentBalanceListener);
+
+      
+    
+    }
+
+    public long getTimeStamp(){
+        return m_timestamp;
+    }
+
+    public void setTimeStamp(long timeStamp){
+        m_timestamp = timeStamp;
+    }
+
+    public BigDecimal getSendAmount(){
+        return m_sendAmount;
+    }
+
+
+
+    public void updateUnitImage(){
+        m_unitImage = SwingFXUtils.fromFXImage(m_balanceAmount.getCurrency().getIcon(), null);
+        Drawing.setImageAlpha(m_unitImage, 0x40);
     }
 
     public boolean isNotAvailable(){
-        PriceAmount maxAmount = m_maxAmount.get();
-        PriceAmount priceAmount = priceAmountProperty().get();
+        BigDecimal maxAmount = m_maxAmount;
+        BigDecimal sendAmount = m_sendAmount;
 
-        if(maxAmount != null && priceAmount != null){
-            if( priceAmount.getLongAmount() > maxAmount.getLongAmount()){
+        if(maxAmount != null ){
+            if( sendAmount.compareTo(maxAmount) < 1){
                 return true;
             }
         }
         return false;
     }
 
-    public SimpleObjectProperty<PriceAmount> feeAmountProperty(){
+    public SimpleObjectProperty<BigDecimal> feeAmountProperty(){
         return m_feeBox.feeAmountProperty();
     }
    
     private BufferedImage m_amountImg = null;
     private Graphics2D m_amountG2d = null;
-    public void updateAmountImage() {
+    private BufferedImage m_img = null;
+    private Graphics2D m_g2d = null;
+    private WritableImage m_wImg = null;
+    
+    public void updateAmountImage(ImageView amountImgView) {
         final int padding = 5;
         
-
+        BigDecimal max = m_maxAmount;
        
-        PriceAmount maxAmount = m_maxAmount.get() != null ? m_maxAmount.get() : new PriceAmount(0, (priceAmountProperty().get() != null ? priceAmountProperty().get().getCurrency() : new PriceCurrency("", "unknonw", "unknown", 0, "","unknown", "/assets/unknown-unit.png", "unknown", "")));
-        boolean quantityValid = maxAmount != null && maxAmount.getAmountValid();
+        if(max == null){
+            return;
+        }
+
+        PriceCurrency currency = m_balanceAmount.getCurrency();
+
+
         
-    
-        BigInteger integers = maxAmount != null ? maxAmount.getBigDecimalAmount().toBigInteger() : BigInteger.ZERO;
-        BigDecimal decimals = maxAmount != null ? maxAmount.getBigDecimalAmount().subtract(new BigDecimal(integers)) : BigDecimal.ZERO;
-        int decimalPlaces = maxAmount != null ? maxAmount.getCurrency().getFractionalPrecision() : 0;
-        String currencyName = maxAmount != null ? maxAmount.getCurrency().getSymbol() : "UKNOWN";
+        BigInteger integers = max != null ? max.toBigInteger() : BigInteger.ZERO;
+        BigDecimal decimals = max != null ? max.subtract(new BigDecimal(integers)) : BigDecimal.ZERO;
+        int decimalPlaces = max != null ?  currency.getFractionalPrecision() : 0;
+        String currencyName = currency.getSymbol();
         int space = currencyName.indexOf(" ");
         currencyName = space != -1 ? currencyName.substring(0, space) : currencyName;
 
@@ -350,11 +381,13 @@ public class AmountSendBox extends AmountBox {
         //   Image ergoBlack25 = new Image("/assets/ergo-black-25.png");
         //   SwingFXUtils.fromFXImage(ergoBlack25, null);
         
-        String amountString = quantityValid ? String.format("%d", integers) : " -";
+        String amountString = String.format("%d", integers);
         String decs = String.format("%." + decimalPlaces + "f", decimals);
         String maxString = "MAX";
 
-        decs = quantityValid ? decs.substring(1, decs.length()) : "";
+        int maxLength = Math.min(decs.length(), decimalPlaces + 1);
+
+        decs =  decs.substring(1, maxLength);
    
     
         m_amountImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
@@ -389,8 +422,7 @@ public class AmountSendBox extends AmountBox {
 
         m_amountG2d.dispose();
         int height = 45;
-        BufferedImage unitImage = SwingFXUtils.fromFXImage(maxAmount != null ? maxAmount.getCurrency().getIcon() : new Image("/assets/unknown-unit.png"), null);
-        Drawing.setImageAlpha(unitImage, 0x40);
+        
         //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
         m_amountImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         m_amountG2d = m_amountImg.createGraphics();
@@ -419,7 +451,7 @@ public class AmountSendBox extends AmountBox {
 
   
 
-        m_amountG2d.drawImage(unitImage, width - unitImage.getWidth() - (maxWidth /2) , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        m_amountG2d.drawImage(m_unitImage, width - m_unitImage.getWidth() - (maxWidth /2) , (height / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
 
        
 
@@ -466,7 +498,7 @@ public class AmountSendBox extends AmountBox {
 
         }*/
 
-        m_maxAmountImage.set(SwingFXUtils.toFXImage(m_amountImg, null));
+        amountImgView.setImage(SwingFXUtils.toFXImage(m_amountImg, null));
         
         m_amountG2d.dispose();
         m_amountG2d = null;
@@ -476,22 +508,31 @@ public class AmountSendBox extends AmountBox {
     public SimpleBooleanProperty isFeeProperty(){
         return m_isFee;
     }
-   
-    @Override
-    public void updateBufferedImage() {
-        PriceAmount priceAmount = priceAmountProperty().get();
-        boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
-        BigDecimal priceAmountDecimal = priceAmount != null && quantityValid ? priceAmount.getBigDecimalAmount() : BigDecimal.valueOf(0);
 
-        PriceQuote priceQuote = priceQuoteProperty().get();
-        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < getQuoteTimeout();
+    public int getMinImageWidth(){
+        return m_minImgWidth;
+    }
+
+    public void setMinImageWidth(int width){
+        m_minImgWidth = width;
+    }
+   
+ 
+    public void updateBufferedImage(ImageView imageView) {
+        BigDecimal sendAmount = m_sendAmount;
+        
+        PriceCurrency currency = m_balanceAmount.getCurrency();
+
+        PriceQuote priceQuote = m_balanceAmount.priceQuoteProperty().get();
+        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < AddressesData.QUOTE_TIMEOUT;
         BigDecimal priceQuoteBigDecimal = priceValid  && priceQuote != null ? priceQuote.getBigDecimalAmount() : BigDecimal.valueOf(0);
         
-        String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( priceAmountDecimal.multiply(priceQuoteBigDecimal), priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  quantityValid && priceValid) : " -.--";
-        BigInteger integers = priceAmount != null ? priceAmount.getBigDecimalAmount().toBigInteger() : BigInteger.ZERO;
-        BigDecimal decimals = priceAmount != null ? priceAmount.getBigDecimalAmount().subtract(new BigDecimal(integers)) : BigDecimal.ZERO;
-        int decimalPlaces = priceAmount != null ? priceAmount.getCurrency().getFractionalPrecision() : 0;
-        String currencyName = priceAmount != null ? priceAmount.getCurrency().getSymbol() : "UKNOWN";
+        String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( sendAmount.multiply(priceQuoteBigDecimal), priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  priceValid) : " -.--";
+        BigInteger integers = sendAmount.toBigInteger() ;
+        BigDecimal decimals =sendAmount.subtract(new BigDecimal(integers));
+
+        int decimalPlaces =  currency.getFractionalPrecision();
+        String currencyName =  currency.getSymbol();
         int space = currencyName.indexOf(" ");
         currencyName = space != -1 ? currencyName.substring(0, space) : currencyName;
 
@@ -503,26 +544,26 @@ public class AmountSendBox extends AmountBox {
         //   Image ergoBlack25 = new Image("/assets/ergo-black-25.png");
         //   SwingFXUtils.fromFXImage(ergoBlack25, null);
         
-        String amountString = quantityValid ? String.format("%d", integers) : " -";
+        String amountString = String.format("%d", integers);
         String decs = String.format("%." + decimalPlaces + "f", decimals);
 
-        decs = quantityValid ? decs.substring(1, decs.length()) : "";
+        decs = decs.substring(1, decs.length());
         totalPrice = totalPrice + "   ";
         currencyPrice = "(" + currencyPrice + ")   ";
     
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
+        m_img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_img.createGraphics();
         
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
+        m_g2d.setFont(font);
+        FontMetrics fm = m_g2d.getFontMetrics();
         int padding = 5;
         int stringWidth = fm.stringWidth(amountString);
        
         int height = fm.getHeight() + 10;
 
-        g2d.setFont(smallFont);
+        m_g2d.setFont(smallFont);
 
-        fm = g2d.getFontMetrics();
+        fm = m_g2d.getFontMetrics();
         int priceWidth = fm.stringWidth(totalPrice);
         int currencyWidth = fm.stringWidth(currencyPrice);
         int priceLength = (priceWidth > currencyWidth ? priceWidth : currencyWidth);
@@ -543,78 +584,66 @@ public class AmountSendBox extends AmountBox {
        
         int currencyNameStringX = decimalsX + 2;
 
-        g2d.dispose();
+        m_g2d.dispose();
         
-        BufferedImage unitImage = SwingFXUtils.fromFXImage(priceAmount != null ? priceAmount.getCurrency().getIcon() : new Image("/assets/unknown-unit.png"), null);
-        Drawing.setImageAlpha(unitImage, 0x40);
-        //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        //   g2d.setComposite(AlphaComposite.Clear);
+         //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
+        m_img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_img.createGraphics();
+        m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
-        /* for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                Color c = new Color(adrBuchImg.getRGB(x, y), true);
 
-                Color c2 = new Color(c.getRed(), c.getGreen(), c.getBlue(), 35);
-
-                img.setRGB(x, y, c2.getRGB());
-            }
-        }
-         */
-        g2d.drawImage(unitImage, 75 , (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        m_g2d.drawImage(m_unitImage, 75 , (height / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
 
        
 
 
 
-        g2d.setFont(font);
-        fm = g2d.getFontMetrics();
+        m_g2d.setFont(font);
+        fm = m_g2d.getFontMetrics();
        
         java.awt.Color priceColor = isNotAvailable() ? java.awt.Color.RED : java.awt.Color.WHITE;
-        g2d.setColor( priceColor);
+        m_g2d.setColor( priceColor);
         
         int integersY = fm.getAscent() + 5;
      
 
-        g2d.drawString(amountString, integersX, integersY);
+        m_g2d.drawString(amountString, integersX, integersY);
 
-        g2d.setFont(smallFont);
-        fm = g2d.getFontMetrics();
+        m_g2d.setFont(smallFont);
+        fm = m_g2d.getFontMetrics();
       
 
        
         if(decimalPlaces > 0){
             //decimalsX = widthIncrease > 0 ? decimalsX + widthIncrease : decimalsX;
-            g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
+            m_g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
         }
      
 
-        g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
-        g2d.drawString(currencyName, currencyNameStringX, height - 10);
+        m_g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
+        m_g2d.drawString(currencyName, currencyNameStringX, height - 10);
 
-        g2d.setFont(smallFont);
-        g2d.setColor(java.awt.Color.WHITE);
-        fm = g2d.getFontMetrics();
-        g2d.drawString(totalPrice, padding, fm.getHeight() + 2);
+        m_g2d.setFont(smallFont);
+        m_g2d.setColor(java.awt.Color.WHITE);
+        fm = m_g2d.getFontMetrics();
+        m_g2d.drawString(totalPrice, padding, fm.getHeight() + 2);
 
-        g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
-        g2d.drawString(currencyPrice, padding, height - 10);
+        m_g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
+        m_g2d.drawString(currencyPrice, padding, height - 10);
 
         /*try {
             Files.writeString(logFile.toPath(), amountString + decs);
         } catch (IOException e) {
 
         }*/
-        g2d.dispose();
+        m_g2d.dispose();
 
        /* try {
             ImageIO.write(img, "png", new File("outputImage.png"));
@@ -622,8 +651,34 @@ public class AmountSendBox extends AmountBox {
 
         }*/
 
-        imageBufferProperty().set(SwingFXUtils.toFXImage(img, null));
+        imageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
+
+        m_g2d = null;
+        m_img = null;
         
+    }
+
+    public PriceAmount getBalanceAmount(){
+        return m_balanceAmount;
+    }
+
+    protected void removeListeners(){
+        if(m_balanceAmount != null){
+            if( m_currentBalanceListener != null){
+                m_balanceAmount.amountProperty().removeListener(m_currentBalanceListener);
+            }
+           
+        }
+    }
+
+    public void shutdown(){
+        removeListeners();
+        m_balanceAmount = null;
+        m_sendAmount = null;
+    }
+
+    public String getTokenId(){
+        return m_balanceAmount.getTokenId();
     }
 
 }

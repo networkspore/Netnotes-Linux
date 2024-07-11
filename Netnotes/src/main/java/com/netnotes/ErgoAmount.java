@@ -4,8 +4,15 @@ import java.math.BigDecimal;
 
 import org.ergoplatform.appkit.NetworkType;
 
+import javafx.beans.property.SimpleObjectProperty;
+
 public class ErgoAmount extends PriceAmount {
     private NetworkType m_networkType;
+
+    public ErgoAmount(SimpleObjectProperty<PriceQuote> quoteObjectProperty){
+        super(BigDecimal.ZERO,  new ErgoCurrency(NetworkType.MAINNET), quoteObjectProperty);
+    }
+
     public ErgoAmount(double amount, NetworkType networkType) {
         super(amount, new ErgoCurrency(networkType));
         m_networkType = networkType;

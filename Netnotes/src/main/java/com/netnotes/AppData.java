@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
+import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
@@ -21,7 +22,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
-
+import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -38,7 +39,7 @@ import javafx.beans.property.SimpleObjectProperty;
 public class AppData {
    // private static File logFile = new File("netnotes-log.txt");
     public static final String SETTINGS_FILE_NAME = "settings.conf";
-    public static final String HOME_DIRECTORY = System.getProperty("user.home");
+    public static final File HOME_DIRECTORY = new File(System.getProperty("user.home"));
     public static final File DESKTOP_DIRECTORY = new File(HOME_DIRECTORY + "/Desktop");
   
     
@@ -68,6 +69,7 @@ public class AppData {
 
     }
 
+
     public AppData(String password)throws NoSuchAlgorithmException, InvalidKeySpecException, IOException{
       
         URL classLocation = Utils.getLocation(App.class);
@@ -76,7 +78,11 @@ public class AppData {
         m_appDir = m_appFile.getParentFile();
         m_settingsFile = new File(m_appDir.getAbsolutePath() + "/" + SETTINGS_FILE_NAME);
 
+
         m_appKey = Utils.getBcryptHashString(password);
+   
+        
+        
         
         save();
         createKey(password);

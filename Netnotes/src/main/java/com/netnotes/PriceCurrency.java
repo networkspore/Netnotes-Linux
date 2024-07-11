@@ -24,12 +24,12 @@ public class PriceCurrency {
 
     public final static int VALID_TIMEOUT = 1000*60;
     
-    private boolean m_priceValid = true;
+
     private String m_defaultCurrencyName = ""; 
     private String m_tokenId = null;
     private String m_symbol = null;
     private String m_name = null;
-    private String m_networkId = null;
+    private String m_networkId = ErgoNetwork.NETWORK_ID;
     private String m_imageString = "/assets/unknown-unit.png";
     private int m_fractionalPrecision = 2;
     private String m_fontSymbol = "";
@@ -38,10 +38,61 @@ public class PriceCurrency {
     private String m_description = "";
     private long m_emissionAmount = 0;
     private String m_tokenType = null;
+    private String m_url = null;
 
     private HashData m_hashData = null;
-
+    private ErgoTokens m_ergoTokens;
     public final SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(null); 
+
+    public PriceCurrency(ErgoTokens ergoTokens, String tokenId, String name, int decimals, String tokenType, String networkType){
+        m_tokenId = tokenId;
+        m_name = name;
+        m_symbol = name;
+        m_tokenType = tokenType;
+        m_imageString = "/assets/unknown-unit.png";
+        m_fractionalPrecision = decimals;
+        m_fontSymbol = "";
+        m_networkType = networkType;
+        m_ergoTokens = ergoTokens;
+
+    }
+
+    public void update(){
+        if(m_ergoTokens != null){
+            JsonObject note = Utils.getCmdObject("getAddErgoToken");
+            note.addProperty("networkId", m_ergoTokens.getErgoNetworkData().getId());
+            note.addProperty("tokenId", m_tokenId);
+            note.addProperty("name", m_name);
+            note.addProperty("decimals", m_fractionalPrecision);
+
+            Object obj = m_ergoTokens.sendNote(note);
+
+            if(obj != null && obj instanceof JsonObject){
+                JsonObject jsonObject = (JsonObject) obj;
+                
+                JsonElement imageStringElement = jsonObject.get("imageString");
+                JsonElement urlElement = jsonObject.get("url");
+                JsonElement emissionAmountElement = jsonObject.get("emissionAmount");
+                JsonElement descriptionElement = jsonObject.get("description");
+                JsonElement symbolElement = jsonObject.get("symbol");
+                JsonElement fontSymbolElement = jsonObject.get("fontSymbol");
+                JsonElement hashDataElement = jsonObject.get("hashData");
+                
+                m_imageString = imageStringElement != null ? imageStringElement.getAsString() : m_imageString;
+                m_url = urlElement != null ? urlElement.getAsString() : m_url;
+                m_emissionAmount = emissionAmountElement != null ? emissionAmountElement.getAsLong() : m_emissionAmount;
+                m_description = descriptionElement != null ? descriptionElement.getAsString() : m_description;
+                m_symbol = symbolElement != null ? symbolElement.getAsString() : m_symbol;
+                m_fontSymbol = fontSymbolElement != null ? fontSymbolElement.getAsString() : m_fontSymbol;
+                m_hashData = hashDataElement != null ? new HashData(hashDataElement.getAsJsonObject()) : m_hashData;
+            } 
+        }
+    }
+
+    public void setErgoTokens(ErgoTokens ergoTokens){
+        m_ergoTokens = ergoTokens;
+        update();
+    }
 
     public PriceCurrency(String token_id, String name, String symbol, String description, int fractionalPrecision, String networkId, String unitImageString, String networkType, long emissionAmount, long timestamp) {
         this(token_id, name, symbol,  fractionalPrecision, networkId,networkType, unitImageString, "","");
@@ -90,7 +141,7 @@ public class PriceCurrency {
         JsonElement hashDataElement = json.get("hashData");
 
         if(idElement == null || decimalsElement == null || symbolElement == null || nameElement == null){
-            throw new Exception("Invalid arguments");
+            throw new Exception("");
         }
         
         m_tokenId = idElement.getAsString();
@@ -182,20 +233,11 @@ public class PriceCurrency {
         return m_timestamp == 0 ? null : Utils.milliToLocalTime(m_timestamp);
     }
 
-    public void setPriceValid(boolean priceValid) {
-        m_priceValid = priceValid;
-    }
-
     public String getFontSymbol(){
         return m_fontSymbol;
     }
-   public PriceQuote getPriceQuote() {
-        return null;
-    }
+  
 
-    public boolean getPriceValid() {
-        return getPriceQuote() != null ? getPriceQuote().howOldMillis() < VALID_TIMEOUT  : m_priceValid;
-    }
 
  
 

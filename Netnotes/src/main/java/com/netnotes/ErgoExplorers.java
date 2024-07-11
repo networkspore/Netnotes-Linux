@@ -1,46 +1,14 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-
 import org.ergoplatform.appkit.NetworkType;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-
-import javafx.scene.text.TextAlignment;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-
 
 public class ErgoExplorers extends Network implements NoteInterface {
 
@@ -52,72 +20,103 @@ public class ErgoExplorers extends Network implements NoteInterface {
     public final static String MAINNET_EXPLORER_URL = "explorer.ergoplatform.com/";
     public final static String TESTNET_EXPLORER_URL = "testnet.ergoplatform.com/";
 
-    private static File logFile = new File("netnotes-log.txt");
-    private Stage m_stage = null;
-    
-  //  private final static long EXECUTION_TIME = 500;
+    public final static String DEFAULT_EXPLORER_ID = ErgoPlatformExplorerData.ERGO_PLATFORM_EXPLORER;
 
-  //  private ScheduledFuture<?> m_lastExecution = null;
+    private ErgoNetworkData m_ergNetData = null;
+    private ErgoExplorerList m_explorerList = null;
 
-    private File m_appDir = null;
-    private File m_dataFile = null;
+    public String getType(){
+        return App.EXPLORER_TYPE;
+    }
+    private ErgoNetwork m_ergoNetwork;
 
-
-    public ErgoExplorers(ErgoNetwork ergoNetwork) {
-        super(getAppIcon(), NAME, NETWORK_ID, ergoNetwork);
-
-        m_appDir = new File(ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME);
-        setup(null);
+    public ErgoExplorers(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
+        super(new Image(getAppIconString()), NAME, NETWORK_ID, ergoNetwork);
+        m_ergoNetwork = ergoNetwork;
+        m_ergNetData = ergoNetworkData;
+        setup();
         
     }
 
-    public ErgoExplorers(JsonObject jsonObject, ErgoNetwork ergoNetwork) {
-        super(getAppIcon(), NAME, NETWORK_ID, ergoNetwork);
+    public String getDescription(){
+        return DESCRIPTION;
+    }
 
-        m_appDir = new File(ergoNetwork.getAppDir().getAbsolutePath() + "/" + NAME);
-        setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
-        setup(jsonObject);
+
+
+    public static String getAppIconString(){
+        return "/assets/ergo-explorer.png";
+    }
+
+
+     private void setup() {
+        new ErgoExplorerList(this);
+    }
+
+
+    public static String getSmallAppIconString(){
+        return "/assets/ergo-explorer-30.png";
+    }
+
+    private Image m_smallAppIcon = new Image(getSmallAppIconString());
+    public Image getSmallAppIcon() {
+        return m_smallAppIcon;
     }
 
     @Override
-    public void open(){
-        showStage();
-    }
-    
-    public void getIdJson(String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        File dataFile = getIdDataFile(id);
-        if(dataFile != null && dataFile.isFile()){
-            try {
-                JsonObject json = Utils.readJsonFile(getAppKey(), dataFile);
+    public Object sendNote(JsonObject note){
 
-                Utils.returnObject(json, getNetworksData().getExecService(), onSucceeded, onFailed);
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-                try {
-                    Files.writeString(logFile.toPath(), "ErgoExplorers (getIdJson): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                    
+        JsonElement subjectElement = note.get("subject");
+        JsonElement networkIdElement = note.get("networkId");
+        if (m_explorerList != null && subjectElement != null && subjectElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()) {
+            String networkId = networkIdElement.getAsString();
+        
+            if(networkId.equals(m_ergNetData.getId())){
+               
+                String subject = subjectElement.getAsString();
+                switch(subject){
+                    case "getExplorerById":
+                        return m_explorerList.getExplorerById(note);
+                        
                 }
-
             }
+        }
+
+        return null;
+    }
+
+
+
+
+    /*public ErgoExplorerList getErgoExplorersList(){
+        return m_explorerList;
+    }*/
+
+    @Override
+    public void start(){
+        if(getConnectionStatus() != App.STARTED){
+            m_explorerList = new ErgoExplorerList(this);
+        }
+        super.start();
+    }
+
+
+    public void getData(String subId, String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, ErgoExplorers.NETWORK_ID, ErgoExplorers.NETWORK_ID);
+
+        if(existingData != null){
+
+            Utils.returnObject(existingData, getNetworksData().getExecService(), onSucceeded, onFailed);
+
         }else{
             Utils.getUrlJson(urlString, getNetworksData().getExecService(), (urlJson)->{
                 Object sourceObject = urlJson.getSource().getValue();
                 if(sourceObject != null && sourceObject instanceof JsonObject){
-                    try {
+                    
                         JsonObject json = (JsonObject) sourceObject;
-                        Utils.saveJson(getAppKey(), json, dataFile );
+                        getNetworksData().save(subId, id, ErgoExplorers.NETWORK_ID, ErgoExplorers.NETWORK_ID, json);
                         Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
-                    } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                            | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                            | IOException e) {
-                        try {
-                            Files.writeString(logFile.toPath(),"ErgoExplorers (getidjson urljson): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        } catch (IOException e1) {
-         
-                        }
-                    }
+                 
                 }else{
                     Utils.returnObject(null,getNetworksData().getExecService(), onSucceeded, onFailed);
                 }
@@ -126,105 +125,22 @@ public class ErgoExplorers extends Network implements NoteInterface {
         
     }
 
-     private void setup(JsonObject json) {
-        if (!m_appDir.isDirectory()) {
 
-            try {
-                Files.createDirectories(m_appDir.toPath());
-            } catch (IOException e) {
-                Alert a = new Alert(AlertType.ERROR, e.toString(), ButtonType.CLOSE);
-                a.show();
-            }
-        }  
-        m_dataFile = new File(m_appDir.getAbsolutePath() + "/" + NAME + ".dat");
-        setDataDir(new File(m_appDir.getAbsolutePath() + "/data"));
-        
-        
-        new ErgoExplorerList(this);
-     
-        
-        getNetworksData().getAppData().appKeyProperty().addListener((obs, oldVal, newVal) -> {
-            JsonArray indexArray = getIndexFileArray(oldVal);
-            if(indexArray != null){
-                saveIndexFile(indexArray);
-                for(int i = 0; i< indexArray.size() ; i++){
-                    JsonElement fileElement = indexArray.get(i);
-                    JsonObject idFileObject = fileElement.getAsJsonObject();
-                    JsonElement fileLocationElement = idFileObject.get("file");
-                    String fileLocationString = fileLocationElement.getAsString();
-
-                    File file = new File(fileLocationString);
-                    
-                    if(file.isFile()){
-                        try {
-                            String fileString = Utils.readStringFile(oldVal, file);
-                            Utils.writeEncryptedString(newVal, file, fileString);
-                        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                                | IOException e) {
-                            try {
-                                Files.writeString(logFile.toPath(), "ErgoTokens: could not update file: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e1) {
-                        
-                            }
-                        }
-                    }
-                }
-            }
-            
-            
-            
-        });
-    }
-
-    public File getDataFile(){
-        return m_dataFile;
-    }
-    public File getAppDir(){
-        return m_appDir;
-    }
-
-    public static JsonObject getBalanceNote(String address, NetworkType... networkType) {
-        JsonObject jsonObject = new JsonObject();
-        jsonObject.addProperty("subject", "GET_BALANCE");
-        jsonObject.addProperty("address", address);
-        if (networkType != null && networkType.length > 0) {
-            jsonObject.addProperty("networkType", networkType[0].toString());
-        } else {
-            jsonObject.addProperty("networkType", NetworkType.MAINNET.toString());
+    @Override
+    public void stop(){
+        if(m_explorerList != null){
+            m_explorerList = null;
         }
-        return jsonObject;
+        super.stop();
     }
 
-    public static Image getSmallAppIcon() {
-        return new Image("/assets/ergo-explorer-30.png");
+    public NetworkInformation getNetworkInformation(){
+        return new NetworkInformation(NETWORK_ID, NAME,getAppIconString(), getSmallAppIconString(),DESCRIPTION );
     }
+}
 
-    public static Image getAppIcon() {
-        return App.ergoExplorerImg;
-    }
 
-     @Override
-    public IconButton getButton(String iconStyle) {
-
-        IconButton iconButton = new IconButton(iconStyle.equals(IconStyle.ROW) ? getSmallAppIcon() : getAppIcon(), iconStyle.equals(IconStyle.ROW) ? getName() : getText(), iconStyle) {
-            @Override
-            public void open() {
-                getOpen();
-            }
-        };
-
-        if (iconStyle.equals(IconStyle.ROW)) {
-            iconButton.setContentDisplay(ContentDisplay.LEFT);
-            iconButton.setImageWidth(30);
-        } else {
-            iconButton.setContentDisplay(ContentDisplay.TOP);
-            iconButton.setTextAlignment(TextAlignment.CENTER);
-        }
-
-        return iconButton;
-    }
-    
+    /*
 
     public void showStage() {
         
@@ -297,7 +213,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
             SimpleDoubleProperty scrollWidth = new SimpleDoubleProperty(0);
             gridWidth.bind(m_stage.widthProperty().subtract(15));
 
-            VBox gridBox = explorersList.getGridBox(gridWidth, scrollWidth);
+            VBox gridBox = new VBox();
 
             scrollPane.setContent(gridBox);
 
@@ -339,9 +255,4 @@ public class ErgoExplorers extends Network implements NoteInterface {
    
         }
 
-    }
-
-    public ErgoExplorerList getErgoExplorersList(){
-        return new ErgoExplorerList(this);
-    }
-}
+    }*/

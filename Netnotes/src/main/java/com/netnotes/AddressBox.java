@@ -21,6 +21,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -39,9 +41,9 @@ public class AddressBox extends HBox {
 
     private String m_id = FriendlyId.createFriendlyId();
 
-    private final SimpleObjectProperty<Image> m_imgBuffer = new SimpleObjectProperty<Image>(null);
+
     private final SimpleObjectProperty<LocalDateTime> m_LastUpdated = new SimpleObjectProperty<LocalDateTime>(LocalDateTime.now());
-;
+
     private SimpleObjectProperty<AddressInformation> m_addressInformation = new SimpleObjectProperty<>(null);
 
 //String explorerId, NetworksData networksData
@@ -67,11 +69,9 @@ public class AddressBox extends HBox {
         });
         //addressBtn.setGraphicTextGap(25);
 
-        m_imgBuffer.addListener((obs,oldval,newval)-> {
-            if(newval != null){    
-                addressBtn.setGraphic(IconButton.getIconView(newval, newval.getWidth()));
-            }
-        });
+      
+       
+          
 
         setAlignment(Pos.CENTER_LEFT);
 
@@ -183,16 +183,19 @@ public class AddressBox extends HBox {
             enterButton.fire();
         });
 
+        ImageView addressImgView = new ImageView(); //addressBtn.setGraphic(IconButton.getIconView(newval, newval.getWidth()));
+        addressBtn.setGraphic(addressImgView);
+
         m_addressInformation.addListener((obs,oldval, newval)->{
 
-            updateBufferedImage();
+            updateBufferedImage(addressImgView);
      
             /*if(!newval.toString().equals(addressField.getText())){
                 addressField.setText(newval.toString());
             }*/
         });
       
-        updateBufferedImage();
+        updateBufferedImage(addressImgView);
        
 
     }
@@ -313,6 +316,7 @@ public class AddressBox extends HBox {
     }
 
     private BufferedImage m_img = null;
+    private WritableImage m_wImg = null;
     private Graphics2D m_imgG2d = null;
 
     private BufferedImage m_txtImg = null;
@@ -324,7 +328,7 @@ public class AddressBox extends HBox {
     private java.awt.Font m_font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 14);
     private BufferedImage m_unitImage = null;
 
-    public void updateBufferedImage() {
+    public void updateBufferedImage(ImageView imgView) {
 
         final int padding = 10;
         final int bottomIndent = 15;
@@ -399,7 +403,7 @@ public class AddressBox extends HBox {
         } */
 
 
-        m_imgBuffer.set(SwingFXUtils.toFXImage(m_img, null));
+        imgView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
         
         m_txtG2d.dispose();
         m_txtG2d = null;

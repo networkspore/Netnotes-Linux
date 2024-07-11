@@ -12,7 +12,7 @@ public class ErgoCurrency extends PriceCurrency {
     public final static String NETWORK_ID = ErgoNetwork.NETWORK_ID;
     public final static String FONT_SYMBOL  = "Σ";
     public final static String TOKEN_TYPE = "LAYER_0";
-    
+    public final static String URL_STRING = "https://ergoplatform.org/";
     private NetworkType m_networkType; 
 
     public ErgoCurrency(NetworkType networkType) { 

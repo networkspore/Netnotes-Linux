@@ -7,7 +7,9 @@ import javafx.scene.Scene;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import org.ergoplatform.appkit.ErgoToken;
+
+import java.math.BigDecimal;
+
 
 import com.utils.Utils;
 
@@ -16,36 +18,36 @@ import javafx.scene.layout.VBox;
 public class AmountConfirmBox extends AmountBox {
 
     private final SimpleDoubleProperty m_rowHeight = new SimpleDoubleProperty(30); 
-    private final PriceAmount m_confirmAmount;
-    private final long m_confirmAmountLong;
-    private final PriceAmount m_feeAmount;
-    private final long m_feeAmountLong;
+    private final BigDecimal m_confirmAmount;
+    private final BigDecimal m_feeAmount;
+
     private final String m_defaultName;
+    private final PriceCurrency m_currency;
 
-
-    public AmountConfirmBox(PriceAmount priceAmount, PriceAmount feeAmount, Scene scene) {
-        
+    public AmountConfirmBox(BigDecimal amount, BigDecimal feeAmount, PriceCurrency currency, Scene scene) {
+    
         super();
-        m_confirmAmount = priceAmount;
-        m_confirmAmountLong = m_confirmAmount.getLongAmount();
+        m_currency = currency;
+        m_confirmAmount = amount;
+  
         m_feeAmount = feeAmount;
-        m_feeAmountLong = feeAmount == null ? 0 : m_feeAmount.getLongAmount();
-        m_defaultName = priceAmount.getCurrency().getDefaultName();
-
+        
+        m_defaultName = m_currency.getDefaultName();
+        
         layoutBox(feeAmount != null , scene);
     }
 
     private void layoutBox(boolean isFeeAmount, Scene scene ){
-        PriceAmount totalAmount = m_feeAmount != null && isFeeAmount ? new PriceAmount(m_confirmAmountLong + m_feeAmountLong, m_confirmAmount.getCurrency()) : null;
+        PriceAmount totalAmount = m_feeAmount != null && isFeeAmount ? new PriceAmount(m_confirmAmount.add(m_feeAmount), m_currency) : null;
 
 
-        priceAmountProperty().set(m_confirmAmount);
+        //priceAmountProperty().set(m_confirmAmount);
         setAlignment(Pos.CENTER_LEFT);
         
 
         String textFieldId = getBoxId() +"TextField";
 
-        final String amountString = m_confirmAmount.getAmountString() + ( isFeeAmount && totalAmount != null ? " + (" + m_feeAmount.getAmountString() + " Fee) = " + totalAmount.getAmountString() : "");
+        final String amountString = m_confirmAmount + ( isFeeAmount && totalAmount != null ? " + (" + m_feeAmount + " Fee) = " + totalAmount.getAmountString() : "");
         
         TextField amountField = new TextField(amountString);
         amountField.setId("amountField");
@@ -57,7 +59,7 @@ public class AmountConfirmBox extends AmountBox {
         
         amountField.prefWidthProperty().bind(scene.widthProperty().multiply(0.6));
    
-        ImageView textViewImage = new ImageView(m_confirmAmount.getCurrency().getIcon());
+        ImageView textViewImage = new ImageView(m_currency.getIcon());
         textViewImage.setPreserveRatio(true);
         textViewImage.fitHeightProperty().bind(m_rowHeight.subtract(2));
 
@@ -76,56 +78,65 @@ public class AmountConfirmBox extends AmountBox {
 
         getChildren().addAll(imgPaddingBox, amountField, currencyName);
 
-        priceAmountProperty().addListener((obs,oldval, newval)-> {
+        getPriceAmount().amountProperty().addListener((obs,oldval, newval)-> {
             if(newval == null){
                 amountField.setText("-");
             }else{
-                amountField.setText(newval.getAmountString());
+                amountField.setText(newval + "");
             }            
         });
     }
 
-
-    public ErgoToken getErgoToken(){
-        return new ErgoToken(getTokenId(), m_confirmAmountLong);
+    public PriceAmount getConfirmPriceAmount(){
+        return new PriceAmount(m_confirmAmount, m_currency);
     }
+
+    public PriceAmount getFeePriceAmount(){
+        return m_feeAmount != null ? new PriceAmount(m_feeAmount, m_currency) : null;
+    }
+
+    public BigDecimal getConfirmAmount(){
+        return m_confirmAmount;
+    }
+
+    public BigDecimal getFeeAmount(){
+        return m_feeAmount;
+    }
+
+    public PriceCurrency getCurrency(){
+        return m_currency;
+    }
+
+    /*public ErgoToken getErgoToken(){
+        
+        return new ErgoToken(getTokenId(), m_confirmAmountLong);
+    }*/
 
     public SimpleDoubleProperty rowHeightProperty(){
         return m_rowHeight;
     } 
     
-    public PriceAmount feeAmount(){
-        return m_feeAmount;
-    }
-
-    public long feeAmountLong(){
-        return m_feeAmountLong;
-    }
 
     public String getAmountString(){
-        return m_confirmAmount.toString();
+        return m_confirmAmount + "";
     }
 
     public String getAmountCurrencyName(){
-        return m_confirmAmount.getCurrency().getName();
+        return m_currency.getName();
     }
 
     public Image getAmountIcon(){
-        return m_confirmAmount.getCurrency().getIcon();
+        return m_currency.getIcon();
     }
 
-    public long getLongAmount(){
-        return m_confirmAmountLong;
-    }
+
 
     public String getTokenId(){
-        return m_confirmAmount.getTokenId();
+        return m_currency.getTokenId();
     }
 
  
     
-    @Override
-    public void updateBufferedImage() {
-    }
+
 
 }

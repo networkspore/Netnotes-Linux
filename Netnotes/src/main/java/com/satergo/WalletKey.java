@@ -3,6 +3,9 @@ package com.satergo;
 import com.netnotes.ErgoWallets;
 import com.satergo.ergo.ErgoInterface;
 import com.satergo.extra.AESEncryption;
+
+import javafx.scene.image.Image;
+
 import org.ergoplatform.ErgoAddressEncoder;
 import org.ergoplatform.P2PKAddress;
 import org.ergoplatform.appkit.*;
@@ -285,7 +288,7 @@ public abstract class WalletKey {
         }
 
         private Mnemonic getMnemonic() throws Failure {
-            return getMnemonic(() -> com.netnotes.App.confirmPassword("Ergo - Wallet password",ErgoWallets.getAppIcon(), ErgoWallets.getSmallAppIcon(), "Wallet password", null));
+            return getMnemonic(() -> com.netnotes.App.confirmPassword("Ergo - Wallet password",new Image(ErgoWallets.getAppIconString()), new Image (ErgoWallets.getSmallAppIconString()), "Wallet password", null));
         }
 
         private static Mnemonic readMnemonic(ByteBuffer data) {

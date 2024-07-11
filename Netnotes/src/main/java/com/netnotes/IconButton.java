@@ -72,6 +72,10 @@ public class IconButton extends Button {
 
     }
 
+    public Image getAppIcon(){
+        return m_icon;
+    }
+
     public String getButtonId() {
         return m_btnId;
     }
@@ -299,8 +303,14 @@ public class IconButton extends Button {
         return this;
     }
 
-    public void setCurrent(boolean value, String... idString) {
+    private boolean m_current = false;
 
+    public boolean isCurrent(){
+        return m_current;
+    }
+
+    public void setCurrent(boolean value, String... idString) {
+        m_current = value;
         if (idString != null && idString.length > 0) {
             m_defaultId = idString[1];
 

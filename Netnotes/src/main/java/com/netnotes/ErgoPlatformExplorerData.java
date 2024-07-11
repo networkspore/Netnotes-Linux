@@ -5,7 +5,7 @@ public class ErgoPlatformExplorerData extends ErgoExplorerData {
 
     public ErgoPlatformExplorerData(ErgoExplorerList ergoExplorerList){
         //"Explorer"
-        super(ERGO_PLATFORM_EXPLORER,"Ergo Platform", "api.ergoplatform.com","Ergo Platform","explorer.ergoplatform.com",  ergoExplorerList);
+        super(ERGO_PLATFORM_EXPLORER,"Ergo Platform", ErgoExplorers.getSmallAppIconString(), "api.ergoplatform.com","Ergo Platform","explorer.ergoplatform.com",  ergoExplorerList);
     
     }
 }

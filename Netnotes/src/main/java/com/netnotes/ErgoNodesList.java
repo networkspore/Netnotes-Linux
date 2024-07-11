@@ -67,7 +67,6 @@ public class ErgoNodesList {
 
     private File logFile = new File("netnotes-log.txt");
     private SimpleStringProperty m_selectedId = new SimpleStringProperty(null);
-    private SimpleStringProperty m_defaultId = new SimpleStringProperty(null);
 
     private ArrayList<ErgoNodeData> m_dataList = new ArrayList<>();
     private ErgoNodes m_ergoNodes;
@@ -94,40 +93,26 @@ public class ErgoNodesList {
 
     public ErgoNodesList( ErgoNodes ergoNodes) {
         m_ergoNodes = ergoNodes;
-        getFile();
-        m_ergoNodes.getNetworksData().getAppData().appKeyProperty().addListener((obs,oldval,newval)->save());
+        getData();
     }
 
-    private void getFile() {
-        File dataFile = m_ergoNodes.getDataFile();
-        File appDir = m_ergoNodes.getAppDir();
-
-        if (appDir != null && appDir.isDirectory() && dataFile != null && dataFile.isFile()) {
-          
-            try {
+    private void getData() {
+        
    
-                JsonObject json = Utils.readJsonFile(m_ergoNodes.getNetworksData().getAppData().appKeyProperty().get(), m_ergoNodes.getDataFile());
-                
-           
-                openJson(json);
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.setHeaderText("Loading Error");
-                a.setTitle("Ergo Nodes: Loading Error");
-                a.show();
-            }
-        }
+        JsonObject json = m_ergoNodes.getNetworksData().getData("data",".", ErgoNodes.NETWORK_ID, ErgoNetwork.NETWORK_ID);
+        
+    
+        openJson(json);
+            
+        
 
     }
 
     private void openJson(JsonObject json) {
 
-        JsonElement nodesElement = json.get("nodes");
-        JsonElement defaultIdElement = json.get("defaultId");
-        JsonElement defaultAddTypeElement = json.get("defaultAddType");
-        JsonElement addStageElement = json.get("addStage");
+        JsonElement nodesElement = json != null ? json.get("nodes") : null;
+        JsonElement defaultAddTypeElement = json != null ? json.get("defaultAddType") : null;
+        JsonElement addStageElement = json != null ? json.get("addStage") : null;
 
         m_defaultAddType = defaultAddTypeElement != null && defaultAddTypeElement.isJsonPrimitive() ? defaultAddTypeElement.getAsString() : PUBLIC;
 
@@ -188,15 +173,16 @@ public class ErgoNodesList {
             }
         }
 
-        if(defaultIdElement != null && defaultIdElement.isJsonPrimitive()){
-            String defaultId = defaultIdElement.getAsString();
-            m_defaultId.set(defaultId);
-        }
+      
 
     }
 
     public String getDownloadImgUrl() {
         return m_downloadImgUrl;
+    }
+
+    public ArrayList<ErgoNodeData> getDatList(){
+        return m_dataList;
     }
 
     public void add(ErgoNodeData ergoNodeData, boolean doSave) {
@@ -288,9 +274,7 @@ public class ErgoNodesList {
         json.add("nodes", getNodesJsonArray());
         json.addProperty("defaultAddType", m_defaultAddType);
         json.add("addStage", getAddStageJson());
-        if(m_defaultId.get() != null){
-            json.addProperty("defaultId", m_defaultId.get());
-        }
+     
         if(m_ergoLocalNode != null){
             json.add("localNode", m_ergoLocalNode.getJsonObject());
         }
@@ -299,27 +283,8 @@ public class ErgoNodesList {
 
     public void save() {
         
-
-      
-        //  byte[] bytes = jsonString.getBytes(StandardCharsets.UTF_8);
-        // String fileHexString = Hex.encodeHexString(bytes);
-        File appDir = m_ergoNodes.getAppDir();
-        try {
-            if (!appDir.isDirectory()) {
-                Files.createDirectory(appDir.toPath());
-            }
-            JsonObject fileJson = getJsonObject();
-            Utils.saveJson(m_ergoNodes.getNetworksData().getAppData().appKeyProperty().get(), fileJson, m_ergoNodes.getDataFile());
-         
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException
-                | IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "\nErgoNodesList: " + e.toString());
-            } catch (IOException e1) {
-
-            }
-        }
+        m_ergoNodes.getNetworksData().save("data",".", ErgoNodes.NETWORK_ID, ErgoNetwork.NETWORK_ID, getJsonObject());
+        
     }
 
   
@@ -360,6 +325,8 @@ public class ErgoNodesList {
             menuBtn.getItems().clear();
             ErgoNodeData newSelectedNodedata = selectedNode.get();
 
+           
+
             MenuItem noneMenuItem = new MenuItem("(disabled)");
             if(selectedNode.get() == null){
                 noneMenuItem.setId("selectedMenuItem");
@@ -373,7 +340,7 @@ public class ErgoNodesList {
                 MenuItem localNodeMenuItem = new MenuItem( m_ergoLocalNode.getName());
                 if(m_ergoLocalNode != null && newSelectedNodedata != null && m_ergoLocalNode.getId().equals(newSelectedNodedata.getId())){
                     localNodeMenuItem.setId("selectedMenuItem");
-                    localNodeMenuItem.setText(localNodeMenuItem.getText() + " (selected)");
+                    localNodeMenuItem.setText(localNodeMenuItem.getText());
                 }
                 localNodeMenuItem.setOnAction(e->{
                     selectedNode.set(m_ergoLocalNode);
@@ -390,7 +357,7 @@ public class ErgoNodesList {
                  MenuItem menuItem = new MenuItem(nodeData.getName());
                 if(newSelectedNodedata != null && newSelectedNodedata.getId().equals(nodeData.getId())){
                     menuItem.setId("selectedMenuItem");
-                    menuItem.setText(menuItem.getText() + " (selected)");
+                    menuItem.setText(menuItem.getText());
                 }
                 menuItem.setOnAction(e->{
                     selectedNode.set(nodeData);
@@ -411,6 +378,8 @@ public class ErgoNodesList {
 
     }
 
+    
+   
     public SimpleStringProperty selectedIdProperty() {
         return m_selectedId;
     }
@@ -420,9 +389,7 @@ public class ErgoNodesList {
         save();
     }
 
-    public SimpleStringProperty defaultNodeIdProperty(){
-        return m_defaultId;
-    }
+    
 
     public void shutdown() {
 
@@ -454,13 +421,13 @@ public class ErgoNodesList {
 
             // Alert a = new Alert(AlertType.NONE, "updates: " + updatesEnabled, ButtonType.CLOSE);
             //a.show();
-            NamedNodesList nodesList = new NamedNodesList( m_ergoNodes.getNetworksData().getAppData().getUpdates(), getErgoNodes().getNetworksData().getExecService());
+            NamedNodesList nodesList = new NamedNodesList( false, getErgoNodes().getNetworksData().getExecService());
 
             //private
             SimpleObjectProperty<NetworkType> networkTypeOption = new SimpleObjectProperty<NetworkType>(NetworkType.MAINNET);
             SimpleStringProperty clientTypeOption = new SimpleStringProperty(ErgoNodeData.LIGHT_CLIENT);
 
-            Image icon = ErgoNodes.getSmallAppIcon();
+            Image icon = new Image(ErgoNodes.getSmallAppIconString());
             String name = m_ergoNodes.getName();
 
             VBox layoutBox = new VBox();
@@ -564,7 +531,7 @@ public class ErgoNodesList {
             getNodesListBtn.setTooltip(enableUpdatesTip);
             final String updateEffectId = "UPDATE_DISABLED";
             Runnable updateEnableEffect = () -> {
-                boolean updatesEnabled = m_ergoNodes.getNetworksData().getAppData().getUpdates();
+                boolean updatesEnabled = false;
 
                 enableUpdatesTip.setText("Updates settings: " + (updatesEnabled ? "Enabled" : "Disabled"));
                 if (!updatesEnabled) {

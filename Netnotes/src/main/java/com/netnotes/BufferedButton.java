@@ -37,7 +37,10 @@ public class BufferedButton extends Button {
         
     }
 
-
+    public BufferedButton(Image image, double imageWidth){
+        this(image);
+        m_imgBufView.setFitWidth(imageWidth);
+    }
 
 
     public BufferedButton(String name, String urlString) {

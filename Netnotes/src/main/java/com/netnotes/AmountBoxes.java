@@ -21,7 +21,7 @@ public class AmountBoxes extends VBox {
 
     public final static int IMAGE_WIDTH = 40;
 
-    private ObservableList<AmountBox> m_amountsList = FXCollections.observableArrayList();
+    private ObservableList<AmountBoxInterface> m_amountsList = FXCollections.observableArrayList();
 
 
     private VBox m_listVBox = new VBox();
@@ -31,7 +31,7 @@ public class AmountBoxes extends VBox {
     private boolean m_lastRowItemDisabled = false;
 
  
-    public AmountBoxes(AmountBox... boxes) {
+    public AmountBoxes(AmountBoxInterface... boxes) {
         super();
        //m_addressData = addressData;
       //  HBox.setHgrow(m_listVBox, Priority.ALWAYS);
@@ -39,31 +39,40 @@ public class AmountBoxes extends VBox {
         
         getChildren().add(m_listVBox);
 
-        m_amountsList.addListener((ListChangeListener.Change<? extends AmountBox> c) -> update());
-        m_paddingInsets.addListener((obs, oldval, newval)->update());
+        m_amountsList.addListener((ListChangeListener.Change<? extends AmountBoxInterface> c) -> updateGrid());
+        m_paddingInsets.addListener((obs, oldval, newval)->updateGrid());
         if(boxes != null && boxes.length > 0){
             for(int i = 0; i < boxes.length; i++){
                 add(boxes[i]);
             }
         }else{
-            update();
+            updateGrid();
         }
 
     }
 
-    public ObservableList<AmountBox> amountsList(){
+    public ObservableList<AmountBoxInterface> amountsList(){
         return m_amountsList;
     } 
 
+    public void shutdown(){
+        m_amountsList.forEach(box ->{
+            box.shutdown();
+        });
+        m_amountsList.clear();
+        m_listVBox.getChildren().clear();
+    }
+
 
     public void clear(){
+        shutdown();
         m_amountsList.clear();
     }
 
     public void setLastRowItem(Node item, String itemStyle){
         m_lastRowItem = item;
         m_lastRowItemStyle = itemStyle;
-        update();
+        updateGrid();
     }
 
     public Node getLastRowItem(){
@@ -72,7 +81,7 @@ public class AmountBoxes extends VBox {
 
     public void setLastRowItemStyle(String itemStyle){
         m_lastRowItemStyle = itemStyle;
-        update();
+        updateGrid();
     }
 
     public String getLastRowItemStyle(){
@@ -81,7 +90,7 @@ public class AmountBoxes extends VBox {
 
     public void setLastRowItemDisabled(boolean disabled){
         m_lastRowItemDisabled = disabled;
-        update();
+        updateGrid();
     }
 
     public boolean getLastRowItemDisabled(){
@@ -92,34 +101,28 @@ public class AmountBoxes extends VBox {
         return m_paddingInsets;
     }
 
-    public ObservableList<AmountBox> getAmountBoxList() {
-        return m_amountsList;
-    }
+  
 
     public VBox getListVBox(){
         return m_listVBox;
     }
 
-    public AmountBox[] getAmountBoxArray(){
+    public AmountBoxInterface[] getAmountBoxArray(){
         int size = m_amountsList.size();
         if(size == 0){
             return null;
         }
-        AmountBox[] amountBoxes = new AmountBox[size];
+        AmountBoxInterface[] amountBoxes = new AmountBoxInterface[size];
         amountBoxes = m_amountsList.toArray(amountBoxes);
         return amountBoxes;
     }
 
 
-    public void add(AmountBox amountBox){
-        if(amountBox != null){
-            AmountBox existingBox = getAmountBox(amountBox.getTokenId());
+    public void add(AmountBoxInterface amountBox){
+        if(amountBox != null && amountBox instanceof HBox){
+            HBox existingBox = (HBox) getAmountBox(amountBox.getTokenId());
             if(existingBox == null){
-                m_amountsList.add(amountBox);
-             
-            }else{ 
-                PriceAmount newPriceAmount = amountBox.priceAmountProperty().get();
-                existingBox.priceAmountProperty().set(newPriceAmount);
+                m_amountsList.add(amountBox);    
             }
         }
     }
@@ -127,7 +130,7 @@ public class AmountBoxes extends VBox {
     public void removeOld(long timeStamp){
         ArrayList<String> removeList = new ArrayList<>();
 
-        for(AmountBox amountBox : m_amountsList){
+        for(AmountBoxInterface amountBox : m_amountsList){
             if(amountBox.getTimeStamp() < timeStamp){
                 removeList.add(amountBox.getTokenId());        
             }
@@ -141,14 +144,15 @@ public class AmountBoxes extends VBox {
     public void removeAmountBox(String tokenId){
         if(tokenId != null){
             int size = m_amountsList.size();
-            AmountBox[] amountBoxes = new AmountBox[size];
+            AmountBoxInterface[] amountBoxes = new AmountBoxInterface[size];
             amountBoxes = m_amountsList.toArray(amountBoxes);
 
             for(int i = 0; i < size; i++){
-                AmountBox amountBox = amountBoxes[i];
+                AmountBoxInterface amountBox = amountBoxes[i];
                 String amountBoxTokenId = amountBox.getTokenId();
 
                 if(amountBoxTokenId != null && amountBox.getTokenId().equals(tokenId)){
+                    amountBox.shutdown();
                     m_amountsList.remove(amountBox);
                     break;
                 }
@@ -156,14 +160,14 @@ public class AmountBoxes extends VBox {
         }
     }
 
-    public AmountBox getAmountBox(String tokenId){
+    public AmountBoxInterface getAmountBox(String tokenId){
         if(tokenId != null){
             int size = m_amountsList.size();
-            AmountBox[] amountBoxes = new AmountBox[size];
+            AmountBoxInterface[] amountBoxes = new AmountBoxInterface[size];
             amountBoxes = m_amountsList.toArray(amountBoxes);
 
             for(int i = 0; i < size; i++){
-                AmountBox amountBox = amountBoxes[i];
+                AmountBoxInterface amountBox = amountBoxes[i];
                 String amountBoxTokenId = amountBox.getTokenId();
 
                 if(amountBoxTokenId != null && amountBoxTokenId.equals(tokenId)){
@@ -175,12 +179,13 @@ public class AmountBoxes extends VBox {
         return null;
     }
 
-    public void update(){
+    public void updateGrid(){
         m_listVBox.getChildren().clear();
 
         for(int i = 0; i < m_amountsList.size(); i++){
-            AmountBox amountBox = m_amountsList.get(i);
-            AmountBox.setHgrow(amountBox, Priority.ALWAYS);
+
+            HBox amountBox = (HBox) m_amountsList.get(i);
+            HBox.setHgrow(amountBox, Priority.ALWAYS);
             
             Insets padding = m_paddingInsets.get();
 

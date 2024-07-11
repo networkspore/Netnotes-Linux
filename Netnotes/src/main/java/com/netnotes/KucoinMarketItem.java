@@ -247,7 +247,7 @@ public class KucoinMarketItem {
             KucoinExchange exchange = m_dataList.getKucoinExchange();
 
             m_stage = new Stage();
-            m_stage.getIcons().add(KucoinExchange.getSmallAppIcon());
+            m_stage.getIcons().add(m_dataList.getKucoinExchange().getSmallAppIcon());
             m_stage.initStyle(StageStyle.UNDECORATED);
             m_stage.setTitle(exchange.getName() + " - " + m_name + (m_tickerDataProperty.get() != null ? " - " + m_tickerDataProperty.get().getLastString() + "" : ""));
 
@@ -255,7 +255,7 @@ public class KucoinMarketItem {
             Button closeBtn = new Button();
             Button fillRightBtn = new Button();
 
-            HBox titleBox = App.createTopBar(KucoinExchange.getSmallAppIcon(), fillRightBtn, maximizeBtn, closeBtn, m_stage);
+            HBox titleBox = App.createTopBar(m_dataList.getKucoinExchange().getSmallAppIcon(), fillRightBtn, maximizeBtn, closeBtn, m_stage);
 
             BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
 
@@ -401,7 +401,7 @@ public class KucoinMarketItem {
 
             };
 
-            exchange.addMsgListener(msgInterface);
+            exchange.addListener(msgInterface);
 
             Region headingPaddingRegion = new Region();
             headingPaddingRegion.setMinHeight(5);
@@ -617,7 +617,7 @@ public class KucoinMarketItem {
 
                 exchange.unsubscribeToCandles(m_parentInterface.getNetworkId(), m_symbol, m_timeSpan.getId());
                 m_tickerDataProperty.removeListener(tickerListener);
-                exchange.removeMsgListener(msgInterface);
+                exchange.removeListener(msgInterface);
 
                 m_stage = null;
             };

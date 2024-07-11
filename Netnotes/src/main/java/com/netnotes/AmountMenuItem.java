@@ -11,31 +11,48 @@ import java.math.BigInteger;
 
 import com.devskiller.friendly_id.FriendlyId;
 
-
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.control.MenuItem;
-import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
 
 public class AmountMenuItem extends MenuItem {
     private String m_friendlyId = FriendlyId.createFriendlyId();
-    private SimpleObjectProperty<PriceAmount> m_priceAmount = new SimpleObjectProperty<>(null);
-    private SimpleObjectProperty<Image> m_bufferedImage = new SimpleObjectProperty<>(null);
+    private PriceAmount m_priceAmount;
     private long m_timeStamp = 0;
+    
+
+    private ChangeListener<BigDecimal> m_amountListener = null;
+
+    private BufferedImage m_unitImage = null;
+    private BufferedImage m_img = null;
+    private Graphics2D m_g2d = null;
+    private WritableImage m_wImg = null;
+    
 
     public AmountMenuItem (PriceAmount priceAmount){
         super();
-        
+        m_priceAmount = priceAmount;
+        ImageView imgView = new ImageView();
+        setGraphic(imgView);
 
-        m_bufferedImage.addListener((obs,oldval,newval)->{
-            setText(m_priceAmount.get().getCurrency().getName());
-            setGraphic(newval != null ? IconButton.getIconView(newval, newval.getWidth() ): null);
-        });
-        m_priceAmount.addListener((obs,oldval,newval)->updateImage());
+        m_amountListener = (obs,oldval,newval)->updateImage(imgView);
 
-        m_priceAmount.set(priceAmount);
+        m_priceAmount.amountProperty().addListener(m_amountListener);
+     
         m_timeStamp = currentTimeMillis();
     }
+
+   
+
+    public void shutdown(){
+        
+        if(m_amountListener != null){
+            m_priceAmount.amountProperty().removeListener(m_amountListener);
+        }
+    }
+
 
     public long getTimeStamp(){
         return m_timeStamp;
@@ -45,39 +62,29 @@ public class AmountMenuItem extends MenuItem {
         m_timeStamp = timeStamp;
     }
 
-    public SimpleObjectProperty<PriceAmount> priceAmountProperty(){
+    public PriceAmount getPriceAmount(){
         return m_priceAmount;
     }
 
-    public SimpleObjectProperty<Image> bufferedImageProperty(){
-        return m_bufferedImage;
-    }
     public String getFriendlyId(){
         return m_friendlyId;
     }
 
     public String getTokenId(){
-        PriceAmount priceAmount = m_priceAmount.get();
-        if(priceAmount != null && priceAmount.getCurrency() != null){
-           
-            return priceAmount.getCurrency().getTokenId();
-        }
-            
-        return null;
+        
+        return m_priceAmount.getTokenId();
         
     }
 
-    public void updateImage( ) {
-        PriceAmount priceAmount = m_priceAmount.get();
-        boolean quantityValid = priceAmount != null && priceAmount.getAmountValid();
-       // BigDecimal priceAmountDecimal = priceAmount != null && quantityValid ? priceAmount.getBigDecimalAmount() : BigDecimal.valueOf(0);
-
-  
+    public void updateImage( ImageView imgView ) {
+        PriceAmount priceAmount = m_priceAmount;
+        BigDecimal amount = priceAmount.amountProperty().get();
+        PriceCurrency currency = priceAmount.getCurrency();
         
-       BigInteger integers = priceAmount != null ? priceAmount.getBigDecimalAmount().toBigInteger() : BigInteger.ZERO;
-        BigDecimal decimals = priceAmount != null ? priceAmount.getBigDecimalAmount().subtract(new BigDecimal(integers)) : BigDecimal.ZERO;
-        int decimalPlaces = priceAmount != null ? priceAmount.getCurrency().getFractionalPrecision() : 0;
-        String currencyName = priceAmount != null ? priceAmount.getCurrency().getSymbol() : "UKNOWN";
+       BigInteger integers = amount.toBigInteger();
+        BigDecimal decimals = amount.subtract(new BigDecimal(integers));
+        int decimalPlaces = currency.getFractionalPrecision();
+        String currencyName =  currency.getSymbol();
         int space = currencyName.indexOf(" ");
         currencyName = space != -1 ? currencyName.substring(0, space) : currencyName;
 
@@ -88,26 +95,26 @@ public class AmountMenuItem extends MenuItem {
         //   Image ergoBlack25 = new Image("/assets/ergo-black-25.png");
         //   SwingFXUtils.fromFXImage(ergoBlack25, null);
         
-        String amountString = quantityValid ? String.format("%d", integers) : " -";
+        String amountString = String.format("%d", integers) ;
         String decs = String.format("%." + decimalPlaces + "f", decimals);
 
-        decs = quantityValid ? decs.substring(1, decs.length()) : "";
+        decs = decs.substring(1, decs.length());
         
     
     
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
+        m_img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_img.createGraphics();
         
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
+        m_g2d.setFont(font);
+        FontMetrics fm = m_g2d.getFontMetrics();
         int padding = 5;
         int stringWidth = fm.stringWidth(amountString);
        
         int height = fm.getHeight() + 10;
 
-        g2d.setFont(smallFont);
+        m_g2d.setFont(smallFont);
 
-        fm = g2d.getFontMetrics();
+        fm = m_g2d.getFontMetrics();
 
         //  int priceAscent = fm.getAscent();
         int integersX = padding;
@@ -121,22 +128,22 @@ public class AmountMenuItem extends MenuItem {
         width = width < 100 ? 100 : width;
         int currencyNameStringX = decimalsX + 2;
 
-        g2d.dispose();
+        m_g2d.dispose();
         
-        BufferedImage unitImage = SwingFXUtils.fromFXImage(priceAmount != null ? priceAmount.getCurrency().getIcon() : new Image("/assets/unknown-unit.png"), null);
-        Drawing.setImageAlpha(unitImage, 0x40);
+        m_unitImage = SwingFXUtils.fromFXImage(currency.getIcon(), m_unitImage);
+        Drawing.setImageAlpha(m_unitImage, 0x40);
         //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        g2d = img.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        //   g2d.setComposite(AlphaComposite.Clear);
+        m_img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        m_g2d = m_img.createGraphics();
+        m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
+        m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        //   m_g2d.setComposite(AlphaComposite.Clear);
 
         /* for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
@@ -144,41 +151,41 @@ public class AmountMenuItem extends MenuItem {
 
                 Color c2 = new Color(c.getRed(), c.getGreen(), c.getBlue(), 35);
 
-                img.setRGB(x, y, c2.getRGB());
+                m_img.setRGB(x, y, c2.getRGB());
             }
         }
          */
         
-        g2d.drawImage(unitImage, 20, (height / 2) - (unitImage.getHeight() / 2), unitImage.getWidth(), unitImage.getHeight(), null);
+        m_g2d.drawImage(m_unitImage, 20, (height / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
 
        
 
 
 
-        g2d.setFont(font);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(java.awt.Color.WHITE);
+        m_g2d.setFont(font);
+        fm = m_g2d.getFontMetrics();
+        m_g2d.setColor(java.awt.Color.WHITE);
 
         
 
-        g2d.drawString(amountString, integersX, fm.getAscent() + 5);
+        m_g2d.drawString(amountString, integersX, fm.getAscent() + 5);
 
-        g2d.setFont(smallFont);
-        fm = g2d.getFontMetrics();
-        g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
+        m_g2d.setFont(smallFont);
+        fm = m_g2d.getFontMetrics();
+        m_g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
 
        
         if(decimalPlaces > 0){
             //decimalsX = widthIncrease > 0 ? decimalsX + widthIncrease : decimalsX;
-            g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
+            m_g2d.drawString(decs, decimalsX , fm.getHeight() + 2);
         }
 
         
-        g2d.drawString(currencyName, currencyNameStringX, height - 10);
+        m_g2d.drawString(currencyName, currencyNameStringX, height - 10);
 
-        g2d.setFont(smallFont);
+        m_g2d.setFont(smallFont);
       
-        fm = g2d.getFontMetrics();
+        fm = m_g2d.getFontMetrics();
      
 
 
@@ -187,15 +194,15 @@ public class AmountMenuItem extends MenuItem {
         } catch (IOException e) {
 
         }*/
-        g2d.dispose();
+        m_g2d.dispose();
 
        /* try {
-            ImageIO.write(img, "png", new File("outputImage.png"));
+            ImageIO.write(m_img, "png", new File("outputImage.png"));
         } catch (IOException e) {
 
         }*/
 
-        m_bufferedImage.set(SwingFXUtils.toFXImage(img, null));
+        imgView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
         
     }
 }

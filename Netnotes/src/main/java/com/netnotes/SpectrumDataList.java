@@ -10,21 +10,16 @@ import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-
-import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
@@ -70,25 +65,14 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private SpectrumSort m_sortMethod = new SpectrumSort();
     private String m_searchText = null;
+    
+    public String getType(){
+        return "DATA";
+    }
 
+    private int m_connectionStatus = App.STOPPED;
     
-    private int m_connectionStatus = SpectrumFinance.STOPPED;
-    
-    private int MIN_BTN_IMG_HEIGHT = 30;
     public static final int MIN_BTN_IMG_WIDTH = 350;
-    private final String m_exchangeId;
-
-    SpectrumMarketInterface m_msgListener;
-
-    private  ExecutorService m_singleThreadService = Executors.newSingleThreadExecutor();
-    
-    public ExecutorService singleThreadService(){ return m_singleThreadService; }
-    
-    private ImageText m_imageText = new ImageText();
-    
-    private SimpleObjectProperty<Network> m_tokensList = new SimpleObjectProperty<>(null);
-
-    private SimpleObjectProperty<NoteInterface> m_currentNetwork = new SimpleObjectProperty<>();
     
     private SimpleLongProperty m_doGridUpdate = new SimpleLongProperty(0);
 
@@ -97,14 +81,30 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private SimpleObjectProperty<TimeSpan> m_timeSpanObject; 
     private SimpleObjectProperty<HBox> m_currentBox;
 
+        
+    private java.awt.Font m_headingFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 18);
+    private java.awt.Font m_labelFont = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 12);
+    private int m_labelAscent;
+    private int m_labelLeading;
+    private int m_labelHeight;
+    private FontMetrics m_labelMetrics;
+    private BufferedImage m_labelImg = null;
+    private Graphics2D m_labelG2d = null;
+
+    private NoteMsgInterface m_spectrumMsgInterface = null;
+    
+
     public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<HBox> currentBox) {
         
-        super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
+        super(null, "spectrumDataList", id, spectrumFinance);
         m_spectrumFinance = spectrumFinance;
-        m_exchangeId= FriendlyId.createFriendlyId();
-        setup(m_spectrumFinance.getNetworksData().getAppData().appKeyProperty().get());
+       
+
+
+        setup();
         
-        updateTokensList();
+        
+        
         m_gridWidth = gridWidth;
         m_gridHeight = gridHeight;
         m_timeSpanObject = timeSpanObject;
@@ -115,28 +115,83 @@ public class SpectrumDataList extends Network implements NoteInterface {
             sortMethod.setSwapTarget(newval ?  SpectrumSort.SwapMarket.SWAPPED : SpectrumSort.SwapMarket.STANDARD);
             sort();
             updateGridBox();
-        }); 
+        });
+
+
+        addSpectrumListener();
+
+    }
+    
+
+    public void addSpectrumListener(){
+
+        m_spectrumMsgInterface = new NoteMsgInterface() {
+            private String m_id = FriendlyId.createFriendlyId();
+           
+            public String getId(){
+                return m_id;
+            }
+
+            public void sendMessage(String str, int code, long timestamp, String msg ){
+
+            }
+            public void sendMessage(String str, int code, long timestamp ){
+
+            }
+            public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+            }
+
+            public void sendMessage(int msg, long timestamp){
+                
+                switch(msg){
+                    case App.LIST_CHANGED:
+                    case App.LIST_UPDATED:
+                    
+                        updateMarkets(m_spectrumFinance.marketsList());
+                        m_connectionStatus = App.STARTED;
+                     
+
+                    case App.STOPPED:
+
+                    break;
+                }   
+             //  getLastUpdated().set(LocalDateTime.now());
+            }
+
+            public void sendMessage(int code, long timestamp, String msg){
+                switch(code){
+                    case App.ERROR:
+                        m_connectionStatus = App.ERROR;
+                        
+                        m_statusMsg.set("Error: " + msg);
+                      //  getLastUpdated().set(LocalDateTime.now());
+                    break;
+                }
+            }
+
+        };
+        
+        if(m_spectrumFinance.getConnectionStatus() == App.STARTED && m_spectrumFinance.marketsList().size() > 0){
+            updateMarkets(m_spectrumFinance.marketsList());
+            m_connectionStatus = App.STARTED;
+        }
+
+        m_spectrumFinance.addMsgListener(m_spectrumMsgInterface);
+  
+        
     }
 
-
+    public Image getSmallAppIcon(){ 
+        return null;
+    }
    
 
-    public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SecretKey oldval, SecretKey newval ) {
-        super(null, "spectrumDataList", id+"SDLIST", spectrumFinance);
-        m_exchangeId= FriendlyId.createFriendlyId();
-        m_spectrumFinance = spectrumFinance;
-        
-        updateFile(oldval, newval);
-    }
 
-    private void setup(SecretKey secretKey) {
+    private void setup() {
         updateFont();
-        getFile(secretKey);
+        getData();
     }
 
-    public SimpleObjectProperty<Network> tokensListNetwork(){
-        return m_tokensList;
-    }
 
     
     public SimpleDoubleProperty gridWidthProperty(){
@@ -152,17 +207,16 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return m_currentBox;
     }
 
+   
 
-    
-    private java.awt.Font m_headingFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 18);
-    private java.awt.Font m_labelFont = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 12);
-    private int m_labelAscent;
-    private int m_labelLeading;
-    private int m_labelHeight;
-    private FontMetrics m_labelMetrics;
-    private BufferedImage m_labelImg = null;
-    private Graphics2D m_labelG2d = null;
-    
+
+    protected void ergoTokensUpdated(long timestamp){
+        m_marketsList.forEach(item->{
+            item.ergoTokensUpdatedProeprty().set(timestamp);
+        });
+    }
+
+
     public void updateFont(){
     
         m_labelImg = new BufferedImage(1,1, BufferedImage.TYPE_INT_ARGB);
@@ -172,8 +226,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
         m_labelLeading = m_labelMetrics.getLeading();
         m_labelAscent = m_labelMetrics.getAscent();
         m_labelHeight = m_labelMetrics.getHeight();
-        
- 
         m_labelG2d.dispose();
         m_labelG2d = null;
         m_labelImg = null;
@@ -200,36 +252,22 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return m_headingFont;
     }
 
-    public void updateTokensList(){
-        m_currentNetwork.set( getNetworksData().getNoteInterface(m_spectrumFinance.getCurrentNetworkId()));
-        if(m_currentNetwork != null){
-            if(m_currentNetwork.get() instanceof ErgoNetwork){
-                ErgoNetwork ergoNetwork = (ErgoNetwork) m_currentNetwork.get();
-                NoteInterface tokensNetwork = ergoNetwork.getNetwork(m_spectrumFinance.getTokensID());
-                if(tokensNetwork != null && tokensNetwork instanceof ErgoTokens){
-                    ErgoTokens ergoTokens = (ErgoTokens) tokensNetwork;
-                    m_tokensList.set(ergoTokens.getTokensList(NetworkType.MAINNET));
-                }else{
-                    m_tokensList.set(null);
-                }
-            }else{
-                m_tokensList.set(null);
-            }
-        }else{
-            m_tokensList.set(null);
-        }
-    }
+    
     private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty(false);
 
     public SimpleBooleanProperty isInvertProperty(){
         return m_isInvert;
     }
-  
 
-    public SimpleObjectProperty<NoteInterface> currentNetwork(){
-        return m_currentNetwork;
+    @Override
+    public Image getAppIcon(){
+        return m_spectrumFinance.getAppIcon();
     }
-    
+  
+    public TabInterface getTab(){
+        return null;
+    }
+
     public void updateMarkets(ArrayList<SpectrumMarketData> marketsArray) {
         
             int updateSize = marketsArray.size() ;
@@ -252,7 +290,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 
             }
           
-            if(update.get() || m_connectionStatus == SpectrumFinance.ERROR){
+            if(update.get() || m_connectionStatus == App.ERROR){
                 sort();
                 m_doGridUpdate.set(System.currentTimeMillis());
             }
@@ -260,56 +298,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     }
 
-
-    
-    public void connectToExchange(){
-      
-        /*ChangeListener<LocalDateTime> changeListener = (obs, oldval, newval)->{
-
-        }; */
-
-        String id = FriendlyId.createFriendlyId();
-    
-
-        m_msgListener = new SpectrumMarketInterface() {
-            
-            public String getId() {
-                return id;
-            }
-
-            public void sendMessage(int msg, long timestamp){
-                
-                switch(msg){
-                    case SpectrumFinance.LIST_CHANGED:
-                    case SpectrumFinance.LIST_UPDATED:
-                    
-                        updateMarkets(m_spectrumFinance.marketsList());
-                        m_connectionStatus = SpectrumFinance.STARTED;
-                     
-
-                    case SpectrumFinance.STOPPED:
-
-                    break;
-                }   
-                getLastUpdated().set(LocalDateTime.now());
-            }
-
-            public void sendMessage(int code, long timestamp, String msg){
-                switch(code){
-                    case SpectrumFinance.ERROR:
-                        m_connectionStatus = SpectrumFinance.ERROR;
-                        statusMsgProperty().set("Error: " + msg);
-                        getLastUpdated().set(LocalDateTime.now());
-                    break;
-                }
-            }
-
-        };
-
-        m_spectrumFinance.addMsgListener(m_msgListener);
-  
-        
-    }
 
 
 
@@ -360,61 +348,13 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return this;
     }
 
-    public File getDataFile(){
-        return m_spectrumFinance.getIdDataFile(getNetworkId());
-    }
 
-    private void updateFile(SecretKey oldKey, SecretKey newKey){
+ 
+
+    private void getData() {
+        JsonObject json = getNetworksData().getData("data", ".", getNetworkId(), SpectrumFinance.NETWORK_ID);
+        openJson(json);
         
-
-        File dataFile = getDataFile();
-        if (dataFile != null && dataFile.isFile()) {
-            try {
-                JsonObject json = Utils.readJsonFile(oldKey, dataFile);
-               
-                if(json!= null){
-                    Utils.saveJson(newKey, json, dataFile);
-                }
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-
-                try {
-                    Files.writeString(logFile.toPath(), "\nSpectrum getfile error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
-
-            }
-
-        }
-    }
-
-    private void getFile(SecretKey secretKey) {
-
-        File dataFile = getDataFile();
-        if (dataFile != null && dataFile.isFile()) {
-            try {
-                JsonObject json = Utils.readJsonFile(secretKey, dataFile);
-           
-                if(json!= null){
-           
-                    openJson(json);
-                }
-            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-
-                try {
-                    Files.writeString(logFile.toPath(), "\nSpectrum Finance getfile error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
-
-            }
-
-        }
-
     }
 
     public VBox getGridBox() {
@@ -592,7 +532,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private void doSearch( EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         Task<SpectrumMarketItem[]> task = new Task<SpectrumMarketItem[]>() {
             @Override
-            public SpectrumMarketItem[] call() {List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().toUpperCase().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
+            public SpectrumMarketItem[] call() {
+                List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().toUpperCase().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
 
                 SpectrumMarketItem[] results = new SpectrumMarketItem[searchResultsList.size()];
 
@@ -656,6 +597,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
         }
 
+        
+
     }
 
     public SpectrumFinance getSpectrumFinance() {
@@ -663,37 +606,27 @@ public class SpectrumDataList extends Network implements NoteInterface {
     }
 
     public void save(){
-        save(getNetworksData().getAppData().appKeyProperty().get());
+        getNetworksData().save("data", ".", getNetworkId(), SpectrumFinance.NETWORK_ID, getJsonObject());
     }
 
-    public void save(SecretKey secretKey) {
-  
-        try {
-           
-            Utils.saveJson(secretKey, getJsonObject(), getDataFile());
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                | IOException e) {
-            try {
-                Files.writeString(logFile.toPath(), "\nSpectrumFinance save failed: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
-            }
-        }
-
+   
+    public String getDescription(){
+        return "data";
     }
 
     @Override
     public void shutdown(){
-        m_connectionStatus = SpectrumFinance.STOPPED;
+        m_connectionStatus = App.STOPPED;
 
         m_marketsList.forEach((item)->{
             item.shutdown();
         });
-        
-        statusMsgProperty().set(ErgoMarketsData.STOPPED);
+       
+        statusMsgProperty().set(App.STATUS_STOPPED);
 
-        m_spectrumFinance.removeMsgListener(m_msgListener);
+        m_spectrumFinance.removeMsgListener(m_spectrumMsgInterface);
+        m_spectrumMsgInterface = null;
+
         super.shutdown();
     }
 
