@@ -7,6 +7,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 
 import javafx.scene.layout.HBox;
@@ -25,18 +26,25 @@ public class AmountBoxes extends VBox {
 
 
     private VBox m_listVBox = new VBox();
-    private final SimpleObjectProperty<Insets> m_paddingInsets =new SimpleObjectProperty<>( new Insets(0,0,10,10));
+    private final SimpleObjectProperty<Insets> m_paddingInsets =new SimpleObjectProperty<>( new Insets(0,0,0,0));
     private Node m_lastRowItem = null;
     private String m_lastRowItemStyle = ADD_AS_LAST_ROW;
     private boolean m_lastRowItemDisabled = false;
+    public AmountBoxes(){
+        super();
+    }
 
- 
-    public AmountBoxes(AmountBoxInterface... boxes) {
+    public AmountBoxes( AmountBoxInterface... boxes) {
         super();
        //m_addressData = addressData;
       //  HBox.setHgrow(m_listVBox, Priority.ALWAYS);
-        
-        
+       
+        init(boxes);
+
+    }
+
+    public void init(AmountBoxInterface... boxes){
+            
         getChildren().add(m_listVBox);
 
         m_amountsList.addListener((ListChangeListener.Change<? extends AmountBoxInterface> c) -> updateGrid());
@@ -48,8 +56,8 @@ public class AmountBoxes extends VBox {
         }else{
             updateGrid();
         }
-
     }
+
 
     public ObservableList<AmountBoxInterface> amountsList(){
         return m_amountsList;
@@ -107,6 +115,10 @@ public class AmountBoxes extends VBox {
         return m_listVBox;
     }
 
+    public ObservableList<AmountBoxInterface> getAmountBoxList(){
+        return m_amountsList;
+    }
+
     public AmountBoxInterface[] getAmountBoxArray(){
         int size = m_amountsList.size();
         if(size == 0){
@@ -126,32 +138,32 @@ public class AmountBoxes extends VBox {
             }
         }
     }
-
+    private ArrayList<String> m_removeList  = new ArrayList<>();
     public void removeOld(long timeStamp){
-        ArrayList<String> removeList = new ArrayList<>();
-
+        
+        m_removeList.clear();
         for(AmountBoxInterface amountBox : m_amountsList){
             if(amountBox.getTimeStamp() < timeStamp){
-                removeList.add(amountBox.getTokenId());        
+                m_removeList.add(amountBox.getTokenId());        
             }
         }
 
-        for(String tokenId : removeList){
+        for(String tokenId : m_removeList){
             removeAmountBox(tokenId);
         }
+        m_removeList.clear();
     }
 
     public void removeAmountBox(String tokenId){
         if(tokenId != null){
             int size = m_amountsList.size();
-            AmountBoxInterface[] amountBoxes = new AmountBoxInterface[size];
-            amountBoxes = m_amountsList.toArray(amountBoxes);
+        
 
             for(int i = 0; i < size; i++){
-                AmountBoxInterface amountBox = amountBoxes[i];
+                AmountBoxInterface amountBox = m_amountsList.get(i);
                 String amountBoxTokenId = amountBox.getTokenId();
 
-                if(amountBoxTokenId != null && amountBox.getTokenId().equals(tokenId)){
+                if(amountBoxTokenId != null && amountBoxTokenId.equals(tokenId)){
                     amountBox.shutdown();
                     m_amountsList.remove(amountBox);
                     break;
@@ -163,11 +175,10 @@ public class AmountBoxes extends VBox {
     public AmountBoxInterface getAmountBox(String tokenId){
         if(tokenId != null){
             int size = m_amountsList.size();
-            AmountBoxInterface[] amountBoxes = new AmountBoxInterface[size];
-            amountBoxes = m_amountsList.toArray(amountBoxes);
+        
 
             for(int i = 0; i < size; i++){
-                AmountBoxInterface amountBox = amountBoxes[i];
+                AmountBoxInterface amountBox = m_amountsList.get(i);
                 String amountBoxTokenId = amountBox.getTokenId();
 
                 if(amountBoxTokenId != null && amountBoxTokenId.equals(tokenId)){
@@ -190,6 +201,7 @@ public class AmountBoxes extends VBox {
             Insets padding = m_paddingInsets.get();
 
             HBox paddingBox = new HBox(amountBox);
+            paddingBox.setAlignment(Pos.CENTER_LEFT);
             HBox.setHgrow(paddingBox, Priority.ALWAYS);
             paddingBox.setPadding(padding);
 

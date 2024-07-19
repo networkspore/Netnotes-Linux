@@ -2,20 +2,9 @@ package com.netnotes;
 
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ScheduledFuture;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 
 import org.ergoplatform.appkit.Address;
 import org.ergoplatform.appkit.ErgoClient;
@@ -24,7 +13,6 @@ import org.ergoplatform.appkit.InputBoxesSelectionException;
 import org.ergoplatform.appkit.NetworkType;
 import org.ergoplatform.appkit.RestApiErgoClient;
 import org.ergoplatform.appkit.UnsignedTransaction;
-import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -39,12 +27,10 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -52,47 +38,28 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import javafx.util.Duration;
-
-import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
 
-public class AddressData extends Network {
-
-
-    
+public class AddressData extends Network {  
     
     public final static int UPDATE_LIMIT = 10;
 
-  
     private int m_index;
     private Address m_address;
    
@@ -1747,9 +1714,10 @@ public class AddressData extends Network {
 
         NoteInterface explorerInterface = getErgoNetworkData().selectedExplorerData().get();
         if(explorerInterface != null){
+            
             JsonObject note = Utils.getCmdObject("getBalance");
             note.addProperty("networkId", m_addressesData.getErgoNetworkdata().getId());
-            note.addProperty("address", m_address.toString());
+            note.addProperty("address", m_addressString);
 
             explorerInterface.sendNote(note,
                 success -> {
@@ -1758,11 +1726,9 @@ public class AddressData extends Network {
                     if (sourceObject != null) {
                         JsonObject jsonObject = (JsonObject) sourceObject;
                 
-                
                         
                         setBalance(jsonObject); 
-                        m_addressesData.setBalanceTimeStamp(System.currentTimeMillis());
-
+                        
                     }},
                     failed -> {
                             try {
@@ -1773,7 +1739,7 @@ public class AddressData extends Network {
                             }
             
                     }
-                );
+                , null);
                 
         
 
@@ -1822,8 +1788,10 @@ public class AddressData extends Network {
 
     private void setBalance(JsonObject jsonObject){
         m_balanceJson = jsonObject;
-        m_addressesData.sendMessage( m_addressString, App.UPDATED, System.currentTimeMillis(), "Balance updated");
-    
+       
+        m_addressesData.getWalletData().sendMessage(App.UPDATED, System.currentTimeMillis(), m_addressString); 
+
+
     }
     
     public JsonObject getBalance(){

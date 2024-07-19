@@ -12,7 +12,7 @@ import javafx.event.EventHandler;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
-
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 
 public class ErgoNodes extends Network implements NoteInterface {
@@ -111,7 +111,7 @@ public class ErgoNodes extends Network implements NoteInterface {
   
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
 
        /* JsonElement subjecElement = note.get("subject");
         JsonElement networkTypeElement = note.get("networkType");

@@ -1,10 +1,5 @@
 package com.netnotes;
 
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
@@ -99,8 +94,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         for(int i = 0; i < tokensArrayLength ; i ++ ){
             JsonElement tokenElement = tokensArray.get(i);
             
-            PriceAmount tokenAmount = tokenElement != null && tokenElement.isJsonObject() ? new PriceAmount(tokenElement.getAsJsonObject()) : UNKNOWN_PRICE_AMOUNT;
-            tokenAmount.getCurrency().setErgoTokens(ergoTokens);
+            PriceAmount tokenAmount = tokenElement != null && tokenElement.isJsonObject() ? new PriceAmount(parentAddress.getErgoNetworkData().getErgoTokens(), tokenElement.getAsJsonObject()) : UNKNOWN_PRICE_AMOUNT;
           
             tokenAmounts[i] = tokenAmount;
         }

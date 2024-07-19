@@ -5,4 +5,5 @@ public interface AmountBoxInterface {
     long getTimeStamp();
     void setTimeStamp(long timeStamp);
     void shutdown();
+    void updateToken();
 }

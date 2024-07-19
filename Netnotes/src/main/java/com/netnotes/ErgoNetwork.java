@@ -4,17 +4,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.time.LocalDateTime;
 
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
-import com.devskiller.friendly_id.FriendlyId;
 import com.utils.Utils;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.MenuButton;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
 
@@ -152,7 +151,6 @@ public class ErgoNetwork extends Network implements NoteInterface {
         return m_networkType;
     }
 
-    private ChangeListener<Number> m_networkUpdateListener = null;
 
     @Override
     protected void start(){
@@ -173,7 +171,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
 
 
         Utils.returnObject(sendNote(note), getNetworksData().getExecService(), onSucceeded, onFailed);

@@ -1,8 +1,6 @@
 package com.satergo;
 
-import com.netnotes.AddressData;
 import com.satergo.ergo.Balance;
-import com.satergo.ergo.ErgoInterface;
 import com.satergo.extra.AESEncryption;
 
 import javafx.beans.property.SimpleObjectProperty;
@@ -12,20 +10,17 @@ import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
 import javafx.stage.FileChooser;
 
-import org.ergoplatform.ErgoAddress;
 import org.ergoplatform.appkit.*;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
 import java.io.*;
-import java.net.ConnectException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;

@@ -20,6 +20,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.satergo.Wallet;
+import com.utils.Utils;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -45,7 +46,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
@@ -156,7 +156,26 @@ public class ErgoWalletDataList {
             }
         }
     }
+
+    public NoteInterface getWalletByName(JsonObject note) {
+        JsonElement nameElement = note.get("name");
+
+        if(nameElement != null && nameElement.isJsonPrimitive()){
+            return getWalletByName(nameElement.getAsString());
+        }
+        
+        return null;
+    }
     
+    public NoteInterface getWalletByName(String name) {
+        
+        for (ErgoWalletData walletData : m_walletDataList) {
+            if(name.equals(walletData.getName())){
+                return walletData.getNoteInterface();
+            }
+        }
+        return null;
+    }
 
     public NoteInterface getWalletByPath(String path) {
         
@@ -180,173 +199,7 @@ public class ErgoWalletDataList {
 
 
 
-    public Scene createMnemonicScene(String id, String name,  NetworkType networkType, Stage stage) {        //String oldStageName = mnemonicStage.getTitle();
-
-        String titleStr = "Mnemonic phrase - " + m_ergoWallet.getName();
-
-        stage.setTitle(titleStr);
-
-        Button closeBtn = new Button();
-        Button maximizeBtn = new Button();
-
-        HBox titleBox = App.createTopBar(m_ergoWallet.getSmallAppIcon(), maximizeBtn, closeBtn, stage);
-
-        //Region spacer = new Region();
-        //HBox.setHgrow(spacer, Priority.ALWAYS);
-     /*
-        HBox menuBar = new HBox();
-        HBox.setHgrow(menuBar, Priority.ALWAYS);
-        menuBar.setAlignment(Pos.CENTER_LEFT);
-        menuBar.setId("menuBar");
-        menuBar.setPadding(new Insets(1, 0, 1, 5));
-
-        VBox menuPaddingBox = new VBox(menuBar);
-        menuPaddingBox.setPadding(new Insets(0, 2, 5, 2));
-        */
-        Text headingText = new Text("Mnemonic phrase");
-        headingText.setFill(App.txtColor);
-        headingText.setFont(App.txtFont);
-
-        HBox headingBox = new HBox(headingText);
-        headingBox.prefHeight(40);
-        headingBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(headingBox, Priority.ALWAYS);
-        headingBox.setPadding(new Insets(10, 15, 10, 15));
-        headingBox.setId("headingBox");
-
-        VBox headerBox = new VBox(headingBox);
-        headerBox.setPadding(new Insets(0, 5, 2, 5));
-
-        TextArea mnemonicField = new TextArea(Mnemonic.generateEnglishMnemonic());
-        mnemonicField.setFont(App.txtFont);
-        mnemonicField.setId("textFieldCenter");
-        mnemonicField.setEditable(false);
-        mnemonicField.setWrapText(true);
-        mnemonicField.setPrefRowCount(2);
-        HBox.setHgrow(mnemonicField, Priority.ALWAYS);
-
-        Platform.runLater(() -> mnemonicField.requestFocus());
-
-        HBox mnemonicFieldBox = new HBox(mnemonicField);
-
-        VBox mnemonicBox = new VBox(mnemonicFieldBox);
-        mnemonicBox.setAlignment(Pos.CENTER);
-        mnemonicBox.setPadding(new Insets(20, 30, 0, 30));
-
-        Region hBar = new Region();
-        hBar.setPrefWidth(400);
-        hBar.setPrefHeight(2);
-        hBar.setId("hGradient");
-
-        HBox gBox = new HBox(hBar);
-        gBox.setAlignment(Pos.CENTER);
-        gBox.setPadding(new Insets(15, 0, 0, 0));
-
-        Button nextBtn = new Button("Next");
-
-        nextBtn.setFont(App.txtFont);
-
-        HBox nextBox = new HBox(nextBtn);
-        nextBox.setAlignment(Pos.CENTER);
-        nextBox.setPadding(new Insets(25, 0, 0, 0));
-
-        VBox bodyBox = new VBox(mnemonicBox, gBox, nextBox);
-        VBox.setMargin(bodyBox, new Insets(5, 10, 0, 20));
-        VBox.setVgrow(bodyBox, Priority.ALWAYS);
-
-        VBox layoutVBox = new VBox(titleBox, headerBox, bodyBox);
-
-        mnemonicFieldBox.setMaxWidth(900);
-        HBox.setHgrow(mnemonicFieldBox, Priority.ALWAYS);
-
-        Scene mnemonicScene = new Scene(layoutVBox, 600, 425);
-        mnemonicScene.setFill(null);
-        mnemonicScene.getStylesheets().add("/css/startWindow.css");
-
-        mnemonicBox.prefHeightProperty().bind(mnemonicScene.heightProperty().subtract(titleBox.heightProperty()).subtract(headerBox.heightProperty()).subtract(130));
-
-        closeBtn.setOnAction(e -> {
-            mnemonicField.setText("");
-            stage.close();
-
-        });
-
  
-
-        nextBtn.setOnAction(nxtEvent -> {
-            Alert nextAlert = new Alert(AlertType.NONE, "This mnemonic phrase may be used to generate backup or to recover this wallet if it is lost. It is strongly recommended to always maintain a paper copy of this phrase in a secure location. \n\nWarning: Loss of your mnemonic phrase could lead to the loss of your ability to recover this wallet.", ButtonType.CANCEL, ButtonType.OK);
-            nextAlert.setHeaderText("Notice");
-            nextAlert.initOwner(stage);
-            nextAlert.setTitle("Notice - Mnemonic phrase - Add wallet");
-            Optional<ButtonType> result = nextAlert.showAndWait();
-
-            if(result != null && result.isPresent() && result.get() == ButtonType.OK){
-
-                 Button closePassBtn = new Button();
-                Stage passwordStage = App.createPassword("Wallet password - " + ErgoWallets.NAME, m_ergoWallet.getSmallAppIcon(), m_ergoWallet.getAppIcon(), closePassBtn,m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
-                    Object sourceObject = onSuccess.getSource().getValue();
-
-                    if (sourceObject != null && sourceObject instanceof String) {
-
-                        String password = (String) sourceObject;
-                        if (!password.equals("")) {
-
-                            FileChooser saveFileChooser = new FileChooser();
-                          //  saveFileChooser.setInitialDirectory(getWalletsDirectory());
-                            saveFileChooser.setTitle("Save: Wallet file");
-                            saveFileChooser.getExtensionFilters().add(ErgoWallets.ergExt);
-                            saveFileChooser.setSelectedExtensionFilter(ErgoWallets.ergExt);
-
-                            File walletFile = saveFileChooser.showSaveDialog(stage);
-                            int indexOfDecimal = walletFile != null ? walletFile.getName().lastIndexOf(".") : -1;
-                            walletFile = walletFile != null ? (indexOfDecimal != -1 && walletFile.getName().substring(indexOfDecimal).equals("erg") ? walletFile : new File(walletFile.getAbsolutePath() + ".erg")) : null;
-                            if (walletFile != null) {
-                                
-
-                                Wallet.create(walletFile.toPath(), Mnemonic.create(SecretString.create(mnemonicField.getText()), SecretString.create(password)), walletFile.getName(), password.toCharArray());
-                                mnemonicField.setText("-");
-                                String configId = FriendlyId.createFriendlyId();
-                                ErgoWalletData walletData = new ErgoWalletData(id,configId, name, walletFile, networkType, m_ergoWallet);
-                                add(walletData, true);
-                                
-                            }
-                  
-                            
-                            closePassBtn.fire();
-                            stage.close();
-                        }else{
-                            Alert a = new Alert(AlertType.NONE, "Enter a password for the wallet file.", ButtonType.OK);
-                            a.setTitle("Password Required");
-                            a.setHeaderText("Password Required");
-                            a.show();
-                        }
-
-                    }else{
-                        closePassBtn.fire();
-                    }
-                    
-                });
-                closePassBtn.setOnAction(e->{
-                    passwordStage.close();
-             
-                });
-                passwordStage.show();
-
-                Platform.runLater(()->{
-                    passwordStage.toBack();
-                    Platform.runLater(()->{
-                        passwordStage.toFront();
-                        Platform.runLater(()->passwordStage.requestFocus());
-                    });
-                });
-               
-                
-                
-            }
-        });
-
-        return mnemonicScene;
-    }
 
 
     public String restoreMnemonicStage() {
@@ -502,6 +355,7 @@ public class ErgoWalletDataList {
     private String m_tmpStr = "";
 
     public Object openWallet(JsonObject note){
+
         JsonElement pathElement = note.get("path");
         JsonElement networkTypeElement = note.get("networkType");
 
@@ -509,39 +363,52 @@ public class ErgoWalletDataList {
             
             String path = pathElement.getAsString();
 
-            File file = new File(path);
-            
-            NoteInterface existingWalletData = getWalletByPath(file.getAbsolutePath());
+            if(Utils.findPathPrefixInRoots(path)){
 
-            if(existingWalletData != null){
-                return existingWalletData;
+                File file = new File(path);
+                
+
+                NoteInterface existingWalletData = getWalletByPath(file.getAbsolutePath());
+
+                if(existingWalletData != null){
+                    return existingWalletData.getJsonObject();
+                }
+
+                
+
+                m_tmpStr = file.getName();
+
+                if(!m_tmpStr.equals("")){
+
+                    m_tmpStr = m_tmpStr.endsWith(".erg") ? m_tmpStr.substring(0, m_tmpStr.length()-4) : m_tmpStr;
+                    
+                    int i = 1;
+                    while(containsName(m_tmpStr)){
+                        m_tmpStr =  m_tmpStr + " #" + i;
+                        i++;
+                    }
+                    String name = m_tmpStr;
+                    
+
+                    m_tmpStr = FriendlyId.createFriendlyId();
+
+                    while(getWallet(m_tmpStr) != null){
+                        m_tmpStr = FriendlyId.createFriendlyId(); 
+                    }
+
+                    String id = m_tmpStr;
+                    m_tmpStr = null;
+                    
+                    String configId = FriendlyId.createFriendlyId();
+                    NetworkType networkType = networkTypeElement != null && networkTypeElement.isJsonPrimitive() && networkTypeElement.getAsString().equals(NetworkType.TESTNET.toString()) ? NetworkType.TESTNET : NetworkType.MAINNET;
+                    ErgoWalletData walletData = new ErgoWalletData(id, configId, name, file, networkType, m_ergoWallet);
+                    add(walletData, true);
+
+                    JsonObject json = walletData.getJsonObject();
+                    json.addProperty("configId", configId);
+                    return json;
+                }
             }
-
-            m_tmpStr = "Wallet #" + FriendlyId.createFriendlyId();
-
-            while(containsName(m_tmpStr)){
-                m_tmpStr = "Wallet #" + FriendlyId.createFriendlyId();
-            }
-
-            String name = m_tmpStr;
-
-            m_tmpStr = FriendlyId.createFriendlyId();
-
-            while(getWallet(m_tmpStr) != null){
-                m_tmpStr = FriendlyId.createFriendlyId(); 
-            }
-
-            String id = m_tmpStr;
-            m_tmpStr = null;
-            String configId = FriendlyId.createFriendlyId();
-            NetworkType networkType = networkTypeElement != null && networkTypeElement.isJsonPrimitive() && networkTypeElement.getAsString().equals(NetworkType.TESTNET.toString()) ? NetworkType.TESTNET : NetworkType.MAINNET;
-            ErgoWalletData walletData = new ErgoWalletData(id, configId, name, file, networkType, m_ergoWallet);
-            add(walletData, true);
-
-            JsonObject json = walletData.getJsonObject();
-            json.addProperty("configId", configId);
-            return json;
-            
             
         }
 
@@ -549,7 +416,7 @@ public class ErgoWalletDataList {
     }
 
 
-    public void sendNoteToNetworkId(JsonObject note, String networkId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    /*public void sendNoteToNetworkId(JsonObject note, String networkId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         m_walletDataList.forEach(walletData -> {
             if (walletData.getNetworkId().equals(networkId)) {
@@ -557,7 +424,7 @@ public class ErgoWalletDataList {
                 walletData.sendNote(note, onSucceeded, onFailed);
             }
         });
-    }
+    }*/
 
     public int size() {
         return m_walletDataList.size();

@@ -13,7 +13,6 @@ import org.ergoplatform.appkit.NetworkType;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
 import com.satergo.Wallet;
 import com.utils.Utils;
 
@@ -23,6 +22,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
@@ -58,8 +58,10 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     @Override
     public void stop(){
-        m_addressesData.shutdown();
-        m_addressesData = null;
+        if(m_addressesData != null){
+            m_addressesData.shutdown();
+            m_addressesData = null;
+        }
     }
     
 
@@ -75,12 +77,12 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
        // getAddresses
        JsonElement subjectElement = note.get("subject");
        JsonElement networkElement = note.get("networkId");
 
-       if (subjectElement != null && networkElement != null) {
+       if (subjectElement != null && networkElement != null && networkElement.getAsString().equals(getErgoWallets().getErgoNetworkData().getId())) {
            
             switch(subjectElement.getAsString()){
                 case "getConfigId":
@@ -100,18 +102,25 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
 
     @Override
-    public void addMsgListener(NoteMsgInterface note){
-        if(m_authorizedIds.contains(note.getId())){
-            super.addMsgListener(note);
+    public void addMsgListener(NoteMsgInterface listener){
+        if(listener != null && m_authorizedIds.contains(listener.getId())){
+            super.addMsgListener(listener);
         }
     }
 
     @Override
-    public boolean removeMsgListener(NoteMsgInterface note){
-        if(note != null){
-            m_authorizedIds.remove(note.getId());
+    public boolean removeMsgListener(NoteMsgInterface listener){
+        if(listener != null){
+            String listenerId = listener.getId();
+            boolean removed = super.removeMsgListener(listener);;
+            if(removed && listenerId != null){
+                m_authorizedIds.remove(listenerId);
+            }
+            return removed;
+        }else{
+            return false;
         }
-        return super.removeMsgListener(note);
+        
     }
 
     private JsonObject updateFile(JsonObject note){
@@ -171,11 +180,16 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
         if(configId != null && configId.equals(m_configId) ){
             if(name != null && name.length() > 1){
-                
                 if(!name.equals(getName())){
-                    setName(name);
-                    updated();
-                    return Utils.getMsgObject(App.UPDATED, "Saved");
+                    note.remove("subject");
+                    note.addProperty("subject", "getWalletByName");
+                    if(m_ergoWallet.sendNote(note) == null){
+                        setName(name);
+                        updated();
+                        return Utils.getMsgObject(App.UPDATED, "Saved");
+                    }else{
+                        return Utils.getMsgObject(App.ERROR, "Name in use");
+                    }
                 }else{
                     return Utils.getMsgObject(App.WARNING, "No change");
                 }   
@@ -342,8 +356,8 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 return null;
             }
 
-            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-                return thisData.sendNote(note, onSucceeded, onFailed);
+            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
+                return thisData.sendNote(note, onSucceeded, onFailed, progressIndicator);
             }
 
             public Object sendNote(JsonObject note){
@@ -382,9 +396,14 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 return null;
             }
 
-            public void addMsgListener(NoteMsgInterface listener){}
+            public void addMsgListener(NoteMsgInterface listener){
+                if(listener != null && listener.getId() != null){
+                    thisData.addMsgListener(listener);
+                }
+            }
             public boolean removeMsgListener(NoteMsgInterface listener){
-                return false;
+                
+                return thisData.removeMsgListener(listener);
             }
 
             public int getConnectionStatus(){
@@ -495,11 +514,14 @@ public class ErgoWalletData extends Network implements NoteInterface {
     }
     @Override
     protected void sendMessage(int code, long timestamp, String msg){
-
+       
         for(int i = 0; i < msgListeners().size() ; i++){
             NoteMsgInterface msgInterface = msgListeners().get(i);
             if(msgInterface.getId() != null && m_authorizedIds.contains(msgInterface.getId())){
+                
                 msgInterface.sendMessage( code, timestamp, msg);
+            }else{
+                
             }
         }
     }
@@ -513,6 +535,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }
         }
     }
+  
     
 
 }

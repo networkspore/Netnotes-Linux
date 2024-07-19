@@ -326,7 +326,7 @@ public class TransactionsTab extends VBox implements TabInterface {
                     txsProperty.set(new ErgoTransaction[0]);
                     updateAllTxList.run();
                   
-                });
+                }, progressBar);
             }else{
                 Alert a = new Alert(AlertType.NONE, "Select an Ergo explorer", ButtonType.OK);
                 

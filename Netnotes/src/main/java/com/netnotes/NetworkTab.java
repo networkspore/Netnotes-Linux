@@ -81,6 +81,7 @@ public class NetworkTab extends VBox implements TabInterface {
         Region btnTopSpaceRegion = new Region();
         btnTopSpaceRegion.prefHeightProperty().bind(heightObject.multiply(.18).subtract(20));
         btnTopSpaceRegion.setMinHeight(10);
+
         Button selectBtn = new Button("Select");
         selectBtn.setId("roundBox"); 
         HBox selectBtnBox = new HBox(selectBtn);

@@ -5,6 +5,8 @@ import java.io.IOException;
 
 import java.nio.file.Files;
 
+import org.ergoplatform.appkit.NetworkType;
+
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
@@ -80,13 +82,19 @@ public class ErgoNetworkData {
        
         installNetworks();
         
-        openJson(getErgoNetwork().getNetworksData().getData("getJsonObject", "networkData", ".", ErgoNetwork.NETWORK_ID));
-        
-        setDefaults();
+        openJson();
         
         addChangeListeners();
 
+        setDefaults();
+        
+        
 
+
+    }
+
+    public NetworkType getNetworkType(){
+        return m_ergoNetwork.getNetworkType();
     }
 
     private void setDefaultExplorer(){
@@ -158,8 +166,9 @@ public class ErgoNetworkData {
 
     }
 
-    private void openJson(JsonObject json){
-        
+    private void openJson(){
+        JsonObject json = getErgoNetwork().getNetworksData().getData("getJsonObject", "networkData", ".", ErgoNetwork.NETWORK_ID);
+
         JsonElement walletIdElement = json != null ? json.get("walledId") : null;
         JsonElement marketIdElement = json != null ? json.get("marketId") : null;
         JsonElement explorerIdElement = json != null ? json.get("explorerId") : null;

@@ -47,11 +47,10 @@ import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
 public class ErgoTransaction {
-    private File logFile = new File("netnotes-log.txt");
-
+  
     public final static String FEE_ERGOTREE_START = "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d";
-    public final long REQUIRED_CONFIRMATIONS = 100;
-    public final static PriceAmount UNKNOWN_PRICE_AMOUNT = new PriceAmount(0, new PriceCurrency("unknown","unknown","unknown",0,"unknown","unknown",null,"unknown",""));
+    public final long REQUIRED_CONFIRMATIONS = 100; 
+    public final static PriceAmount UNKNOWN_PRICE_AMOUNT = new PriceAmount(0, new PriceCurrency("unknown","unknown","unknown",0,"unknown","unknown","unknown",""));
     
     public static class TransactionType{
         public final static String SEND = "Send";
@@ -156,12 +155,12 @@ public class ErgoTransaction {
                 }, (onFailed)->{
                     
                     try {
-                        Files.writeString(logFile.toPath(), "\ntx doUpdate failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(App.logFile.toPath(), "\ntx doUpdate failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e) {
         
                     }
 
-                });
+                }, null);
             }
         }
     }
@@ -526,7 +525,7 @@ public class ErgoTransaction {
             toBox.setPadding(new Insets(0,15,0,10));
             toBox.setMinHeight(30);
 
-            AmountBox ergoAmountBox = new AmountBox(getErgoAmount(), txScene, m_parentAddress.getAddressesData());
+            AmountBox ergoAmountBox = new AmountBox(getParentAddress().getErgoNetworkData().getErgoTokens(), getErgoAmount(), txScene);
             HBox.setHgrow(ergoAmountBox, Priority.ALWAYS);
        
    

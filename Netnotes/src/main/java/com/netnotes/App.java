@@ -162,7 +162,7 @@ public class App extends Application {
 
     private NetworksData m_networksData;
 
-    private HostServices m_networkServices = getHostServices();
+    private HostServices m_hostServices;
     //private java.awt.SystemTray m_tray;
     //private java.awt.TrayIcon m_trayIcon;
     private final static long EXECUTION_TIME = 500;
@@ -182,6 +182,7 @@ public class App extends Application {
         txtFont = Font.font("OCR A Extended", 15);
         titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 12);
   
+        m_hostServices = getHostServices();
 
         appStage.setResizable(false);
         appStage.initStyle(StageStyle.UNDECORATED);
@@ -431,7 +432,7 @@ public class App extends Application {
     private void openNetnotes(AppData appData,  Stage appStage) {
 
 
-        m_networksData = new NetworksData(appData, m_networkServices);    
+        m_networksData = new NetworksData(appData, m_hostServices);    
 
         loadMainStage(appStage);
         

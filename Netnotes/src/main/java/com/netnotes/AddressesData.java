@@ -20,7 +20,6 @@ import com.satergo.Wallet;
 import com.satergo.WalletKey.Failure;
 import com.utils.Utils;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
@@ -144,9 +143,7 @@ public class AddressesData {
         return json;
     }
 
-    protected void sendMessage(String address, int code, long timeStamp, String msg){
-        m_walletData.sendMessage(address, code, timeStamp, msg);
-    }
+ 
     
     private EventHandler<WorkerStateEvent> m_updateEvent;
 
@@ -432,10 +429,7 @@ public class AddressesData {
         return m_balanceTimestamp;
     }
 
-    public void setBalanceTimeStamp(long timeStamp){
-        m_balanceTimestamp = timeStamp;
-    }
-    
+
 
     public void shutdown() {
       

@@ -34,9 +34,11 @@ public class ErgoExplorers extends Network implements NoteInterface {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, ergoNetwork);
         m_ergoNetwork = ergoNetwork;
         m_ergNetData = ergoNetworkData;
-        setup();
+        
         
     }
+
+    
 
     public String getDescription(){
         return DESCRIPTION;
@@ -49,9 +51,6 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
 
-     private void setup() {
-        new ErgoExplorerList(this);
-    }
 
 
     public static String getSmallAppIconString(){
@@ -95,7 +94,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     @Override
     public void start(){
         if(getConnectionStatus() != App.STARTED){
-            m_explorerList = new ErgoExplorerList(this);
+            m_explorerList = new ErgoExplorerList(this, m_ergNetData);
         }
         super.start();
     }

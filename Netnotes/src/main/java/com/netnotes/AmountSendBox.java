@@ -658,6 +658,10 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
         
     }
 
+    public void updateToken(){
+        
+    }
+
     public PriceAmount getBalanceAmount(){
         return m_balanceAmount;
     }

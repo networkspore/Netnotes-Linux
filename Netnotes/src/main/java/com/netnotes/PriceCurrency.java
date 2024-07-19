@@ -13,7 +13,9 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import com.utils.Utils;
 
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 
@@ -23,138 +25,127 @@ import com.google.gson.JsonObject;
 public class PriceCurrency {
 
     public final static int VALID_TIMEOUT = 1000*60;
-    
+    public final static String DEFAULT_TOKEN_URL = "https://explorer.ergoplatform.com/en/token/";
 
     private String m_defaultCurrencyName = ""; 
     private String m_tokenId = null;
     private String m_symbol = null;
     private String m_name = null;
-    private String m_networkId = ErgoNetwork.NETWORK_ID;
     private String m_imageString = "/assets/unknown-unit.png";
     private int m_fractionalPrecision = 2;
-    private String m_fontSymbol = "";
     private long m_timestamp = 0;
     private String m_networkType = null;
-    private String m_description = "";
-    private long m_emissionAmount = 0;
-    private String m_tokenType = null;
-    private String m_url = null;
+    
+    private SimpleStringProperty m_fontSymbol = new SimpleStringProperty("");
+    private SimpleStringProperty m_description = new SimpleStringProperty("");
+    private SimpleLongProperty m_emissionAmount = new SimpleLongProperty(0);
+    private SimpleStringProperty m_tokenType = new SimpleStringProperty("");
+    private SimpleStringProperty m_url = new SimpleStringProperty();
 
     private HashData m_hashData = null;
-    private ErgoTokens m_ergoTokens;
+    private ErgoTokens m_ergoTokens = null;
     public final SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(null); 
 
     public PriceCurrency(ErgoTokens ergoTokens, String tokenId, String name, int decimals, String tokenType, String networkType){
+        m_ergoTokens = ergoTokens;
         m_tokenId = tokenId;
         m_name = name;
         m_symbol = name;
-        m_tokenType = tokenType;
+        m_tokenType.set(tokenType);
         m_imageString = "/assets/unknown-unit.png";
         m_fractionalPrecision = decimals;
-        m_fontSymbol = "";
         m_networkType = networkType;
         m_ergoTokens = ergoTokens;
-
-    }
-
-    public void update(){
-        if(m_ergoTokens != null){
-            JsonObject note = Utils.getCmdObject("getAddErgoToken");
-            note.addProperty("networkId", m_ergoTokens.getErgoNetworkData().getId());
-            note.addProperty("tokenId", m_tokenId);
-            note.addProperty("name", m_name);
-            note.addProperty("decimals", m_fractionalPrecision);
-
-            Object obj = m_ergoTokens.sendNote(note);
-
-            if(obj != null && obj instanceof JsonObject){
-                JsonObject jsonObject = (JsonObject) obj;
-                
-                JsonElement imageStringElement = jsonObject.get("imageString");
-                JsonElement urlElement = jsonObject.get("url");
-                JsonElement emissionAmountElement = jsonObject.get("emissionAmount");
-                JsonElement descriptionElement = jsonObject.get("description");
-                JsonElement symbolElement = jsonObject.get("symbol");
-                JsonElement fontSymbolElement = jsonObject.get("fontSymbol");
-                JsonElement hashDataElement = jsonObject.get("hashData");
-                
-                m_imageString = imageStringElement != null ? imageStringElement.getAsString() : m_imageString;
-                m_url = urlElement != null ? urlElement.getAsString() : m_url;
-                m_emissionAmount = emissionAmountElement != null ? emissionAmountElement.getAsLong() : m_emissionAmount;
-                m_description = descriptionElement != null ? descriptionElement.getAsString() : m_description;
-                m_symbol = symbolElement != null ? symbolElement.getAsString() : m_symbol;
-                m_fontSymbol = fontSymbolElement != null ? fontSymbolElement.getAsString() : m_fontSymbol;
-                m_hashData = hashDataElement != null ? new HashData(hashDataElement.getAsJsonObject()) : m_hashData;
-            } 
-        }
-    }
-
-    public void setErgoTokens(ErgoTokens ergoTokens){
-        m_ergoTokens = ergoTokens;
+        m_url.set(DEFAULT_TOKEN_URL + m_tokenId);
         update();
     }
 
-    public PriceCurrency(String token_id, String name, String symbol, String description, int fractionalPrecision, String networkId, String unitImageString, String networkType, long emissionAmount, long timestamp) {
-        this(token_id, name, symbol,  fractionalPrecision, networkId,networkType, unitImageString, "","");
-        m_timestamp = timestamp;
-        m_description = description;
-        m_emissionAmount = emissionAmount;
+    private JsonObject m_note = null;
+
+    public void update(){
+       //if(m_ergoTokens != null){
+            m_note = Utils.getCmdObject("getAddToken");
+            m_note.addProperty("networkId", m_ergoTokens.getErgoNetworkData().getId());
+            m_note.addProperty("tokenId", m_tokenId);
+            m_note.addProperty("name", m_name);
+            m_note.addProperty("decimals", m_fractionalPrecision);
+
+            Object obj = m_ergoTokens.sendNote(m_note);
+            
+            m_note = null;
+
+            if(obj != null && obj instanceof JsonObject){
+                JsonObject jsonObject = (JsonObject) obj;
+                openJson(jsonObject);
+            } 
+ //       }
     }
 
-    public PriceCurrency(String token_id, String name, String symbol, int fractionalPrecision, String networkId, String networkType, String unitImageString, String tokenType, String fontSymbol) {
+   /* public void setErgoTokens(ErgoTokens ergoTokens){
+        m_ergoTokens = ergoTokens;
+        update();
+    } */
+
+
+    public PriceCurrency(String token_id, String name, String symbol, String description, int fractionalPrecision, String unitImageString, String networkType, long emissionAmount, long timestamp) {
+        this(token_id, name, symbol,  fractionalPrecision, networkType, unitImageString, "","");
+        m_timestamp = timestamp;
+        m_description.set(description);
+        m_emissionAmount.set(emissionAmount);
+    }
+
+    public PriceCurrency(String token_id, String name, String symbol, int fractionalPrecision,  String networkType, String unitImageString, String tokenType, String fontSymbol) {
         m_tokenId = token_id;
         m_name = name;
         m_symbol = symbol;
-        m_networkId = networkId;
         m_imageString = unitImageString;
         m_fractionalPrecision = fractionalPrecision;
-        m_fontSymbol = fontSymbol;
-        m_tokenType = tokenType;
+        m_fontSymbol.set(fontSymbol);
+        m_tokenType.set(tokenType);
         m_networkType = networkType;
 
         if( m_imageString != null && !m_imageString.startsWith("/assets")){
-            try {
-                m_hashData = new HashData(new File(m_imageString));
-            } catch (IOException e) {
+            File file = new File(m_imageString);
+            if(file.isFile()){
                 try {
-                    Files.writeString(new File("netnotes-log.txt").toPath(), "\nPrice currency " + m_name + " hashdata failed.", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
 
+                    m_hashData = new HashData(file);
+                } catch (IOException e) {
+
+                    try {
+                        Files.writeString(new File("netnotes-log.txt").toPath(), "\nPrice currency " + m_name + " hashdata failed.", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e1) {
+
+                    }
+                    m_hashData = null;
                 }
+
+            }else{
                 m_hashData = null;
-            }
+            }        
         }
     }
 
-    public PriceCurrency(JsonObject json) throws Exception{
-        JsonElement idElement = json.get("id");
+    public void openJson(JsonObject json) {
+
         JsonElement emissionElement = json.get("emissionAmount");
-        JsonElement nameElement = json.get("name");
         JsonElement descriptionElement = json.get("description");
         JsonElement decimalsElement = json.get("decimals");
-        JsonElement networkTypeElement = json.get("networkType");
         JsonElement timeStampElement = json.get("timeStamp");
-        JsonElement networkIdElement = json.get("networkId");
         JsonElement symbolElement = json.get("symbol");
         JsonElement fontSymbolElement = json.get("fontSymbol");
         JsonElement imageStringElement = json.get("imageString");
         JsonElement hashDataElement = json.get("hashData");
 
-        if(idElement == null || decimalsElement == null || symbolElement == null || nameElement == null){
-            throw new Exception("");
-        }
         
-        m_tokenId = idElement.getAsString();
+  
         m_fractionalPrecision = decimalsElement.getAsInt();
         m_symbol = symbolElement.getAsString();
-        m_name = nameElement.getAsString();
-
-        m_emissionAmount = emissionElement != null && emissionElement.isJsonPrimitive() ? emissionElement.getAsLong() : 0;
-        m_description = descriptionElement != null && descriptionElement.isJsonPrimitive() ? descriptionElement.getAsString(): "";
-        m_networkType = networkTypeElement != null && networkTypeElement.isJsonPrimitive() ? networkTypeElement.getAsString() : "";
+        m_emissionAmount.set(emissionElement != null && emissionElement.isJsonPrimitive() ? emissionElement.getAsLong() : 0);
+        m_description.set(descriptionElement != null && descriptionElement.isJsonPrimitive() ? descriptionElement.getAsString(): "");
         m_timestamp = timeStampElement != null && timeStampElement.isJsonPrimitive() ? timeStampElement.getAsLong() : 0;
-        m_networkId = networkIdElement != null && networkIdElement.isJsonPrimitive() ? networkIdElement.getAsString() : "";
-        m_fontSymbol = fontSymbolElement != null && fontSymbolElement.isJsonPrimitive() ? fontSymbolElement.getAsString() : "";
+
+        m_fontSymbol.set(fontSymbolElement != null && fontSymbolElement.isJsonPrimitive() ? fontSymbolElement.getAsString() : "");
 
         if (hashDataElement != null && hashDataElement.isJsonObject()) {
             m_hashData = new HashData(hashDataElement.getAsJsonObject());
@@ -164,6 +155,24 @@ public class PriceCurrency {
             setImageString(imageStringElement.getAsString());
         }
     }
+        
+    public SimpleStringProperty fontSymbolProperty(){
+        return m_fontSymbol;
+    } 
+    public SimpleStringProperty descriptionProperty(){
+        return m_description;
+    }
+    public SimpleLongProperty emissionAmountProperty(){
+        return m_emissionAmount;
+    } 
+    public SimpleStringProperty tokenTypeProperty(){
+        return m_tokenType;
+    } 
+    public SimpleStringProperty urlProperty(){
+        return m_url;
+    }
+  
+
 
     public String getDefaultName(){
         return m_defaultCurrencyName;
@@ -186,11 +195,11 @@ public class PriceCurrency {
     }
 
     public String getTokenType(){
-        return m_tokenType;
+        return m_tokenType.get();
     }
 
     public void setTokenType(String tokenType){
-        m_tokenType = tokenType;
+        m_tokenType.set(tokenType);
     }
    
     public void setDecimals(int decimals){
@@ -203,18 +212,18 @@ public class PriceCurrency {
 
 
     public void setEmissionAmount(long amount){
-        m_emissionAmount = amount;
+        m_emissionAmount.set(amount);
     }
     public long getEmissionAmount(){
-        return m_emissionAmount;
+        return m_emissionAmount.get();
     }
 
     public void setDescription(String description){
-        m_description = description;
+        m_description.set(description);
     }
 
     public String getDescription(){
-        return m_description;
+        return m_description.get();
     }
 
     public String getNetworkTypeString(){
@@ -234,11 +243,16 @@ public class PriceCurrency {
     }
 
     public String getFontSymbol(){
-        return m_fontSymbol;
+        return m_fontSymbol.get();
     }
   
-
-
+    public void setUrl(String url){
+        m_url.set(url);
+    }
+    public String getUrl(){
+        
+        return m_url.get();
+    }
  
 
     public String getTokenId() {
@@ -373,10 +387,6 @@ public class PriceCurrency {
     }
 
 
-    public String networkId() {
-        return m_networkId;
-    }
-
     public int getFractionalPrecision() {
         return m_fractionalPrecision;
     }
@@ -391,25 +401,28 @@ public class PriceCurrency {
         if(m_tokenId != null){
             json.addProperty("id", m_tokenId);
         }
-        json.addProperty("emissionAmount", m_emissionAmount);
+  
+        json.addProperty("emissionAmount", m_emissionAmount.get());
+        
         json.addProperty("name", m_name);
-        if(m_description != null){
-            json.addProperty("description", m_description);
+        if(m_description.get() != null){
+            json.addProperty("description", m_description.get());
         }
         json.addProperty("decimals", m_fractionalPrecision);
         if(m_networkType != null){
             json.addProperty("networkType", m_networkType);
         }
         json.addProperty("timeStamp", m_timestamp);
-        if(m_networkId != null){
-            json.addProperty("networkId", m_networkId);
-        }
+       
         json.addProperty("symbol", m_symbol);
         if(m_imageString != null){
             json.addProperty("imageString",m_imageString);
         }
-        if(m_fontSymbol != null){
-            json.addProperty("fontSymbol", m_fontSymbol);
+        if(m_fontSymbol.get() != null){
+            json.addProperty("fontSymbol", m_fontSymbol.get());
+        }
+        if(m_tokenType.get() != null){
+            json.addProperty("tokenType",m_tokenType.get());
         }
         if (getImgHashData() != null) {
             json.add("hashData", getImgHashData().getJsonObject());

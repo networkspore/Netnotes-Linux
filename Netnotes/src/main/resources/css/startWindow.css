@@ -19,6 +19,10 @@
     -fx-cursor: hand;
 }
 
+.button:hover {
+    -fx-background-color: #77777750;
+}
+
 
 #leftLine{
     -fx-border-color: #77777790;
@@ -31,10 +35,7 @@
     -fx-font-family: 'OCR A Extended';
 }
 
-.button:hover {
-   
-    -fx-background-color: #77777750;
-}
+
 #topBar {
     -fx-background-color: linear-gradient(to bottom, #ffffff15 0%, #000000EE 50%, #11111110 90%);
    
@@ -552,6 +553,8 @@
 
 .text-field {
     -fx-font-family: "OCR A Extended";
+    -fx-padding: 0 5 0 10;
+    -fx-background-insets: 0, 0, 0, 0 ;
 }
 
 #amountField{

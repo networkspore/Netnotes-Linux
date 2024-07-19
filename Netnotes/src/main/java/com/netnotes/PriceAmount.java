@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 
+import org.ergoplatform.appkit.NetworkType;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
@@ -67,7 +69,7 @@ public class PriceAmount  {
  
     }
 
-    public PriceAmount(JsonObject json) throws Exception{
+    public PriceAmount(ErgoTokens ergoTokens, JsonObject json) throws Exception{
         
         m_priceQuoteProperty = new SimpleObjectProperty<>(null);
         
@@ -85,7 +87,22 @@ public class PriceAmount  {
         }
 
         JsonObject currencyObject = currencyObjectElement.getAsJsonObject();
-        PriceCurrency importCurrency = new PriceCurrency(currencyObject);
+        JsonElement tokenIdElement = currencyObject.get("tokenId");
+        JsonElement nameElement = currencyObject.get("name");
+        JsonElement decimalsElement = currencyObject.get("decimals");
+        JsonElement tokenTypeElement = currencyObject.get("tokenType");
+        JsonElement networkTypeElement = currencyObject.get("networkType");
+
+        String tokenId = tokenIdElement != null && tokenIdElement.isJsonPrimitive() ? tokenIdElement.getAsString() : null;
+        int decimals = decimalsElement != null && decimalsElement.isJsonPrimitive() ? decimalsElement.getAsInt() : -1;
+
+        if(tokenId == null || decimals == -1){
+            throw new Exception("currency null");
+        }
+        String name = nameElement != null && nameElement.isJsonPrimitive() ? nameElement.getAsString() : "null"; 
+        String tokenType = tokenTypeElement != null && tokenTypeElement.isJsonPrimitive() ? tokenTypeElement.getAsString() : null;
+        String networkType = networkTypeElement != null && networkTypeElement.isJsonPrimitive() ? networkTypeElement.getAsString() : NetworkType.MAINNET.toString();
+        PriceCurrency importCurrency = new PriceCurrency(ergoTokens, tokenId,name,decimals,tokenType, networkType);
 
 
         m_currency = importCurrency;
@@ -180,8 +197,12 @@ public class PriceAmount  {
     }
 
     public void setLongAmount(long amount) {
+        setLongAmount(amount,  System.currentTimeMillis());
+    }
+
+    public void setLongAmount(long amount, long timeStamp) {
         m_amount.set(calculateLongToBigDecimal(amount));
-        m_timeStamp = System.currentTimeMillis();
+        m_timeStamp = timeStamp;
     }
 
     public void addLongAmount(long amount){

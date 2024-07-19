@@ -12,6 +12,8 @@ public interface SimpleNoteInterface {
 
     Object sendNote(JsonObject note);
 
+    void sendMessage(String id, int code, long timeStamp, String str);
+
     void shutdown();
 
 }

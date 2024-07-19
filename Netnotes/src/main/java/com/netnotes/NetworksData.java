@@ -45,7 +45,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -131,7 +130,7 @@ public class NetworksData implements InstallerInterface {
     private ScrollPane m_subMenuScroll;
     private HBox m_subMenuBox = new HBox();
 
-    private SimpleObjectProperty<TabInterface> m_currentTab = new SimpleObjectProperty<TabInterface>();
+    private SimpleObjectProperty<TabInterface> m_currentMenuTab = new SimpleObjectProperty<TabInterface>();
     private ImageView m_networkImgView = new ImageView();
     private Button m_settingsBtn = new Button();
     private Button m_appsBtn = new Button();
@@ -907,11 +906,7 @@ public class NetworksData implements InstallerInterface {
 
             
                 case ErgoNetwork.NETWORK_ID:
-                try {
-                    Files.writeString(App.logFile.toPath(), "\nNetworksData: adding ergo", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
+               
                     addNetwork(new ErgoNetwork(this));
                     break;
             
@@ -999,7 +994,7 @@ public class NetworksData implements InstallerInterface {
         return success;
     }
 
-    public void broadcastNote(JsonObject note) {
+    /*public void broadcastNote(JsonObject note) {
 
         m_noteInterfaceList.forEach(noteInterface -> {
 
@@ -1023,7 +1018,7 @@ public class NetworksData implements InstallerInterface {
                 }
             });
         });
-    }
+    }*/
 
     public NoteInterface getNetwork(String networkId) {
         if (networkId != null) {
@@ -1059,14 +1054,14 @@ public class NetworksData implements InstallerInterface {
         return null;
     }
 
-    public void sendNoteToNetworkId(JsonObject note, String networkId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    /*public void sendNoteToNetworkId(JsonObject note, String networkId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         m_noteInterfaceList.forEach(noteInterface -> {
             if (noteInterface.getNetworkId().equals(networkId)) {
 
                 noteInterface.sendNote(note, onSucceeded, onFailed);
             }
         });
-    }
+    }*/
 
     private JsonObject getJsonObject(){
         JsonObject fileObject = new JsonObject();
@@ -1102,7 +1097,7 @@ public class NetworksData implements InstallerInterface {
        // NoteInterface noteInterface = getNoteInterface(networkId);
 
       //  noteInterface.getPane();
-        String currentTabId = m_currentTab.get() != null ? m_currentTab.get().getTabId() : null;
+        String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getTabId() : null;
 
         if(type == null || networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
             return;
@@ -1118,7 +1113,7 @@ public class NetworksData implements InstallerInterface {
             break;
         }
  
-        m_currentTab.set(tab != null ? tab : null);
+        m_currentMenuTab.set(tab != null ? tab : null);
         
     }
 
@@ -1166,7 +1161,7 @@ public class NetworksData implements InstallerInterface {
 
   
     public SimpleObjectProperty<TabInterface> menuTabProperty() {
-        return m_currentTab;
+        return m_currentMenuTab;
     };
 
 
@@ -1233,7 +1228,7 @@ public class NetworksData implements InstallerInterface {
         m_appStage = appStage;
         m_subMenuScroll = subMenuScroll;
         m_boundsListener = (obs,oldval,newval)->{
-            m_widthObject.set(newval.getWidth());
+            m_widthObject.set(newval.getWidth()-2);
             m_heightObject.set(newval.getHeight());
         };    
         m_subMenuScroll.viewportBoundsProperty().addListener(m_boundsListener);
@@ -1368,10 +1363,10 @@ public class NetworksData implements InstallerInterface {
 
 
         
-        m_currentTab.addListener((obs,oldval,newval)->{
+        m_currentMenuTab.addListener((obs,oldval,newval)->{
 
             if(oldval != null){
-                appStage.titleProperty().unbind();
+              
                 oldval.setCurrent(false);
                 oldval.shutdown();
                 switch(oldval.getType()){
@@ -1391,12 +1386,9 @@ public class NetworksData implements InstallerInterface {
                 m_subMenuScroll.setContent( m_subMenuBox );
 
                 newval.setCurrent(true);
-                appStage.titleProperty().unbind();
-                m_titleExpression = Bindings.concat("Netnotes - ", newval.titleProperty());
-                appStage.titleProperty().bind(m_titleExpression);
+               
             }else{
                   m_subMenuScroll.setContent(null);
-                appStage.setTitle("Netnotes");
             }
           
 
@@ -1557,10 +1549,12 @@ public class NetworksData implements InstallerInterface {
                 File idDataFile = getIdDataFile(subId, id, subParent, parent);
                 
                 if(idDataFile != null && idDataFile.isFile() && json == null){
-                    
+                    idDataFile.delete();
+                }else{
+                    Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
                 }
 
-                Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+               
             } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
                     | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                     | IOException e) {

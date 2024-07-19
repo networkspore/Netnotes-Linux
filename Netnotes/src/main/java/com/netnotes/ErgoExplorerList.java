@@ -1,10 +1,12 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -14,26 +16,30 @@ import javafx.scene.image.ImageView;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
 
 public class ErgoExplorerList {
     private ErgoExplorers m_ergoExplorer = null;
-    private final SimpleStringProperty m_defaultIdProperty = new SimpleStringProperty(null);
     private ArrayList<ErgoExplorerData> m_dataList = new ArrayList<>();
     
-    private double m_stageWidth = 600;
-    private double m_stageHeight = 500;
-    private ChangeListener<LocalDateTime> m_updateListener = null;
 
-    public ErgoExplorerList(ErgoExplorers ergoExplorer) {
+    private ChangeListener<LocalDateTime> m_updateListener = null;
+    private ErgoNetworkData m_ergoNetworkData;
+
+    public ErgoExplorerList(ErgoExplorers ergoExplorer, ErgoNetworkData ergoNetworkData) {
         m_ergoExplorer = ergoExplorer;
         m_updateListener = (obs, oldval, newVal) -> save();
+        m_ergoNetworkData = ergoNetworkData;
         getData();
+
        
     }
 
     public ErgoExplorers getErgoExplorer(){
         return m_ergoExplorer;
+    }
+
+    public ErgoNetworkData getErgoNetworkData(){
+        return m_ergoNetworkData;
     }
 
     public ArrayList<ErgoExplorerData> getDataList(){
@@ -44,7 +50,9 @@ public class ErgoExplorerList {
         JsonElement idElement = note.get("id");
 
         if(idElement != null && idElement.isJsonPrimitive()){
-            ErgoExplorerData explorerData = getErgoExplorerData(idElement.getAsString());
+            String id = idElement.getAsString() ;
+        
+            ErgoExplorerData explorerData = getErgoExplorerData(id);
             return explorerData.getNoteInterface();
         }
         return null;
@@ -52,7 +60,9 @@ public class ErgoExplorerList {
 
     private void getData(){
         JsonObject json = m_ergoExplorer.getNetworksData().getData("data", ".", ErgoExplorers.NETWORK_ID, ErgoNetwork.NETWORK_ID);
-        if(json != null){
+        JsonElement dataElement = json != null ? json.get("data") : null;
+        if(dataElement != null){
+            
             openJson(json);
         }else{
             setDefault();
@@ -66,7 +76,11 @@ public class ErgoExplorerList {
     }
 
     private void setDefault(){
-
+        
+        ErgoPlatformExplorerData ergoExplorerData = new ErgoPlatformExplorerData(this);
+        
+        m_dataList.add(ergoExplorerData);
+        save();
     }
 
     public int size(){
@@ -77,51 +91,46 @@ public class ErgoExplorerList {
     public void openJson(JsonObject json){
         
         JsonElement dataElement = json.get("data");
-        JsonElement stageElement = json.get("stage");
-        JsonElement defaultIdElement = json.get("defaultId");
-        String defaultId = defaultIdElement != null ? defaultIdElement.getAsString() : null;
-        m_defaultIdProperty.set(defaultId);
 
         if (dataElement != null && dataElement.isJsonArray()) {
             com.google.gson.JsonArray dataArray = dataElement.getAsJsonArray();
 
             for (int i = 0; i < dataArray.size(); i++) {
                 JsonElement dataItem = dataArray.get(i);
-                JsonObject dataJson = dataItem != null && dataItem.isJsonObject() ? dataItem.getAsJsonObject() : null;
+                JsonObject explorerJson = dataItem != null && dataItem.isJsonObject() ? dataItem.getAsJsonObject() : null;
                 
-                if(dataJson != null){
-                    JsonElement dataIdElement = dataJson.get("id");
-                    if(dataIdElement != null && dataIdElement.isJsonPrimitive()){
-                        String dataId = dataIdElement.getAsString();
-                        if(getErgoExplorerData(dataId) == null){
-                            switch(dataId){
+                if(explorerJson != null){
+                    JsonElement explorerIdElement = explorerJson.get("explorerId");
+                    if(explorerIdElement != null && explorerIdElement.isJsonPrimitive()){
+                        String explorerId = explorerIdElement.getAsString();
+                        if(getErgoExplorerData(explorerId) == null){
+                            ErgoExplorerData explorerData;
+                            switch(explorerId){
                                 case ErgoPlatformExplorerData.ERGO_PLATFORM_EXPLORER:
-                                    
-                                    ErgoPlatformExplorerData ergoExplorerData = new ErgoPlatformExplorerData(this);
-                                    m_dataList.add(ergoExplorerData);
-                                break;
+                                    explorerData = new ErgoPlatformExplorerData(this);
+                                    break;
+                                default:
+                                    try{
+                                        explorerData = new ErgoExplorerData(explorerId, explorerJson, this);
+                                    }catch(Exception e){
+                                        explorerData = new ErgoPlatformExplorerData(this);
+                                    }
                             }
+                          
+                            m_dataList.add(explorerData);
+                            
+                            
                         }
+                        
                     }
                 }
             }
         }
 
-        if (stageElement != null && stageElement.isJsonObject()) {
-            JsonObject stageObject = stageElement.getAsJsonObject();
-            JsonElement widthElement = stageObject.get("width");
-            JsonElement heightElement = stageObject.get("height");
-
-            m_stageWidth = widthElement != null && widthElement.isJsonPrimitive() ? widthElement.getAsDouble() : m_stageWidth;
-
-            m_stageHeight = heightElement != null && heightElement.isJsonPrimitive() ? heightElement.getAsDouble() : m_stageHeight;
-        }
+        
     }
 
-    public SimpleStringProperty defaultIdProperty(){
-        return m_defaultIdProperty;
-    }
-
+ 
  
     public void add(ErgoExplorerData explorerData){
         add(explorerData, true);
@@ -157,10 +166,12 @@ public class ErgoExplorerList {
     }
 
     public ErgoExplorerData getErgoExplorerData(String id) {
-        if (id != null) {
-        
+        if (id != null && m_dataList != null) {
+       
+           
             for (int i = 0; i < m_dataList.size(); i++) {
                 ErgoExplorerData ergoExplorerData = m_dataList.get(i);
+                     
                 if (ergoExplorerData.getId().equals(id)) {
                     return ergoExplorerData;
                 }
@@ -182,23 +193,13 @@ public class ErgoExplorerList {
         return jsonArray;
     }
 
-    public JsonObject getStageJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty("width", m_stageWidth);
-        json.addProperty("height", m_stageHeight);
-        return json;
-    }
+
 
     public JsonObject getJsonObject() {
         JsonObject json = new JsonObject();
-
-        json.add("data", getDataJsonArray());
-        if(m_defaultIdProperty.get() != null){
-            json.addProperty("defaultId", m_defaultIdProperty.get());
+        if(m_dataList.size() > 0){
+            json.add("data", getDataJsonArray());
         }
-        json.add("addStage", getStageJson());
-
-       
 
         return json;
     }

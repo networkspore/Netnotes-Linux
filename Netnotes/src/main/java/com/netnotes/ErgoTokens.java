@@ -1,5 +1,9 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonElement;
@@ -8,6 +12,7 @@ import com.utils.Utils;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 
 public class ErgoTokens extends Network implements NoteInterface {
@@ -34,9 +39,7 @@ public class ErgoTokens extends Network implements NoteInterface {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, ergoNetwork);
         m_ergNetData = ergNetData;
         m_networkType = NetworkType.MAINNET;
-        
-    
-        setupTokens();
+
         
     }
 
@@ -67,7 +70,7 @@ public class ErgoTokens extends Network implements NoteInterface {
    
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
         Object obj = sendNote(note);        
         
         Utils.returnObject(obj,getNetworksData().getExecService(), onSucceeded, onFailed);
@@ -80,7 +83,7 @@ public class ErgoTokens extends Network implements NoteInterface {
     public Object sendNote(JsonObject note){
         JsonElement subjectElement = note.get("subject");
         JsonElement networkIdElement = note.get("networkId");
-
+    
 
         if (m_ergoTokensList != null && subjectElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && networkIdElement.getAsString().equals(m_ergNetData.getId())) {
             String subject = subjectElement.getAsString();
@@ -121,13 +124,10 @@ public class ErgoTokens extends Network implements NoteInterface {
         JsonElement tokenIdElement = note.get("tokenId");
         JsonElement nameElement = note.get("name");
         JsonElement decimalsElement = note.get("decimals");
-        
+
+   
         if(tokenIdElement != null && tokenIdElement.isJsonPrimitive() && m_ergoTokensList != null){
-            ErgoTokenData tokenData = m_ergoTokensList.getAddErgoToken(tokenIdElement.getAsString(), nameElement.getAsString(), decimalsElement.getAsInt());
-            
-            if(tokenData != null){
-                return tokenData.getJsonObject();
-            }
+            return  m_ergoTokensList.getAddToken(tokenIdElement.getAsString(), nameElement.getAsString(), decimalsElement.getAsInt());
         }
 
         return null;
@@ -136,7 +136,7 @@ public class ErgoTokens extends Network implements NoteInterface {
     @Override
     public void start(){
         if(getConnectionStatus() == App.STOPPED){
-            m_ergoTokensList = new ErgoTokensList(m_networkType, this);
+            m_ergoTokensList = new ErgoTokensList(this);
            
             super.start();
         }
@@ -168,21 +168,9 @@ public class ErgoTokens extends Network implements NoteInterface {
         return "/assets/ergoTokens-30.png";
     }
 
-    private NoteInterface getExplorer(){
-        return m_ergNetData.selectedExplorerData().get();
-    }
 
 
 
-
-
-    public void setupTokens( ) {
-       
-        m_ergoTokensList = new ErgoTokensList(m_networkType, this);
-        m_ergoTokensList.shutdown();
-        m_ergoTokensList = null;
-    }
-   
 
 
 

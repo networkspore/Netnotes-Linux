@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 
 
@@ -78,7 +79,9 @@ public class ErgoWallets extends Network implements NoteInterface {
                         case "getWallets":
                             return m_ergoWalletDataList.getWallets();
                         case "getWalletById":
-                            return m_ergoWalletDataList.getWalletById(note);    
+                            return m_ergoWalletDataList.getWalletById(note);
+                        case "getWalletByName":
+                            return m_ergoWalletDataList.getWalletByName(note);    
                         case "openWallet":
                             return m_ergoWalletDataList.openWallet(note);
                     }
@@ -90,9 +93,10 @@ public class ErgoWallets extends Network implements NoteInterface {
     }
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
         JsonElement subjecElement = note.get("subject");
         JsonElement networkIdElement = note.get("networkId");
+        
 
         if (subjecElement != null  && networkIdElement != null) {
             Utils.returnObject(sendNote(note), getNetworksData().getExecService(), onSucceeded, onFailed);
