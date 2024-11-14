@@ -69,7 +69,7 @@ Credits
 Wallets
 -
 1. Satergo's encoding/encryption and interfaece, original source found at: https://github.com/Satergo/Satergo
-2. Utilized in tandem with the Satergo wallet https://github.com/ergoplatform/ergo-appkit
+2. Utilized in tandem, with Satergo for wallet generation, and node client interface https://github.com/ergoplatform/ergo-appkit
 
 Encryption
 -
