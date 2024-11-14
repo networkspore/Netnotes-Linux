@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -31,7 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipFile;
 
 import javax.crypto.BadPaddingException;
@@ -40,6 +46,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.net.ssl.HttpsURLConnection;
 
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
@@ -55,7 +62,9 @@ import java.net.URLConnection;
 import java.lang.Double;
 
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
@@ -63,6 +72,7 @@ import javafx.event.EventHandler;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import org.apache.commons.codec.DecoderException;
@@ -81,6 +91,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.netnotes.App;
+import com.netnotes.ErgoNodes;
 import com.netnotes.FreeMemory;
 import com.netnotes.HashData;
 import com.netnotes.NetworksData;
@@ -133,6 +144,53 @@ public class Utils {
         return findPathPrefixInRoots(roots, filePathString);
     }
 
+    public static void submitBoundedTask(Task<Object> task,Semaphore semaphore, ExecutorService executorService, AtomicInteger status, EventHandler<WorkerStateEvent> onResult, EventHandler<WorkerStateEvent> onFailedResult, ProgressIndicator progressIndicator){
+        
+        
+        Task<Object> boundedTask = new Task<Object>() {
+            @Override
+            public Object call() throws InterruptedException {
+                
+                semaphore.acquire();
+                status.set(0);
+                task.setOnFailed(onFailed->{
+                    status.set(2);
+                    semaphore.release();
+                    
+                    Utils.returnObject(onFailed.getSource().getException(), executorService, onResult, onFailedResult);
+                });
+        
+                task.setOnSucceeded(onSucceeded->{
+                    status.set(1);
+                    semaphore.release();
+                    Utils.returnObject(onSucceeded.getSource().getValue(), executorService, onResult, onFailedResult);
+                });
+
+                
+
+                Future<?> future = executorService.submit(task);
+                
+                for(;;){
+                    if(status.get() != 0){
+                        future.cancel(true);
+                        break;
+                    }
+                }
+
+                return null;
+            }
+        };
+
+        boundedTask.setOnFailed(onFailed->{
+            semaphore.release();
+        });
+
+
+        executorService.submit(boundedTask);
+        status.set(-1);
+        
+    }
+
     public static boolean findPathPrefixInRoots(File roots[], String filePathString){
         
 
@@ -183,7 +241,7 @@ public class Utils {
     public static JsonObject getNetworkTypeObject() {
         JsonObject getExplorerObject = new JsonObject();
 
-        getExplorerObject.addProperty("subject", "GET_NETWORK_TYPE");
+        getExplorerObject.addProperty(App.CMD, "GET_NETWORK_TYPE");
 
         return getExplorerObject;
     }
@@ -191,7 +249,7 @@ public class Utils {
     public static JsonObject getExplorerInterfaceIdObject() {
         JsonObject getExplorerObject = new JsonObject();
 
-        getExplorerObject.addProperty("subject", "GET_EXPLORER_INTERFACE_ID");
+        getExplorerObject.addProperty(App.CMD, "GET_EXPLORER_INTERFACE_ID");
 
         return getExplorerObject;
     }
@@ -471,15 +529,40 @@ public class Utils {
         return truncatedString;
     }
 
-    public static int measureString(String str, java.awt.Font font){
-        
-        BufferedImage img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = img.createGraphics();
-        g2d.setFont(font);
-        FontMetrics fm = g2d.getFontMetrics();
-        g2d.dispose();
-        return fm.stringWidth(str);
+    private static BufferedImage m_tmpImg = null;
+    private static Graphics2D m_tmpG2d = null;
+    private static java.awt.Font m_tmpFont = null;
+    private static FontMetrics m_tmpFm = null;
+
+    public static int getStringWidth(String str){
+        return getStringWidth(str, 14);
     }
+
+    public static int getStringWidth(String str, int fontSize){
+        return getStringWidth(str, fontSize, "OCR A Extended", java.awt.Font.PLAIN);
+    }
+
+    public static int getStringWidth(String str, int fontSize, String fontName, int fontStyle){
+        m_tmpImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_tmpG2d = m_tmpImg.createGraphics();
+        m_tmpFont = new java.awt.Font(fontName, fontStyle, fontSize);
+        m_tmpG2d.setFont(m_tmpFont);
+        m_tmpFm = m_tmpG2d.getFontMetrics();
+        
+        int width = m_tmpFm.stringWidth(str);
+
+        m_tmpFm = null;
+        m_tmpG2d.dispose();
+        m_tmpG2d = null;
+        m_tmpFont = null;
+
+        m_tmpImg = null;
+
+
+        return width;
+    }
+
+
 
     public static String formatCryptoString(PriceAmount priceAmount, boolean valid) {
          int precision = priceAmount.getCurrency().getFractionalPrecision();
@@ -562,13 +645,16 @@ public class Utils {
     public static int getDifference(int num1, int num2 ){
         return Math.abs(Math.max(num1, num2) - Math.min(num1, num2));
     }
-    public static void checkDrive(File dir, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+
+
+    public static void checkDrive(File file, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<Boolean> task = new Task<Boolean>() {
             @Override
             public Boolean call() throws IOException {
-                String path = dir.getCanonicalPath();
-                return findPathPrefixInRoots(path);
+                
+                return findPathPrefixInRoots(file.getCanonicalPath());
              
             }
         };
@@ -598,7 +684,7 @@ public class Utils {
         execService.submit(task);
 
     }
-    public static void returnObject(Object object,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    /*public static void returnObject(Object object,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<Object> task = new Task<Object>() {
             @Override
@@ -616,14 +702,22 @@ public class Utils {
         thread.setDaemon(true);
         thread.start();
 
-    }
+    }*/
 
-    public static void getUrlJson(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public static int getJsonElementType(JsonElement jsonElement){
+        return jsonElement.isJsonNull() ? -1 : jsonElement.isJsonObject() ? 1 : jsonElement.isJsonArray() ? 2 : jsonElement.isJsonPrimitive() ? 3 : 0;
+    }
+    
+
+    public static void getUrlJson(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator... indicator) {
+        ProgressIndicator progressIndicator = indicator != null && indicator.length > 0 ? indicator[0] : null;
 
         Task<JsonObject> task = new Task<JsonObject>() {
             @Override
             public JsonObject call() {
                 try{
+                    
+
                     InputStream inputStream = null;
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     String outputString = null;
@@ -903,12 +997,37 @@ public class Utils {
         t.start();
     }
 
+
+
+    public static JsonObject getJsonObject(String name, String property){
+        JsonObject json = new JsonObject();
+        json.addProperty(name, property);
+        return json;
+    }
+
+
+    public static JsonObject getJsonObject(String name, int property){
+        JsonObject json = new JsonObject();
+        json.addProperty(name, property);
+        return json;
+    }
+
     public static JsonObject getCmdObject(String subject) {
         JsonObject cmdObject = new JsonObject();
-        cmdObject.addProperty("subject", subject);
+        cmdObject.addProperty(App.CMD, subject);
         cmdObject.addProperty("timeStamp", getNowEpochMillis());
         return cmdObject;
     }
+
+    public static JsonObject getMsgObject(int code, long timeStamp, String networkId){
+        JsonObject json = new JsonObject();
+        json.addProperty("timeStamp", timeStamp);
+        json.addProperty("networkId", networkId);
+        json.addProperty("code", code);
+        return json;
+    }
+
+
 
     public static int getRandomInt(int min, int max) throws NoSuchAlgorithmException {
         SecureRandom secureRandom = SecureRandom.getInstanceStrong();
@@ -1401,70 +1520,67 @@ public class Utils {
         execService.submit(task);
     }
 
-    public static void getUrlFileHash(String urlString, File outputFile,ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator, SimpleBooleanProperty cancel) {
-
+    public static void getUrlFileHash(String urlString, File outputFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator, AtomicBoolean cancel) {
+        
         Task<HashData> task = new Task<HashData>() {
             @Override
             public HashData call() throws NoSuchAlgorithmException, MalformedURLException, IOException {
+               
                 if (outputFile == null) {
                     return null;
                 }
                 Files.deleteIfExists(outputFile.toPath());
-
-               
-                FileOutputStream outputStream = new FileOutputStream(outputFile);
-
-                final Blake2b digest = Blake2b.Digest.newInstance(32);
-
                 URL url = new URL(urlString);
-
-                URLConnection con = url.openConnection();
-
-                         
-
-                con.setRequestProperty("User-Agent", USER_AGENT);
-
-                long contentLength = con.getContentLengthLong();
-                InputStream inputStream = con.getInputStream();
-
+                Blake2b digest = Blake2b.Digest.newInstance(32);
                 
+                URLConnection con = url.openConnection();
+                con.setRequestProperty("User-Agent", USER_AGENT);
+                long contentLength = con.getContentLengthLong();
+               
 
-                byte[] buffer = new byte[8 * 1024];
+                download: try(  
+                    FileOutputStream outputStream = new FileOutputStream(outputFile);
+                    InputStream inputStream = con.getInputStream();
+                ){                
 
-                int length;
-                long downloaded = 0;
+                    byte[] buffer = new byte[8 * 1024];
 
-                while ((length = inputStream.read(buffer)) != -1) {
+                    int length = 0;
+                    long downloaded = 0;
+                    while ((length = inputStream.read(buffer)) != -1) {
 
-                    outputStream.write(buffer, 0, length);
-                    digest.update(buffer, 0, length);
-                    if (progressIndicator != null) {
+                        outputStream.write(buffer, 0, length);
+                        digest.update(buffer, 0, length);
+                    
                         downloaded += (long) length;
                         updateProgress(downloaded, contentLength);
-                    }
-                    if(cancel.get()){
-                        inputStream.close();
-                        outputStream.close();
-                        return null;
+                        
 
+                        if(cancel.compareAndSet(true, false)){ 
+                           
+                            break download;
+                        }
                     }
+                    byte[] hashbytes = digest.digest();
+
+                    return new HashData(hashbytes);
+                
                 }
-
-                byte[] hashbytes = digest.digest();
-
-                HashData hashData = new HashData(hashbytes);
-
-                outputStream.close();
-
-                return contentLength == downloaded ? hashData : null;
+              
+              
+                Files.deleteIfExists(outputFile.toPath());
+               
+                return null;
 
             }
 
         };
 
-        if (progressIndicator != null) {
+        if(progressIndicator != null){
             progressIndicator.progressProperty().bind(task.progressProperty());
         }
+
+        
 
         task.setOnFailed(onFailed);
 
@@ -1472,8 +1588,7 @@ public class Utils {
 
         execService.submit(task);
     }
-
-
+   
 
    
 
@@ -1751,6 +1866,8 @@ public class Utils {
           }
           return false;
     }*/
+     
+
     public static boolean sendTermSig(String jarName) {
         try {
           //  File logFile = new File("wmicTerminate-log.txt");
@@ -1986,96 +2103,156 @@ public class Utils {
     }
 
 
+    public static void pingIP(String ip, int timeout, ExecutorService execService, EventHandler< WorkerStateEvent> onSucceeded, EventHandler< WorkerStateEvent> onFailed){
+        Task<Boolean> task = new Task<Boolean>() {
+            @Override
+            public Boolean call() {
+
+                try{
+                    InetAddress address = InetAddress.getByName(ip);
+                    return address.isReachable(timeout);
+
+                
+                }catch(IOException e){
+                   
+                }
+                return false;
+            }
+
+        };
+
+        task.setOnSucceeded(onSucceeded);
+        task.setOnFailed(onFailed);
+
+    
+        execService.submit(task);
+    }
    
 
-    public static void pingIP(String ip, SimpleObjectProperty<Ping> pingProperty, ExecutorService execService){
-        Task<Object> task = new Task<Object>() {
+    public static void pingIPconsole(String ip, int pingTimes, ExecutorService execService, EventHandler< WorkerStateEvent> onSucceeded, EventHandler< WorkerStateEvent> onFailed){
+
+        Task<Ping> task = new Task<Ping>() {
             @Override
-            public Object call() throws IOException {
+            public Ping call()throws IOException {
 
-                String[] cmd = {"bash", "-c", "ping -c 4 " + ip};
+                String[] cmd = {"bash", "-c", "ping -c 3 " + ip};
+                Ping ping = new Ping(false, "", -1);
 
-
+                String line;
+        
 
                 Process proc = Runtime.getRuntime().exec(cmd);
 
-                BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+                try(
+                    BufferedReader wmicStderr = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+                ){
 
-                List<String> javaOutputList = new ArrayList<String>();
+                    while ((line = wmicStderr.readLine()) != null) {
+                        ping.setError(ping.getError() + line + " ");
+                    }
 
-                String s = null;
-
-                boolean available = false;
-                String error = "";
-                int avg = -1;
-
-                while ((s = stdInput.readLine()) != null) {
-                    javaOutputList.add(s);
-
-                 //   String timeString = "time=";
-                // int indexOftimeString = s.indexOf(timeString);
-
-                    if (s.indexOf("service not known") > -1) {
-                        available = false;
-                        error = "Unreachable";
+                    if(!ping.getError().equals(""))
+                    {
+                        return ping;
+                    }
+                   
+                }catch(IOException e){
+                    ping.setError(e.toString());
+                    return ping;
+                }
                 
-                    }
+                try(
+            
+                    BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+                ){
 
-                    if (s.indexOf("timed out") > -1) {
-                        available = false;
-                        error = "Timed out";
-                    }
+                
+                    String timeString = "time=";
 
+                    while (true) {
+                    
+                        line = stdInput.readLine();
+                
 
-                    /*if (indexOftimeString > 0) {
-                        int lengthOftime = timeString.length();
+                        if(line == null){
+                            break;
+                        }
 
-                        int indexOfms = s.indexOf("ms");
+                        
+                        
+                    
+                
+                        int indexOftimeString = line.indexOf(timeString);
 
-                        available = true;
+                        if (line.indexOf("service not known") > -1) {
+                            ping.setAvailable(false);
+                            ping.setError("Unreachable");
+                            break;
+                        }
 
-                        String time = s.substring(indexOftimeString + lengthOftime, indexOfms + 2);
+                        if (line.indexOf("timed out") > -1) {
 
-                        //Platform.runLater(()->status.set("Ping: " + time));
+                            ping.setAvailable(false);
+                            ping.setError( "Timed out");
+                            break;
+                        }
+
+                        if (indexOftimeString > -1) {
+                            int lengthOftime = timeString.length();
+
+                            int indexOfms = line.indexOf("ms");
+
+                            ping.setAvailable(true);
+
+                            String time = line.substring(indexOftimeString + lengthOftime, indexOfms).trim();
         
-                    }*/
 
-                    String avgString = "min/avg/max/mdev = ";
-                    int indexOfAvgString = s.indexOf(avgString);
+                            ping.setAvgPing(Double.parseDouble(time));
+                        
+                        }
 
-                    if (indexOfAvgString > 0) {
+                        String avgString = "min/avg/max/mdev = ";
+                        int indexOfAvgString = line.indexOf(avgString);
+
+                        if (indexOfAvgString > -1) {
                             int lengthOfAvg = avgString.length();
 
-                            String avgStr = s.substring(indexOfAvgString + lengthOfAvg);
+                            String avgStr = line.substring(indexOfAvgString + lengthOfAvg);
                             int slashIndex = avgStr.indexOf("/");
 
-                            avgStr = avgStr.substring(slashIndex+1, avgStr.indexOf("/",slashIndex + 1) );
-                            
-                            avg = (int) Math.ceil(Double.parseDouble(avgStr));
-                            available = true;
+                            avgStr = avgStr.substring(slashIndex+1, avgStr.indexOf("/",slashIndex + 1) ).trim();
+                        
+                            ping.setAvailable(true);
+                            ping.setAvgPing(Double.parseDouble(avgStr));
+                    
                         }
 
                     }
-        
+                }catch(Exception e){
+                    try {
+                        Files.writeString(App.logFile.toPath(),e.toString() +"\n" , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e1) {
+            
+                    }
+            
+                }
 
-                    return new Ping(available, error, avg);
+                try {
+                    Files.writeString(App.logFile.toPath(), ping.getJsonObject().toString() +"\n" , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+        
                 }
-            };
+
+
+                return ping;
+            }
+        };
+     
+        task.setOnSucceeded(onSucceeded);
+        task.setOnFailed(onFailed);
+
     
-            task.setOnFailed((onFailed)->{
-                pingProperty.set(new Ping(false, "Unavailable", -1));
-            });
-    
-            task.setOnSucceeded((onSucceeded)->{
-                Object returnObject = onSucceeded.getSource().getValue();
-                if(returnObject != null){
-                    pingProperty.set((Ping) returnObject);
-                }else{
-                    pingProperty.set(new Ping(false, "Unavailable", -1));
-                }
-            });
-    
-            execService.submit(task);
+        execService.submit(task);
             // String[] splitStr = javaOutputList.get(0).trim().split("\\s+");
             //Version jV = new Version(splitStr[1].replaceAll("/[^0-9.]/g", ""));
         
@@ -2110,6 +2287,7 @@ public class Utils {
                 gotInput = true;
             }
 
+       
             while ((wmicStderr.readLine()) != null) {
 
                // Files.writeString(logFile.toPath(), "\nwmic err: " + wmicerr, StandardOpenOption.CREATE, StandardOpenOption.APPEND);

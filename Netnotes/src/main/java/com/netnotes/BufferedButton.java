@@ -21,6 +21,7 @@ public class BufferedButton extends Button {
     public BufferedButton(Image image) {
         super("");
         m_imgBufView = new BufferedImageView(image);
+        m_imgBufView.setPreserveRatio(true);
         setGraphic(m_imgBufView);
 
     }
@@ -40,6 +41,7 @@ public class BufferedButton extends Button {
     public BufferedButton(Image image, double imageWidth){
         this(image);
         m_imgBufView.setFitWidth(imageWidth);
+        m_imgBufView.setPreserveRatio(true);
     }
 
 

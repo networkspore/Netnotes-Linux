@@ -64,3 +64,18 @@ This app connects to the KuCoin public API in order to allow you to search and w
 
 Charts: The live chart allows for zooming in on the candlestick charts, which are displayed with a linear scale. In order crop the chart to focus in on the areas which you want to view more closely, you may use the cropping bar tool on the left hand side. Simply click the bar tool then click and drag the top end of the bar to the top of the chart which you wish to see, and then click and drag the bottom of the bar to the lowest data which you would like to see. You may then click the green button at the top of the bar, or the red button to reset the crop to normal.
 
+Credits
+===
+Wallets
+-
+1. Satergo's encoding/encryption and interfaece, original source found at: https://github.com/Satergo/Satergo
+2. Utilized in tandem with the Satergo wallet https://github.com/ergoplatform/ergo-appkit
+
+Encryption
+-
+1. DevSkiller friendly id is used in place of creation of UUID, to allow for more favorable encoding:  https://github.com/Devskiller/friendly-id
+2. Joubin Mohammad Houshyar <alphazero@sensesay.net> Java implentation of BLAKE2B cryptographic digest algorithm:  https://github.com/alphazero/Blake2b
+
+General
+-
+1. Stackoverflow utilized for window resize helper, and window drag features, as well as general bug fixes

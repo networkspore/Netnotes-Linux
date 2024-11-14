@@ -1,7 +1,5 @@
 package com.netnotes;
 
-import org.ergoplatform.appkit.NetworkType;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
@@ -15,8 +13,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     public final static String DESCRIPTION = "Ergo Explorer allows you to explore and search the Ergo blockchain.";
     public final static String SUMMARY = "Installing the Ergo Explorer allows balance and transaction information to be looked up for wallet addresses.";
     public final static String NAME = "Ergo Explorer";
-    public final static String NETWORK_ID = "ERGO_EXPLORER";
-
+    
     public final static String MAINNET_EXPLORER_URL = "explorer.ergoplatform.com/";
     public final static String TESTNET_EXPLORER_URL = "testnet.ergoplatform.com/";
 
@@ -25,21 +22,19 @@ public class ErgoExplorers extends Network implements NoteInterface {
     private ErgoNetworkData m_ergNetData = null;
     private ErgoExplorerList m_explorerList = null;
 
-    public String getType(){
-        return App.EXPLORER_TYPE;
-    }
+
     private ErgoNetwork m_ergoNetwork;
 
     public ErgoExplorers(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, NETWORK_ID, ergoNetwork);
+        super(new Image(getAppIconString()), NAME,App.EXPLORER_NETWORK, ergoNetwork);
         m_ergoNetwork = ergoNetwork;
         m_ergNetData = ergoNetworkData;
         
-        
+        m_explorerList = new ErgoExplorerList(this, m_ergNetData);
     }
 
     
-
+    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
@@ -65,26 +60,50 @@ public class ErgoExplorers extends Network implements NoteInterface {
     @Override
     public Object sendNote(JsonObject note){
 
-        JsonElement subjectElement = note.get("subject");
-        JsonElement networkIdElement = note.get("networkId");
-        if (m_explorerList != null && subjectElement != null && subjectElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()) {
-            String networkId = networkIdElement.getAsString();
-        
-            if(networkId.equals(m_ergNetData.getId())){
-               
-                String subject = subjectElement.getAsString();
-                switch(subject){
-                    case "getExplorerById":
-                        return m_explorerList.getExplorerById(note);
-                        
-                }
-            }
+        JsonElement cmdElement = note.get(App.CMD);
+ 
+        switch(cmdElement.getAsString()){
+            case "getExplorerById":
+                return m_explorerList.getExplorerById(note);
+            case "getExplorers":
+                return m_explorerList.getExplorers();
+            case "getDefault":
+                return m_explorerList.getDefault(note);
+            case "getDefaultInterface":
+                return m_explorerList.getDefaultInterface();
+            case "setDefault":
+                return m_explorerList.setDefault(note);
+            case "clearDefault":
+                return m_explorerList.clearDefault(note);
         }
+            
+        
 
         return null;
     }
 
 
+    @Override
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+        JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
+        JsonElement idElement = note != null ? note.get("id") : null;
+        
+
+        if(cmdElement != null){
+            String id = idElement != null ? idElement.getAsString() : m_explorerList.getDefaultExplorerId();
+         
+            
+            ErgoExplorerData explorerData = m_explorerList.getErgoExplorerData(id);
+        
+            if(explorerData != null){
+               
+                return explorerData.sendNote(note, onSucceeded, onFailed);
+            }
+        }
+
+        return false;
+    }
 
 
     /*public ErgoExplorerList getErgoExplorersList(){
@@ -93,15 +112,13 @@ public class ErgoExplorers extends Network implements NoteInterface {
 
     @Override
     public void start(){
-        if(getConnectionStatus() != App.STARTED){
-            m_explorerList = new ErgoExplorerList(this, m_ergNetData);
-        }
+      
         super.start();
     }
 
 
     public void getData(String subId, String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, ErgoExplorers.NETWORK_ID, ErgoExplorers.NETWORK_ID);
+        JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, App.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
 
         if(existingData != null){
 
@@ -113,13 +130,13 @@ public class ErgoExplorers extends Network implements NoteInterface {
                 if(sourceObject != null && sourceObject instanceof JsonObject){
                     
                         JsonObject json = (JsonObject) sourceObject;
-                        getNetworksData().save(subId, id, ErgoExplorers.NETWORK_ID, ErgoExplorers.NETWORK_ID, json);
+                        getNetworksData().save(subId, id, App.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, json);
                         Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
                  
                 }else{
                     Utils.returnObject(null,getNetworksData().getExecService(), onSucceeded, onFailed);
                 }
-            }, onFailed, null);
+            }, onFailed);
         }
         
     }
@@ -134,7 +151,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
     public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(NETWORK_ID, NAME,getAppIconString(), getSmallAppIconString(),DESCRIPTION );
+        return new NetworkInformation(getNetworkId(), getName(), getAppIconString(), getSmallAppIconString(),DESCRIPTION );
     }
 }
 

@@ -95,7 +95,7 @@ public final class Wallet {
             detailsIv = AESEncryption.generateNonce12();
             detailsSecretKey = AESEncryption.generateSecretKey(newPassword, detailsIv);
         } catch (WalletKey.Failure e) {
-            throw new Exception();
+            throw new Exception("Password failed");
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }
@@ -219,7 +219,7 @@ public final class Wallet {
                 detailsEncryptionIv = AESEncryption.generateNonce12();
                 detailsEncryptionKey = AESEncryption.generateSecretKey(password, detailsEncryptionIv);
             } catch (AEADBadTagException e) {
-                throw new Exception();
+                throw new Exception("Password failed");
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(e);
             }
@@ -245,7 +245,7 @@ public final class Wallet {
         }
     }
 
-    public static Wallet deserializeEncrypted(byte[] bytes, Path path, char[] password) throws Exception, IOException {
+    public static Wallet deserializeEncrypted(byte[] bytes, Path path, char[] password) throws UnsupportedOperationException, IOException, Exception {
         try {
             try (DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes))) {
                 if (in.readInt() == MAGIC_NUMBER) {
@@ -264,7 +264,7 @@ public final class Wallet {
                 throw new IllegalArgumentException("Invalid wallet data");
             }
         } catch (AEADBadTagException e) {
-            throw new Exception();
+            throw new Exception("Password exception");
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }

@@ -12,7 +12,6 @@ import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import javax.crypto.SecretKey;
 
 import org.reactfx.util.FxTimer;
 
@@ -153,6 +152,7 @@ public class SpectrumMarketItem {
     }
 
     private JsonObject m_tmpObj = null;
+    private JsonObject m_tmpDataObj = null; 
 
     public void setupRowBox() {
 
@@ -262,27 +262,31 @@ public class SpectrumMarketItem {
 
 
         Runnable updateImages = ()->{
-            String networkId = m_dataList.getSpectrumFinance().getCurrentNetworkId();;
-            //getAddErgoToken(baseTokenId, baseTokenName , baseDecimals)
-            if(networkId == null){
+            NoteInterface networkInterface = m_dataList.networkInterfaceProperty().get();
+            if(networkInterface == null){
                 return;
             }
 
-            NoteInterface tokensInterface = m_dataList.getSpectrumFinance().tokensInterface().get();
                     
             String baseTokenId =  m_marketData.getBaseId();
             String baseTokenName = m_marketData.getBaseSymbol();
             int baseDecimals = m_marketData.getBaseDecimals();
 
-            
-
+        
             m_tmpObj = Utils.getCmdObject("getAddToken");
-            m_tmpObj.addProperty("baseNetworkId",networkId);
-            m_tmpObj.addProperty("tokenId", baseTokenId);
-            m_tmpObj.addProperty("name",baseTokenName);
-            m_tmpObj.addProperty("decimals", baseDecimals);
+            m_tmpObj.addProperty("networkId", App.TOKEN_NETWORK);
 
-            PriceCurrency baseToken = tokensInterface != null ? (PriceCurrency) tokensInterface.sendNote(m_tmpObj) : null;
+            m_tmpDataObj = new JsonObject();
+            m_tmpDataObj.addProperty("tokenId", baseTokenId);
+            m_tmpDataObj.addProperty("name",baseTokenName);
+            m_tmpDataObj.addProperty("decimals", baseDecimals);
+
+            m_tmpObj.add("data", m_tmpDataObj);
+
+    
+            Object getAddBaseResult = networkInterface.sendNote(m_tmpObj);
+
+            PriceCurrency baseToken = getAddBaseResult != null && getAddBaseResult instanceof JsonObject ? new PriceCurrency((JsonObject) getAddBaseResult): null;
             if(baseToken != null){
                 baseImg.set(baseToken.getIcon());
             }else{
@@ -294,12 +298,16 @@ public class SpectrumMarketItem {
             int quoteDecimals = m_marketData.getQuoteDecimals();
 
             m_tmpObj = Utils.getCmdObject("getAddToken");
-            m_tmpObj.addProperty("baseNetworkId",networkId);
+            m_tmpObj.addProperty("networkId", App.TOKEN_NETWORK);
+            m_tmpDataObj = new JsonObject();
             m_tmpObj.addProperty("tokenId", quoteTokenId);
             m_tmpObj.addProperty("name", quoteTokenName);
             m_tmpObj.addProperty("decimals", quoteDecimals);
+            m_tmpObj.add("data", m_tmpDataObj);
 
-            PriceCurrency quoteToken = tokensInterface != null ? (PriceCurrency) tokensInterface.sendNote(m_tmpObj) : null;
+            Object getAddQuoteResult = networkInterface.sendNote(m_tmpObj);
+
+            PriceCurrency quoteToken = getAddQuoteResult != null && getAddQuoteResult instanceof JsonObject ? new PriceCurrency((JsonObject) getAddQuoteResult): null;
 
             if(quoteToken != null){
                 quoteImg.set(quoteToken.getIcon());
@@ -476,33 +484,28 @@ public class SpectrumMarketItem {
                         return friendlyId;
                     }
                     
-                    public void sendMessage(String networkId, int code, long timeStamp){
+                    public void sendMessage(int code, long timeStamp, String networkId, Number num){
+                        if(code == App.STATUS){
+                            switch(code){
+                                case App.STARTED:
+                                case App.LIST_UPDATED:
+                                    updateRowImg.run();
+                                    
+                                break;
+                    
+                                case App.STOPPED:
 
+                                break;
+                            }   
+                        }
                     }
 
-                    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-                    }
-
-                    public void sendMessage(int msg, long timestamp){
-                        switch(msg){
-                            case App.STARTED:
-                            case App.LIST_UPDATED:
-                                updateRowImg.run();
-                                
-                            break;
-                
-                            case App.STOPPED:
-
-                            break;
-                        }   
+                    public void sendMessage(int code, long timestamp, String networkId, String msg){
                         
                     }
-                    public void sendMessage(String networkId, int code, long timestamp, String msg){
-                
-                    }
-                    public void sendMessage(int code, long timestamp, String msg){
-                        
-                    }
+
+                  
+                 
                 };
                 
                 listListenerObject.set(msgInterface);
@@ -1439,49 +1442,34 @@ public class SpectrumMarketItem {
                         return friendlyId;
                     }
 
-                    public void sendMessage(String networkId, int code, long timestamp){
-
-                    }
-
-                    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-                    }
+                    public void sendMessage(int code, long timestamp,String networkId, Number num){
+                        if(code == App.STATUS){
+                            switch(num.intValue()){
+                                case App.STARTED:
+                                case App.LIST_UPDATED:
+                                case App.LIST_CHECKED:
+                                case App.LIST_CHANGED:
+                                    createChart.run();  
+                                    if(m_marketData.getQuoteSymbol().equals("SigUSD")){
+                                            try {
+                                                Files.writeString(App.logFile.toPath(),"received " + timestamp, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                                            } catch (IOException e) {
+                                        
+                                            }
+                                        }  
+                                break;
+                                case App.STOPPED:
         
-                    public void sendMessage(int msg, long timestamp){
-                        switch(msg){
-                            case App.STARTED:
-                            case App.LIST_UPDATED:
-                            case App.LIST_CHECKED:
-                            case App.LIST_CHANGED:
-                                createChart.run();  
-                                 if(m_marketData.getQuoteSymbol().equals("SigUSD")){
-                                        try {
-                                            Files.writeString(App.logFile.toPath(),"received " + timestamp, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
-                                        } catch (IOException e) {
-                                    
-                                        }
-                                    }  
-                            break;
-                            case App.STOPPED:
-    
-                            break;
-                        }   
-                        
-                    }
-
-                    public void sendMessage(String networkId, int code, long timestamp, String msg){
-                
-
-                    }
-
-                    public void sendMessage(int code, long timestamp, String msg){
-                        switch(code){
-                            case App.ERROR:
-                                
-                                //statusProperty().set("Error: " + msg);
-                               
-                            break;
+                                break;
+                            }  
                         }
                     }
+
+                    public void sendMessage(int code, long timestamp, String networkId, String msg){
+                       
+                    }
+        
+                  
                 };
                 
                 listListenerObject.set(msgInterface);
@@ -1714,8 +1702,8 @@ public class SpectrumMarketItem {
         return m_dataList.getSpectrumFinance().getNetworksData();
     }
 
-    public ErgoNetwork getErgoNetwork(){
-        return (ErgoNetwork) getNetworksData().getNoteInterface(ErgoNetwork.NETWORK_ID);
+    public NoteInterface getCurrentNetwork(){
+        return  getNetworksData().getNetwork(ErgoNetwork.NETWORK_ID);
     }
 
     public VBox getSwapBox(Scene scene, SimpleBooleanProperty shutdownSwap){

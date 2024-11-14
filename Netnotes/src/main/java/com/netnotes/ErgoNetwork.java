@@ -4,28 +4,25 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.utils.Utils;
 
 import javafx.scene.control.Button;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Tooltip;
 
 import javafx.scene.image.Image;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.text.Text;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -44,13 +41,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public final static String NETWORK_ID = "ERGO_NETWORK";
 
 
-    public final static String[] INTALLABLE_NETWORK_IDS = new String[]{
-        ErgoExplorers.NETWORK_ID,
-        ErgoTokens.NETWORK_ID,
-        ErgoNodes.NETWORK_ID,
-        ErgoWallets.NETWORK_ID
-    };
-
+  
+    @Override
     public String getType(){
         return App.NETWORK_TYPE;
     }
@@ -72,7 +64,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     //private SimpleBooleanProperty m_shuttingdown = new SimpleBooleanProperty(false);
     public ErgoNetwork(NetworksData networksData) {
-        super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
+        super(new Image("/assets/ergo-network-30.png"), NAME, NETWORK_ID, networksData);
         m_networksDir = new File (getNetworksData().getAppDir().getAbsolutePath() +"/networks");
         if(!m_networksDir.isDirectory()){
             try {
@@ -98,29 +90,42 @@ public class ErgoNetwork extends Network implements NoteInterface {
                 }
             }
         }
+
+        setKeyWords(new String[]{"blockchain","smart contracts", "programmable", "dApp", "wallet"});
+
+        m_ergNetData = new ErgoNetworkData(this);
+
     }
   
 
-
+    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
 
     public File getAppDir(){
-        if(m_appDir == null){
-            m_appDir = new File(getNetworksData().getAppDir().getAbsolutePath() + "/" + "Ergo Network");
-        }
-
         if(!m_appDir.isDirectory()){
+            
             try {
-                Files.createDirectory(m_appDir.toPath());
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-               
+                m_appDir.mkdirs();
+                
+            } catch (SecurityException e) {
+                try {
+                    Files.writeString(App.logFile.toPath(), "Cannot create ergo directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+                    
+                }
             }
+            
         }
 
         return m_appDir;
+    }
+
+    public JsonObject getAppDir(JsonObject note){
+        JsonObject json = new JsonObject();
+        json.addProperty("appDir", getAppDir().getAbsolutePath());
+        return json;    
     }
 
     private Image m_smallAppIcon = new Image(getSmallAppIconString());
@@ -136,13 +141,23 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public static String getSmallAppIconString(){
         return "/assets/ergo-network-30.png";
     }
-    
+    public JsonArray getKeyWordsArray(){
+        JsonArray keywordsArray = new JsonArray();
+        String[] keywords =getKeyWords();
+        for(String word : keywords){
+            keywordsArray.add(new JsonPrimitive(word));
+        }
+        return keywordsArray;
+    }
+
     @Override
     public JsonObject getJsonObject() {
 
         JsonObject networkObj = super.getJsonObject();
         networkObj.addProperty("networkType", m_networkType.toString());
-        networkObj.add("stage", getStageJson());
+        networkObj.add("keyWords", getKeyWordsArray());
+        
+
         return networkObj;
 
     }
@@ -156,40 +171,122 @@ public class ErgoNetwork extends Network implements NoteInterface {
     protected void start(){
         if(getConnectionStatus() == App.STOPPED){
             super.start();
-            m_ergNetData = new ErgoNetworkData(this);
+            
         }
+        sendStatus();
     }
 
     @Override
     protected void stop(){
         super.stop();
-        if(m_ergNetData != null){
-            m_ergNetData.shutdown();
-            m_ergNetData = null;
-        }
+
+
+        sendStatus();        
+    }
+
+    private void sendStatus(){
+        long timeStamp = System.currentTimeMillis();
+
+        JsonObject json = Utils.getJsonObject("code", App.STATUS);
+        json.addProperty("networkId", ErgoNetwork.NETWORK_ID);
+        json.addProperty("timeStamp", timeStamp);
+        json.addProperty("statusCode", getConnectionStatus());
+
+        sendMessage(App.STATUS, timeStamp, ErgoNetwork.NETWORK_ID, json.toString());
+    }
+
+   
+
+    private ArrayList<String> m_authorizedLocations = new ArrayList<>();
+
+    private boolean isLocationAuthorized(String locationString){
+        
+        return locationString.equals(App.LOCAL) || m_authorizedLocations.contains(locationString);
     }
 
 
-    @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
 
 
-        Utils.returnObject(sendNote(note), getNetworksData().getExecService(), onSucceeded, onFailed);
-                  
-
-        return false;
+    public void shutdown() {
+        m_ergNetData.shutdown();
     }
 
     @Override
     public Object sendNote(JsonObject note){
-        //JsonElement subjecElement = note.get("subject");
+        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement networkIdElement = note.get("networkId");
+        JsonElement locationIdElement = note.get("locationId");
 
+    
+        if (cmdElement != null  && networkIdElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && locationIdElement != null && locationIdElement.isJsonPrimitive()) {
+            String locationId = locationIdElement.getAsString();
+            String locationString = getNetworksData().getLocationString(locationId);
+            if(isLocationAuthorized(locationString)){
+                
+                note.remove("locationString");
+                note.addProperty("locationString", locationString);
+
+                String networkId = networkIdElement.getAsString();
+
+                switch(networkId){
+                    case App.WALLET_NETWORK:
+                        return m_ergNetData.getErgoWallets().sendNote(note);
+                    case App.EXPLORER_NETWORK:
+                        return m_ergNetData.getErgoExplorers().sendNote(note);
+                    case App.NODE_NETWORK:
+                        return m_ergNetData.getErgoNodes().sendNote(note);
+                    case App.MARKET_NETWORK:
+                        return m_ergNetData.getErgoMarkets().sendNote(note);
+                    case App.TOKEN_NETWORK:
+                        return m_ergNetData.getErgoTokens().sendNote(note);
+               
+                }
+
+            }
+            
+        }
+       
         return null;
     }
 
+    
+    @Override
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement networkIdElement = note.get("networkId");
+        JsonElement locationIdElement = note.get("locationId");
 
+    
+        if (cmdElement != null  && networkIdElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && locationIdElement != null && locationIdElement.isJsonPrimitive()) {
+            String locationId = locationIdElement.getAsString();
+            String locationString = getNetworksData().getLocationString(locationId);
+            if(isLocationAuthorized(locationString)){
+                
+                note.remove("locationString");
+                note.addProperty("locationString", locationString);
 
+                String networkId = networkIdElement.getAsString();
 
+                switch(networkId){
+                    case App.WALLET_NETWORK:
+                        return m_ergNetData.getErgoWallets().sendNote(note, onSucceeded, onFailed);
+                    case App.EXPLORER_NETWORK:
+                        return m_ergNetData.getErgoExplorers().sendNote(note, onSucceeded, onFailed);
+                    case App.NODE_NETWORK:
+                        return m_ergNetData.getErgoNodes().sendNote(note, onSucceeded, onFailed);
+                    case App.MARKET_NETWORK:
+                        return m_ergNetData.getErgoMarkets().sendNote(note, onSucceeded, onFailed);
+                    case App.TOKEN_NETWORK:
+                        return m_ergNetData.getErgoTokens().sendNote(note, onSucceeded, onFailed);
+                }
+
+            }
+            
+        }
+       
+
+        return false;
+    }
 
 
     public static NetworkInformation getNetworkInformation(){
@@ -199,187 +296,175 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     public final String ADDRESS_LOCKED =  "[ Locked ]";
 
+    private TabInterface m_ergoNetworkTab = null;
 
     @Override
-    public TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
-
-        return new NetworkTabInterface(getNetworkId(), getName(), heightObject, widthObject, networkBtn){
-           
-
-            private ScrollPane m_walletScroll;
-            private ChangeListener<Bounds> m_boundsChange;
-            private ErgoWalletsRowArea m_ergoWalletsRowArea = null;
-            
-
-            @Override
-            public void init(){
-
-                double maxWidth = 400;
-                
-                setMaxWidth(maxWidth);
-              
-                m_ergoWalletsRowArea = new ErgoWalletsRowArea(appStage, m_ergNetData);
-                
-                getChildren().addAll(m_ergoWalletsRowArea);
-                
-
-                SimpleBooleanProperty nodeAvailableObject = new SimpleBooleanProperty(false);
-                SimpleStringProperty nodeStatusObject = new SimpleStringProperty(null);
-
-                /////////
-
-
-                HBox nodeAvailableBox = new HBox();
-                nodeAvailableBox.setMaxHeight(15);
-                nodeAvailableBox.setMinWidth(10);
-                nodeAvailableBox.setId("offlineBtn");
-                nodeAvailableBox.setFocusTraversable(true);
-                nodeAvailableBox.setOnMouseClicked(e->{
-                  
-                });
-
-                Binding<String> nodeAvailableStringBinding = Bindings.createObjectBinding(()->(nodeAvailableObject.get()  ? "Available" : "Unavailable"), nodeAvailableObject);
-
-                Tooltip nodeAvailableTooltip = new Tooltip("Offline");
-                nodeAvailableTooltip.setShowDelay(new javafx.util.Duration(100));
-
-                Binding<String> nodeStatusStringBinding = Bindings.createObjectBinding( ()->nodeStatusObject.get() == null ? "Offline" : nodeStatusObject.get(),  nodeStatusObject);
-
-                nodeAvailableTooltip.textProperty().bind(Bindings.concat(nodeAvailableStringBinding, " - ", nodeStatusStringBinding));
-                Tooltip.install(nodeAvailableBox, nodeAvailableTooltip);
-                
-
-                nodeAvailableObject.addListener((obs,oldVal,newVal)->{
-                    nodeAvailableBox.setId(newVal ? "onlineBtn" : "offlineBtn");
-                });
-                
-
-                
-                final String nodeBtnDefaultString = "[ select ]";
-                MenuButton nodeBtn = new MenuButton(nodeBtnDefaultString);
-                nodeBtn.setMaxHeight(40);
-                nodeBtn.setContentDisplay(ContentDisplay.LEFT);
-                nodeBtn.setAlignment(Pos.CENTER_LEFT);
-                nodeBtn.setText(nodeBtnDefaultString);
-                nodeBtn.setMinWidth(90);
-                nodeBtn.setTooltip(nodeAvailableTooltip);
-                nodeBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-                    nodeBtn.show();
-                });
-
-                Text nodeText = new Text("Node ");
-                nodeText.setFont(App.txtFont);
-                nodeText.setFill(App.txtColor);
-
-            
-
-                HBox nodeBtnBox = new HBox(nodeBtn, nodeAvailableBox);
-                HBox.setHgrow(nodeBtnBox, Priority.ALWAYS);
-                nodeBtnBox.setId("darkBox");
-                nodeBtnBox.setAlignment(Pos.CENTER_LEFT);
-                nodeBtnBox.setPadding(new Insets(0,3,0,0));
-
-                nodeBtn.prefWidthProperty().bind(nodeBtnBox.widthProperty());
-
-                HBox nodeBox = new HBox(nodeText, nodeBtnBox);
-                nodeBox.setPadding(new Insets(3,3,3,5));
-                HBox.setHgrow(nodeBox, Priority.ALWAYS);
-                nodeBox.setAlignment(Pos.CENTER_LEFT);
-
-                
-
-
-
-                Runnable updateNodeBtn = () ->{
-                    
-                   // ErgoNodeData nodeData =  m_ergNetData.selectedNodeData().get();
-                  //  nodeBtn.setText(nodeData != null ? nodeData.getName() : "...");
-                    
-                };
-                ChangeListener<Boolean> isAvailableListener = (obs,oldval,newval)->nodeAvailableObject.set(newval);
-                ChangeListener<String> statusListener = (obs,oldVal, newVal)->{
-                  //  ErgoNodeData ergoNodeData =  m_ergNetData.selectedNodeData().get();;
-                    
-                   // nodeStatusObject.set(ergoNodeData == null ? null : ergoNodeData.statusString().get());
-                    
-                };
-
-                ChangeListener<ErgoNodeData> selectedNodeListener = (obs,oldval,newval) -> {
-                // nodeAvailableObject.unbind();
-                // nodeStatusObject.unbind();
-                
-                    if(oldval != null){
-                        oldval.isAvailableProperty().removeListener(isAvailableListener);
-                        oldval.statusString().removeListener(statusListener);
-                    }
-                    if(newval != null){
-                        if(newval.isStopped()){ 
-                            newval.start();
-                        }
-                        //nodeAvailableListenerstatusListener
-                        newval.isAvailableProperty().addListener(isAvailableListener);
-                        newval.statusString().addListener(statusListener);
-                        
-                        nodeAvailableObject.set(newval.isAvailable());
-                    //  nodeStatusObject.bind(newval.nodeStatusInfo());
-                    }
-                   
-                     //   ergoWalletData.setNodesId(newval == null ? null : newval.getId());
-                
-                    updateNodeBtn.run();
-                    
-                    
-                };
-
-               
-
-      
-
-                Region nodeBoxSpacer = new Region();
-                nodeBoxSpacer.setMinHeight(5);
-
-
-
-
-        
-
-        
-            }
-            
-            @Override
-            public void shutdown(){
-                super.shutdown();
-                if(m_ergoWalletsRowArea != null){
-                    getChildren().remove(m_ergoWalletsRowArea);
-                    m_ergoWalletsRowArea.shutdown();
-                    m_ergoWalletsRowArea = null;
-                }
-               
-                /*
-                    shutdownMenu.fire();
-                    AddressesData addressesData = m_addressesDataObject.get();
-                    if(addressesData != null){
-                        addressesData.shutdown();
-                    }
-                
-                    m_addressesDataObject.removeListener(addressesDataObjChangeListener);
-                 */
-                if(m_boundsChange != null && m_walletScroll != null){
-                    m_walletScroll.layoutBoundsProperty().removeListener(m_boundsChange);
-                    m_boundsChange = null;
-                }
-                
-            }
-
-            @Override
-            public void setCurrent(boolean value){
-                super.setCurrent(value);
-
-            }
-        };
+    public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
+        m_ergoNetworkTab = new ErgoNetworkTab(appStage, locationId, heightObject, widthObject, networkBtn);
+        return m_ergoNetworkTab;
     }
 
+    private class ErgoNetworkTab extends VBox implements TabInterface{
+        
+
+        private ScrollPane m_walletScroll;
+        private ChangeListener<Bounds> m_boundsChange;
+
+        private ErgoWalletsAppBox m_ergoWalletsAppBox = null;
+        private ErgoExplorersAppBox m_ergoExplorerAppBox = null;
+        private ErgoNodesAppBox m_ergoNodesAppBox = null;
+
+        private NoteMsgInterface m_ergoNetworkMsgInterface = null;
+        
+        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
+        private Button m_menuBtn;
+
+        public String getTabId(){
+            return getNetworkId();
+        }
+
+        public String getName(){
+            return ErgoNetwork.this.getName();
+        }
+        public SimpleStringProperty titleProperty(){
+            return null;
+        }
+
+        public ErgoNetworkTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
+            super();
+            m_menuBtn = networkBtn;
+     
+            setPrefWidth(App.DEFAULT_STATIC_WIDTH);
+            setMaxWidth(App.DEFAULT_STATIC_WIDTH);
+          
+            prefHeightProperty().bind(heightObject);
+
+
+            m_ergoWalletsAppBox = new ErgoWalletsAppBox(appStage, locationId, getNoteInterface());
+
+            m_ergoExplorerAppBox = new ErgoExplorersAppBox(appStage, locationId, getNoteInterface());
+
+            m_ergoNodesAppBox = new ErgoNodesAppBox(appStage,  locationId, getNoteInterface());
+              
+            m_ergoNetworkMsgInterface = new NoteMsgInterface() {
+                public String getId(){
+                    return m_ergNetData.getId();
+                }
+                public void sendMessage(int code, long timestamp, String networkId, Number num){
+                }
+
+                public void sendMessage(int code, long timestamp, String networkId, String msg){
+                   
+                    m_ergoWalletsAppBox.sendMessage(code, timestamp,networkId, msg);
+
+                    m_ergoNodesAppBox.sendMessage(code, timestamp, networkId, msg);
+                    
+                    m_ergoExplorerAppBox.sendMessage(code, timestamp, networkId, msg);
+                    
+                }
+            };
+            
+
+       
+            addMsgListener(m_ergoNetworkMsgInterface);
+
+            Region hBar = new Region();
+            hBar.setPrefWidth(400);
+            hBar.setPrefHeight(2);
+            hBar.setMinHeight(2);
+            hBar.setId("hGradient");
+
+            HBox gBox = new HBox(hBar);
+            gBox.setAlignment(Pos.CENTER);
+            gBox.setPadding(new Insets(5, 0, 5, 0));
+
+            Region hBar1 = new Region();
+            hBar1.setPrefWidth(400);
+            hBar1.setPrefHeight(2);
+            hBar1.setMinHeight(2);
+            hBar1.setId("hGradient");
+
+            HBox gBox1 = new HBox(hBar1);
+            gBox1.setAlignment(Pos.CENTER);
+            gBox1.setPadding(new Insets(5, 0, 5, 0));
+
+            Region hBar2 = new Region();
+            hBar2.setPrefWidth(400);
+            hBar2.setPrefHeight(2);
+            hBar2.setMinHeight(2);
+            hBar2.setId("hGradient");
+
+            HBox gBox2 = new HBox(hBar2);
+            gBox2.setAlignment(Pos.CENTER);
+            gBox2.setPadding(new Insets(5, 0, 5, 0));
+
+            Region vBar = new Region();
+            vBar.setPrefWidth(1);
+            vBar.setMinWidth(1);
+            vBar.setId("vGradient");
+            VBox.setVgrow(vBar,Priority.ALWAYS);
+
+
+            Region appBoxSpacer = new Region();
+            VBox.setVgrow(appBoxSpacer, Priority.ALWAYS);
+        
+
+            getChildren().addAll(m_ergoWalletsAppBox, appBoxSpacer,gBox, m_ergoNodesAppBox, gBox1,  m_ergoExplorerAppBox);
       
+         
+        }
+        
+        @Override
+        public void shutdown(){
+            
+            if(m_ergoNetworkMsgInterface != null){
+                removeMsgListener(m_ergoNetworkMsgInterface);
+                m_ergoNetworkMsgInterface = null;
+            }
+
+            if(m_ergoWalletsAppBox != null){
+                getChildren().remove(m_ergoWalletsAppBox);
+                m_ergoWalletsAppBox.shutdown();
+                m_ergoWalletsAppBox = null;
+                
+            }
+            
+            /*
+                shutdownMenu.fire();
+                AddressesData addressesData = m_addressesDataObject.get();
+                if(addressesData != null){
+                    addressesData.shutdown();
+                }
+            
+                m_addressesDataObject.removeListener(addressesDataObjChangeListener);
+             */
+            if(m_boundsChange != null && m_walletScroll != null){
+                m_walletScroll.layoutBoundsProperty().removeListener(m_boundsChange);
+                m_boundsChange = null;
+            }
+            m_ergoNetworkTab = null;
+        }
+
+    
+        public void setCurrent(boolean value){
+            m_menuBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
+            m_current.set(value);
+        }
+    
+        
+        public boolean getCurrent(){
+            return m_current.get();
+        } 
+    
+        public String getType(){
+            return App.STATIC_TYPE;
+        }
+    
+        public boolean isStatic(){
+            return true;
+        }
+
+    }
 
 
 }

@@ -41,4 +41,5 @@ public class NetworkInformation {
     public String getSmallIconString(){
         return m_smallIconString;
     }
+
 }

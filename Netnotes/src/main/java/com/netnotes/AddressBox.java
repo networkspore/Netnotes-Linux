@@ -40,7 +40,7 @@ public class AddressBox extends HBox {
     // private boolean m_valid = false;
 
     private String m_id = FriendlyId.createFriendlyId();
-
+    private int m_minHeight = 40;
 
     private final SimpleObjectProperty<LocalDateTime> m_LastUpdated = new SimpleObjectProperty<LocalDateTime>(LocalDateTime.now());
 
@@ -50,9 +50,12 @@ public class AddressBox extends HBox {
     public AddressBox(AddressInformation addressInformation, Scene scene, NetworkType networkType) {
         super();
         setFocusTraversable(true);
+        setMinHeight(m_minHeight);
         m_networkType = networkType;
         m_addressInformation.set(addressInformation);
         
+  
+
         Button addressBtn = new Button();
         addressBtn.setId("transparentColor");
         addressBtn.setContentDisplay(ContentDisplay.LEFT);
@@ -81,17 +84,24 @@ public class AddressBox extends HBox {
 
         TextField addressField = new TextField(addressInformation.getAddressString());
         //  addressField.setMaxHeight(20);
-        addressField.setId("amountField");
+        HBox.setHgrow(addressField, Priority.ALWAYS);
         addressField.setAlignment(Pos.CENTER_LEFT);
-        addressField.setPadding(new Insets(3, 10, 3, 10));
+        addressField.setPadding(new Insets(1, 10, 1, 10));
         addressField.setUserData(textFieldId);
-        /*addressField.textProperty().addListener((obs, oldval, newval)->{
-           
-            String hex = newval.replaceAll("[^0-9a-fA-F]", "");
-            
         
-            addressField.setText(hex);
-        });*/
+        addressField.setPromptText("Enter Address");
+        addressField.setId("formField");
+        addressField.textProperty().addListener((obs,oldval,newval)->{
+            String b58 = newval.replaceAll("[^A-HJ-NP-Za-km-z1-9]", "");
+           
+            if(newval.length() == 0){
+                addressField.setId("formField");
+            }else{
+                addressField.setId(null);
+            }
+            addressField.setText(b58);
+        });
+
       
 
         Button enterButton = new Button("[ ENTER ]");
@@ -129,8 +139,6 @@ public class AddressBox extends HBox {
                 }
             }
         });
-
-        HBox.setHgrow(addressField, Priority.ALWAYS);
 
         addressBtn.setOnAction(actionEvent -> {
             if(getChildren().contains(addressBtn))
@@ -185,7 +193,7 @@ public class AddressBox extends HBox {
 
         ImageView addressImgView = new ImageView(); //addressBtn.setGraphic(IconButton.getIconView(newval, newval.getWidth()));
         addressBtn.setGraphic(addressImgView);
-
+       
         m_addressInformation.addListener((obs,oldval, newval)->{
 
             updateBufferedImage(addressImgView);
@@ -197,7 +205,7 @@ public class AddressBox extends HBox {
       
         updateBufferedImage(addressImgView);
        
-
+        setId("hand");
     }
 
     public SimpleObjectProperty<AddressInformation> addressInformationProperty(){
@@ -381,12 +389,13 @@ public class AddressBox extends HBox {
         m_imgG2d.drawImage(m_unitImage, 75, (m_imgHeight / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
 
         m_imgG2d.setFont(m_font);
-        m_imgG2d.setColor(java.awt.Color.WHITE);
+    
         
         if(errortext.length() > 0){
-        
+            m_imgG2d.setColor(java.awt.Color.WHITE);
             m_imgG2d.drawString(errortext, padding, m_txtFm.getHeight() + 2);
         }else{
+            m_imgG2d.setColor(new java.awt.Color(.8f, .8f, .8f, .7f));
             m_imgG2d.drawString(promptString, padding, adrString.length() > 0 ? m_txtFm.getHeight() + 2 : ((m_imgHeight - m_txtFm.getHeight()) / 2) + m_txtFm.getAscent());
         }
         if(adrString.length() > 0){ 

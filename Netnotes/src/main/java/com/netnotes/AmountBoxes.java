@@ -30,8 +30,11 @@ public class AmountBoxes extends VBox {
     private Node m_lastRowItem = null;
     private String m_lastRowItemStyle = ADD_AS_LAST_ROW;
     private boolean m_lastRowItemDisabled = false;
+    
     public AmountBoxes(){
         super();
+        
+        init((AmountBoxInterface) null);
     }
 
     public AmountBoxes( AmountBoxInterface... boxes) {
@@ -72,9 +75,9 @@ public class AmountBoxes extends VBox {
     }
 
 
+
     public void clear(){
         shutdown();
-        m_amountsList.clear();
     }
 
     public void setLastRowItem(Node item, String itemStyle){
@@ -139,6 +142,7 @@ public class AmountBoxes extends VBox {
         }
     }
     private ArrayList<String> m_removeList  = new ArrayList<>();
+    
     public void removeOld(long timeStamp){
         
         m_removeList.clear();

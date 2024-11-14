@@ -14,240 +14,142 @@ import com.utils.Utils;
 import com.google.gson.JsonElement;
 
 import org.apache.commons.codec.binary.Hex;
+import org.ergoplatform.appkit.NetworkType;
 
 public class ErgoNodeConfig {
 
     private File logFile = new File("netnotes-log.txt");
 
-    public static class ConfigMode {
-
-        public final static String ADVANCED = "Existing";
-        public final static String BASIC = "New";
-    }
-
-    public static class DigestAccess {
-
-        public final static String LOCAL = "Local Only";
-        public final static String ALL = "All";
-    }
-
-    public static class BlockchainMode {
-
-        public final static String PRUNED = "Pruned Node";
-        public final static String RECENT_ONLY = "Recent-Only Node";
-        public final static String FULL = "Full Node";
-    }
 
     public static class LogLevel {
         public final static String ERROR = "ERROR";
         public final static String TRACE = "TRACE";
     }
 
-    private File m_appDir;
     private String m_configFileName = "ergo.conf";
     private HashData m_configFileHashData = null;
 
-    private String m_configMode = ConfigMode.BASIC;
-    private String m_blockchainMode = BlockchainMode.FULL;
-    private String m_stateMode = DigestAccess.ALL;
-    private String m_apiKeyHash = "";
-    private String m_logLevel = LogLevel.ERROR;
 
-    public SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<LocalDateTime>(null);
+    public final static String DEFAULT_LOG_LEVEL = LogLevel.ERROR;
+    public final static String DEFAULT_ADDRESS = "0.0.0.0";
+    public final static int DEFAULT_PORT = ErgoNodes.MAINNET_PORT;
+    public final static NetworkType DEFAULT_NETWORK_TYPE =  NetworkType.MAINNET;
 
-    public double STAGE_MIN_WIDTH = 500;
-    public double STAGE_MIN_HEIGHT = 850;
+    private String m_logLevel = DEFAULT_LOG_LEVEL;
+    private String m_address = DEFAULT_ADDRESS;
+    private int m_port = DEFAULT_PORT;
+   // private NetworkType m_networkType = DEFAULT_NETWORK_TYPE;
+    private ErgoNodeLocalData m_ergoNodeLocalData;   
+    private String m_configText;
 
-    /*private double m_StageWidth = STAGE_MIN_WIDTH;
-    private double m_stageHeight = STAGE_MIN_HEIGHT;
-    private double m_stagePrevWidth = STAGE_MIN_WIDTH;
-    private double m_stagePrevHeight = STAGE_MIN_HEIGHT;
-    private boolean m_stageMaximized = false;*/
 
-    public ErgoNodeConfig(String apiKeyString, File appDir) throws FileNotFoundException, IOException, Exception {
-        this(apiKeyString, ConfigMode.BASIC, DigestAccess.ALL, BlockchainMode.FULL, appDir);
+
+    public ErgoNodeConfig(JsonObject jsonObject, ErgoNodeLocalData nodeLocalData) throws Exception {
+        m_ergoNodeLocalData = nodeLocalData;
+   
+        openJson(jsonObject);
+
+        addListeners();
     }
 
-    public ErgoNodeConfig(String apiKeyString, String configMode, String digestAccess, String blockchainMode, String configFileName, File appDir) throws FileNotFoundException, IOException, Exception {
-        m_configMode = configMode;
-        m_stateMode = digestAccess;
-        m_blockchainMode = blockchainMode;
-        m_appDir = appDir;
-        m_configFileName = configFileName;
-        setApiKey(apiKeyString);
-
+    public ErgoNodeConfig( String configText, String fileName, ErgoNodeLocalData nodeLocalData) throws FileNotFoundException, IOException, Exception {
+        m_ergoNodeLocalData = nodeLocalData;
+        m_configFileName = fileName;
+        
+        updateConfigFile();
+        addListeners();
     }
 
-    public ErgoNodeConfig(JsonObject jsonObject, File appDir) throws Exception {
-
-        openJson(jsonObject, appDir);
-    }
-
-    public ErgoNodeConfig(String apiKeyString, String configMode, String digestAccess, String blockchainMode, File appDir) throws FileNotFoundException, IOException, Exception {
-        m_configMode = configMode;
-        m_stateMode = digestAccess;
-        m_blockchainMode = blockchainMode;
-        m_appDir = appDir;
-        setApiKey(apiKeyString);
-
-    }
-
-    public ErgoNodeConfig(ErgoNodeConfig nodeConfig) {
-        m_configMode = nodeConfig.getConfigMode();
-        m_stateMode = nodeConfig.getStateMode();
-        m_blockchainMode = nodeConfig.getBlockchainMode();
-        m_appDir = nodeConfig.getAppDir();
-        m_configFileName = nodeConfig.getConfigFileName();
-        m_configFileHashData = nodeConfig.getConfigFileHashData();
-        m_apiKeyHash = nodeConfig.getApiKeyHash();
-    }
-
-    public void setBasicConfig(JsonObject json) throws Exception {
-        if (json != null) {
-            JsonElement blockchainModeElement = json.get("blockchainMode");
-            JsonElement digestModeElement = json.get("stateMode");
-
-            if (blockchainModeElement != null && blockchainModeElement.isJsonPrimitive() && digestModeElement != null && digestModeElement.isJsonPrimitive()) {
-                m_blockchainMode = blockchainModeElement.getAsString();
-                m_stateMode = digestModeElement.getAsString();
-
-            } else {
-                throw new Exception("Config altered");
+    private void addListeners(){
+        m_ergoNodeLocalData.namedNodeUrlProperty().addListener((obs,oldval,newval)->{
+            try {
+                updateConfigFile();
+            } catch (Exception e) {
+                try {
+                    Files.writeString(logFile.toPath(), "\nCannot update config file", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+       
+                }
             }
-        }
-
+        });
     }
 
-    public void openJson(JsonObject json, File appDir) throws Exception {
 
-        if (json != null && appDir != null && appDir.isDirectory()) {
-            m_appDir = appDir;
-            JsonElement configModeElement = json.get("configMode");
-            JsonElement apiKeyHashElement = json.get("apiKeyHash");
+    public void openJson(JsonObject json) throws Exception {
+
+        if (json != null) {
+ 
+            JsonElement configTextElement = json.get("configText");
             JsonElement configFileNameElement = json.get("configFileName");
             JsonElement configFileHashDataElement = json.get("configFileHashData");
 
-            if (configFileNameElement != null && configFileNameElement.isJsonPrimitive()
-                    && configFileHashDataElement != null && configFileHashDataElement.isJsonObject()
-                    && apiKeyHashElement != null && apiKeyHashElement.isJsonPrimitive()
-                    && configModeElement != null && configModeElement.isJsonPrimitive()) {
+            if (configFileNameElement != null && configFileNameElement.isJsonPrimitive()) {
 
                 String configFileName = configFileNameElement.getAsString();
-                File configFile = new File(m_appDir.getAbsolutePath() + "/" + configFileName);
+                File configFile = new File(m_ergoNodeLocalData.getAppDir() + "/" + configFileName);
                 HashData configHashData = new HashData(configFile);
                 HashData configFileHashData = new HashData(configFileHashDataElement.getAsJsonObject());
 
-                if (configFileHashData.getHashStringHex().equals(configHashData.getHashStringHex())) {
-
-                    m_apiKeyHash = apiKeyHashElement.getAsString();
-                    m_configMode = configModeElement.getAsString();
-                    m_configFileName = configFileName;
-                    m_configFileHashData = configFileHashData;
-
-                    switch (m_configMode) {
-                        case ConfigMode.BASIC:
-                            JsonElement basicConfigElement = json.get("basicConfig");
-                            if (basicConfigElement != null && basicConfigElement.isJsonObject()) {
-                                setBasicConfig(basicConfigElement.getAsJsonObject());
-                                return;
-                            }
-                            break;
-                        case ConfigMode.ADVANCED:
-
-                            return;
-
-                    }
-
-                } else {
+                m_configText = configTextElement != null && configTextElement.isJsonPrimitive() ? configTextElement.getAsString() : null;
+                m_configFileName = configFileName;
+                m_configFileHashData = configFileHashData;
+                    
+                if (!configFileHashData.getHashStringHex().equals(configHashData.getHashStringHex())) {
                     Files.writeString(logFile.toPath(), "\nErgoNodeConfig: hash data mismatch", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 }
 
             }
 
         }
-
-        throw new Exception("Application config have been altered.");
+   
 
     }
 
-    public SimpleObjectProperty<LocalDateTime> getLastUpdated() {
-        return m_lastUpdated;
+    public String getConfigString(){
+  
+        return m_configText == null ? getBasicConfig() : m_configText;
+  
     }
 
-    public File getAppDir() {
-        return m_appDir;
+    public String getConfigText() {
+        return m_configText == null ? getBasicConfig() : m_configText;
     }
 
-    public void setAppDir(File appDir) {
-        m_appDir = appDir;
-    }
-
-    public String getConfigMode() {
-        return m_configMode;
-    }
-
-    public void setConfigMode(String configMode) {
-        m_configMode = configMode;
-    }
-
-    public void update() throws FileNotFoundException, IOException, Exception{
-        updateConfigFile();
+    public void setConfigText(String configText) {
+        this.m_configText = configText;
         getLastUpdated().set(LocalDateTime.now());
     }
 
-    public String getStateMode() {
-        return m_stateMode;
-    }
 
-    public void seStateMode(String stateMode) {
-        m_stateMode = stateMode;
-    }
-
-    public void blockchainMode(String blockchainMode, boolean update) {
-        m_blockchainMode = blockchainMode;
-    }
-
-    public String getBlockchainMode() {
-        return m_blockchainMode;
-    }
-
-    public void setApiKey(String apiKeyString) throws FileNotFoundException, IOException, Exception {
-
-        if (apiKeyString != null && apiKeyString != "") {
-            final byte[] apiHashbytes = Utils.digestBytesToBytes(apiKeyString.getBytes());
-
-            m_apiKeyHash = Hex.encodeHexString(apiHashbytes);
-        } else {
-            m_apiKeyHash = "";
+    public SimpleObjectProperty<LocalDateTime> getLastUpdated() {
+        return m_ergoNodeLocalData.getLastUpdated();
+    } 
+    public static String getApiKeyHash(String apiKey){
+        if(!apiKey.equals("")){
+        
+            final byte[] apiHashbytes = Utils.digestBytesToBytes(apiKey.getBytes());
+            return Hex.encodeHexString(apiHashbytes);
+        }else{
+            return "";
         }
-        update();
     }
 
-    public String getApiKeyHash() {
-        return m_apiKeyHash;
-    }
+
+
 
     public HashData getConfigFileHashData() {
         return m_configFileHashData;
     }
 
-    public JsonObject getBasicConfigJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty("blockchainMode", m_blockchainMode);
-        json.addProperty("stateMode", m_stateMode);
-        return json;
+    public File getAppDir(){
+       return m_ergoNodeLocalData.getAppDir();
     }
 
     public JsonObject getJsonObject() {
         JsonObject json = new JsonObject();
-        if (m_configMode != null) {
-            json.addProperty("configMode", m_configMode);
+        if (m_configText != null) {
+            json.addProperty("configText", m_configText);
         }
-        if (m_configMode.equals(ConfigMode.BASIC)) {
-            json.add("basicConfig", getBasicConfigJson());
-        }
-
-        json.addProperty("apiKeyHash", m_apiKeyHash);
 
         if (m_configFileName != null) {
             json.addProperty("configFileName", m_configFileName);
@@ -265,14 +167,18 @@ public class ErgoNodeConfig {
     public void setConfigFileName(String name, boolean update) throws FileNotFoundException, IOException, Exception {
         m_configFileName = name;
         if(update){
-            updateConfigFile();
+            File configFile = getConfigFile();
+            if(!configFile.getName().equals(name)){
+                File newName = new File(configFile.getParentFile().getAbsolutePath() + "/" + name );
+                configFile.renameTo(newName);
+            }
             getLastUpdated().set(LocalDateTime.now());
         }    
     }
 
     public File getConfigFile() {
-        if (m_appDir != null && m_appDir.exists() && m_appDir.isDirectory() && getConfigFileName() != null) {
-            return new File(m_appDir.getAbsolutePath() + "/" + getConfigFileName());
+        if (getAppDir() != null && getAppDir().isDirectory() && getConfigFileName() != null) {
+            return new File(getAppDir().getAbsolutePath() + "/" + getConfigFileName());
 
         } else {
             return null;
@@ -281,68 +187,91 @@ public class ErgoNodeConfig {
 
     public void updateConfigFile() throws FileNotFoundException, IOException, Exception {
 
-        if (m_configMode == null) {
-            throw new Exception("Null config mode.");
-        }
+     
         File configFile = getConfigFile();
 
         if (configFile == null) {
             throw new Exception("Config file not found.");
         }
 
-        if (m_configMode.equals(ConfigMode.BASIC)) {
+        
+        Files.writeString(configFile.toPath(), getConfigString());
 
-            String configFileString = "ergo {";
-            //   configFileString += "\n  directory = ${ergo.directory}\"/.ergo\"";
-            configFileString += "\n  node {\n";
-          //  configFileString += "\n    stateType = \"" + (m_stateMode.equals(DigestAccess.LOCAL) ? "digest" : "utxo") + "\"";
-            configFileString += "\n    mining = false";
-
-            switch (m_blockchainMode) {
-                case BlockchainMode.RECENT_ONLY:
-                    configFileString += "\n    blocksToKeep = 1440";
-                case BlockchainMode.PRUNED:
-                    configFileString += "\n    utxo {";
-                    configFileString += "\n        utxoBootstrap = true";
-                    configFileString += "\n        storingUtxoSnapshots = 0";
-                    configFileString += "\n        p2pUtxoSnapshots = 2";
-                    configFileString += "\n    }";
-                    configFileString += "\n";
-                    configFileString += "\n    nipopow {";
-                    configFileString += "\n        nipopowBootstrap = true";
-                    configFileString += "\n        p2pNipopows = 2";
-                    configFileString += "\n    }\n";
-
-                    break;
-
-            }
-            configFileString += "\n  }";
-            configFileString += "\n}";
-            configFileString += "\n";
-            configFileString += "\nscorex {\n";
-            if(m_logLevel != null){
-                configFileString += "\n  logging {";
-                configFileString += "\n    level = \""+m_logLevel+"\"";
-                configFileString += "\n  }";
-            }
-            configFileString += "\n  restApi {";
-            configFileString += "\n    bindAddress = \"0.0.0.0:" + ErgoNodes.MAINNET_PORT + "\"";
-            if (m_apiKeyHash != null && !m_apiKeyHash.equals("")) {
-                configFileString += "\n    apiKeyHash = \"" + m_apiKeyHash + "\"";
-            }
-            configFileString += "\n  }";
-            configFileString += "\n}";
-
-            Files.writeString(configFile.toPath(), configFileString);
-        }
-
-        if (!configFile.isFile()) {
-            throw new Exception("Config file not found.");
-        }
 
         m_configFileHashData = new HashData(configFile);
 
     }
+
+    public NamedNodeUrl getNamedNodeUrl(){
+        return m_ergoNodeLocalData.getNamedNodeUrl();
+    }
+    public String getBasicConfig(){
+        return getBasicConfig(m_logLevel, m_address, m_port, getNamedNodeUrl().getApiKey());
+    }
+
+
+
+    public static String getBasicConfig(String logLevel, String address, int port, String apiKey){
+        String apiKeyHash = getApiKeyHash(apiKey);
+
+        String configFileString = "ergo {";
+        //   configFileString += "\n  directory = ${ergo.directory}\"/.ergo\"";
+        configFileString += "\n  node {\n";
+    //  configFileString += "\n    stateType = \"" + (m_stateMode.equals(DigestAccess.LOCAL) ? "digest" : "utxo") + "\"";
+        configFileString += "\n    mining = false";
+
+       /*switch (m_blockchainMode) {
+            case BlockchainMode.RECENT_ONLY:
+                configFileString += "\n    blocksToKeep = 1440";
+            case BlockchainMode.PRUNED:
+                configFileString += "\n    utxo {";
+                configFileString += "\n        utxoBootstrap = true";
+                configFileString += "\n        storingUtxoSnapshots = 0";
+                configFileString += "\n        p2pUtxoSnapshots = 2";
+                configFileString += "\n    }";
+                configFileString += "\n";
+                configFileString += "\n    nipopow {";
+                configFileString += "\n        nipopowBootstrap = true";
+                configFileString += "\n        p2pNipopows = 2";
+                configFileString += "\n    }\n";
+
+                break;
+
+        }*/
+        configFileString += "\n  }";
+        configFileString += "\n}";
+        configFileString += "\n";
+        configFileString += "\nscorex {\n";
+        if(logLevel != null){
+            configFileString += "\n  logging {";
+            configFileString += "\n    level = \""+logLevel+"\"";
+            configFileString += "\n  }";
+        }
+
+        boolean isAddress = !address.equals("0.0.0.0") || port !=  ErgoNodes.MAINNET_PORT;
+        boolean isApiKey = apiKeyHash != null && !apiKeyHash.equals("");
+        if(isAddress || isApiKey){
+            configFileString += "\n  restApi {";
+            if(isAddress){
+                configFileString += "\n    bindAddress = \"" + address + ":" + port + "\"";
+            }
+            if (isApiKey) {
+                configFileString += "\n    apiKeyHash = \"" + apiKeyHash + "\"";
+            }
+            configFileString += "\n  }";
+        }
+    
+        configFileString += "\n}";
+
+        return configFileString;
+    }
+
+
+ 
+
+
+   
+
 
 
     /*

@@ -5,10 +5,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,12 +15,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-
-import org.reactfx.util.FxTimer;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
@@ -37,13 +27,12 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -51,7 +40,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -64,7 +52,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 
 public class SpectrumFinance extends Network implements NoteInterface {
 
@@ -73,15 +60,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static String NAME = "Spectrum Finance";
     public final static String NETWORK_ID = "SPECTRUM_FINANCE";
 
-    private static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{ErgoNetwork.getNetworkInformation()};
+    private static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
+        ErgoNetwork.getNetworkInformation(),
+        NetworksData.NO_NETWORK
+    };
 
     private String m_currentNetworkId = ErgoNetwork.NETWORK_ID;
-    private String m_tokensId = null;
-  
+    
 
     public static String API_URL = "https://api.spectrum.fi";
-
-    private ListChangeListener<NoteInterface> m_networkListener = null;
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
@@ -111,144 +98,21 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> m_scheduledFuture = null;
-    private TimeSpan m_itemTimeSpan= new TimeSpan("1day");
 
-    private boolean m_isMax = false;
-    private double m_prevHeight = -1;
-    private double m_prevWidth = -1;
-    private double m_prevX = -1;
-    private double m_prevY = -1;
-
-    private ChangeListener<NoteInterface> m_tokensChangeListener = null;
-    private NoteMsgInterface m_tokenMsgInterface = null;
-    private SimpleObjectProperty<NoteInterface> m_tokensInterface = new SimpleObjectProperty<>(null);
-
-    private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
-    private ChangeListener<NoteInterface> m_networkChangeListener = null;
-    private NoteMsgInterface m_networkMsgInterface;
-
-    public String getType(){
-        return App.APP_TYPE;
-    }
 
   
 
     public SpectrumFinance(NetworksData networksData) {
-        this(null, networksData);
-        setup(null);
-
-    }
-
-    public SpectrumFinance(JsonObject jsonObject, NetworksData networksData) {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
-      
-        setup(jsonObject);
-    }
-    
-
-
-    
-
-    public ArrayList<SpectrumMarketData> marketsList(){
-        return m_marketsList;
+        setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
+        setAppDir();
     }
 
-
-
-    /*public SimpleObjectProperty<JsonObject> cmdObjectProperty() {
-
-        return m_cmdObjectProperty;
-    }*/
-
-    public SimpleObjectProperty<NoteInterface> networkInterface() {
-
-        return m_networkInterface;
-    }
-
-    public SimpleObjectProperty<NoteInterface> tokensInterface() {
-
-        return m_tokensInterface;
-    }
-  
-
-    public File getAppDir() {
-        return m_appDir;
-    }
-    public static String getAppIconString(){
-        return "/assets/spectrum-150.png";
-    }
-
-
-    public  Image getSmallAppIcon() {
-        return new Image(getSmallAppIconString());
-    }
-
-    public static String getSmallAppIconString(){
-        return "/assets/spectrumFinance.png";
-    }
-
-
-    private void setup(JsonObject jsonObject) {
+ 
+    public void setAppDir() {
+     
+        m_appDir = new File(getNetworksData().getAppDir().getAbsolutePath() + "/" + NAME);
        
-
-        JsonElement currentNetworkElement = jsonObject != null ? jsonObject.get("currentNetworkId") : null;
-        JsonElement tokensIdElement = jsonObject != null ? jsonObject.get("tokensId") : null;
-        JsonElement stageElement = jsonObject != null ? jsonObject.get("stage") : null; 
-        m_currentNetworkId = currentNetworkElement != null && currentNetworkElement.isJsonPrimitive() ? currentNetworkElement.getAsString() : ErgoNetwork.NETWORK_ID;
-        
-        m_networkChangeListener = (obs,oldval,newval)->{
-            if(oldval != null && m_networkMsgInterface != null){
-               
-                oldval.removeMsgListener(m_networkMsgInterface);
-                m_networkMsgInterface = null;
-            }
-            if(newval != null){
-                addNetworkInterface(newval);
-            
-            }
-            
-        };
-        
-        m_networkInterface.addListener(m_networkChangeListener);
-
-        
-
-        m_tokensId = tokensIdElement != null && tokensIdElement.isJsonPrimitive() ? tokensIdElement.getAsString() : ErgoTokens.NETWORK_ID;
-
-        
-        m_tokensChangeListener = (obs,oldval,newval)->{
-            if(oldval != null && m_tokenMsgInterface != null){
-               
-                oldval.removeMsgListener(m_tokenMsgInterface);
-                m_tokenMsgInterface = null;
-            }
-            if(newval != null){
-                addTokenInterface(newval);
-            
-            }
-            
-        };
-        
-        m_tokensInterface.addListener(m_tokensChangeListener);
-
-      
-        
-        FxTimer.runLater(Duration.ofMillis(200), ()->{
-            updateNetworks();
-            
-        });
-
-        String appDirFileString = null;
-        if (jsonObject != null) {
-            JsonElement appDirElement = jsonObject.get("appDir");
-      
-
-            appDirFileString = appDirElement == null ? null : appDirElement.getAsString();
-
-        }
-
-        m_appDir = appDirFileString == null ? new File(getNetworksData().getAppDir().getAbsolutePath() + "/" + NAME) : new File(appDirFileString);
-
         if (!m_appDir.isDirectory()) {
 
             try {
@@ -259,63 +123,35 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
 
         }
-
-
-        if(stageElement != null && stageElement.isJsonObject()){
-            JsonObject stageObject =  stageElement.getAsJsonObject();
-
-            JsonElement itemTimeSpanElement = stageObject.get("itemTimeSpan");
-
-            try{
-                m_itemTimeSpan = itemTimeSpanElement != null && itemTimeSpanElement.isJsonObject()  ? new TimeSpan(itemTimeSpanElement.getAsJsonObject()) :  new TimeSpan("1day");
-
-            }catch(NullPointerException nPE){
-                m_itemTimeSpan = new TimeSpan("1day");
-            }
-        }
-
         
     }
- 
-    protected void updateNetworks(){
-    
-        NoteInterface network = getNetworksData().getNoteInterface(m_currentNetworkId);
-        if(network != null){
-            if(networkInterface().get() != null && networkInterface().get().getNetworkId().equals(network.getNetworkId())){
-                if(m_tokensInterface.get() == null){
-                    JsonObject networkCmd = Utils.getCmdObject("getNetwork");
-                    networkCmd.addProperty("networkType", "Tokens");
 
-                    Object obj = network != null ? network.sendNote(networkCmd) : null;
-                    m_tokensInterface.set(obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null );
-
-                }
-            }else{
-               
-                m_networkInterface.set(network);
-                
-                JsonObject networkCmd = Utils.getCmdObject("getNetwork");
-                networkCmd.addProperty("networkType", "Tokens");
-
-                Object obj = network != null ? network.sendNote(networkCmd) : null;
-                m_tokensInterface.set(obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null );
-                
-            }
-
-        }else{
-            if(m_networkInterface != null){
-                m_networkInterface.set(null);
-            }
-            if(m_tokensInterface != null){
-                m_tokensInterface.set(null);
-            }
-        }
+    public File getAppDir() {
+        return m_appDir;
     }
+    public static String getAppIconString(){
+        return "/assets/spectrum-150.png";
+    }
+
+ 
+    public ArrayList<SpectrumMarketData> marketsList(){
+        return m_marketsList;
+    }
+    
+   
+    public  Image getSmallAppIcon() {
+        return new Image(getSmallAppIconString());
+    }
+
+    public static String getSmallAppIconString(){
+        return "/assets/spectrumFinance.png";
+    }
+
 
     @Override
     public void addMsgListener(NoteMsgInterface item){
         try {
-            Files.writeString(App.logFile.toPath(), "\nadd item: " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            Files.writeString(App.logFile.toPath(), "\nspectrum add msgListener: " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
  
         }
@@ -328,137 +164,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         boolean removed = super.removeMsgListener(item);
         try {
-            Files.writeString(App.logFile.toPath(), "\nremove item: " + removed + " " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            Files.writeString(App.logFile.toPath(), "\nspectrum remove msg listneer: " + removed + " " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
  
         }
         return removed;
     }
     
-
-    private void addTokenInterface(NoteInterface tokens){
-       
-        String tokensInterfaceId = FriendlyId.createFriendlyId();
-        
-        m_tokenMsgInterface = new NoteMsgInterface(){
-
-           public String getId() {
-               return tokensInterfaceId;
-           }
-           
-           public void sendMessage(String networkId, int code, long timestamp){
-
-           }
-
-           public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-           }
-
-           public void sendMessage(int msg, long timestamp){
-               switch(msg){
-                   case App.STARTED:
-                   
-                   break;
-                   case App.STOPPED:
-                   
-                   break;
-                   case App.LIST_CHANGED:
-                   case App.LIST_UPDATED:
-                   
-                   break;
-               }
-              
-
-           }
-           public void sendMessage(String networkId, int code, long timestamp, String msg){
-               
-           }
-           public void sendMessage(int code, long timestamp, String msg){
-               
-           }
-       };
-       tokens.addMsgListener(m_tokenMsgInterface);
-   }
-
-   private void addNetworkInterface(NoteInterface network){
-       
-    String networkInterfaceId = FriendlyId.createFriendlyId();
-    
-    m_tokenMsgInterface = new NoteMsgInterface(){
-
-       public String getId() {
-           return networkInterfaceId;
-       }
-       
-       public void sendMessage(String networkId, int code, long timestamp){
-
-       }
-       public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-       }
-       public void sendMessage(int msg, long timestamp){
-           switch(msg){
-               case App.STARTED:
-               
-               break;
-               case App.STOPPED:
-               
-               break;
-               case App.LIST_CHANGED:
-               case App.LIST_UPDATED:
-               
-               break;
-           }
-          
-
-       }
-       public void sendMessage(String networkId, int code, long timestamp, String msg){
-           
-       }
-       public void sendMessage(int code, long timestamp, String msg){
-           
-       }
-   };
-   
-   network.addMsgListener(m_tokenMsgInterface);
-}
-
-
-
-
-    public void setItemTimeSpan(TimeSpan value){
-        m_itemTimeSpan = value;
-        getLastUpdated().set(LocalDateTime.now());
-    }
-
-    public TimeSpan getItemTimeSpan(){
-        return m_itemTimeSpan;
-    }
-
-    @Override
-    public JsonObject getJsonObject() {
-        JsonObject networkObj = new JsonObject();
-        networkObj.addProperty("name", getName());
-        networkObj.addProperty("networkId", getNetworkId());
-        networkObj.addProperty("currentNetworkId", m_currentNetworkId);
-        networkObj.addProperty("tokensId", m_tokensId);
-        networkObj.add("stage", getStageJson());
-        return networkObj;
-
-    }
-
-    @Override
-    public JsonObject getStageJson() {
-        JsonObject json = new JsonObject();
-        json.add("itemTimeSpan", m_itemTimeSpan.getJsonObject());
-        json.addProperty("maximized", getStageMaximized());
-        json.addProperty("width", getStageWidth());
-        json.addProperty("height", getStageHeight());
-        json.addProperty("prevWidth", getStagePrevWidth());
-        json.addProperty("prevHeight", getStagePrevHeight());
-        return json;
-    }
-
-
- 
 
     public Stage getAppStage() {
         return m_appStage;
@@ -543,130 +255,53 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }*/
 
+   
 
-    public void setCurrentNetworkId(String networkId,boolean update){
-        m_currentNetworkId = networkId;
-        if(update){
-        getLastUpdated().set(LocalDateTime.now());
-        }    
+
+
+    
+    public String getType(){
+        return App.APP_TYPE;
+    }
+    private SpectrumFinanceTab m_spectrumFinanceTab = null;;
+
+    @Override
+    public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
+        m_spectrumFinanceTab = new SpectrumFinanceTab(appStage, locationId, heightObject, widthObject, menuBtn);
+        return m_spectrumFinanceTab;
     }
 
-    public String getCurrentNetworkId(){
-        return m_currentNetworkId;
-    }
+    private class SpectrumFinanceTab extends VBox implements TabInterface{
+        private Button m_menuBtn;
+        private SpectrumDataList m_spectrumData = null;
 
-    public String getTokensID(){
-        return m_tokensId;
-    }
+        private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
+        private NoteMsgInterface m_networkMsgInterface;
+        private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>();
+        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
 
-    public void setTokensId(String id){
-        m_tokensId = id;
-        getLastUpdated().set(LocalDateTime.now());
-    }
-
-    public void getNetworkMenu(MenuButton networkMenuBtn){
-        networkMenuBtn.getItems().clear();
-
-        String selectedMarketId = m_currentNetworkId;
-      
-        SimpleBooleanProperty found = new SimpleBooleanProperty(false);
-
-        for(NetworkInformation networkInfo : SUPPORTED_NETWORKS ){
-            NoteInterface noteInterface = getNetworksData().getNoteInterface(networkInfo.getNetworkId());
-            ImageView imgView = new ImageView(new Image(networkInfo.iconString()));
-            imgView.setPreserveRatio(true);
-            imgView.setFitHeight(30);
-            
-            boolean selected = selectedMarketId.equals(networkInfo.getNetworkId());
-            MenuItem menuItem = new MenuItem(networkInfo.getNetworkName() + (noteInterface == null ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
-      
-
-            if(selected){
-                ImageView menuBtnGraphic = new ImageView(new Image(networkInfo.iconString()));
-                menuBtnGraphic.setPreserveRatio(true);
-                menuBtnGraphic.setFitWidth(30);
-                networkMenuBtn.setGraphic(menuBtnGraphic);
-
-                menuItem.setId("selectedMenuItem");
-                found.set(true);
-            }
-            
-            menuItem.setUserData(networkInfo);
+        public SpectrumFinanceTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
         
-            menuItem.setOnAction(e->{
-                NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
+            addListeners();
+            getData();
+
+            m_menuBtn = menuBtn;
+            setPrefWidth(App.DEFAULT_STATIC_WIDTH);
+            setMaxWidth(App.DEFAULT_STATIC_WIDTH);
+
+            double defaultGridWidth = App.DEFAULT_STATIC_WIDTH - 30;
+            double defaultGridHeight = heightObject.get() - 100;      
+
+            prefHeightProperty().bind(heightObject);
+
             
-                setCurrentNetworkId(mInfo.getNetworkId(), true);
-
-                ImageView menuBtnGraphic = new ImageView(new Image(mInfo.getSmallIconString()));
-                menuBtnGraphic.setPreserveRatio(true);
-                menuBtnGraphic.setFitWidth(30);
-
-                networkMenuBtn.setGraphic(menuBtnGraphic);
-                updateNetworks();
-
-                getNetworkMenu(networkMenuBtn);
-            });
-
-            networkMenuBtn.getItems().add(menuItem);
-        }
-
-        if(!found.get()){
-            ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-120.png"));
-            menuBtnGraphic.setPreserveRatio(true);
-            menuBtnGraphic.setFitWidth(30);
-
-            networkMenuBtn.setGraphic(menuBtnGraphic);
-        }
-    }
-
-
-    private void showAppStage() {
-        if (m_appStage == null) {
-            double appStageWidth = 670;
-            double appStageHeight = 600;
-
-            double defaultGridWidth = appStageWidth - 30;
-            double defaultGridHeight = appStageHeight - 100;      
-
-            SimpleObjectProperty<TimeSpan> itemTimeSpanObject = new SimpleObjectProperty<TimeSpan>(m_itemTimeSpan);
             SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
             SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
             SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
-            m_networkListener = (ListChangeListener.Change<? extends NoteInterface> c)->{
-                updateNetworks();
-            };
-            getNetworksData().addNetworkListener(m_networkListener);
-            updateNetworks();
-
-            SpectrumDataList spectrumData = new SpectrumDataList(FriendlyId.createFriendlyId(), this, gridWidth,gridHeight, itemTimeSpanObject, currentBox);
-
-            
-        
-            
 
 
-            m_appStage = new Stage();
-            m_appStage.getIcons().add(getSmallAppIcon());
-            m_appStage.initStyle(StageStyle.UNDECORATED);
-            m_appStage.setTitle(NAME);
+            m_spectrumData = new SpectrumDataList(FriendlyId.createFriendlyId(), SpectrumFinance.this, gridWidth,gridHeight, currentBox, m_itemTimeSpan, m_networkInterface);
 
-            Button closeBtn = new Button();
-
-
-            Button maxBtn = new Button();
-            Button fillLeftBtn = new Button();
-
-            HBox titleBox = App.createTopBar(getSmallAppIcon(),fillLeftBtn, maxBtn, closeBtn, m_appStage);
-            ImageView fillLeftImgView = new ImageView(new Image("/assets/fillLeft.png"));
-            fillLeftImgView.setPreserveRatio(true);
-            fillLeftImgView.setFitHeight(19);
-            fillLeftBtn.setGraphic(fillLeftImgView);
-            
-
-            titleBox.setPadding(new Insets(7, 8, 5, 10));
-
-            m_appStage.titleProperty().bind(Bindings.concat(NAME, " - ", spectrumData.statusMsgProperty()));
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -692,7 +327,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 sortQuoteVolItem.setId(null);
                 sortLastPriceItem.setId(null);
 
-                switch(spectrumData.getSortMethod().getType()){
+                switch(m_spectrumData.getSortMethod().getType()){
                     case SpectrumSort.SortType.LIQUIDITY_VOL:
                         sortLiquidityItem.setId("selectedMenuItem");
                     break;
@@ -707,54 +342,54 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     break;
                 }
 
-                spectrumData.sort();
-                spectrumData.updateGridBox();
-                spectrumData.getLastUpdated().set(LocalDateTime.now());
+                m_spectrumData.sort();
+                m_spectrumData.updateGridBox();
+                m_spectrumData.getLastUpdated().set(LocalDateTime.now());
             };
 
            // updateSortTypeSelected.run();
 
             sortLiquidityItem.setOnAction(e->{
-                SpectrumSort sortMethod = spectrumData.getSortMethod();
+                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortLiquidityItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortBaseVolItem.setOnAction(e->{
-                SpectrumSort sortMethod = spectrumData.getSortMethod();
+                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortBaseVolItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortQuoteVolItem.setOnAction(e->{
-                SpectrumSort sortMethod = spectrumData.getSortMethod();
+                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortQuoteVolItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortLastPriceItem.setOnAction(e->{
-                SpectrumSort sortMethod = spectrumData.getSortMethod();
+                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortLastPriceItem.getText());
                 updateSortTypeSelected.run();
             });
 
 
-            BufferedButton sortDirectionButton = new BufferedButton(spectrumData.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton sortDirectionButton = new BufferedButton(m_spectrumData.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", App.MENU_BAR_IMAGE_WIDTH);
             sortDirectionButton.setOnAction(e->{
-                SpectrumSort sortMethod = spectrumData.getSortMethod();
+                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setDirection(sortMethod.isAsc() ? SpectrumSort.SortDirection.DSC : SpectrumSort.SortDirection.ASC);
                 sortDirectionButton.setImage(new Image(sortMethod.isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png"));
-                spectrumData.sort();
-                spectrumData.updateGridBox();
-                spectrumData.getLastUpdated().set(LocalDateTime.now());
+                m_spectrumData.sort();
+                m_spectrumData.updateGridBox();
+                m_spectrumData.getLastUpdated().set(LocalDateTime.now());
             });
 
-            BufferedButton swapTargetButton = new BufferedButton(spectrumData.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton swapTargetButton = new BufferedButton(m_spectrumData.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
             swapTargetButton.setOnAction(e->{
-                spectrumData.isInvertProperty().set(!spectrumData.isInvertProperty().get());
+                m_spectrumData.isInvertProperty().set(!m_spectrumData.isInvertProperty().get());
             });
 
-            spectrumData.isInvertProperty().addListener((obs,oldval,newval)->{
+            m_spectrumData.isInvertProperty().addListener((obs,oldval,newval)->{
                 swapTargetButton.setImage(new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
         
             });
@@ -768,7 +403,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             searchField.setPrefWidth(200);
             searchField.setPadding(new Insets(2, 10, 3, 10));
             searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-                spectrumData.setSearchText(searchField.getText());
+                m_spectrumData.setSearchText(searchField.getText());
             });
 
             Region menuBarRegion = new Region();
@@ -802,7 +437,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             ChangeListener<NoteInterface> networkChangeListener = (obs,oldval,newval)->{
                 if(newval != null){
-                    networkMenuBtnImageView.setImage(newval.getSmallAppIcon());
+                    networkMenuBtnImageView.setImage(newval.getAppIcon());
                     networkTip.setText("Network: " + newval.getName());
                 }
             };
@@ -838,7 +473,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
 
             
-            String[] spans = {"1hour", "8hour", "12hour", "1day", "1week", "1month", "6month", "1year"};
+            String[] spans = { "1hour", "8hour", "12hour", "1day", "1week", "1month", "6month", "1year" };
 
             for (int i = 0; i < spans.length; i++) {
 
@@ -855,7 +490,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     if (itemObject != null && itemObject instanceof TimeSpan) {
                         
                         TimeSpan timeSpanItem = (TimeSpan) itemObject;
-                        itemTimeSpanObject.set(timeSpanItem);
+                        m_itemTimeSpan.set(timeSpanItem);
                         
                     }
 
@@ -865,9 +500,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             }
 
-            itemTimeSpanObject.addListener((obs,oldval,newval)->{
+            m_itemTimeSpan.addListener((obs,oldval,newval)->{
                 timeSpanBtn.setText(newval.getName());
-                setItemTimeSpan(newval);
+                save();
             });
 
             HBox menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
@@ -880,7 +515,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
       
 
-            VBox chartList = spectrumData.getGridBox();
+            VBox chartList = m_spectrumData.getGridBox();
   
             ScrollPane scrollPane = new ScrollPane(chartList);
             scrollPane.setPadding(new Insets(2));
@@ -901,7 +536,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             lastUpdatedField.setId("formFieldSmall");
             lastUpdatedField.setPrefWidth(230);
 
-            Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(spectrumData.statusMsgProperty().get().startsWith("Error") ? spectrumData.statusMsgProperty().get() : "") ,spectrumData.statusMsgProperty());
+            Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(m_spectrumData.statusMsgProperty().get().startsWith("Error") ? m_spectrumData.statusMsgProperty().get() : "") ,m_spectrumData.statusMsgProperty());
 
             Text errorText = new Text("");
             errorText.setFont(App.titleFont);
@@ -920,35 +555,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
             HBox.setHgrow(footerVBox, Priority.ALWAYS);
             footerVBox.setPadding(new Insets(0,5,2,5));
 
-            VBox headerVBox = new VBox(titleBox);
-            headerVBox.setPadding(new Insets(0, 5, 0, 5));
-            headerVBox.setAlignment(Pos.TOP_CENTER);
 
-            VBox layoutBox = new VBox(headerVBox, bodyPaddingBox, footerVBox);
+
+            getChildren().addAll( bodyPaddingBox, footerVBox);
 
             HBox menuPaddingBox = new HBox(menuBar);
             menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
 
-            spectrumData.statusMsgProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal != null && (newVal.startsWith("Top"))) {
-                    if (!headerVBox.getChildren().contains(menuPaddingBox)) {
-                        headerVBox.getChildren().add(1, menuPaddingBox);
-
-                    }
-
-                } 
-            });
-           
-       
-
-
-            Scene appScene = new Scene(layoutBox, appStageWidth, appStageHeight);
-            appScene.setFill(null);
-            appScene.getStylesheets().add("/css/startWindow.css");
-            m_appStage.setScene(appScene);
-            m_appStage.show();
-
-            bodyPaddingBox.prefWidthProperty().bind(m_appStage.widthProperty());
+            bodyPaddingBox.prefWidthProperty().bind(widthProperty().subtract(1));
             scrollPane.prefViewportWidthProperty().bind(m_appStage.widthProperty());
 
            // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
@@ -969,137 +583,240 @@ public class SpectrumFinance extends Network implements NoteInterface {
             gridHeight.bind(scrollHeight);
 
         
-            scrollPane.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(headerVBox.heightProperty()).subtract(footerVBox.heightProperty()));
+            scrollPane.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(footerVBox.heightProperty()));
 
             chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
        
-            spectrumData.addUpdateListener((obs,oldval,newval)->{
+            m_spectrumData.addUpdateListener((obs,oldval,newval)->{
                 if(newval != null){
          
                     lastUpdatedField.setText(Utils.formatDateTimeString(newval));
                     
                 }else{
-                    lastUpdatedField.setText(spectrumData.statusMsgProperty().get());
+                    lastUpdatedField.setText(m_spectrumData.statusMsgProperty().get());
                 }
             });
 
-            ResizeHelper.addResizeListener(m_appStage, 250, 300,Double.MAX_VALUE, Double.MAX_VALUE);
-   
-            Runnable runClose = () -> {
+        
+          
+        
+        }
 
-                spectrumData.shutdown();
-               
-                m_networkInterface.removeListener(networkChangeListener);
 
-                spectrumData.removeUpdateListener();
-                if(m_appStage != null){
-                    m_appStage.close();
-                    m_appStage = null;
-                }
 
-            };
-            
-            closeBtn.setOnAction(closeEvent -> {
-                
-                runClose.run();
-            });
 
-            maxBtn.setOnAction(e->{
-                if(m_isMax){
-                    
-                    m_appStage.setWidth(m_prevWidth);
-                    m_appStage.setHeight(m_prevHeight);
-                    FxTimer.runLater(Duration.ofMillis(100), ()->{
-                        m_appStage.setY(m_prevY);
-                        m_appStage.setX(m_prevX);
+        @Override
+        public boolean getCurrent() {
+            return m_current.get();
+        }
 
-                        m_prevX = -1;
-                        m_prevY = -1;
-                    });
-                    m_prevHeight = -1;
-                    m_prevWidth = -1;  
-                    m_isMax = false;
-                }else{
-                    
-                    m_isMax = true;
-                    m_prevY = m_appStage.getY();
-                    m_prevX = m_appStage.getX();
-                    m_prevHeight = m_appStage.getScene().getHeight();
-                    m_prevWidth = m_appStage.getScene().getWidth();
-                    m_appStage.setMaximized(true);
+        @Override
+        public String getName() {  
+            return SpectrumFinance.this.getName();
+        }
 
-                    FxTimer.runLater(Duration.ofMillis(100), ()->{
-                        double height = m_appStage.getScene().getHeight();
-                        double width = m_appStage.getScene().getWidth();
-                        double x = m_appStage.getX();
-                        double y = m_appStage.getY();
-                        m_appStage.setMaximized(false);
-                        FxTimer.runLater(Duration.ofMillis(100), ()->{
-                            m_appStage.setX(x);
-                            m_appStage.setY(y);
-                            m_appStage.setHeight(height);
-                            m_appStage.setWidth(width);
-                        });
-                    });
-                
-                }
-                
-                    
-               
-            });
+        @Override
+        public String getTabId() {
+            return getNetworkId();
+        }
 
-           fillLeftBtn.setOnAction(e -> {
-                if(m_isMax){
-                    
-                    
-                    m_appStage.setHeight(m_prevHeight);
-                    m_appStage.setWidth(m_prevWidth);
-                    
-                    FxTimer.runLater(Duration.ofMillis(100), ()->{
-                        m_appStage.setY(m_prevY);
-                        m_appStage.setX(m_prevX);
+        @Override
+        public String getType() {
+            return App.APP_TYPE;
+        }
 
-                        m_prevX = -1;
-                        m_prevY = -1;
-                    });
-                    m_prevHeight = -1;  
-                    m_prevWidth = -1;
-                    m_isMax = false;
-                }else{
-                    m_isMax = true;
-                    m_prevY = m_appStage.getY();
-                    m_prevX = m_appStage.getX();
-                    m_prevHeight = m_appStage.getScene().getHeight();
-                    m_prevWidth = m_appStage.getScene().getWidth();
-                    m_appStage.setMaximized(true);
-                    FxTimer.runLater(Duration.ofMillis(100), ()->{
-                        double height = m_appStage.getScene().getHeight();
-                       // double width = m_appStage.getScene().getWidth();
-                        double x = m_appStage.getX();
-                        double y = m_appStage.getY();
-                        m_appStage.setMaximized(false);
-                        FxTimer.runLater(Duration.ofMillis(100), ()->{
-                            m_appStage.setX(x);
-                            m_appStage.setY(y);
-                            m_appStage.setHeight(height);
-                        });
-                    });
-                }
-            });
+        @Override
+        public boolean isStatic() {
            
+            return true;
+        }
+
+        @Override
+        public void setCurrent(boolean value) {
+            m_menuBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
+            m_current.set(value);
             
+        }
+
+        @Override
+        public void shutdown() {
+            m_spectrumData.shutdown();
+            m_spectrumData.removeUpdateListener();
+
+            m_networkInterface.set(null);
+
+            if(m_appStage != null){
+                m_appStage.close();
+                m_appStage = null;
+            }
+
+            
+        }
+ 
+
+        private ChangeListener<NoteInterface> m_networkChanged;
+
+        private void addListeners(){
+            m_networkChanged = (obs,oldval,newval)->{
+                if(oldval != null && m_networkMsgInterface != null){
+                   
+                    oldval.removeMsgListener(m_networkMsgInterface);
+                    m_networkMsgInterface = null;
+                }
+
+                if(newval != null){
+                
+                    String networkInterfaceId = FriendlyId.createFriendlyId();
+                    
+                    m_networkMsgInterface = new NoteMsgInterface(){
+        
+                        public String getId() {
+                            return networkInterfaceId;
+                        }
+                        public void sendMessage(int code, long timeStamp, String networkId, Number num){
+                                
+                        }
+                    
+                        public void sendMessage(int code, long timestamp, String networkId, String msg){
+                                switch(code){
+                                    case App.STARTED:
+                                    
+                                    break;
+                                    case App.STOPPED:
+                                    
+                                    break;
+                                    case App.LIST_CHANGED:
+                                    case App.LIST_UPDATED:
+                                    
+                                    break;
+                                }
+                        }
+                    
+                        
+                    };
+                    
+                    newval.addMsgListener(m_networkMsgInterface);
+                }
+
+              
+            };
+           
+            m_networkInterface.addListener(m_networkChanged);
+           
+        }
+
+        public void getData(){
+            openJson(getNetworksData().getData("data", ".", "tab", SpectrumFinance.NETWORK_ID));
+        }
+
+        public void openJson(JsonObject json){
+            JsonElement currentNetworkIdElement = json != null ? json.get("currentNetworkId") : null;
+            JsonElement itemTimeSpanElement = json != null ? json.get("itemTimeSpan") : null;
+
+            String currentNetworkId = currentNetworkIdElement == null ? ErgoNetwork.NETWORK_ID : (currentNetworkIdElement.isJsonNull() ? null : currentNetworkIdElement.getAsString());
+            
+            setCurrentNetworkId(currentNetworkId, false);
+            TimeSpan timeSpan = itemTimeSpanElement != null && itemTimeSpanElement.isJsonObject() ? new TimeSpan(itemTimeSpanElement.getAsJsonObject()) : new TimeSpan("1day");
+            
+            m_itemTimeSpan.set(timeSpan);
+        }
+
+        public JsonObject getJsonObject(){
+            TimeSpan itemTimeSpan = m_itemTimeSpan == null ? new TimeSpan("1day") : m_itemTimeSpan.get();
+
+            JsonObject networkObj = new JsonObject();
+            networkObj.addProperty("currentNetworkId", m_currentNetworkId);
+            networkObj.add("itemTimeSpan", itemTimeSpan.getJsonObject());
+            return networkObj;
+        }
+
+        public void save(){
+            getNetworksData().save("data", ".", "tab", SpectrumFinance.NETWORK_ID, getJsonObject());
+        }
+
+        @Override
+        public SimpleStringProperty titleProperty() {
+
+            return null;
+        }
+    
+   
+
+        public void setCurrentNetworkId(String networkId, boolean update){
+            m_currentNetworkId = networkId;
+
+            NoteInterface networkInterface = m_currentNetworkId != null && !m_currentNetworkId.equals(NetworksData.NO_NETWORK.getNetworkId())? getNetworksData().getNetwork(m_currentNetworkId) : null;
+    
+            m_networkInterface.set(networkInterface);
+     
+            if(update){
+                save();
+            }    
+        }
+    
+        
+        public void getNetworkMenu(MenuButton networkMenuBtn){
+            networkMenuBtn.getItems().clear();
+
+            String selectedMarketId = m_currentNetworkId;
+        
+            SimpleBooleanProperty found = new SimpleBooleanProperty(false);
+
+            for(NetworkInformation networkInfo : SUPPORTED_NETWORKS ){
+                NoteInterface noteInterface = getNetworksData().getNetwork(networkInfo.getNetworkId());
+                ImageView imgView = new ImageView(new Image(networkInfo.iconString()));
+                imgView.setPreserveRatio(true);
+                imgView.setFitHeight(30);
+                
+                boolean selected = selectedMarketId.equals(networkInfo.getNetworkId());
+                MenuItem menuItem = new MenuItem(networkInfo.getNetworkName() + (noteInterface == null ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
         
 
-            m_appStage.setOnCloseRequest(e -> runClose.run());
+                if(selected){
+                    ImageView menuBtnGraphic = new ImageView(new Image(networkInfo.iconString()));
+                    menuBtnGraphic.setPreserveRatio(true);
+                    menuBtnGraphic.setFitWidth(30);
+                    networkMenuBtn.setGraphic(menuBtnGraphic);
 
-        } else {
-            m_appStage.show();
-        }
+                    menuItem.setId("selectedMenuItem");
+                    found.set(true);
+                }
+                
+                menuItem.setUserData(networkInfo);
+            
+                menuItem.setOnAction(e->{
+                    NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
+                
+                    setCurrentNetworkId(mInfo.getNetworkId(), true);
+
+                    ImageView menuBtnGraphic = new ImageView(new Image(mInfo.getSmallIconString()));
+                    menuBtnGraphic.setPreserveRatio(true);
+                    menuBtnGraphic.setFitWidth(30);
+
+                    networkMenuBtn.setGraphic(menuBtnGraphic);
+
+
+                    getNetworkMenu(networkMenuBtn);
+                });
+
+                networkMenuBtn.getItems().add(menuItem);
+            }
+
+            if(!found.get()){
+                ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-120.png"));
+                menuBtnGraphic.setPreserveRatio(true);
+                menuBtnGraphic.setFitWidth(30);
+
+                networkMenuBtn.setGraphic(menuBtnGraphic);
+            }
+        }   
+    
+      
     }
 
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
     
         return true;
@@ -1130,13 +847,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static void getPoolSlippage(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/slippage";
 
-        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
 
     public static void getPoolStats(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/stats";
 
-        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
 
     private void getMarketUpdate(JsonArray jsonArray){
@@ -1246,16 +963,20 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private void updateMarketList(ArrayList<SpectrumMarketData> data){
         int size = data.size();
+        long timeStamp = System.currentTimeMillis();
 
         if(m_marketsList.size() == 0){
             for(int i = 0; i < size; i++){
                 SpectrumMarketData marketData = data.get(i);
                if(data != null){
                     m_marketsList.add(marketData);
+                    data.clear();
+
+                    sendMessage(App.STATUS, timeStamp,marketData.getPoolId(), App.LIST_CHANGED);
+                    
                }
             }
-            data.clear();
-            sendMessage(App.LIST_CHANGED);
+           
         }else{
             SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
             for(int i = 0; i < size; i++){
@@ -1272,9 +993,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
             data.clear();
             if(changed.get()){
-                sendMessage(App.LIST_CHANGED);
+                sendMessage(App.STATUS, timeStamp,NETWORK_ID, App.LIST_CHANGED);
             }else{
-                sendMessage(App.LIST_UPDATED);
+                sendMessage(App.STATUS, timeStamp,NETWORK_ID, App.LIST_UPDATED);
             }
             
         }
@@ -1359,6 +1080,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     }
 
+    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
@@ -1456,6 +1178,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                  
                         }*/
                         setConnectionStatus(App.STARTED);
+                        sendMessage(App.STATUS, System.currentTimeMillis(), NETWORK_ID, App.STARTED);
                         getMarketUpdate(marketJsonArray);
                     } 
                 }, (onfailed)->{
@@ -1464,7 +1187,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     Throwable throwable = onfailed.getSource().getException();
                     String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
                   
-                    sendMessage(App.ERROR, System.currentTimeMillis(), msg);
+
+                    sendMessage(App.ERROR, System.currentTimeMillis(),NETWORK_ID, msg);
                 });
                 
 
@@ -1486,7 +1210,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     @Override
     public Object sendNote(JsonObject json){
     
-        JsonElement subjectElement = json.get("subject");
+        JsonElement subjectElement = json.get(App.CMD);
 
         JsonElement timeStampElement = json.get("timeStamp");
         
@@ -1570,26 +1294,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
     
   
     public void uninstall(){
-        if(m_networkListener != null){
-            getNetworksData().removeNetworkListener(m_networkListener);
-            m_networkListener = null;
-        }
         
-        m_tokensInterface.set(null);
-        m_networkInterface.set(null);
-        if(m_tokensInterface != null){
-            m_tokensInterface.removeListener(m_tokensChangeListener);
-            m_tokensInterface = null;
-        }        
         
-        if(m_networkInterface != null){
-            m_networkInterface.removeListener(m_networkChangeListener);
-            m_networkInterface = null;
-        }
-        while(msgListeners().size() > 0){
-            sendMessage(App.SHUTDOWN);
-            removeMsgListener(msgListeners().get(0));
-        }     
+         
     }
 
     @Override

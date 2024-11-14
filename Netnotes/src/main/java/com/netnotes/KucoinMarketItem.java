@@ -350,7 +350,7 @@ public class KucoinMarketItem {
                 public void onMsgChanged(JsonObject newVal) {
                     if (newVal != null) {
 
-                        JsonElement subjectElement = newVal.get("subject");
+                        JsonElement subjectElement = newVal.get(App.CMD);
                         JsonElement topicElement = newVal.get("topic");
                         JsonElement dataElement = newVal.get("data");
 

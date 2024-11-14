@@ -16,7 +16,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.IntStream;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -24,8 +23,6 @@ import com.utils.Utils;
 
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -157,8 +154,6 @@ public class SpectrumChartView {
         if (!m_msgListeners.contains(item)) {
 
             if(m_connectionStatus == App.STARTED){
-                item.sendMessage(App.STARTED, m_data[m_data.length-1].getTimeStamp());
-            }else{
                 start();
             }
             
@@ -222,26 +217,22 @@ public class SpectrumChartView {
         m_data = null;
         m_lastTimeStamp = 0;
     }
-    
-    public void sendMessage(int msg){
-        long timestamp = System.currentTimeMillis();
+
+
+    public void sendMessage(int code, long timestamp, String networkId, String msg){
+
         for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(msg, timestamp);
+            m_msgListeners.get(i).sendMessage(code, timestamp, networkId, msg);
         }
     }
 
-    public void sendMessage(int msg, long timestamp){
-
+    protected void sendMessage(int code, long timeStamp,String networkId, Number num){
         for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(msg, timestamp);
+            m_msgListeners.get(i).sendMessage(code, timeStamp,networkId, num);
         }
     }
-    public void sendMessage(int code, long timestamp, String msg){
 
-        for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(code, timestamp, msg);
-        }
-    }
+    private String m_errorString = "";
 
 
     public void getPoolData(){
@@ -260,12 +251,18 @@ public class SpectrumChartView {
                         if(m_data.length > 2){
                             m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
                             m_connectionStatus = App.STARTED;
-                            sendMessage(App.STARTED, m_lastTimeStamp);
+
+                  
+                            sendMessage(App.STATUS, m_lastTimeStamp, poolId, App.STARTED);
                         }
                     }
                 }, (onFailed)->{
                     m_connectionStatus = App.ERROR;
-                    sendMessage(App.ERROR, currentTime, onFailed.getSource().getException().toString());
+
+                    m_errorString = onFailed.getSource().getException().toString();
+
+                    sendMessage(App.STATUS, m_lastTimeStamp, poolId, App.ERROR);
+                    sendMessage(App.ERROR, currentTime, poolId, m_errorString);
                 });
 
             
@@ -275,10 +272,12 @@ public class SpectrumChartView {
             
             Throwable throwable = onFailed.getSource().getException();
             
-            String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
+            m_errorString = throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
             m_connectionStatus = App.ERROR;
-            sendMessage(App.ERROR, currentTime, msg);
 
+            
+            sendMessage(App.STATUS, currentTime, poolId, App.ERROR);
+            sendMessage(App.ERROR, currentTime, poolId, m_errorString);
          });
 
         
@@ -289,13 +288,13 @@ public class SpectrumChartView {
     public void update(){
         
         long currentTime = System.currentTimeMillis();
-        if(m_marketData.getQuoteSymbol().equals("SigUSD")){
+        /*if(m_marketData.getQuoteSymbol().equals("SigUSD")){
             try {
                 Files.writeString(App.logFile.toPath(),"received " + currentTime, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
             } catch (IOException e) {
         
             }
-        } 
+        } */
         
         if(m_connectionStatus != App.STOPPED && m_lastTimeStamp > 0){
 
@@ -318,11 +317,12 @@ public class SpectrumChartView {
                                     long lastTimeStamp = addPrices(prices); 
                                     m_lastTimeStamp = lastTimeStamp;
 
-                                    sendMessage(lastTimeStamp > 0 ? App.LIST_UPDATED : App.LIST_CHECKED, m_lastTimeStamp);
+
+                                    sendMessage(App.STATUS, m_lastTimeStamp, poolId, lastTimeStamp > 0 ? App.LIST_UPDATED : App.LIST_CHECKED);
                                     
                                 }else{
 
-                                    sendMessage(App.LIST_CHECKED, m_lastTimeStamp);
+                                    sendMessage(App.STATUS, m_lastTimeStamp,poolId, App.LIST_CHECKED);
                                    
                                 }
                              
@@ -330,9 +330,10 @@ public class SpectrumChartView {
                         }, (onFailed)->{
                             
                             Throwable throwable = onFailed.getSource().getException();
-                            
-            
-                            sendMessage(App.ERROR, currentTime, throwable.toString());
+                            m_errorString =  throwable.toString();
+                              
+                            sendMessage(App.STATUS, currentTime, poolId, App.ERROR);
+                            sendMessage(App.ERROR, currentTime, poolId, m_errorString);
                         });
                     
     
@@ -342,11 +343,11 @@ public class SpectrumChartView {
             }, (onFailed)->{
                 
                 Throwable throwable = onFailed.getSource().getException();
+                m_errorString = throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
                 
-                String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
-                
-                sendMessage(App.ERROR, currentTime, msg);
+                sendMessage(App.STATUS, currentTime, poolId, App.ERROR);
 
+                sendMessage(App.ERROR, currentTime, poolId, m_errorString);
              });
         }
        // m_data.setPriceData(updateLastItem(m_data.getPriceData(), new SpectrumPrice(m_marketData.getLastPrice(), m_marketData.getTimeStamp())));
@@ -577,8 +578,8 @@ public class SpectrumChartView {
         BigDecimal minValue = BigDecimal.valueOf(0.000000000000000001);
         BigDecimal highValue =  spectrumNumbers.getHigh().max(minValue);
         
-        BigDecimal openValue = spectrumNumbers.getOpen();
-        BigDecimal closeValue = spectrumNumbers.getClose();
+      //  BigDecimal openValue = spectrumNumbers.getOpen();
+     //  BigDecimal closeValue = spectrumNumbers.getClose();
         
         BigDecimal lowValue = spectrumNumbers.getLow();
         BigDecimal spacing =  spectrumNumbers.getHigh().multiply(BigDecimal.valueOf(.05));

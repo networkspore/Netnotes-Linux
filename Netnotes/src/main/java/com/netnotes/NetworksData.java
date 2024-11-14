@@ -14,8 +14,12 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
@@ -33,26 +37,28 @@ import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
-import javafx.application.HostServices;
 import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.StringExpression;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -64,46 +70,46 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-public class NetworksData implements InstallerInterface {
+public class NetworksData extends Network implements NoteInterface {
 
     public final static long WATCH_INTERVAL = 50;
     public final static String INPUT_EXT = ".in";
     public final static String OUT_EXT = ".out";
     public final static long DEFAULT_CYCLE_PERIOD = 7;
+    public final static String NETWORK_ID = "NetworksData";
 
-    public final static String[] INTALLABLE_NETWORK_IDS = new String[]{
+
+
+    public final static NetworkInformation[] SUPPORTED_APPS = new NetworkInformation[]{
    
-        KucoinExchange.NETWORK_ID,
-        SpectrumFinance.NETWORK_ID
+       // KucoinExchange.getNetworkInformation(),
+        SpectrumFinance.getNetworkInformation()
         
     };
+
     
+    public final static NetworkInformation NO_NETWORK = new NetworkInformation("NO_NETWORK", "(none)","/assets/globe-outline-white-120.png", "/assets/globe-outline-white-30.png", "No network selected" );
+    
+    public static NetworkInformation[] SUPPORTED_NETWORKS = new NetworkInformation[]{ 
+        ErgoNetwork.getNetworkInformation()
+    };
+    
+    private SimpleStringProperty m_currentNetworkId = new SimpleStringProperty(null);
     
     private Tooltip m_networkToolTip = new Tooltip("Network");
 
-    
+    private HashMap<String, String>  m_locationsIds = new HashMap<>();
+
     private ExecutorService m_execService = Executors.newFixedThreadPool(6);
     
-    private ObservableList<NoteInterface> m_noteInterfaceList = FXCollections.observableArrayList();
-    private ObservableList<NoteInterface> m_networkList = FXCollections.observableArrayList();
-
-    private double m_leftColumnWidth = 175;
-
-    private VBox m_installedVBox = null;
-    private VBox m_notInstalledVBox = null;
-    private ArrayList<InstallableIcon> m_installables = new ArrayList<>();
+    private HashMap<String, NoteInterface> m_apps = new HashMap<>();
+    private HashMap<String, NoteInterface> m_networks = new HashMap<>();
 
     private Stage m_addNetworkStage = null;
-
-    private InstallableIcon m_focusedInstallable = null;
-
-    private HostServices m_hostServices;
-  
 
     private File m_notesDir;
     private File m_outDir;
@@ -114,49 +120,53 @@ public class NetworksData implements InstallerInterface {
     private SimpleStringProperty m_stageIconStyle = new SimpleStringProperty(IconStyle.ICON);
 
     private double m_stageWidth = 700;
-    private double m_stageHeight = 500;
+    private double m_stageHeight = 600;
     private double m_stagePrevWidth = 310;
     private double m_stagePrevHeight = 500;
     private boolean m_stageMaximized = false;
     private AppData m_appData;
-    private String m_networkId;
 
-    private StringExpression m_titleExpression = null;
     private Stage m_appStage = null;
     private ChangeListener<Bounds> m_boundsListener = null;
-    private SimpleObjectProperty<NoteInterface> m_currentNetwork = new SimpleObjectProperty<>(null);
-    private String m_currentNetworkId = null;
     private ScrollPane m_menuScroll;
     private ScrollPane m_subMenuScroll;
-    private HBox m_subMenuBox = new HBox();
+    private VBox m_subMenuBox = new VBox();
 
     private SimpleObjectProperty<TabInterface> m_currentMenuTab = new SimpleObjectProperty<TabInterface>();
-    private ImageView m_networkImgView = new ImageView();
-    private Button m_settingsBtn = new Button();
+    private BufferedButton m_settingsBtn;
     private Button m_appsBtn = new Button();
-    private Button m_networkBtn = new Button();
-
+    
     private SettingsTab m_settingsTab = null;
     private NetworkTab m_networkTab = null;
     private AppsTab m_appsTab = null;
 
-    private SimpleDoubleProperty m_widthObject = new SimpleDoubleProperty(300);
+    private Label m_tabLabel = new Label("");
+    
+
+    private SimpleDoubleProperty m_widthObject = new SimpleDoubleProperty(App.DEFAULT_STATIC_WIDTH);
     private SimpleDoubleProperty m_heightObject = new SimpleDoubleProperty(200);
 
-    public NetworksData(AppData appData,  HostServices hostServices) {
+    private String m_configId;
+
+    private String m_localId;
+
+    public NetworksData(AppData appData) {
+        super(App.globeImage30,"Networks",NETWORK_ID,(NetworksData) null);
         m_appData = appData;
-        m_networkId = FriendlyId.createFriendlyId();
-     
-        m_hostServices = hostServices;
-       
+        m_configId = FriendlyId.createFriendlyId();
+        m_localId = FriendlyId.createFriendlyId();
+
+        m_locationsIds.put(m_localId, App.LOCAL);
+
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
-        try {
+        try( 
+            InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream(); 
+        ) {
             
-            InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream();
+           
             java.awt.Font ocrFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, stream).deriveFont(48f);
             ge.registerFont(ocrFont);
-            stream.close();
            
 
         } catch (FontFormatException | IOException e) {
@@ -212,10 +222,26 @@ public class NetworksData implements InstallerInterface {
         m_appData.appKeyProperty().addListener((obs,oldval,newval)->updateIdDataFile(oldval, newval));
         
 
+
     }
-    public final static NetworkInformation NO_NETWORK = new NetworkInformation("NO_NETWORK", "No network","/assets/globe-outline-white-120.png", "/assets/globe-outline-white-30.png", "No network selected" );
-    
-    public static NetworkInformation[] SUPPORTED_NETWORKS = new NetworkInformation[]{ ErgoNetwork.getNetworkInformation()};
+
+    private boolean isConfigId(String configId){
+        if(configId != null && configId.equals(m_configId)){
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isAppSupported(String networkId){
+        if(networkId != null){
+            for(int i =0; i < SUPPORTED_APPS.length ; i++){
+                if(SUPPORTED_APPS[i].getNetworkId().equals(networkId)){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 
     public static boolean isNetworkSupported(String networkId){
         if(networkId != null){
@@ -228,24 +254,38 @@ public class NetworksData implements InstallerInterface {
         return false;
     }
 
-    public void setCurrentNetwork(String networkId){
+    private boolean isValidLocation(String locationString){
+        return (locationString != null && locationString.equals((App.LOCAL)));
+    }
+    
 
-        
-        if(networkId == null || (m_currentNetworkId != null && m_currentNetworkId.equals(networkId))){
-            return;
+    @Override
+    public Object sendNote(JsonObject note){
+        if(note != null){
+
+            JsonElement cmdElement = note.get(App.CMD);
+            JsonElement configIdElement = note.get("configId");
+            JsonElement locationIdElement = note.get("locationId");
+
+            String configId = configIdElement != null && configIdElement.isJsonPrimitive() ? configIdElement.getAsString() : null;
+            String locationId = locationIdElement != null && locationIdElement.isJsonPrimitive() ? locationIdElement.getAsString() : null;
+            String locationString =  getLocationString(locationId);
+
+            if(cmdElement != null && cmdElement.isJsonPrimitive() && configId != null && isConfigId(configId) && isValidLocation(locationString)){
+                String cmd = cmdElement.getAsString();
+
+                switch(cmd){
+                    case "removeNetwork":
+                        return removeNetwork(note);
+                        
+                }
+            }
         }
-            
-        m_currentNetworkId = networkId;
-       
 
-        updateNetworks();
-        
-        save();
+        return false;
     }
 
-    public String getNetworkId(){
-        return m_networkId;
-    }
+
 
     public ExecutorService getExecService(){
         return m_execService;
@@ -259,28 +299,8 @@ public class NetworksData implements InstallerInterface {
 
 
 
-     protected void updateNetworks(){
-        
-        NoteInterface network = getNetwork(m_currentNetworkId);
-        if(network != null){
-            if(m_currentNetwork.get() != null && m_currentNetwork.get().getNetworkId().equals(network.getNetworkId())){
-                
-            }else{
-               
-                m_currentNetwork.set(network);   
-            }
 
-        }else{
-            if(m_currentNetwork.get() != null){
-                m_currentNetwork.set(null);
-            }
-        }
-    }
 
-    public SimpleObjectProperty<NoteInterface> currentNetworkProperty(){
-        return m_currentNetwork;
-    }
-  
 
     private AppData getAppData() {
         return m_appData;
@@ -294,8 +314,14 @@ public class NetworksData implements InstallerInterface {
     private void openJson(JsonObject networksObject) {
         if (networksObject != null) {
 
-            JsonElement jsonArrayElement = networksObject == null ? null : networksObject.get("networks");
+            JsonElement jsonArrayElement = networksObject == null ? null : networksObject.get("apps");
+
+            if(jsonArrayElement == null){
+                addAllApps(true);
+            }
+
             JsonElement jsonNetArrayElement = networksObject == null ? null : networksObject.get("netArray");
+            
             JsonElement stageElement = networksObject.get("stage");
             JsonElement currentNetworkIdElement = networksObject.get("currentNetworkId");
 
@@ -310,19 +336,20 @@ public class NetworksData implements InstallerInterface {
                 if (networkIdElement != null) {
                     String networkId = networkIdElement.getAsString();
 
-                    switch (networkId) {
-                    
-                        case ErgoNetwork.NETWORK_ID:
-                            addNetwork(new ErgoNetwork(this));
-                            break;                          
-
+                    NoteInterface noteInterface = createNetwork(networkId);
+                    if(noteInterface != null){
+                        addNetwork(noteInterface, false);
                     }
-
                 }
 
             }
-
-            m_currentNetworkId = currentNetworkIdElement != null && currentNetworkIdElement.isJsonPrimitive() ? currentNetworkIdElement.getAsString() : null; 
+            String currentNetworkString = currentNetworkIdElement != null && currentNetworkIdElement.isJsonPrimitive() ? currentNetworkIdElement.getAsString() : null; 
+            if(currentNetworkString != null && getNetwork(currentNetworkString) != null){
+                
+                m_currentNetworkId.set(currentNetworkString); 
+            }else{
+                m_currentNetworkId.set(null);
+            }
             
         
 
@@ -337,16 +364,9 @@ public class NetworksData implements InstallerInterface {
                 if (networkIdElement != null) {
                     String networkId = networkIdElement.getAsString();
 
-                    switch (networkId) {
-                    
-                        case KucoinExchange.NETWORK_ID:
-                            addNoteInterface(new KucoinExchange(jsonObject, this), false);
-                            break;
-                        case SpectrumFinance.NETWORK_ID:
-                            addNoteInterface(new SpectrumFinance(jsonObject, this), false);
-                            break;
-                        
-
+                    NoteInterface noteInterface = createApp(networkId);
+                    if(noteInterface != null){
+                        addApp(noteInterface, false);
                     }
 
                 }
@@ -391,8 +411,45 @@ public class NetworksData implements InstallerInterface {
             }
           
 
+        }else{
+            
+            addNetwork(createNetwork(ErgoNetwork.NETWORK_ID), false);
+            m_currentNetworkId.set(ErgoNetwork.NETWORK_ID);
+
+            addApp(createApp(SpectrumFinance.NETWORK_ID), true);
+           
         }
     }
+
+    private NoteInterface createApp(String networkId){
+        if(getApp(networkId) == null){
+            switch (networkId) {
+                        
+                /*case KucoinExchange.NETWORK_ID:
+                    return new KucoinExchange(this), false);
+                 */
+                case SpectrumFinance.NETWORK_ID:
+                    return new SpectrumFinance(this);
+
+                
+            }
+        }
+        return null;
+    }
+
+    private NoteInterface createNetwork(String networkId){
+        
+        if(getNetwork(networkId) == null){
+            switch (networkId) {
+                        
+                case ErgoNetwork.NETWORK_ID:
+                    return new ErgoNetwork(this);                         
+
+            }
+        }
+        return null;
+    }
+
 
     public double getStageWidth() {
         return m_stageWidth;
@@ -458,68 +515,111 @@ public class NetworksData implements InstallerInterface {
         return m_appData.getAppDir();
     }
 
-    public HostServices getHostServices() {
-        return m_hostServices;
+    public void openHostUrl(String url) {
+        
     }
 
-  
-
-    public void clear() {
-        for (NoteInterface noteInterface : m_noteInterfaceList) {
-            m_noteInterfaceList.remove(noteInterface);
-        }
-
-        try {
-            save();
-        } catch (Exception e) {
-
-        }
 
 
-    }
-
-    public boolean addNoteInterface(NoteInterface noteInterface) {
-        return addNoteInterface(noteInterface, true);
-    }
-
-    public boolean addNoteInterface(NoteInterface noteInterface, boolean update) {
+    private boolean addApp(NoteInterface noteInterface, boolean isSave) {
         // int i = 0;
 
         String networkId = noteInterface.getNetworkId();
 
-        if (getNoteInterface(networkId) == null) {
-            m_noteInterfaceList.add(noteInterface);
-           
-          
+        if (getApp(networkId) == null) {
+            m_apps.put(networkId, noteInterface);
+            
+            if(isSave){
+
+                long timestamp = System.currentTimeMillis();
+                JsonObject resultJson = new JsonObject();
+                resultJson.addProperty("code", App.LIST_ITEM_ADDED);
+                resultJson.addProperty("type", App.APP_TYPE);
+                resultJson.addProperty("networkId", getNetworkId());
+                resultJson.addProperty("timeStamp", timestamp);
+                resultJson.addProperty("id", networkId);
+                
+            
+                sendMessage( App.LIST_ITEM_ADDED, timestamp, App.APP_TYPE, resultJson.toString());
+
+            }
             return true;
         }
         return false;
     }
 
-    public boolean addNetwork(NoteInterface noteInterface) {
+    private boolean addNetwork(NoteInterface noteInterface, boolean isSave) {
         // int i = 0;
 
         String networkId = noteInterface.getNetworkId();
 
         if (getNetwork(networkId) == null) {
-            m_networkList.add(noteInterface);
-            
-     
+               
+        
+            m_networks.put(noteInterface.getNetworkId(), noteInterface);
            
+            if(isSave){
+                long timestamp = System.currentTimeMillis();
+                JsonObject resultJson = new JsonObject();
+                resultJson.addProperty("code", App.LIST_ITEM_ADDED);
+                resultJson.addProperty("type", App.NETWORK_TYPE);
+                resultJson.addProperty("networkId", getNetworkId());
+                resultJson.addProperty("timeStamp", timestamp);
+                resultJson.addProperty("id", networkId);
+                
+            
+                sendMessage( App.LIST_ITEM_ADDED, timestamp, App.NETWORK_TYPE, resultJson.toString());
+
+
+                save();
+            }
+         
+
             return true;
         }
         return false;
     }
 
-    public boolean removeNet(String networkId){
-        
-       
-        for (int i = 0; i < m_networkList.size(); i++) {
-            NoteInterface noteInterface = m_networkList.get(i);
-            if (networkId.equals(noteInterface.getNetworkId())) {
-                m_networkList.remove(i);
-                noteInterface.remove();
+   
+    
+    public String getLocationString(String locationId){
+        String locationString = m_locationsIds.get(locationId);
+        return  locationString != null ?  locationString : "Unknown";
+    }
 
+
+    private boolean removeNetwork(String networkId, boolean isSave){       
+       
+        if(networkId != null) {
+            
+            NoteInterface noteInterface = m_networks.remove(networkId);
+            
+            if (noteInterface != null) {
+               
+                if(m_currentNetworkId.get() != null && m_currentNetworkId.get().equals(networkId)){
+                    m_currentNetworkId.set(null);
+                }
+                
+
+                noteInterface.shutdown();
+
+                if(m_currentMenuTab.get() != null && m_currentMenuTab.get().getTabId().equals(networkId)){
+                    open(NetworkTab.NAME, App.STATIC_TYPE, m_localId);
+                }
+                
+                if(isSave){
+                    long timestamp = System.currentTimeMillis();
+                    JsonObject resultJson = new JsonObject();
+                    resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
+                    resultJson.addProperty("type", App.NETWORK_TYPE);
+                    resultJson.addProperty("timeStamp", timestamp);
+                    resultJson.addProperty("id", networkId);
+                    
+                
+                    sendMessage( App.LIST_ITEM_REMOVED, timestamp,getNetworkId(),  resultJson.toString());
+
+                    save();
+                }
                 return true;
             }
         }
@@ -528,24 +628,56 @@ public class NetworksData implements InstallerInterface {
         
     }
 
-    public void addNetworkListListener(ListChangeListener<? super NoteInterface> listener){
-        m_networkList.addListener(listener);
+    private boolean removeNetwork(JsonObject note){
+        JsonElement networksArrayElement = note.get("ids");
+        long timeStamp = System.currentTimeMillis();
+        
+
+        if(networksArrayElement != null && networksArrayElement.isJsonArray()){
+            JsonArray networksArray = networksArrayElement.getAsJsonArray();
+
+             JsonArray namesArray = new JsonArray();
+
+            for(JsonElement element : networksArray){
+                JsonObject idObj = element.getAsJsonObject();
+                JsonElement idElement = idObj.get("id");
+                String id = idElement.getAsString();
+                NoteInterface noteInterface = getNetwork(id);
+                if(noteInterface != null){
+                    String name = noteInterface.getName();
+                    JsonObject networkJson = new JsonObject();
+                    networkJson.addProperty("name", name);
+                    namesArray.add(networkJson);
+                }
+            }
+
+            JsonArray jsonArray = new JsonArray();
+
+            for(JsonElement element : namesArray){
+                JsonObject idObj = element.getAsJsonObject();
+                JsonElement idElement = idObj.get("id");
+                
+                if(removeNetwork(idElement.getAsString(), false)){
+                    jsonArray.add(idObj);
+                }
+            }
+            save();
+
+            JsonObject resultJson = new JsonObject();
+            resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
+            resultJson.addProperty("networkID", App.NETWORK_TYPE);
+            resultJson.addProperty("timeStamp", timeStamp);
+            resultJson.add("ids", namesArray);
+            
+        
+            sendMessage( App.LIST_ITEM_REMOVED, timeStamp,getNetworkId(), resultJson.toString());
+     
+            return true;
+         
+        }
+        return false;
     }
 
-    public void removeNetworkListListener(ListChangeListener<? super NoteInterface> listener){
-        m_networkList.removeListener(listener);
-    }
-
-
-
-
-    public void addNetworkListener(ListChangeListener<? super NoteInterface> listener){
-        m_noteInterfaceList.addListener(listener);
-    }
-
-    public void removeNetworkListener(ListChangeListener<? super NoteInterface> listener){
-        m_noteInterfaceList.removeListener(listener);
-    }
 
   
     private SimpleObjectProperty<LocalDateTime> m_shutdownNow = new SimpleObjectProperty<>(null);
@@ -557,12 +689,9 @@ public class NetworksData implements InstallerInterface {
     public void shutdown() {
         m_shutdownNow.set(LocalDateTime.now());
 
-        for (int i = 0; i < m_noteInterfaceList.size(); i++) {
-            NoteInterface noteInterface = m_noteInterfaceList.get(i);
-            noteInterface.shutdown();
+        removeAllApps(false);
 
-            m_noteInterfaceList.remove(i);
-        }
+        removeAllNetworks(false);
 
         if (m_noteWatcher != null) {
             m_noteWatcher.shutdown();
@@ -571,8 +700,8 @@ public class NetworksData implements InstallerInterface {
     }
 
 
-
-    public void showManageNetworkStage() {
+    /* 
+    public void showManageAppsStage() {
 
         if (m_addNetworkStage == null) {
             
@@ -585,7 +714,7 @@ public class NetworksData implements InstallerInterface {
             m_notInstalledVBox.setId("bodyRight");
             VBox.setVgrow(m_notInstalledVBox, Priority.ALWAYS);
             HBox.setHgrow(m_notInstalledVBox, Priority.ALWAYS);
-            updateInstallables();
+
 
             String topTitle = "Netnotes - Manage Apps";
             m_addNetworkStage = new Stage();
@@ -642,10 +771,6 @@ public class NetworksData implements InstallerInterface {
             VBox.setVgrow(vSpacerOne, Priority.ALWAYS);
           
 
-           /* VBox installedVBox = new VBox(m_installedVBox, vSpacerOne);
-            installedVBox.setId("bodyBox");
-            VBox.setVgrow(installedVBox, Priority.ALWAYS);
-            HBox.setHgrow(installedVBox,Priority.ALWAYS);*/
 
             Region leftSpacer = new Region();
             HBox.setHgrow(leftSpacer, Priority.ALWAYS);
@@ -678,9 +803,6 @@ public class NetworksData implements InstallerInterface {
            // rightSide.setId("bodyRight");
             rightSide.setPadding(new Insets(5,5,0,5));
 
-          /*   VBox rightSidePaddingBox = new VBox(rightSide);
-            rightSidePaddingBox.setPadding(new Insets(0, 2, 0, 5));
-            HBox.setHgrow(rightSidePaddingBox, Priority.ALWAYS);*/
 
             HBox columnsHBox = new HBox(leftSide, rightSide);
             VBox.setVgrow(columnsHBox, Priority.ALWAYS);
@@ -754,7 +876,7 @@ public class NetworksData implements InstallerInterface {
             installBtn.setOnAction(e -> {
 
                 if (m_focusedInstallable != null && (!m_focusedInstallable.getInstalled())) {
-                    installApp(m_focusedInstallable.getNetworkId());
+                    installApp(m_focusedInstallable.getNetworkId(),true);
                 }
                 m_focusedInstallable = null;
             });
@@ -767,15 +889,15 @@ public class NetworksData implements InstallerInterface {
             });
 
              removeAllBtn.setOnAction(e -> {
-                removeAll();
+                removeAllApps(true);
             });
 
             installAllBtn.setOnAction(e -> {
-                addAll();
+                addAllApps(true);
             });
 
             m_addNetworkStage.show();
-            updateAvailableLists();
+
             FxTimer.runLater(Duration.ofMillis(20), ()->{
                     if(m_addNetworkStage != null){
 
@@ -791,17 +913,15 @@ public class NetworksData implements InstallerInterface {
         } else {
              m_addNetworkStage.show();
         }
-    }
+    }*/
 
     public void closeNetworksStage() {
         if (m_addNetworkStage != null) {
             m_addNetworkStage.close();
         }
         m_addNetworkStage = null;
-        m_notInstalledVBox = null;
-        m_installedVBox = null;
-        m_installables = null;
-        m_focusedInstallable = null;
+
+        //m_focusedInstallable = null;
     }
 
     private double m_prevX = -1;
@@ -825,7 +945,7 @@ public class NetworksData implements InstallerInterface {
     }
 
 
-
+    /*
     public void updateAvailableLists() {
         if (m_installables != null && m_installedVBox != null && m_notInstalledVBox != null) {
             m_installedVBox.getChildren().clear();
@@ -883,113 +1003,162 @@ public class NetworksData implements InstallerInterface {
 
             }
         }
-    }
+    } */
 
-    public void updateInstallables() {
+    /*private void updateInstallables() {
         m_installables = new ArrayList<>();
         for (String networkId : INTALLABLE_NETWORK_IDS) {
-            NoteInterface noteInterface = getNoteInterface(networkId);
+            NoteInterface noteInterface = getApp(networkId);
             boolean installed = !(noteInterface == null);
             InstallableIcon installableIcon = new InstallableIcon(this, networkId, installed);
 
             m_installables.add(installableIcon);
         }
-    }
+    }*/
 
    // private SimpleDoubleProperty m_gridWidth = new SimpleDoubleProperty(200);
-    
+    private NoteInterface getAppInterface(String networkId) {
+        if (networkId != null) {
+            return m_apps.get(networkId);
+        }
+        return null;
+    }
+
+public NoteInterface getApp(String networkId) {
+    if (networkId != null) {
+
+        NoteInterface noteInterface = getAppInterface(networkId);
+
+        if (noteInterface != null && noteInterface instanceof Network) {
+            Network network = (Network) noteInterface;
+            return network.getNoteInterface();
+        }
+        
+    }
+    return null;
+}
 
 
-    public void installNetwork(String networkId){
+    private void installNetwork(String networkId){
         if(getNetwork(networkId) == null && isNetworkSupported(networkId)){
-            switch (networkId) {
-
-            
-                case ErgoNetwork.NETWORK_ID:
-               
-                    addNetwork(new ErgoNetwork(this));
-                    break;
-            
-            }
-        }
-        save();
-    }
-
-    public void installApp(String networkId) {
-
-        switch (networkId) {
-
            
-            case KucoinExchange.NETWORK_ID:
-                addNoteInterface(new KucoinExchange(this));
-                break;
-            case SpectrumFinance.NETWORK_ID:
-                addNoteInterface(new SpectrumFinance(this));
-                break;
+            addNetwork(createNetwork(networkId), true);
+           
         }
-        m_installedVBox.getChildren().clear();
-        m_notInstalledVBox.getChildren().clear();
-        updateInstallables();
-        updateAvailableLists();
-        save();
     }
 
-    public void removeApp(String networkId) {
-        removeNoteInterface(networkId);
+    private void installApp(String networkId, boolean save) {
 
-        m_installedVBox.getChildren().clear();
-        m_notInstalledVBox.getChildren().clear();
-        updateInstallables();
-        updateAvailableLists();
+        if(getApp(networkId) == null && isAppSupported(networkId)){
+           
+            addApp(createNetwork(networkId), true);
+           
+        }
 
-        save();
     }
 
-    public void addAll() {
-        for (String networkId : INTALLABLE_NETWORK_IDS) {
-            if (getNoteInterface(networkId) == null) {
-                installApp(networkId);
+
+    private void addAllApps(boolean save) {
+        for (NetworkInformation networkInfo : SUPPORTED_APPS) {
+            if (getApp(networkInfo.getNetworkId()) == null) {
+                installApp(getNetworkId(), false);
             }
         }
-        updateInstallables();
-        updateAvailableLists();
- 
-        save();
+       // updateInstallables();
+        if(save){
+            save();
+        }
     }
 
-    public void removeAll() {
-
-        while (m_noteInterfaceList.size() > 0) {
-            NoteInterface noteInterface = m_noteInterfaceList.get(0);
-            m_noteInterfaceList.remove(noteInterface);
-            noteInterface.remove();
+    private void removeAllApps(boolean isSave) {
+        JsonArray result = new JsonArray();
+        for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
+            
+            NoteInterface noteInterface = entry.getValue();
+            
+            noteInterface.shutdown();
+            if(isSave){
+                result.add(noteInterface.getJsonObject());
+            }
         }
 
-        updateAvailableLists();
-        updateInstallables();
+        m_apps.clear();
 
-        save();
+        if(isSave){
+            long timestamp = System.currentTimeMillis();
+            JsonObject resultJson = new JsonObject();
+            resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
+            resultJson.addProperty("type", App.APP_TYPE);
+            resultJson.addProperty("networkId", NETWORK_ID);
+            resultJson.addProperty("timeStamp", timestamp);
+            resultJson.add("ids", result);
+
+            sendMessage( App.LIST_ITEM_REMOVED, timestamp,NETWORK_ID, resultJson.toString());
+
+            save();
+        }
+        
     }
 
+    private void removeAllNetworks(boolean isSave) {
+        JsonArray result = new JsonArray();
+        for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
+            
+            NoteInterface noteInterface = entry.getValue();
+            
+            noteInterface.shutdown();
+            if(isSave){
+                result.add(noteInterface.getJsonObject());
+            }
+        }
+
+        m_networks.clear();
+
+        if(isSave){
+            long timestamp = System.currentTimeMillis();
+            JsonObject resultJson = new JsonObject();
+            resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
+            resultJson.addProperty("type", App.APP_TYPE);
+            resultJson.addProperty("networkId", NETWORK_ID);
+            resultJson.addProperty("timeStamp", timestamp);
+            resultJson.add("ids", result);
+
+            sendMessage( App.LIST_ITEM_REMOVED, timestamp,NETWORK_ID, resultJson.toString());
+
+            save();
+        }
+        
+    }
 
 
   
-    public boolean removeNoteInterface(String networkId) {
-        return removeNoteInterface(networkId, true);
+    private boolean removeApp(String networkId) {
+        return removeApp(networkId, true);
     }
 
-    public boolean removeNoteInterface(String networkId, boolean update) {
+    private boolean removeApp(String networkId, boolean isSave) {
         boolean success = false;
-        for (int i = 0; i < m_noteInterfaceList.size(); i++) {
-            NoteInterface noteInterface = m_noteInterfaceList.get(i);
-            if (networkId.equals(noteInterface.getNetworkId())) {
-                m_noteInterfaceList.remove(i);
-                noteInterface.remove();
 
-                success = true;
-                break;
+        NoteInterface noteInterface = m_apps.remove(networkId);
+        
+        if(noteInterface != null){
+            noteInterface.shutdown();
+
+            if(isSave){
+                long timestamp = System.currentTimeMillis();
+                JsonObject resultJson = new JsonObject();
+                resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
+                resultJson.addProperty("type", App.APP_TYPE);
+                resultJson.addProperty("networkId", NETWORK_ID);
+                resultJson.addProperty("timeStamp", timestamp);
+                resultJson.addProperty("id", networkId);
+
+                sendMessage( App.LIST_ITEM_ADDED, timestamp,NETWORK_ID, resultJson.toString());
+
+                save();
             }
         }
+                    
     
         return success;
     }
@@ -1020,39 +1189,43 @@ public class NetworksData implements InstallerInterface {
         });
     }*/
 
+    private NoteInterface getNetworkInterface(String networkId) {
+        if (networkId != null) {
+            return m_networks.get(networkId);
+        }
+        return null;
+    }
+
     public NoteInterface getNetwork(String networkId) {
         if (networkId != null) {
-            for (int i = 0; i < m_networkList.size(); i++) {
-                NoteInterface noteInterface = m_networkList.get(i);
+   
+            NoteInterface noteInterface = getNetworkInterface(networkId);
 
-                if (noteInterface.getNetworkId().equals(networkId)) {
-                    return noteInterface;
-                }
+            if (noteInterface != null && noteInterface instanceof Network) {
+                Network network = (Network) noteInterface;
+                return network.getNoteInterface();
             }
+            
         }
         return null;
     }
 
-    public TabInterface getNetworkTab(String networkId){
+    public TabInterface getNetworkTab(String networkId, String locationId){
+       
+
+       
+        
         NoteInterface noteInterface = getNetwork(networkId);
+      
         if(noteInterface != null){
-            return noteInterface.getTab(m_appStage, m_heightObject, m_widthObject, m_networkBtn);
+            return noteInterface.getTab(m_appStage, locationId, m_heightObject, m_widthObject, m_networkBtn);
+        }else{
+
         }
         return null;
     }
 
-    public NoteInterface getNoteInterface(String networkId) {
-        if (networkId != null) {
-            for (int i = 0; i < m_noteInterfaceList.size(); i++) {
-                NoteInterface noteInterface = m_noteInterfaceList.get(i);
-
-                if (noteInterface.getNetworkId().equals(networkId)) {
-                    return noteInterface;
-                }
-            }
-        }
-        return null;
-    }
+    
 
     /*public void sendNoteToNetworkId(JsonObject note, String networkId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         m_noteInterfaceList.forEach(noteInterface -> {
@@ -1063,40 +1236,70 @@ public class NetworksData implements InstallerInterface {
         });
     }*/
 
-    private JsonObject getJsonObject(){
-        JsonObject fileObject = new JsonObject();
+    public JsonArray getAppsArray(){
         JsonArray jsonArray = new JsonArray();
-        JsonArray netArray = new JsonArray();
-        for (NoteInterface noteInterface : m_noteInterfaceList) {
 
-            JsonObject jsonObj = noteInterface.getJsonObject();
-            jsonArray.add(jsonObj);
+        for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
+            
+            NoteInterface noteInterface = entry.getValue();
 
+            jsonArray.add(noteInterface.getJsonObject());
         }
-        for (NoteInterface noteInterface : m_networkList){
-            JsonObject jsonObj = noteInterface.getJsonObject();
-            netArray.add(jsonObj);
+
+
+        return jsonArray;
+    }
+    
+    public JsonArray getNetworksArray(){
+        JsonArray jsonArray = new JsonArray();
+
+        for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
+            
+            NoteInterface noteInterface = entry.getValue();
+
+            jsonArray.add(noteInterface.getJsonObject());
         }
-        fileObject.addProperty("currentNetworkId", m_currentNetworkId);
-        fileObject.add("netArray", netArray);
-        fileObject.add("networks", jsonArray);
+
+
+        return jsonArray;
+    }
+
+    @Override
+    public JsonObject getJsonObject(){
+        JsonObject json = new JsonObject();
+        JsonArray appsArray = getAppsArray();
+        JsonArray networksArray = getNetworksArray();
+
+        json.add("apps", appsArray);
+        json.add("networks", networksArray);
+
+        return json;
+    }
+
+    private JsonObject getSaveJson(){
+        JsonObject fileObject = new JsonObject();
+        JsonArray appsArray = getAppsArray();
+        JsonArray networksArray = getNetworksArray();
+
+        if(m_currentNetworkId.get() != null){
+            fileObject.addProperty("currentNetworkId", m_currentNetworkId.get());
+        }
+        fileObject.add("netArray", networksArray);
+        fileObject.add("apps", appsArray);
         fileObject.add("stage", getStageJson());
         return fileObject;
     }
-  
-
+    
     public void save() {
        
-        save("data", ".", "main","root", getJsonObject());
+        save("data", ".", "main","root", getSaveJson());
 
     }
    
 
 
-    public void open(String networkId, String type){
-       // NoteInterface noteInterface = getNoteInterface(networkId);
+    public void open(String networkId, String type, String locationId){
 
-      //  noteInterface.getPane();
         String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getTabId() : null;
 
         if(type == null || networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
@@ -1109,14 +1312,88 @@ public class NetworksData implements InstallerInterface {
                 tab = getStaticTab(networkId);
             break;
             case App.NETWORK_TYPE:
-                tab = getNetworkTab(networkId);
+                tab = getNetworkTab(networkId, locationId);
             break;
         }
+
+    
  
         m_currentMenuTab.set(tab != null ? tab : null);
+
+        switch(type){
+            case App.APP_TYPE:
+               
+            break;
+
+            case App.NETWORK_TYPE:
+            
+                if(m_currentNetworkId.get() == null || (m_currentNetworkId.get() != null && !m_currentNetworkId.get().equals(networkId))){
+                    m_currentNetworkId.set(networkId);
+                    save();
+                }
+               
+            break;
+        }
         
     }
 
+    public void closeMenuTab(){
+        m_currentMenuTab.set(null);
+    }
+
+    public List<NoteInterface> getAppsContainsAllKeyWords(String... keyWords){
+        //m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().equals(base)).collect(Collectors.toList());
+        ArrayList<NoteInterface> list = new ArrayList<>();
+        
+        
+        for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
+            
+            NoteInterface appInterface = entry.getValue();
+
+            if(appInterface != null && appInterface instanceof Network){
+                Network appNetwork = (Network) appInterface;
+
+                if(containsAllKeyWords(appNetwork, keyWords)){
+                    list.add(appNetwork.getNoteInterface());
+                }
+
+            }
+        }
+
+
+        return list;
+    }
+
+
+    public static boolean containsAllKeyWords(Network item, String... keywords){
+       
+            
+        Network app = (Network) item;
+        String[] appKeyWords = app.getKeyWords();
+
+        SimpleBooleanProperty found = new SimpleBooleanProperty(false);
+        
+        int appKeyWordsLength = appKeyWords.length;
+        int keyWordsLength = keywords.length;
+
+        for(int i = 0; i < keyWordsLength; i++){
+            String keyWord = keywords[i];
+            found.set(false);
+            for(int j = 0; j < appKeyWordsLength ; j++){
+                if(appKeyWords[j].equals(keyWord)){
+                    found.set(true);
+                    break;
+                }
+            }
+            if(found.get() != true){
+                return false;
+            }
+    
+        }
+
+        return true;
+        
+    }
 
 
     private TabInterface getStaticTab(String networkId){
@@ -1133,7 +1410,7 @@ public class NetworksData implements InstallerInterface {
             return m_settingsTab;
             
             case NetworkTab.NAME:
-                m_networkTab = m_networkTab == null ? new NetworkTab(m_appStage, this,m_heightObject, m_widthObject, m_networkBtn) : m_networkTab;
+                m_networkTab = m_networkTab == null ? new NetworkTab() : m_networkTab;
             return m_networkTab;
             
         }
@@ -1166,16 +1443,14 @@ public class NetworksData implements InstallerInterface {
 
 
     private VBox m_menuBox = null;
-    private ObservableList<TabInterface> m_appTabs = FXCollections.observableArrayList();
+
     private VBox m_appTabsBox;
     private VBox m_menuContentBox;
 
-    private NoteMsgInterface m_networkMsgInterface = null;
  
- 
-    private void initMenu(){
-        double menuSize = 30;
-
+    private void initMenu(int imgSize){
+        m_tabLabel.setPadding(new Insets(2,0,2,5));
+        m_tabLabel.setFont(App.titleFont);
         m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
 
 
@@ -1185,182 +1460,228 @@ public class NetworksData implements InstallerInterface {
 
         ImageView appsImgView = new ImageView();
         appsImgView.setImage(new Image("/assets/apps-outline-35.png"));
-        appsImgView.setFitHeight(menuSize);
+        appsImgView.setFitHeight(imgSize);
         appsImgView.setPreserveRatio(true);
 
         m_appsBtn.setGraphic(appsImgView);
         m_appsBtn.setId("menuTabBtn");
         m_appsBtn.setTooltip(appsToolTip);
 
-        ImageView settingsImageView = new ImageView();
-        settingsImageView.setImage(App.settingsImg);
-        settingsImageView.setFitHeight(menuSize);
-        settingsImageView.setPreserveRatio(true);
+   
 
         Tooltip settingsTooltip = new Tooltip("Settings");
         settingsTooltip.setShowDelay(new javafx.util.Duration(100));
-
-        m_settingsBtn.setGraphic(settingsImageView);
-        m_settingsBtn.setId("menuTabBtn");
-        m_settingsBtn.setTooltip(settingsTooltip);
-
         
-        m_networkImgView.setImage(App.globeImage30);
-        m_networkImgView.setPreserveRatio(true);
-        m_networkImgView.setFitWidth(menuSize);
-
-        m_networkBtn.setGraphic(m_networkImgView);
-        m_networkBtn.setId("menuTabBtn");
-        m_networkBtn.setTooltip(m_networkToolTip);
-  
-       
-
+        m_settingsBtn = new BufferedButton("/assets/settings-outline-white-30.png", imgSize);
+        m_settingsBtn.setTooltip(settingsTooltip);
+        m_settingsBtn.setId("menuTabBtn");
+        
         m_appTabsBox = new VBox();
         m_menuContentBox = new VBox(m_appTabsBox);
 
-
+        m_networkBtn =new BufferedButton("/assets/globe-outline-white-30.png", imgSize);
+        m_networkBtn.disablePressedEffects();
+        
     }
-    private ImageView m_selectNewtorkImgView;
-    private HBox m_selectNetworkBox;
-    private StackPane m_prevPositionBox;
+
+    private BufferedButton m_networkBtn;
+
 
     public void createMenu(Stage appStage,VBox menuBox,ScrollPane menuScroll,ScrollPane subMenuScroll, VBox contentBox){
+         int imgSize = 30;
+         
+
+        m_menuBox = menuBox;
         m_appStage = appStage;
         m_subMenuScroll = subMenuScroll;
         m_boundsListener = (obs,oldval,newval)->{
             m_widthObject.set(newval.getWidth()-2);
-            m_heightObject.set(newval.getHeight());
+            m_heightObject.set(newval.getHeight()-40);
         };    
         m_subMenuScroll.viewportBoundsProperty().addListener(m_boundsListener);
 
         m_subMenuBox.setAlignment(Pos.TOP_LEFT);
+        m_subMenuBox.setId("darkBox");
 
         HBox vBar = new HBox();
         vBar.setAlignment(Pos.CENTER);
         vBar.setId("vGradient");
         vBar.setMinWidth(1);
         VBox.setVgrow(vBar, Priority.ALWAYS);
-        
-        initMenu();
+       
+        initMenu(imgSize);
 
         
         m_menuScroll = menuScroll;
-        
-        int imgSize = 17;
-        m_selectNewtorkImgView = new ImageView();
-        m_selectNewtorkImgView.setPreserveRatio(true);
-        m_selectNewtorkImgView.setFitWidth(imgSize);
 
         
-     
-        m_selectNetworkBox = new HBox();
-        m_selectNetworkBox.setMinWidth(imgSize);
-        m_selectNetworkBox.setMinHeight(imgSize);
-        m_selectNetworkBox.setMaxWidth(imgSize);
-        m_selectNetworkBox.setMaxHeight(imgSize);
-        m_selectNetworkBox.setMouseTransparent(true);
+        ContextMenu networkContextMenu = new ContextMenu();
 
 
-      
+
+        BufferedButton networkMenuBtn = new BufferedButton("/assets/caret-down-15.png", 10);
+        networkMenuBtn.setId("iconBtnDark");
+       
+
+        HBox networkMenuBtnBox = new HBox(networkMenuBtn);
+
+        VBox.setVgrow(networkMenuBtnBox, Priority.ALWAYS);
+        HBox.setHgrow(networkMenuBtnBox, Priority.ALWAYS);
+        networkMenuBtnBox.setAlignment(Pos.TOP_RIGHT);
+        networkMenuBtnBox.setOnMouseClicked(e->m_networkBtn.fire());
+
 
         HBox socketBox = new HBox();
-        // fx-background-color:radial-gradient(radius 100%, #33333350 2%, #00000000);
         socketBox.setId("socketBox");
-        VBox.setVgrow(socketBox, Priority.ALWAYS);
-        HBox.setHgrow(socketBox, Priority.ALWAYS);
+
         socketBox.setMouseTransparent(true);
-        socketBox.setMaxWidth(32);
-        socketBox.setMaxHeight(30);
-        //socketBox.addEventFilter(null, null);
-   
+        socketBox.setMaxWidth(App.MENU_BAR_IMAGE_WIDTH);
+        socketBox.setMaxHeight(App.MENU_BAR_IMAGE_WIDTH);
 
-        StackPane btnPos = new StackPane(m_networkBtn,socketBox);
-        HBox.setHgrow(btnPos, Priority.ALWAYS);
-        btnPos.setAlignment(Pos.CENTER);
+        
+        
 
-        m_prevPositionBox = new StackPane(btnPos, m_selectNewtorkImgView, m_selectNetworkBox);
+        StackPane currentNetworkBox = new StackPane(m_networkBtn, socketBox, networkMenuBtnBox);
+        HBox.setHgrow(currentNetworkBox, Priority.ALWAYS);
+        currentNetworkBox.setAlignment(Pos.CENTER);
 
-        m_prevPositionBox.setAlignment(Pos.BOTTOM_RIGHT);
+        
+
+        Runnable showNetworkMenu = () ->{
+  
+            networkContextMenu.getItems().clear();
+            for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
+            
+                NoteInterface noteInterface = entry.getValue();
+
+                if(noteInterface instanceof Network){
+                    Network network = (Network) noteInterface;
+                    
+                    ImageView menuItemImg = new ImageView();
+                    menuItemImg.setPreserveRatio(true);
+                    menuItemImg.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                    menuItemImg.setImage(network.getAppIcon());
+
+                    MenuItem menuItem = new MenuItem(network.getName(), menuItemImg);
+                    menuItem.setOnAction(e->{
+                       
+                        open(network.getNetworkId(), App.NETWORK_TYPE, m_localId);
+                    });
+                    networkContextMenu.getItems().add(menuItem);
+                }
+            }
+
+            MenuItem manageMenuItem = new MenuItem("Manage networks...");
+            manageMenuItem.setOnAction(e->{
+
+                open(NetworkTab.NAME, App.STATIC_TYPE, m_localId);
+            });
+
+            SeparatorMenuItem separatorMenuItem = new SeparatorMenuItem();
+
+            networkContextMenu.getItems().addAll(separatorMenuItem, manageMenuItem);
+
+            Point2D p = networkMenuBtn.localToScene(0.0, 0.0);
+
+            networkContextMenu.show(networkMenuBtn,
+                    p.getX() + networkMenuBtn.getScene().getX() + networkMenuBtn.getScene().getWindow().getX() + networkMenuBtn.getLayoutBounds().getWidth(),
+                    (p.getY() + networkMenuBtn.getScene().getY() + networkMenuBtn.getScene().getWindow().getY()));
+        };
+
+        
+
+
+
+        networkMenuBtn.setOnAction(e->showNetworkMenu.run());
+
+
+        Tooltip currentNetworkTooltip = new Tooltip();
+        currentNetworkTooltip.setShowDelay(javafx.util.Duration.millis(150));
+
+        m_networkBtn.setTooltip(currentNetworkTooltip);        
+
+
+        VBox bottomBox = new VBox();
+
 
      
-        menuBox.getChildren().addAll(m_appsBtn, m_menuScroll, m_settingsBtn, m_prevPositionBox);
+        m_menuBox.getChildren().addAll(m_appsBtn, m_menuScroll, m_settingsBtn, currentNetworkBox, bottomBox);
         
      
         m_appsBtn.setOnAction(e -> {
+            open(AppsTab.NAME, App.STATIC_TYPE, m_localId);
     
-        });
-    
-        m_settingsBtn.setOnAction(e -> {
-            open(SettingsTab.NAME, App.STATIC_TYPE);
         });
 
+        m_settingsBtn.setOnAction(e->{
+            open(SettingsTab.NAME, App.STATIC_TYPE, m_localId);
+        });
+    
         m_networkBtn.setOnAction(e->{
-            if(currentNetworkProperty().get() == null){
-                open(NetworkTab.NAME, App.STATIC_TYPE);
+            NoteInterface noteInterface = getNetworkInterface(m_currentNetworkId.get());
+
+            if(noteInterface != null && noteInterface instanceof Network){
+                Network currentNetwork = (Network) noteInterface;
+                open(currentNetwork.getNetworkId(), App.NETWORK_TYPE, m_localId);
             }else{
-                open(currentNetworkProperty().get().getNetworkId(), App.NETWORK_TYPE);
+                open(NetworkTab.NAME, App.STATIC_TYPE, m_localId);
             }
+
         });
 
-        EventHandler<MouseEvent> selectNetworkBoxOnClick = (e)->{
-            open(NetworkTab.NAME, App.STATIC_TYPE);
+        Runnable updateCurrentNetwork = ()->{
+            NoteInterface noteInterface = getNetworkInterface(m_currentNetworkId.get());
+      
+
+            if(noteInterface != null && noteInterface instanceof Network){
+                
+                Network currentNetwork = (Network) noteInterface;
+                
+                m_networkBtn.setImage(currentNetwork.getAppIcon());
+                currentNetworkTooltip.setText(currentNetwork.getName());
+               
+     
+            }else{
+                m_networkBtn.setImage( new Image("/assets/globe-outline-white-30.png"));
+                currentNetworkTooltip.setText("Select network");
+                
+            }
         };
 
+        updateCurrentNetwork.run();
 
+        m_currentNetworkId.addListener((obs,oldval,newval)->updateCurrentNetwork.run());
 
-        m_currentNetwork.addListener((obs,oldval,newval)->{
-            if(oldval != null){
-                if(m_networkMsgInterface != null){
-                    oldval.removeMsgListener(m_networkMsgInterface);
-                    m_networkMsgInterface = null;
-                }
-            }
-            
-            if(newval != null){
+ 
+        Region logoGrowRegion = new Region();
+        HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
 
-                m_networkMsgInterface = new NoteMsgInterface() {
-                    private String m_msgId = FriendlyId.createFriendlyId();
-                    public String getId(){
-                        return m_msgId;
-                    }
-                    public void sendMessage(String networkId, int code, long timestamp){
+        Label closeTabBtn = new Label("🢐");
+        closeTabBtn.setId("caretBtn");
 
-                    }
-                    public void sendMessage(int code, long timestamp){
-
-                    }
-                    public void sendMessage(int code, long timestamp, String msg){
-
-                    }
-                    public void sendMessage(String networkId, int code, long timestamp, String msg){
-
-                    }
-                    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-                    }
-                };
-
-                newval.addMsgListener(m_networkMsgInterface);
-                m_networkImgView.setImage(newval.getSmallAppIcon());
-                m_networkToolTip.setText("Network: " + newval.getName());
-
-                m_selectNetworkBox.setId("socketBox");
-                m_selectNewtorkImgView.setImage(App.globeImage30);
-
-                m_selectNetworkBox.setMouseTransparent(false);
-                m_selectNetworkBox.addEventFilter(MouseEvent.MOUSE_CLICKED, selectNetworkBoxOnClick);
-
-            }else{
-                m_selectNetworkBox.setMouseTransparent(true);
-                m_selectNetworkBox.setId(null);
-                m_selectNewtorkImgView.setImage(null);
-
-                m_networkImgView.setImage(App.globeImage30);
-                m_networkToolTip.setText("Network: Select");
-                m_selectNetworkBox.removeEventFilter(MouseEvent.MOUSE_CLICKED, selectNetworkBoxOnClick);
-
-            }
+        closeTabBtn.setOnMouseClicked(e->{
+            closeMenuTab();
         });
 
+        HBox topBarBox = new HBox(m_tabLabel, logoGrowRegion, closeTabBtn);
+        HBox.setHgrow(topBarBox, Priority.ALWAYS);
+        topBarBox.setAlignment(Pos.CENTER_LEFT);
+        topBarBox.setId("networkTopBar");
+
+        
+   
+
+        HBox gradBox = new HBox();
+
+        Region hBar = new Region();
+        hBar.setPrefWidth(400);
+        hBar.setPrefHeight(2);
+        hBar.setMinHeight(2);
+        hBar.setId("hGradient");
+
+        HBox gBox = new HBox(hBar);
+        gBox.setAlignment(Pos.CENTER);
+        gBox.setPadding(new Insets(0, 0, 10, 0));
 
         
         m_currentMenuTab.addListener((obs,oldval,newval)->{
@@ -1380,10 +1701,14 @@ public class NetworksData implements InstallerInterface {
 
           
             m_subMenuBox.getChildren().clear();
+            gradBox.getChildren().clear();
 
             if(newval != null && newval instanceof Pane){
-                m_subMenuBox.getChildren().addAll((Pane) newval, vBar);
-                m_subMenuScroll.setContent( m_subMenuBox );
+                m_tabLabel.setText(newval.getName());
+       
+                m_subMenuBox.getChildren().addAll(topBarBox,gBox, (Pane) newval);
+                gradBox.getChildren().addAll(m_subMenuBox, vBar);
+                m_subMenuScroll.setContent( gradBox );
 
                 newval.setCurrent(true);
                
@@ -1393,8 +1718,6 @@ public class NetworksData implements InstallerInterface {
           
 
         }); 
-        
-        updateNetworks();   
        
     }
 
@@ -1777,6 +2100,299 @@ public class NetworksData implements InstallerInterface {
         
     }
 
+    public void verifyAppKey( String networkName, String cmd, String details, String location, long timeStamp, Runnable runnable){
+        int lblCol = 80;
+        int rowHeight = 22;
+        //String title = "Remove wallet - Ergo Network";
+        String timeStampString = Utils.formatDateTimeString(Utils.milliToLocalTime(timeStamp));
+        
+        String title = "Netnotes - Authorization - " + networkName + " - " + cmd;
+
+        Label networkLbl = new Label("Network:");
+        networkLbl.setMinWidth(lblCol);
+        networkLbl.setFont(App.txtFont);
+
+        TextField networkField = new TextField(networkName);
+        networkField.setEditable(false);
+        networkField.setFont(App.txtFont);
+        HBox.setHgrow(networkField, Priority.ALWAYS);
+        
+
+        HBox networkBox = new HBox(networkLbl, networkField);
+        HBox.setHgrow(networkBox, Priority.ALWAYS);
+        networkBox.setAlignment(Pos.CENTER_LEFT);
+        networkBox.setMinHeight(rowHeight);
+
+        Label cmdLbl = new Label("Command:");
+        cmdLbl.setMinWidth(lblCol);
+        cmdLbl.setFont(App.txtFont);
+
+        TextField cmdField = new TextField(cmd);
+        cmdField.setEditable(false);
+        HBox.setHgrow(cmdField, Priority.ALWAYS);
+        cmdField.setFont(App.txtFont);
+
+        HBox cmdBox = new HBox(cmdLbl, cmdField);
+        HBox.setHgrow(cmdBox,Priority.ALWAYS);
+        cmdBox.setAlignment(Pos.CENTER_LEFT);
+        cmdBox.setMinHeight(rowHeight);
+
+        
+        TextArea textArea = new TextArea(details);
+        textArea.setFont(App.txtFont);
+        HBox.setHgrow(textArea, Priority.ALWAYS);
+        textArea.setPrefRowCount(4);
+        textArea.setEditable(false);
+        textArea.setWrapText(false);
+
+        HBox infoBox = new HBox(textArea);
+        HBox.setHgrow(infoBox, Priority.ALWAYS);
+        VBox.setVgrow(infoBox,Priority.ALWAYS);
+        infoBox.setPadding(new Insets(5,0,0,lblCol));
+
+
+        Label locationLbl = new Label("Location:");
+        locationLbl.setMinWidth(lblCol);
+        locationLbl.setFont(App.txtFont);
+
+        TextField locationField = new TextField(location);
+        locationField.setEditable(false);
+        HBox.setHgrow(locationField, Priority.ALWAYS);
+        locationField.setFont(App.txtFont);
+
+        HBox locationBox = new HBox(locationLbl, locationField);
+        HBox.setHgrow(locationBox,Priority.ALWAYS);
+        locationBox.setAlignment(Pos.CENTER_LEFT);
+        locationBox.setMinHeight(rowHeight);
+
+        Label timeLbl = new Label("Time");
+        timeLbl.setMinWidth(lblCol);
+        timeLbl.setFont(App.txtFont);
+
+        TextField timeField = new TextField(timeStampString);
+        timeField.setEditable(false);
+        HBox.setHgrow(timeField, Priority.ALWAYS);
+        timeField.setFont(App.txtFont);
+
+        HBox timeBox = new HBox(timeLbl, timeField);
+        HBox.setHgrow(timeBox,Priority.ALWAYS);
+        timeBox.setAlignment(Pos.CENTER_LEFT);
+        timeBox.setMinHeight(rowHeight);
+
+        Stage passwordStage = new Stage();
+        passwordStage.getIcons().add(App.logo);
+        passwordStage.setResizable(false);
+        passwordStage.initStyle(StageStyle.UNDECORATED);
+        passwordStage.setTitle(title);
+
+        Button closeBtn = new Button();
+
+        HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
+
+        ImageView btnImageView = new ImageView(App.logo);
+        btnImageView.setPreserveRatio(true);
+        btnImageView.setFitHeight(75);
+        
+
+        Label textField = new Label("Authorization Required");
+        textField.setFont(App.mainFont);
+        textField.setPadding(new Insets(20,0,20,15));
+        
+
+        VBox imageBox = new VBox(btnImageView, textField);
+        imageBox.setAlignment(Pos.CENTER);
+        imageBox.setPadding(new Insets(10,0,10,0));
+
+        Text passwordTxt = new Text("Enter password:");
+        passwordTxt.setFill(App.txtColor);
+        passwordTxt.setFont(App.txtFont);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setFont(App.txtFont);
+        passwordField.setId("passField");
+
+        HBox.setHgrow(passwordField, Priority.ALWAYS);
+
+        HBox passwordBox = new HBox(passwordTxt, passwordField);
+        passwordBox.setAlignment(Pos.CENTER_LEFT);
+        passwordBox.setPadding(new Insets(10, 0, 0, 0));
+
+
+        VBox.setMargin(passwordBox, new Insets(5, 10, 15, 20));
+
+
+
+        VBox bodyBox = new VBox(networkBox,cmdBox, infoBox, locationBox, timeBox);
+        VBox.setVgrow(bodyBox,Priority.ALWAYS);
+        bodyBox.setPadding(new Insets(0,20, 0, 20));
+
+        VBox layoutVBox = new VBox(titleBox, imageBox,bodyBox, passwordBox);
+        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+
+        Scene passwordScene = new Scene(layoutVBox, 800, 600);
+        passwordScene.setFill(null);
+        passwordScene.getStylesheets().add("/css/startWindow.css");
+        passwordStage.setScene(passwordScene);
+
+        Stage statusStage = App.getStatusStage("Verifying", "Verifying...");
+
+        passwordField.setOnAction(e -> {
+
+            String pass = passwordField.getText();
+            if (pass.length() < 6) {
+                passwordField.setText("");
+            } else {
+                statusStage.show();
+                FxTimer.runLater(Duration.ofMillis(100), ()->{
+
+                    boolean verified = verifyAppPassword(pass);
+                        
+                    Platform.runLater(() -> passwordField.setText(""));
+                    statusStage.close();
+                    if (verified) {
+                        passwordStage.close();
+
+                        runnable.run();
+
+                    }
+                });
+            }
+        
+        });
+
+        closeBtn.setOnAction(e -> {
+            passwordStage.close();
+
+        });
+
+        passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
+            if (newVal != null && !(newVal instanceof PasswordField)) {
+                Platform.runLater(() -> passwordField.requestFocus());
+            }
+        });
+        passwordStage.show();
+ 
+        Platform.runLater(() ->{
+       
+        
+            passwordField.requestFocus();}
+        );
+    }
+
+    
+    public static void verifyInfo( String title, String details, long timeStamp, Runnable yes, Runnable no){
+        int lblCol = 80;
+        int rowHeight = 22;
+        //String title = "Remove wallet - Ergo Network";
+        String timeStampString = Utils.formatDateTimeString(Utils.milliToLocalTime(timeStamp));
+        
+        title = "Netnotes - Security - " + title;
+
+ 
+
+        TextField cmdField = new TextField(title);
+        cmdField.setEditable(false);
+        HBox.setHgrow(cmdField, Priority.ALWAYS);
+        cmdField.setFont(App.txtFont);
+
+        HBox cmdBox = new HBox(cmdField);
+        HBox.setHgrow(cmdBox,Priority.ALWAYS);
+        cmdBox.setAlignment(Pos.CENTER_LEFT);
+        cmdBox.setMinHeight(rowHeight);
+
+        
+        TextArea textArea = new TextArea(details);
+        textArea.setFont(App.txtFont);
+        HBox.setHgrow(textArea, Priority.ALWAYS);
+        textArea.setPrefRowCount(4);
+        textArea.setEditable(false);
+        textArea.setWrapText(false);
+
+        HBox infoBox = new HBox(textArea);
+        HBox.setHgrow(infoBox, Priority.ALWAYS);
+        VBox.setVgrow(infoBox,Priority.ALWAYS);
+        infoBox.setPadding(new Insets(5,0,0,lblCol));
+
+
+   
+        Label timeLbl = new Label("Time");
+        timeLbl.setMinWidth(lblCol);
+        timeLbl.setFont(App.txtFont);
+
+        TextField timeField = new TextField(timeStampString);
+        timeField.setEditable(false);
+        HBox.setHgrow(timeField, Priority.ALWAYS);
+        timeField.setFont(App.txtFont);
+
+        HBox timeBox = new HBox(timeLbl, timeField);
+        HBox.setHgrow(timeBox,Priority.ALWAYS);
+        timeBox.setAlignment(Pos.CENTER_LEFT);
+        timeBox.setMinHeight(rowHeight);
+
+        Stage passwordStage = new Stage();
+        passwordStage.getIcons().add(App.logo);
+        passwordStage.setResizable(false);
+        passwordStage.initStyle(StageStyle.UNDECORATED);
+        passwordStage.setTitle(title);
+
+        Button closeBtn = new Button();
+
+        HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
+
+        ImageView btnImageView = new ImageView(App.logo);
+        btnImageView.setPreserveRatio(true);
+        btnImageView.setFitHeight(75);
+        
+
+        Label textField = new Label("Accept");
+        textField.setFont(App.mainFont);
+        textField.setPadding(new Insets(20,0,20,15));
+        
+
+        VBox imageBox = new VBox(btnImageView, textField);
+        imageBox.setAlignment(Pos.CENTER);
+        imageBox.setPadding(new Insets(10,0,10,0));
+
+        Button yesBtn = new Button("Yes");
+        yesBtn.setOnAction(e->yes.run());
+
+        Region spacerRegion = new Region();
+        spacerRegion.setMinWidth(20);
+
+        Button noBtn = new Button("No");
+        noBtn.setOnAction(e->no.run());
+
+
+        HBox acceptBtnBox = new HBox(yesBtn, noBtn);
+        acceptBtnBox.setAlignment(Pos.CENTER_LEFT);
+        acceptBtnBox.setPadding(new Insets(10, 0, 10, 0));
+
+        VBox bodyBox = new VBox(cmdBox, infoBox, timeBox);
+        VBox.setVgrow(bodyBox,Priority.ALWAYS);
+        bodyBox.setPadding(new Insets(0,20, 0, 20));
+
+        VBox layoutVBox = new VBox(titleBox, imageBox,bodyBox, acceptBtnBox);
+        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+
+        Scene passwordScene = new Scene(layoutVBox, 800, 600);
+        passwordScene.setFill(null);
+        passwordScene.getStylesheets().add("/css/startWindow.css");
+        passwordStage.setScene(passwordScene);
+
+
+
+        closeBtn.setOnAction(e -> {
+            passwordStage.close();
+
+        });
+
+
+        passwordStage.show();
+ 
+   
+    }
+
+   
      public void verifyAppKey(Runnable runnable) {
 
         String title = "Netnotes - Enter Password";
@@ -1796,7 +2412,7 @@ public class NetworksData implements InstallerInterface {
         HBox imageBox = new HBox(imageButton);
         imageBox.setAlignment(Pos.CENTER);
 
-        Text passwordTxt = new Text("〉 Enter password:");
+        Text passwordTxt = new Text("Enter password:");
         passwordTxt.setFill(App.txtColor);
         passwordTxt.setFont(App.txtFont);
 
@@ -2001,5 +2617,393 @@ public class NetworksData implements InstallerInterface {
         }
 
     }*/
+
+    private class NetworkTab extends VBox  implements TabInterface{
+        public static final String NAME = "Networks";
+        private boolean m_current = false;
+        private NoteMsgInterface m_networksDataMsgInterface = null;
+
+        public String getTabId(){
+            return NAME;
+        }
+        public String getName(){
+            return NAME;
+        }
+        public void shutdown(){
+            if(m_networksDataMsgInterface != null){
+                removeMsgListener(m_networksDataMsgInterface);
+                m_networksDataMsgInterface = null;
+            }
+        }
+        public void setCurrent(boolean value){
+            m_current = value;
+        }
+        public boolean getCurrent(){
+            return m_current;
+        }
+        public String getType(){
+            return App.STATIC_TYPE;
+        }
+        public boolean isStatic(){
+            return true;
+        }
+        public SimpleStringProperty titleProperty(){
+            return null;
+        }
+
+
+        public NetworkTab(){
+
+           
+            
+            prefWidthProperty().bind(m_widthObject);
+            prefHeightProperty().bind(m_heightObject);
+            setAlignment(Pos.CENTER);
+
+
+            Label headingText = new Label("Manage networks");
+            headingText.setFont(App.txtFont);
+            headingText.setPadding(new Insets(0,0,0,15));
+
+            HBox headingBox = new HBox(headingText);
+            headingBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(headingBox, Priority.ALWAYS);
+            headingBox.setPadding(new Insets(0, 15, 10, 15));
+     
+            VBox headerBox = new VBox(headingBox);
+            headerBox.setPadding(new Insets(0, 5, 0, 0));
+            
+
+            Region hBar = new Region();
+            hBar.setPrefWidth(400);
+            hBar.setPrefHeight(2);
+            hBar.setMinHeight(2);
+            hBar.setId("hGradient");
+    
+            HBox gBox = new HBox(hBar);
+            gBox.setAlignment(Pos.CENTER);
+            gBox.setPadding(new Insets(0, 30, 20, 30));
+    
+            VBox listBox = new VBox();
+            listBox.setPadding(new Insets(10));
+            listBox.setId("bodyBox");
+
+            ScrollPane listScroll = new ScrollPane(listBox);
+            listScroll.setPrefViewportHeight(100);
+
+            HBox networkListBox = new HBox(listScroll);
+            networkListBox.setPadding(new Insets(0,40,0, 40));
+         
+            HBox.setHgrow(networkListBox, Priority.ALWAYS);
+            VBox.setVgrow(networkListBox, Priority.ALWAYS);
+
+            listScroll.prefViewportWidthProperty().bind(networkListBox.widthProperty().subtract(1));
+            listScroll.prefViewportHeightProperty().bind(networkListBox.heightProperty().subtract(1));
+
+            listScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+                listBox.setMinWidth(newval.getWidth());
+                listBox.setMinHeight(newval.getHeight());
+            });
+
+            HBox networkOptionsBox = new HBox();
+            networkOptionsBox.setAlignment(Pos.CENTER);
+            HBox.setHgrow(networkOptionsBox, Priority.ALWAYS);
+            networkOptionsBox.setPadding(new Insets(0,0,0,0));
+
+    
+            VBox bodyBox = new VBox(networkListBox, networkOptionsBox);
+            HBox.setHgrow(bodyBox, Priority.ALWAYS);
+            VBox.setVgrow(bodyBox,Priority.ALWAYS);
+
+  
+            Runnable updateNetworkList = ()->{
+
+                listBox.getChildren().clear();
+        
+                for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
+            
+
+                    NoteInterface item = entry.getValue();
+                    Network network = item instanceof Network ? (Network) item : null; 
+                              
+                    if(network != null){
+                        ImageView networkImgView = new ImageView();
+                        networkImgView.setPreserveRatio(true);
+                        networkImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                        networkImgView.setImage(network.getAppIcon());
+
+                        Label nameText = new Label(network.getName());
+                        nameText.setFont(App.txtFont);
+                        nameText.setPadding(new Insets(0,0,0,10));
+
+
+
+                        Tooltip selectedTooltip = new Tooltip();
+                        selectedTooltip.setShowDelay(javafx.util.Duration.millis(100));
+
+                        Label selectedBtn = new Label();
+                        selectedBtn.setTooltip(selectedTooltip);
+                        selectedBtn.setId("lblBtn");
+                        
+                        selectedBtn.setOnMouseClicked(e->{
+                            String currentNetworkId = m_currentNetworkId.get();
+                            boolean selectedNetwork = currentNetworkId != null && currentNetworkId.equals(network.getNetworkId());         
+                        
+                            if(selectedNetwork){
+                                m_currentNetworkId.set(null);
+                            }else{
+                                m_currentNetworkId.set(network.getNetworkId());
+                                save();
+                            }
+                        });
+
+                    
+                
+
+                        Runnable updateSelectedSwitch = () ->{
+                            String currentNetworkId = m_currentNetworkId.get();
+                            boolean selectedNetwork = currentNetworkId != null && currentNetworkId.equals(network.getNetworkId());         
+                            
+                            selectedBtn.setText(selectedNetwork ? "🟊" : "⚝");
+                
+                            selectedTooltip.setText(selectedNetwork ? "Selected" : "Select network");
+                        
+
+                        };
+        
+                        updateSelectedSwitch.run();
+                
+                
+                        int topMargin = 15;
+
+                        Region marginRegion = new Region();
+                        marginRegion.setMinWidth(topMargin);
+
+
+                        Region growRegion = new Region();
+                        HBox.setHgrow(growRegion, Priority.ALWAYS);
+
+                      
+
+                        MenuButton menuBtn = new MenuButton("⋮");
+                  
+                    
+
+                        MenuItem openItem = new MenuItem("⇲   Open…");
+                        openItem.setOnAction(e->{
+                            menuBtn.hide();
+                            open(network.getNetworkId(), App.NETWORK_TYPE, m_localId);
+                        });
+
+                        MenuItem removeItem = new MenuItem("🗑   Uninstall");
+                        removeItem.setOnAction(e->{
+                            
+                            JsonObject note = Utils.getCmdObject("removeNetwork");
+                            note.addProperty("id",m_configId);
+                            
+                            sendNote(note);
+                            
+                        });
+
+                        menuBtn.getItems().addAll(openItem, removeItem);
+
+                   
+
+                        HBox networkItemTopRow = new HBox(selectedBtn,marginRegion, networkImgView, nameText, growRegion, menuBtn);
+                        HBox.setHgrow(networkItemTopRow, Priority.ALWAYS);
+                        networkItemTopRow.setAlignment(Pos.CENTER_LEFT);
+                        networkItemTopRow.setPadding(new Insets(2,0,2,0));
+
+
+          
+
+                        VBox networkItem = new VBox(networkItemTopRow);
+                        networkItem.setFocusTraversable(true);
+                        networkItem.setAlignment(Pos.CENTER_LEFT);
+                        HBox.setHgrow(networkItem, Priority.ALWAYS);
+                        networkItem.setId("rowBtn");
+                        networkItem.setPadding(new Insets(2,5,2,5));
+
+                        networkItemTopRow.setOnMouseClicked(e->{
+                            if(e.getClickCount() == 2){
+                                openItem.fire();
+                            }
+                        });
+
+                
+
+           
+            
+                        listBox.getChildren().add(networkItem);
+
+ 
+                    }
+        
+                }
+        
+    
+            };
+
+          
+            updateNetworkList.run();
+
+            SimpleObjectProperty<NetworkInformation> installItemInformation = new SimpleObjectProperty<>(null);
+
+
+            Label installText = new Label("Install: ");
+            installText.setMinWidth(58);
+
+            TextField installField = new TextField();
+            installField.setPromptText("(Select network to install)");
+            installField.setEditable(false);
+            HBox.setHgrow(installField, Priority.ALWAYS);
+
+            Label installMenuBtn = new Label("⏷");
+            installMenuBtn.setId("lblBtn");
+
+            ImageView installFieldImgView = new ImageView();
+            installFieldImgView.setPreserveRatio(true);
+            installFieldImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+            
+
+
+            HBox installFieldBox = new HBox(installFieldImgView, installField, installMenuBtn);
+            HBox.setHgrow(installFieldBox, Priority.ALWAYS);
+            installFieldBox.setId("bodyBox");
+            installFieldBox.setPadding(new Insets(2, 5, 2, 2));
+            installFieldBox.setMaxHeight(18);
+            installFieldBox.setAlignment(Pos.CENTER_LEFT);
+
+            Button installBtn = new Button("Install");
+      
+ 
+            HBox installBox = new HBox(installText, installFieldBox);
+            HBox.setHgrow(installBox,Priority.ALWAYS);
+            installBox.setAlignment(Pos.CENTER);
+            installBox.setPadding(new Insets(10,20,10,20));
+
+            installItemInformation.addListener((obs,oldval,newval)->{
+                if(newval != null){
+                    installField.setText(newval.getNetworkName());
+                    installFieldImgView.setImage(new Image(newval.getSmallIconString()));
+                    if(!installFieldBox.getChildren().contains(installBtn)){
+                        installFieldBox.getChildren().add(installBtn);
+                    }
+                }else{
+                    installField.setText("");
+                    installFieldImgView.setImage(null);
+                    if(installFieldBox.getChildren().contains(installBtn)){
+                        installFieldBox.getChildren().remove(installBtn);
+                    }
+                }
+            });
+
+
+            ContextMenu installContextMenu = new ContextMenu();
+
+            Runnable showInstallContextMenu = ()->{
+                installContextMenu.getItems().clear();
+                for(int i = 0; i < SUPPORTED_NETWORKS.length; i++){
+                    NetworkInformation networkInformation = SUPPORTED_NETWORKS[i];
+                    if(getNetwork(networkInformation.getNetworkId()) == null){
+                        ImageView intallItemImgView = new ImageView();
+                        intallItemImgView.setPreserveRatio(true);
+                        intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                        intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
+                        MenuItem installItem = new MenuItem(String.format("%-33s",networkInformation.getNetworkName()), intallItemImgView);
+                    
+                        installItem.setOnAction(e->{
+                            installItemInformation.set(networkInformation);
+                        });
+
+                        installContextMenu.getItems().add(installItem);
+                    }
+                }
+                if(installContextMenu.getItems().size() == 0){
+                    MenuItem installItem = new MenuItem("(none available)                 ");
+                    installContextMenu.getItems().add(installItem);
+                }
+
+                Point2D p = installFieldBox.localToScene(0.0, 0.0);
+
+                installContextMenu.show(installFieldBox,
+                    p.getX() + installFieldBox.getScene().getX() + installFieldBox.getScene().getWindow().getX(),
+                    (p.getY() + installFieldBox.getScene().getY() + installFieldBox.getScene().getWindow().getY()
+                            + installFieldBox.getLayoutBounds().getHeight()));
+
+            };
+
+            Region topRegion = new Region();
+            
+
+            installBox.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
+                if(!e.getSource().equals(installBtn)){
+                    showInstallContextMenu.run();
+                }
+            });
+
+    
+            VBox.setVgrow(topRegion, Priority.ALWAYS);
+
+
+                                    
+            Region hBar1 = new Region();
+            hBar1.setPrefWidth(400);
+            hBar1.setMinHeight(2);
+            hBar1.setId("hGradient");
+    
+            HBox gBox1 = new HBox(hBar1);
+            gBox1.setAlignment(Pos.CENTER);
+            gBox1.setPadding(new Insets(30, 30, 20, 30));
+
+                                        
+            HBox botRegionBox = new HBox();
+            botRegionBox.setMinHeight(40);
+            getChildren().addAll(headerBox, gBox, bodyBox, gBox1, installBox,botRegionBox);
+    
+        
+            installBtn.setOnAction(e->{
+                NetworkInformation info = installItemInformation.get();
+                String networkId = info != null ? info.getNetworkId() : null;
+                
+                if (networkId != null){
+                    installItemInformation.set(null);
+                    installNetwork(networkId);
+                    if(m_currentNetworkId.get() == null){
+                        m_currentNetworkId.set(networkId);
+                    }
+                }
+            });
+            
+
+            m_currentNetworkId.addListener((obs,oldval,newval)->{
+                updateNetworkList.run();
+            });
+
+
+            m_networksDataMsgInterface = new NoteMsgInterface() {
+                String msgId = FriendlyId.createFriendlyId();
+                @Override
+                public String getId() {
+                    return msgId;
+                }
+                @Override
+                public void sendMessage(int code, long timestamp, String networkId, Number num) {
+                }
+
+                @Override
+                public void sendMessage(int code, long timestamp, String networkId, String msg) {
+                    updateNetworkList.run();
+                }
+                
+            };
+           
+            addMsgListener(m_networksDataMsgInterface);
+
+        
+        }
+
+
+    }
 
 }

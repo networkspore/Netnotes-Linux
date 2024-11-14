@@ -1,7 +1,9 @@
 package com.netnotes;
 
 import java.io.File;
+import java.util.EventListener;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.utils.Utils;
 
@@ -260,7 +262,7 @@ public class HashDataDownloader {
             chooser.setInitialDirectory(m_dlDir);
             chooser.setInitialFileName(m_fileName);
             m_saveFile = chooser.showSaveDialog(m_stage);
-            SimpleBooleanProperty cancel = new SimpleBooleanProperty(false);
+            AtomicBoolean cancel = new AtomicBoolean(false);
             if(m_saveFile != null){
                 m_stage.show();
 

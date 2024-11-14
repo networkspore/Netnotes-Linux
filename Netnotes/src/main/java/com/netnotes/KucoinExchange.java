@@ -47,7 +47,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -661,7 +660,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     public JsonObject getReadyJson() {
         JsonObject json = new JsonObject();
-        json.addProperty("subject", "READY");
+        json.addProperty(App.CMD, "READY");
         json.addProperty("networkId", getNetworkId());
         return json;
     }
@@ -839,9 +838,9 @@ public class KucoinExchange extends Network implements NoteInterface {
     }
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        JsonElement subjecElement = note.get("subject");
+        JsonElement subjecElement = note.get(App.CMD);
         JsonElement transactionCurrencyElement = note.get("transactionCurrency");
         JsonElement quoteCurrencyElement = note.get("quoteCurrency");
 
@@ -882,7 +881,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSuccess, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSuccess, onFailed);
 
     }
 
@@ -893,7 +892,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed);
 
         return false;
     }
@@ -905,7 +904,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed);
 
         return false;
     }
@@ -917,7 +916,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed);
 
         return false;
     }
@@ -929,7 +928,7 @@ public class KucoinExchange extends Network implements NoteInterface {
         } catch (IOException e) {
 
         }*/
-        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed);
 
         return false;
     }
@@ -1071,11 +1070,11 @@ public class KucoinExchange extends Network implements NoteInterface {
         }
     }
 
-
+    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
-    
+    @Override
     public String getType(){
         return App.APP_TYPE;
     }

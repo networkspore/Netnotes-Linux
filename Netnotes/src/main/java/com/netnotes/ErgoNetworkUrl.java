@@ -40,7 +40,7 @@ public class ErgoNetworkUrl {
         m_networkType = networkType;
     }
 
-    public ErgoNetworkUrl(JsonObject json) {
+    public ErgoNetworkUrl(JsonObject json) throws Exception {
         if (json != null) {
 
             JsonElement idElement = json.get("id");
@@ -50,6 +50,9 @@ public class ErgoNetworkUrl {
             JsonElement networkTypeElement = json.get("networkType");
             JsonElement protocolElement = json.get("protocol");
 
+            if(idElement == null || urlElement == null || portElement == null || portElement == null || networkTypeElement == null || protocolElement == null ){
+                throw new Exception("Explorer element is missing");
+            }
 
             m_id = idElement != null ? idElement.getAsString() : FriendlyId.createFriendlyId();
 
@@ -62,6 +65,8 @@ public class ErgoNetworkUrl {
             m_url = urlElement != null ? urlElement.getAsString() : m_url;
             m_port = portElement != null ? portElement.getAsInt() : m_port;
             m_protocol = protocolElement != null ? protocolElement.getAsString() : m_protocol;
+        }else{
+            throw new Exception("Json url is null");
         }
     }
 

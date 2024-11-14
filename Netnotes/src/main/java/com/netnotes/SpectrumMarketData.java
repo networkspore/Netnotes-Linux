@@ -6,7 +6,6 @@ import com.google.gson.JsonParseException;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 

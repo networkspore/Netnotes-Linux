@@ -9,7 +9,6 @@ import com.netnotes.IconButton.IconStyle;
 
 import javafx.beans.property.SimpleObjectProperty;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 
 public class NamedNodeUrl {
@@ -19,22 +18,27 @@ public class NamedNodeUrl {
     public final static String MAINNET_STRING = NetworkType.MAINNET.toString();
 
     //type
-    private int m_port = 9053;
+    private int m_port = ErgoNodeData.DEFAULT_MAINNET_PORT;
     private String m_id = null;
-    private String m_name = "Public Node #1";
+    private String m_name = null;
     private String m_protocol = "http";
-    private String m_ip = "213.239.193.208";
+    private String m_ip = ErgoNodeData.DEFAULT_NODE_IP;
     private NetworkType m_networkType = NetworkType.MAINNET;
     private String m_apiKey = "";
    // private boolean m_rememberKey = true;
 
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(null);
 
-    public NamedNodeUrl() {
-        m_id = FriendlyId.createFriendlyId();
+    public NamedNodeUrl(){
+        this(ErgoNodeData.PULIC_NODE_1, "Public Node #1");
     }
 
-    public NamedNodeUrl(JsonObject json) {
+    public NamedNodeUrl(String id, String name) {
+        m_id = id;
+        m_name = name;
+    }
+
+    public NamedNodeUrl(JsonObject json) throws Exception {
         if (json != null) {
 
             JsonElement idElement = json.get("id");
@@ -45,20 +49,24 @@ public class NamedNodeUrl {
           //  JsonElement nodeTypeElement = json.get("nodeType");
             JsonElement apiKeyElement = json.get("apiKey");
 
-            m_id = idElement != null ? idElement.getAsString() : FriendlyId.createFriendlyId();
-
-            if (networkTypeElement != null && networkTypeElement.isJsonPrimitive()) {
-                String networkTypeString = networkTypeElement.getAsString();
-                m_networkType = networkTypeString.equals(TESTNET_STRING) ? NetworkType.TESTNET : NetworkType.MAINNET;
+            if(!(idElement != null && idElement.isJsonPrimitive() && networkTypeElement != null&& networkTypeElement.isJsonPrimitive() &&  nameElement != null && nameElement.isJsonPrimitive())){
+                throw new Exception("Null data");
             }
+            m_id =  idElement.getAsString();
 
-            m_name = nameElement != null && idElement != null ? nameElement.getAsString() : m_networkType.toString() + " #" + m_id;
-            m_ip = ipElement != null ? ipElement.getAsString() : m_ip;
-            m_port = portElement != null ? portElement.getAsInt() : m_port;
+            String networkTypeString = networkTypeElement.getAsString();
+            m_networkType = networkTypeString.equals(TESTNET_STRING) ? NetworkType.TESTNET : NetworkType.MAINNET;
+        
+
+            m_name = nameElement.getAsString();
+            m_ip = ipElement.getAsString();
+            m_port = portElement.getAsInt();
             m_apiKey = apiKeyElement != null ? apiKeyElement.getAsString() : "";
                 
             
 
+        }else{
+            throw new Exception("Null data");
         }
     }
 

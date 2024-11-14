@@ -1,11 +1,5 @@
 package com.netnotes;
-
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -14,38 +8,13 @@ import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 
 public class ErgoTokenData extends PriceCurrency    {
 
-    private SimpleBooleanProperty m_explorerVerified = new SimpleBooleanProperty(false);
+    private boolean m_explorerVerified = false;
 
-    private SimpleDoubleProperty m_sceneWidth = new SimpleDoubleProperty(450);
-    private SimpleDoubleProperty m_sceneHeight = new SimpleDoubleProperty(575);
 
-    private Stage m_ergoTokenStage = null;
     private ErgoTokensList m_tokensList = null;
 
 
@@ -64,7 +33,7 @@ public class ErgoTokenData extends PriceCurrency    {
         JsonElement emissionAmountElement = jsonObject.get("emissionAmount");
         JsonElement descriptionElement = jsonObject.get("description");
         
-        m_explorerVerified.set(explorerVerifiedElement != null && explorerVerifiedElement.isJsonPrimitive() ? explorerVerifiedElement.getAsBoolean() : false);
+        m_explorerVerified = explorerVerifiedElement != null && explorerVerifiedElement.isJsonPrimitive() ? explorerVerifiedElement.getAsBoolean() : false;
     
         if(timeStampElement != null && timeStampElement.isJsonPrimitive()){
             setTimeStamp(timeStampElement.getAsLong());
@@ -135,17 +104,13 @@ public class ErgoTokenData extends PriceCurrency    {
         setEmissionAmount(emissionAmount);
         setDescription(description);
 
-
+        if(tokenId.equals(ErgoCurrency.TOKEN_ID)){
+            m_explorerVerified = true;
+        }
     }
 
 
     
-    
-
-    public void open() {
-            
-        showTokenStage();
-    }
 
     public void setTokenData(JsonObject sourceJson){
         JsonElement timeStampElement = sourceJson.get("timeStamp");
@@ -175,7 +140,7 @@ public class ErgoTokenData extends PriceCurrency    {
 
 
 
-    public SimpleBooleanProperty explorerVerifiedProperty() {
+    public boolean isExplorerVerified() {
         return m_explorerVerified;
     }
 
@@ -184,19 +149,20 @@ public class ErgoTokenData extends PriceCurrency    {
         return networkTypeString != null ? (networkTypeString.equals(NetworkType.MAINNET.toString()) ? NetworkType.MAINNET : NetworkType.TESTNET) : NetworkType.MAINNET;
     }
 
-    private NoteInterface getExplorer(){
-        return m_tokensList.getErgoTokens().getErgoNetworkData().selectedExplorerData().get();
+
+
+    public ErgoNetwork getErgoNetwork(){
+        return m_tokensList.getErgoTokens().getErgoNetworkData().getErgoNetwork();
     }
 
-
     public void update() {
-        NoteInterface noteInterface = getExplorer();
-        if(noteInterface != null && !m_explorerVerified.get()){
+      
+        if(!m_explorerVerified){
+            
             JsonObject note = Utils.getCmdObject("getTokenInfo");
             note.addProperty("tokenId",getTokenId());
-            note.addProperty("networkId", m_tokensList.getErgoTokens().getErgoNetworkData().getId());
             
-            noteInterface.sendNote(note,succeededEvent -> {
+            m_tokensList.getErgoExplorers().sendNote(note, succeededEvent -> {
                 
                 Object sourceObject = succeededEvent.getSource().getValue();
 
@@ -205,18 +171,26 @@ public class ErgoTokenData extends PriceCurrency    {
                    
                     
                     setTokenData(sourceJson);
-                    m_explorerVerified.set(true);
+                    m_explorerVerified = true;
                     m_tokensList.save();
-                    m_tokensList.getErgoTokens().sendMessage(App.LIST_UPDATED, System.currentTimeMillis(), getTokenId());
+
+                    long timestamp =  System.currentTimeMillis();
+
+                    JsonObject json = Utils.getJsonObject("networkId", ErgoTokens.NETWORK_ID);
+                    json.addProperty("id", getTokenId());
+                    json.addProperty("code", App.UPDATED);
+                    json.addProperty("timeStamp", timestamp);
+
+                    getErgoNetwork().sendMessage(App.UPDATED, timestamp, ErgoTokens.NETWORK_ID, json.toString());
                 }
             }, failedEvent -> {
-                m_explorerVerified.set(false);
+
                 try {
                     Files.writeString(App.logFile.toPath(), "\nFailed: " + getName() + ": " + failedEvent.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
 
                 }
-            }, null);
+            });
         
         }
     }
@@ -235,35 +209,10 @@ public class ErgoTokenData extends PriceCurrency    {
         return getNetworkId();
     }
 
-    public void sendMessage(String networkId, int code, long timestamp){
-        for(int i = 0; i < m_msgInterfaces.size(); i ++){
-            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
-            noteMsgInterface.sendMessage(networkId, code, timestamp);
-        }
-    }
-    public void sendMessage(int code, long timestamp){
-        for(int i = 0; i < m_msgInterfaces.size(); i ++){
-            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
-            noteMsgInterface.sendMessage(code, timestamp);
-        }
-    }
-    public void sendMessage(int code, long timestamp, String msg){
-        for(int i = 0; i < m_msgInterfaces.size(); i ++){
-            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
-            noteMsgInterface.sendMessage(code, timestamp, msg);
-        }
-    }
-
-    public void sendMessage(String networkId, int code, long timestamp, String msg){
-        for(int i = 0; i < m_msgInterfaces.size(); i ++){
-            NoteMsgInterface noteMsgInterface = m_msgInterfaces.get(i);
-            noteMsgInterface.sendMessage(networkId, code, timestamp);
-        }
-    }
-
- 
 
 
+
+    /*
     public void showTokenStage() {
         if (m_ergoTokenStage == null) {
             String title = getName() + " - Ergo Tokens";
@@ -283,24 +232,7 @@ public class ErgoTokenData extends PriceCurrency    {
             Label emissionLbl = new Label();
             TextField emissionAmountField = new TextField();
             Button closeBtn = new Button();
-          //  Button maximizeBtn = new Button();
-           /* if (getTimeStamp() != 0) {
 
-       
-                promptText.setText(getName());
-                descriptionTextArea.setText(getDescription());
-                long emissionAmount = getEmissionAmount();
-
-                if (emissionAmount != 0) {
-                    emissionLbl.setText("Total Supply:");
-                    emissionAmountField.setText(emissionAmount + "");
-                }
-            } else {
-                promptText.setText("");
-                descriptionTextArea.setText("No informaiton available.");
-                emissionLbl.setText("");
-                emissionAmountField.setText("");
-            }*/
             
             Button maximizeBtn = new Button();
             
@@ -370,7 +302,7 @@ public class ErgoTokenData extends PriceCurrency    {
             urlLink.setFont(App.txtFont);
             urlLink.setId("addressBtn");
             urlLink.setOnAction(e -> {
-                m_tokensList.getErgoTokens().getNetworksData().getHostServices().showDocument(getUrlString());
+                //m_tokensList.getErgoTokens().getNetworksData().getHostServices().showDocument(getUrlString());
             
             });
 
@@ -465,16 +397,10 @@ public class ErgoTokenData extends PriceCurrency    {
             
             updateData.run();
 
-            /* addShutdownListener((obs, oldVal, newVal) -> {
-
-                Platform.runLater(() -> closeBtn.fire());
-            });*/
+   
 
             m_ergoTokenStage.setOnCloseRequest(e -> {
-               // removeShutdownListener();
-              //  m_priceCurrency.removeListener(tokenDataListener);
-              //  close();
-                
+
                 closeBtn.fire();
 
             });
@@ -491,7 +417,7 @@ public class ErgoTokenData extends PriceCurrency    {
             m_ergoTokenStage.show();
         }
     }
-
+    */
 
     @Override
     public JsonObject getJsonObject() {
@@ -504,7 +430,7 @@ public class ErgoTokenData extends PriceCurrency    {
         //jsonObject.addProperty("sceneHeight", m_sceneHeight.get());
         jsonObject.addProperty("networkType", getNetworkTypeString());
         jsonObject.addProperty("emissionAmount", getEmissionAmount());
-        jsonObject.addProperty("explorerVerified", m_explorerVerified.get());
+        jsonObject.addProperty("explorerVerified", m_explorerVerified);
         if(getDescription() != null){
             jsonObject.addProperty("description", getDescription());
         }
@@ -539,14 +465,11 @@ public class ErgoTokenData extends PriceCurrency    {
         return getName();
     }
 
-    public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-    }
-
 
     public String getNetworkId(){
         return getTokenId();
     }
-
+    /*
     public static String getButtonText(String name, java.awt.Font font, double imageWidth){
         name = name.replace("\n", " ");
    
@@ -585,9 +508,9 @@ public class ErgoTokenData extends PriceCurrency    {
             return name;
         }
     }
-    public void openButton(){
-        open();
-    }
+    */
+  
+    /*
     public IconButton getButton(String iconStyle){
         java.awt.Font font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 12);
         IconButton iconButton = new IconButton(iconStyle.equals(IconStyle.ROW) ? getIcon() : getIcon(), iconStyle.equals(IconStyle.ROW) ? getName() : getButtonText(getName(),font , 75), iconStyle) {
@@ -608,7 +531,7 @@ public class ErgoTokenData extends PriceCurrency    {
         }
 
         return iconButton;
-    }
+    }*/
 }
 
 

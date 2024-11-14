@@ -2,6 +2,7 @@ package com.netnotes;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
@@ -21,6 +22,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
+import com.google.gson.JsonObject;;
 
 public class LockField extends HBox {
     private final TextField m_textField;
@@ -35,19 +37,20 @@ public class LockField extends HBox {
     private final Label m_openBtn;
     private  EventHandler<MouseEvent> m_onMouseClicked;
     private final BufferedButton m_copyBtn;
+    private final BufferedButton m_sendBtn;
     private final Label m_label;
     private String m_unlockLabelString;
-    private String m_lockLabelString = "🔒 ";
+    private String m_lockLabelString = "⚿ ";
     private final BufferedButton m_lockBtn;
 
     public LockField(String lockString,String unlockLabelString, String unlockString, String prompt){
         super();
         setAlignment(Pos.CENTER_LEFT);
-        m_lockString = lockString;
-        m_unlockString = unlockString;
+        m_lockString = String.format("%-8s",lockString);
+        m_unlockString = String.format("%-8s",unlockString);
         m_label = new Label(m_lockLabelString);
         m_label.setId("logoBox");
-
+        
         m_unlockLabelString = unlockLabelString;
 
         m_lockBtn = new BufferedButton();
@@ -61,9 +64,8 @@ public class LockField extends HBox {
         m_text.setFont(App.txtFont);
         m_text.setFill(App.txtColor);
 
-        m_enterBtn = new Button(); 
+        m_enterBtn = new Button("[enter]"); 
         m_enterBtn.setMinHeight(15);
-        m_enterBtn.setText("[enter]");
         m_enterBtn.setId("toolBtn");
         m_enterBtn.setPadding(new Insets(0,5,0,5));
        
@@ -111,8 +113,15 @@ public class LockField extends HBox {
 
         Tooltip copyToolTip = new Tooltip("Copy");
         copyToolTip.setShowDelay(Duration.millis(100));
+        
         m_copyBtn = new BufferedButton("/assets/copy-30.png", App.MENU_BAR_IMAGE_WIDTH);
         m_copyBtn.setTooltip(copyToolTip);
+
+        Tooltip sendToolTip = new Tooltip("Send");
+        sendToolTip.setShowDelay(Duration.millis(100));
+
+        m_sendBtn = new BufferedButton("/assets/arrow-send-white-30.png", App.MENU_BAR_IMAGE_WIDTH);
+        m_sendBtn.setTooltip(sendToolTip);
 
         m_copyBtn.setOnAction(e->{
             e.consume();
@@ -144,6 +153,10 @@ public class LockField extends HBox {
       /*  */
     }
 
+    public void copyAddressToClipboard(){
+        m_copyBtn.fire();
+    }
+
     @Override
     public void requestFocus(){
         if(!getUnLocked()){
@@ -152,6 +165,7 @@ public class LockField extends HBox {
             super.requestFocus();
         }
     }
+
 
     public void setLocked(){
         if(m_lockId.get() != null){
@@ -163,13 +177,13 @@ public class LockField extends HBox {
            
 
             if(m_fieldBox.getChildren().contains(m_textField)){
-                m_fieldBox.getChildren().removeAll(m_textField, m_openBtn, m_copyBtn, m_lockBtn);
+                m_fieldBox.getChildren().removeAll(m_textField, m_openBtn, m_copyBtn,m_sendBtn, m_lockBtn);
                 m_fieldBox.getChildren().addAll(m_passField);
             }
 
             m_text.setText(m_lockString);
             m_textField.setText(m_lockString);
-            
+          
 
             Platform.runLater(()->m_passField.requestFocus());
         }
@@ -183,7 +197,7 @@ public class LockField extends HBox {
             m_text.setText(m_unlockString);
             if(m_fieldBox.getChildren().contains(m_passField)){
                 m_fieldBox.getChildren().remove(m_passField);
-                m_fieldBox.getChildren().addAll(m_textField, m_openBtn, m_copyBtn, m_lockBtn);
+                m_fieldBox.getChildren().addAll(m_textField, m_openBtn, m_copyBtn,m_sendBtn, m_lockBtn);
                 m_passField.setText("");
             }
             
@@ -200,9 +214,11 @@ public class LockField extends HBox {
         return m_lockId;
     }
 
+    public void setOnSend(EventHandler<ActionEvent> onSend){
+        m_sendBtn.setOnAction(onSend);
+    }
 
-
-    public void setOnAction( EventHandler<ActionEvent> onEnter){
+    public void setOnEnter( EventHandler<ActionEvent> onEnter){
         m_enterBtn.setOnAction(onEnter);
     }
 

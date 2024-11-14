@@ -1,6 +1,7 @@
 package com.netnotes;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.gson.JsonObject;
 
@@ -23,11 +24,10 @@ public interface NoteInterface {
 
     Image getAppIcon();
 
-    Image getSmallAppIcon();
 
     SimpleObjectProperty<LocalDateTime> getLastUpdated();
 
-    boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator);
+    boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed);
 
     Object sendNote(JsonObject note);
 
@@ -35,9 +35,8 @@ public interface NoteInterface {
 
     
 
-    TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn);
+    TabInterface getTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn);
 
-    String getType();
 
 
     NetworksData getNetworksData();
@@ -47,8 +46,6 @@ public interface NoteInterface {
     void addUpdateListener(ChangeListener<LocalDateTime> changeListener);
 
     void removeUpdateListener();
-
-    void remove();
 
     void shutdown();
 

@@ -3,30 +3,15 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import com.utils.Utils;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -51,7 +36,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
     //private ErgoCurrencyToken m_ergoCurrency = new ErgoCurrencyToken(NetworkType.MAINNET);
     public final static String LOADING = "Loading...";
 
-    private File logFile = new File("netnotes-log.txt");
     private SpectrumFinance m_spectrumFinance;
 
 
@@ -65,7 +49,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private SpectrumSort m_sortMethod = new SpectrumSort();
     private String m_searchText = null;
-    
+    @Override
     public String getType(){
         return "DATA";
     }
@@ -78,7 +62,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private SimpleDoubleProperty m_gridWidth;
     private SimpleDoubleProperty m_gridHeight;
-    private SimpleObjectProperty<TimeSpan> m_timeSpanObject; 
+    private SimpleObjectProperty<TimeSpan> m_timeSpanObject;
+    private SimpleObjectProperty<NoteInterface> m_networkInterface;
     private SimpleObjectProperty<HBox> m_currentBox;
 
         
@@ -93,18 +78,14 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private NoteMsgInterface m_spectrumMsgInterface = null;
     
-
-    public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<HBox> currentBox) {
+    public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, SimpleObjectProperty<HBox> currentBox, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface) {
         
         super(null, "spectrumDataList", id, spectrumFinance);
         m_spectrumFinance = spectrumFinance;
        
-
-
         setup();
         
-        
-        
+        m_networkInterface = networkInterface;
         m_gridWidth = gridWidth;
         m_gridHeight = gridHeight;
         m_timeSpanObject = timeSpanObject;
@@ -122,6 +103,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     }
     
+    public SimpleObjectProperty<NoteInterface> networkInterfaceProperty(){
+        return m_networkInterface;
+    }
 
     public void addSpectrumListener(){
 
@@ -132,42 +116,37 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 return m_id;
             }
 
-            public void sendMessage(String str, int code, long timestamp, String msg ){
-
-            }
-            public void sendMessage(String str, int code, long timestamp ){
-
-            }
-            public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
-            }
-
-            public void sendMessage(int msg, long timestamp){
-                
-                switch(msg){
-                    case App.LIST_CHANGED:
-                    case App.LIST_UPDATED:
-                    
-                        updateMarkets(m_spectrumFinance.marketsList());
-                        m_connectionStatus = App.STARTED;
-                     
-
-                    case App.STOPPED:
-
-                    break;
-                }   
-             //  getLastUpdated().set(LocalDateTime.now());
-            }
-
-            public void sendMessage(int code, long timestamp, String msg){
-                switch(code){
-                    case App.ERROR:
-                        m_connectionStatus = App.ERROR;
+            public void sendMessage(int code, long timeStamp, String poolId, Number num){
+                if(code == App.STATUS){
+                    switch(num.intValue()){
+                        case App.LIST_CHANGED:
+                        case App.LIST_UPDATED:
                         
-                        m_statusMsg.set("Error: " + msg);
-                      //  getLastUpdated().set(LocalDateTime.now());
-                    break;
+                            updateMarkets(m_spectrumFinance.marketsList());
+                            m_connectionStatus = App.STARTED;
+                        
+
+                        case App.STOPPED:
+
+                        break;
+                        case App.ERROR:
+                         //   JsonElement msgElement = json != null ? json.get("msg") : null;
+                            m_connectionStatus = App.ERROR;
+                            
+                          
+                        //  getLastUpdated().set(LocalDateTime.now());
+                        break;
+                    } 
                 }
             }
+        
+            public void sendMessage(int code, long timestamp, String networkId, String msg){
+                if(code == App.ERROR){
+                    m_statusMsg.set("Error: " + msg);
+                }
+            }
+
+    
 
         };
         
@@ -609,7 +588,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         getNetworksData().save("data", ".", getNetworkId(), SpectrumFinance.NETWORK_ID, getJsonObject());
     }
 
-   
+    @Override
     public String getDescription(){
         return "data";
     }

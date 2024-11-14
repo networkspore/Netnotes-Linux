@@ -84,7 +84,7 @@ public class SettingsTab extends VBox implements TabInterface  {
         passwordBtn.setId("toolBtn");
         passwordBtn.setOnAction(e -> {
             Button closeBtn = new Button();
-            App.verifyAppKey(()->{
+            networksData.verifyAppKey(()->{
                 Stage passwordStage = App.createPassword("Netnotes - Password", App.logo, App.logo, closeBtn, networksData.getExecService(), (onSuccess) -> {
                     Object sourceObject = onSuccess.getSource().getValue();
 
@@ -127,7 +127,7 @@ public class SettingsTab extends VBox implements TabInterface  {
                     closeBtn.fire();
                 });
                 passwordStage.show();
-            }, networksData);
+            });
         });
 
         HBox passwordBox = new HBox(passwordTxt, passwordBtn);

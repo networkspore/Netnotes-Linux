@@ -1,12 +1,12 @@
 package com.netnotes;
 
-import com.google.gson.JsonObject;
+
+import java.lang.Number;
 
 public interface NoteMsgInterface  {
+
     String getId();
-    void sendMessage(String networkId, int code, long timestamp);
-    void sendMessage(int code, long timestamp);
-    void sendMessage(int code, long timestamp, String msg);
-    void sendMessage(String networkId, int code, long timestamp, String msg);
-    void sendMessage(String networkId, int code, long timestamp, JsonObject json);
+    void sendMessage(int code, long timestamp, String networkId, String msg);
+    void sendMessage(int code, long timestamp, String networkId, Number number);
+
 }

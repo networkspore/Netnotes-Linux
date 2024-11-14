@@ -58,12 +58,13 @@ public class BoundedExecutor {
 
                 task.setOnFailed(onFailed->{
                     m_semaphore.release();
-                    Utils.returnObject(null, m_exec, onResult, onFailedResult);
+                    
+                    Utils.returnObject(onFailed.getSource().getException(), m_exec, onResult, onFailedResult);
                 });
         
                 task.setOnSucceeded(onSucceeded->{
                     m_semaphore.release();
-                    Utils.returnObject(onSucceeded.getSource().getValue(), onResult, onFailedResult);
+                    Utils.returnObject(onSucceeded.getSource().getValue(), m_exec, onResult, onFailedResult);
                 });
         
                 m_exec.submit(task);

@@ -2,6 +2,8 @@ package com.netnotes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.google.gson.JsonObject;
 
 import javafx.beans.property.SimpleDoubleProperty;
@@ -25,7 +27,7 @@ public class Network  {
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<LocalDateTime>(LocalDateTime.now());
     private ChangeListener<LocalDateTime> m_changeListener = null;
     private SimpleObjectProperty<LocalDateTime> m_shutdownNow = new SimpleObjectProperty<>(null);
-    private SimpleObjectProperty<NoteHook> m_noteHookProperty = new SimpleObjectProperty<>(null);
+   // private SimpleObjectProperty<NoteHook> m_noteHookProperty = new SimpleObjectProperty<>(null);
 
     public final static long EXECUTION_TIME = 500;
 
@@ -38,6 +40,8 @@ public class Network  {
     private boolean m_stageMaximized = false;
     private double m_stageWidth = DEFAULT_STAGE_WIDTH;
     private double m_stageHeight = DEFAULT_STAGE_HEIGHT;
+
+    private String[] m_keyWords = null;
 
     private ArrayList<NoteMsgInterface> m_msgListeners = new ArrayList<>();
 
@@ -58,7 +62,7 @@ public class Network  {
 
     }
 
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         return false;
     }
@@ -80,6 +84,110 @@ public class Network  {
 
     }
 
+    private String m_type = null;
+
+    public String getType(){
+        return m_type;
+    }
+
+    public void setType(String type){
+        m_type = type;
+    }
+
+    private String m_description = null;
+
+    public void setDescpription(String value){
+        m_description = value;
+    }
+
+    public String getDescription(){
+        return m_description;
+    }
+
+    public NoteInterface getNoteInterface(){
+       
+        return new NoteInterface() {
+            
+            public String getName(){
+                return Network.this.getName();
+            }
+
+            public String getNetworkId(){
+                return Network.this.getNetworkId();
+            }
+
+            public Image getAppIcon(){
+                return Network.this.getAppIcon();
+            }
+
+
+            public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
+                return null;
+            }
+
+            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+                return Network.this.sendNote(note, onSucceeded, onFailed);
+            }
+
+            public Object sendNote(JsonObject note){
+                return Network.this.sendNote(note);
+            }
+
+            public JsonObject getJsonObject(){
+                return Network.this.getJsonObject();
+            }
+
+            public TabInterface getTab(Stage appStage,String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+                return Network.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            }
+
+            public String getType(){
+                return Network.this.getType();
+            }
+
+
+            public NetworksData getNetworksData(){
+                return Network.this.getNetworksData();
+            }
+
+            public NoteInterface getParentInterface(){
+                return null;
+            }
+
+            public void addUpdateListener(ChangeListener<LocalDateTime> changeListener){}
+
+            public void removeUpdateListener(){}
+
+            public void shutdown(){}
+
+            public SimpleObjectProperty<LocalDateTime> shutdownNowProperty(){
+                return null;
+            }
+
+            public void addMsgListener(NoteMsgInterface listener){
+                if(listener != null && listener.getId() != null){
+                    Network.this.addMsgListener(listener);
+                }
+            }
+            public boolean removeMsgListener(NoteMsgInterface listener){
+                
+                return Network.this.removeMsgListener(listener);
+            }
+
+            public int getConnectionStatus(){
+                return Network.this.getConnectionStatus();
+            }
+
+            public void setConnectionStatus(int status){}
+
+
+            public String getDescription(){
+                return Network.this.getDescription();
+            }
+        };
+    }
+
+
     protected void setName(String name){
         m_name = name;
         
@@ -90,7 +198,7 @@ public class Network  {
     }
 
 
-    public TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
+    public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
         return null;
     }
 
@@ -134,36 +242,20 @@ public class Network  {
         setConnectionStatus(App.STARTED);
     }
 
-    protected void sendMessage(int msg){
-        long timestamp = System.currentTimeMillis();
-        sendMessage(msg, timestamp);
-    }
 
-    protected void sendMessage(int msg, long timestamp){
 
+    protected void sendMessage(int code, long timeStamp,String networkId, String msg){
         for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(msg, timestamp);
-        }
-    }
-    protected void sendMessage(int code, long timestamp, String msg){
-
-        for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(code, timestamp, msg);
+            m_msgListeners.get(i).sendMessage(code, timeStamp, networkId, msg);
         }
     }
 
-    protected void sendMessage(String networkId, int code, long timestamp, String msg){
-
+    protected void sendMessage(int code, long timeStamp, String networkId, Number num){
         for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(networkId, code, timestamp, msg);
+            m_msgListeners.get(i).sendMessage(code, timeStamp, networkId, num);
         }
     }
 
-    protected void sendMessage(String networkId, int code, long timeStamp, JsonObject json){
-        for(int i = 0; i < m_msgListeners.size() ; i++){
-            m_msgListeners.get(i).sendMessage(networkId, code, timeStamp, json);
-        }
-    }
 
     protected NoteMsgInterface getListener(String id) {
         for (int i = 0; i < m_msgListeners.size(); i++) {
@@ -175,8 +267,12 @@ public class Network  {
         return null;
     }
 
-    public SimpleObjectProperty<NoteHook> noteHookProperty(){
-        return m_noteHookProperty;
+    public String[] getKeyWords() {
+        return m_keyWords;
+    }
+
+    public void setKeyWords(String[] value){
+        m_keyWords = value;
     }
 
     public NoteInterface getParentInterface() {
@@ -321,16 +417,10 @@ public class Network  {
         }
     }
 
-    public void remove() {
-        removeUpdateListener();
-
-    }
-
     public void shutdown() {
-        
-       
-
         shutdownNowProperty().set(LocalDateTime.now());
+        
+        removeUpdateListener();
     }
 
     private SimpleObjectProperty<JsonObject> m_cmdProperty = new SimpleObjectProperty<JsonObject>(null);

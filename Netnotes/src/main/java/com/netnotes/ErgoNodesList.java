@@ -4,59 +4,18 @@ package com.netnotes;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-
-import org.ergoplatform.appkit.NetworkType;
+import org.apache.commons.io.FileUtils;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
-
 import com.utils.Utils;
-
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.MenuButton;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import javafx.util.Duration;
 
 public class ErgoNodesList {
 
@@ -65,178 +24,419 @@ public class ErgoNodesList {
     public final static String PUBLIC = "PUBLIC";
     public final static String CUSTOM = "CUSTOM";
 
-    private File logFile = new File("netnotes-log.txt");
-    private SimpleStringProperty m_selectedId = new SimpleStringProperty(null);
 
-    private ArrayList<ErgoNodeData> m_dataList = new ArrayList<>();
     private ErgoNodes m_ergoNodes;
-    private ErgoNodeLocalData m_ergoLocalNode = null;
 
-    private double DEFAULT_ADD_STAGE_WIDTH = 600;
-    private double DEFAULT_ADD_STAGE_HEIGHT = 485;
+    private HashMap<String, ErgoNodeData> m_dataList = new HashMap<>();
 
-    private final static long EXECUTION_TIME = 500;
-    private double m_addStageWidth = DEFAULT_ADD_STAGE_WIDTH;
-    private double m_addStageHeight = DEFAULT_ADD_STAGE_HEIGHT;
-    private double m_prevAddStageWidth = DEFAULT_ADD_STAGE_WIDTH;
-    private double m_prevAddStageHeight = DEFAULT_ADD_STAGE_HEIGHT;
-    private boolean m_addStageMaximized = false;
-    private ScheduledFuture<?> m_lastExecution = null;
-
-    private SimpleObjectProperty<LocalDateTime> m_doGridUpdate = new SimpleObjectProperty<LocalDateTime>(null);
-
-    private Stage m_addStage = null;
-    private String m_defaultAddType = PUBLIC;
 
     private String m_downloadImgUrl = "/assets/cloud-download-30.png";
-    private ChangeListener<LocalDateTime> m_nodeUpdateListener = (obs, oldval, newVal) -> save();
+    private String m_defaultNodeId = null;
+    private ErgoNetworkData m_ergoNetworkData;
 
-    public ErgoNodesList( ErgoNodes ergoNodes) {
+    public ErgoNodesList( ErgoNodes ergoNodes, ErgoNetworkData ergoNetworkData) {
         m_ergoNodes = ergoNodes;
+        m_ergoNetworkData = ergoNetworkData;
         getData();
     }
 
     private void getData() {
         
    
-        JsonObject json = m_ergoNodes.getNetworksData().getData("data",".", ErgoNodes.NETWORK_ID, ErgoNetwork.NETWORK_ID);
+        JsonObject json = m_ergoNodes.getNetworksData().getData("data",".", App.NODE_NETWORK, ErgoNetwork.NETWORK_ID);
         
-    
+
         openJson(json);
             
         
 
     }
 
+    public final static String PUBLIC_NODES_LIST_URL = "https://raw.githubusercontent.com/networkspore/Netnotes/main/publicNodes.json";
+    
+    private void getPublicNodesList(){
+        
+  
+        Utils.getUrlJson(PUBLIC_NODES_LIST_URL, getErgoNetwork().getNetworksData().getExecService(), (onSucceeded) -> {
+            Object sourceObject = onSucceeded.getSource().getValue();
+            if (sourceObject != null && sourceObject instanceof JsonObject) {
+                //openNodeJson((JsonObject) sourceObject);
+            }
+        }, (onFailed) -> {
+            //  setDefaultList();
+        });
+    
+        
+    }
+
+    public String getDefaultNodeId(){
+        return m_defaultNodeId;
+    }
+
+    public void setDefaultNodeId(String id){
+        setDefaultNodeId(id, true);
+    }
+
+    public void setDefaultNodeId(String id, boolean isSave){
+        m_defaultNodeId = id;
+
+        if(isSave){
+          
+            save();
+            long timeStamp = System.currentTimeMillis();
+            JsonObject note = Utils.getMsgObject(App.LIST_DEFAULT_CHANGED, timeStamp, m_ergoNodes.getNetworkId());
+            note.addProperty("code", App.LIST_DEFAULT_CHANGED);
+            note.addProperty("timeStamp", timeStamp);
+            if(id != null){
+                note.addProperty("id",  id);
+            }
+            
+            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, m_ergoNodes.getNetworkId(), note.toString());
+        }
+    
+    }
+
+    public JsonObject setDefault(JsonObject note){
+        JsonElement idElement = note != null ? note.get("id") : null;
+  
+        if(idElement != null){
+            String defaultId = idElement.getAsString();
+            ErgoNodeData nodeData = getNodeById(defaultId);
+            if(nodeData != null){
+                setDefaultNodeId(defaultId);
+                return nodeData.getJsonObject();
+            }
+        }
+        return null;
+    }
+
+    public Boolean clearDefault(){
+
+        m_defaultNodeId = null;
+        long timeStamp = System.currentTimeMillis();
+        
+        JsonObject note = Utils.getJsonObject("networkId", m_ergoNodes.getNetworkId());
+        note.addProperty("code", App.LIST_DEFAULT_CHANGED);
+        note.addProperty("timeStamp", timeStamp);
+        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, m_ergoNodes.getNetworkId(), note.toString());
+        
+
+        return true;
+    }
+
+    public JsonObject getDefault(){
+        ErgoNodeData nodeData = getNodeById(m_defaultNodeId);
+
+        return nodeData != null ? nodeData.getJsonObject() : null;
+        
+    }
+
+    public NetworksData getNetworksData(){
+        return m_ergoNodes.getNetworksData();
+    }
+
+    public ErgoNetworkData getErgoNetworkData(){
+        return m_ergoNetworkData;
+    }
+
+
     private void openJson(JsonObject json) {
-
+      
         JsonElement nodesElement = json != null ? json.get("nodes") : null;
-        JsonElement defaultAddTypeElement = json != null ? json.get("defaultAddType") : null;
-        JsonElement addStageElement = json != null ? json.get("addStage") : null;
+        JsonElement defaultNodeIdElement = json !=null ? json.get("defaultNodeId") : null;
 
-        m_defaultAddType = defaultAddTypeElement != null && defaultAddTypeElement.isJsonPrimitive() ? defaultAddTypeElement.getAsString() : PUBLIC;
-
-        JsonElement localNodeElement = json == null ? null : json.get("localNode");
-
-        if (localNodeElement != null && localNodeElement.isJsonObject()) {
-            JsonObject localNodeObject = localNodeElement.getAsJsonObject();
-
-
-            JsonElement namedNodeElement = localNodeObject.get("namedNode");
-
-            NamedNodeUrl namedNodeUrl = namedNodeElement != null && namedNodeElement.isJsonObject() ? new NamedNodeUrl(namedNodeElement.getAsJsonObject()) : null;
-
-            if (namedNodeUrl != null) {
-                m_ergoLocalNode = new ErgoNodeLocalData(namedNodeUrl, localNodeObject, this);
-
-                m_ergoLocalNode.addUpdateListener(m_nodeUpdateListener);
-            } 
-
-        } 
-
+     
         if (nodesElement != null && nodesElement.isJsonArray()) {
-            JsonArray jsonArray = nodesElement.getAsJsonArray();
 
+   
+            JsonArray jsonArray = nodesElement.getAsJsonArray();
+         
             for (int i = 0; i < jsonArray.size(); i++) {
                 JsonElement nodeElement = jsonArray.get(i);
 
                 if (nodeElement != null && nodeElement.isJsonObject()) {
-                    add(new ErgoNodeData(this, nodeElement.getAsJsonObject()), false);
+                    JsonObject nodeJson = nodeElement.getAsJsonObject();
+
+                    JsonElement namedNodeElement = nodeElement == null ? null : nodeJson.get("namedNode");
+                 
+                        
+                        JsonElement idElement = nodeJson == null ? null : nodeJson.get("id");
+                        JsonElement nameElement = nodeJson == null ? null : nodeJson.get("name");
+                        JsonElement iconElement = nodeJson == null ? null : nodeJson.get("iconString");
+                        JsonElement clientTypeElement = nodeJson == null ? null : nodeJson.get("clientType");
+                        
+
+                        if(namedNodeElement != null && idElement != null && nameElement != null && iconElement != null){
+                            String clientType = clientTypeElement != null ? clientTypeElement.getAsString() : ErgoNodeData.LIGHT_CLIENT;
+                            String id = idElement.getAsString();
+                            String name = nameElement.getAsString();
+                            String imgString = iconElement.getAsString();
+
+                            try{
+                                switch(clientType){
+                                    case ErgoNodeData.LOCAL_NODE:
+                                        loadLocalNode(id, name, imgString, clientType, nodeJson);
+                                    break;
+                                    default:
+                                        ErgoNodeData ergoNodeData = new ErgoNodeData(imgString, name, id, clientType, this, nodeJson);
+                                        addRemoteNode(ergoNodeData , false);
+                                    break;
+                                }
+                            }catch(Exception e){
+                                try {
+                                    Files.writeString(App.logFile.toPath(), e.toString() +"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                                } catch (IOException e1) {
+                           
+                                }
+                            
+                            }
+                          
+                        }   
+                    
                 }
             }
+           
+            setDefaultNodeId(defaultNodeIdElement != null ?  defaultNodeIdElement.getAsString() : null, false);
+        }else{
+            NamedNodeUrl defaultNode = new NamedNodeUrl();
+            addRemoteNode(new ErgoNodeData(ErgoNodeData.PULIC_NODE_1,defaultNode.getName(), ErgoNodeData.LIGHT_CLIENT, FriendlyId.createFriendlyId(), this,  defaultNode), true);
         }
 
-        if (addStageElement != null && addStageElement.isJsonObject()) {
-            JsonObject addStageObject = addStageElement.getAsJsonObject();
 
-            JsonElement widthElement = addStageObject.get("width");
-            JsonElement heightElement = addStageObject.get("height");
-            JsonElement stagePrevWidthElement = addStageObject.get("prevWidth");
-            JsonElement stagePrevHeightElement = addStageObject.get("prevHeight");
-            JsonElement stageMaximizedElement = addStageObject.get("maximized");
 
-            boolean maximized = stageMaximizedElement != null && stageMaximizedElement.isJsonPrimitive() ? stageMaximizedElement.getAsBoolean() : false;
+       
+   
+    }
 
-            if (!maximized) {
-                m_addStageWidth = widthElement != null && widthElement.isJsonPrimitive() ? widthElement.getAsDouble() : DEFAULT_ADD_STAGE_WIDTH;
-                m_addStageHeight = heightElement != null && heightElement.isJsonPrimitive() ? heightElement.getAsDouble() : DEFAULT_ADD_STAGE_HEIGHT;
-            } else {
-                double prevWidth = stagePrevWidthElement != null && stagePrevWidthElement.isJsonPrimitive() ? stagePrevWidthElement.getAsDouble() : DEFAULT_ADD_STAGE_WIDTH;
-                double prevHeight = stagePrevHeightElement != null && stagePrevHeightElement.isJsonPrimitive() ? stagePrevHeightElement.getAsDouble() : DEFAULT_ADD_STAGE_HEIGHT;
+    private void loadLocalNode(String id, String name, String imgString, String clientType, JsonObject nodeJson) throws Exception{
+        ErgoNodeLocalData localData = new ErgoNodeLocalData(imgString, id, name, clientType, nodeJson, this);
 
-                m_prevAddStageWidth = prevWidth;
-                m_prevAddStageHeight = prevHeight;
+        addNode(localData, false);
+    }
 
-                m_addStageWidth = prevWidth;
-                m_addStageHeight = prevHeight;
+    private void addNode(ErgoNodeData nodeData, boolean isSave){
+        if(nodeData != null && nodeData.getId() != null){
+            nodeData.addUpdateListener((obs,oldval,newval)->{
+                JsonObject note = Utils.getJsonObject("networkId", App.WALLET_NETWORK);
+                note.addProperty("id", nodeData.getId());
+                note.addProperty("code", App.UPDATED);
 
+                long timeStamp = System.currentTimeMillis();
+                note.addProperty("timeStamp", timeStamp);
+
+                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, App.WALLET_NETWORK, note.toString());
+                
+                save();
+            });
+            String id = nodeData.getId();
+            m_dataList.put(id, nodeData);
+
+          
+
+            if(isSave){
+                JsonObject note = Utils.getJsonObject("networkId", App.WALLET_NETWORK);
+                note.addProperty("id", id);
+                note.addProperty("code", App.UPDATED);
+
+                long timeStamp = System.currentTimeMillis();
+                note.addProperty("timeStamp", timeStamp);
+
+                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, App.WALLET_NETWORK, note.toString());
+
+               
             }
         }
-
-      
-
     }
+
+   
+
 
     public String getDownloadImgUrl() {
         return m_downloadImgUrl;
     }
 
-    public ArrayList<ErgoNodeData> getDatList(){
-        return m_dataList;
+
+    public ErgoNodeData getRemoteNode(String id) {
+        if (id != null) {
+       
+            return m_dataList.get(id);
+            
+            
+        }
+        return null;
     }
 
-    public void add(ErgoNodeData ergoNodeData, boolean doSave) {
-        if (ergoNodeData != null) {
-            m_dataList.add(ergoNodeData);
-       
-            ergoNodeData.addUpdateListener(m_nodeUpdateListener);
-            if (doSave) {
-                save();
+
+    public void addRemoteNode(ErgoNodeData ergoNodeData, boolean isSave) {
+   
+        if (ergoNodeData != null && ergoNodeData.getId() != null) {
+            if(getNodeById(ergoNodeData.getId()) == null){
+                
+                addNode(ergoNodeData, isSave);
+                
             }
         }
     }
 
-    public void remove(String id) {
+    public ErgoNetwork getErgoNetwork(){
+        return m_ergoNodes.getErgoNetwork();
+    }
+
+    public boolean remove(String id, boolean isDelete, boolean isSave) {
         if(id != null ){
-            String selectedId = selectedIdProperty().get();
-            if(selectedId != null && selectedId.equals(id)){
-                selectedIdProperty().set(null);
+            if(id.equals(m_defaultNodeId)){
+                clearDefault();
             }
-            boolean updated = false;
-            if(m_ergoLocalNode != null && m_ergoLocalNode.getId().equals(id)){
-                m_ergoLocalNode.stop();
-                m_ergoLocalNode.removeUpdateListener();
-                m_ergoLocalNode = null;
-                updated = true;
-            }else{
-                if (m_dataList.size() > 0) {
-                    for (int i = 0; i < m_dataList.size(); i++) {
-                        ErgoNodeData ergoNodeData = m_dataList.get(i);
-                        if (ergoNodeData.getId().equals(id)) {
-                            m_dataList.remove(i);
-                            ergoNodeData.removeUpdateListener();
-                            updated = true;
+             
+            ErgoNodeData nodeData = m_dataList.remove(id);
+
+            if(nodeData != null){
+                if(isDelete){
+                    if(nodeData != null && nodeData instanceof ErgoNodeLocalData){
+                        File nodeAppDir = ((ErgoNodeLocalData) nodeData).getAppDir();
+                        if(nodeAppDir != null){
+                     
+                            try {
+                                FileUtils.deleteDirectory(nodeAppDir);
+                            } catch (IOException e) {
+                                try {
+                                    Files.writeString(App.logFile.toPath(), "Error deleting node files: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                } catch (IOException e1) {
+                   
+                                }
+                            }
+
                         }
                     }
                 }
-            }
-            if(updated){
-                save();
-                m_doGridUpdate.set(LocalDateTime.now());
+                if(isSave){
+                    save();
+        
+                    JsonObject note = Utils.getJsonObject("networkId", m_ergoNodes.getNetworkId());
+                    
+                    JsonArray jsonArray = new JsonArray();
+                    jsonArray.add(nodeData.getJsonObject());
+
+                    note.add("ids", jsonArray);
+                    note.addProperty("code", App.LIST_ITEM_REMOVED);
+                            
+                    long timeStamp = System.currentTimeMillis();
+                    note.addProperty("timeStamp", timeStamp);
+                    
+                    getErgoNetwork() .sendMessage(App.LIST_ITEM_REMOVED, timeStamp, m_ergoNodes.getNetworkId(), note.toString());
+                }
+
+                return true;
             }
         }
+        return false;
         
     }
 
-    public ErgoNodeData getErgoNodeData(String id) {
-        if (id != null) {
-            if (m_ergoLocalNode != null && m_ergoLocalNode.getId().equals(id)) {
-                return m_ergoLocalNode;
-            } else {
-                for (int i = 0; i < m_dataList.size(); i++) {
-                    ErgoNodeData ergoNodeData = m_dataList.get(i);
-                    if (ergoNodeData.getId().equals(id)) {
-                        return ergoNodeData;
+    public JsonObject removeNodes(JsonObject note){
+        
+        long timestamp = System.currentTimeMillis();
+
+        JsonElement idsElement = note.get("ids");
+
+        if(idsElement != null && idsElement.isJsonArray()){
+       
+            JsonArray idsArray = idsElement.getAsJsonArray();
+            if(idsArray.size() > 0){
+                
+                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, m_ergoNodes.getNetworkId());
+                JsonArray jsonArray = new JsonArray();
+
+                for(JsonElement element : idsArray){
+                    JsonObject idObj = element.getAsJsonObject();
+
+                    JsonElement idElement = idObj.get("id");
+
+                    if(idElement != null){
+                        String id = idElement.getAsString();
+
+                        JsonElement deleteElement = idObj.get("isDelete");
+                        
+                        boolean isDelete = deleteElement != null && deleteElement.isJsonPrimitive() ? deleteElement.getAsBoolean() : false;
+             
+                        
+                        if(remove(id, isDelete, false)){
+                            jsonArray.add(idObj);
+                        }
+                    }
+                }
+                
+                json.add("ids", jsonArray);
+
+
+
+                save();
+
+                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, m_ergoNodes.getNetworkId(), json.toString());
+
+                return json;
+            }
+
+        }
+
+        return null;
+    }
+
+    public ErgoNodeData getNodeById(String id){
+ 
+        if(id != null){
+
+            return m_dataList.get(id);
+        
+        }
+
+        return null;
+    }
+
+    public NoteInterface getNoteInterface(JsonObject note){
+   
+        if(note != null){
+            JsonElement idElement = note.get("id");
+            String id = idElement != null && idElement.isJsonPrimitive() ? idElement.getAsString() : null;
+            
+            if(id != null){
+        
+                ErgoNodeData nodeData = getNodeById(id);
+                if(nodeData != null){
+                    return nodeData.getNoteInterface();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public NoteInterface getDefaultInterface(JsonObject note){
+  
+        ErgoNodeData nodeData = getNodeById(m_defaultNodeId);
+        if(nodeData != null){
+            return nodeData.getNoteInterface();
+        }
+        
+        return null;
+    }
+
+    public JsonObject getLocalNodeByFile(File file){
+        if (m_dataList.size() > 0 && file != null) {
+            
+            file = file.isFile() ? file.getParentFile() : (file.isDirectory() ? file : null);
+
+            if ( file != null) {
+              
+                for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+                    ErgoNodeData nodeData = entry.getValue();
+                    if(nodeData instanceof ErgoNodeLocalData){
+                        ErgoNodeLocalData localData = (ErgoNodeLocalData) nodeData;
+                        
+                        if (localData.getAppDir().getAbsolutePath().equals(file.getAbsolutePath())){
+                            return localData.getJsonObject();
+                        }
+            
                     }
                 }
             }
@@ -244,59 +444,104 @@ public class ErgoNodesList {
         return null;
     }
 
+    public JsonObject getNodeByName(String name){
+        if (m_dataList.size() > 0 && name != null) {
+            
+              
+            for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+                ErgoNodeData nodeData = entry.getValue();
+      
+                
+                if (nodeData.getName().equals(name) ){
+                    return nodeData.getJsonObject();
+                }
+    
+                
+            }
+            
+        }
+        return null;
+    }
+
+            
     public JsonArray getNodesJsonArray() {
         JsonArray jsonArray = new JsonArray();
 
-        for (int i = 0; i < m_dataList.size(); i++) {
-            ErgoNodeData ergNodeData = m_dataList.get(i);
-
-            jsonArray.add(ergNodeData.getJsonObject());
+        for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+            ErgoNodeData data = entry.getValue();
+            JsonObject jsonObj = data.getJsonObject();
+            jsonArray.add(jsonObj);
         }
 
         return jsonArray;
     }
 
-   
 
-    public JsonObject getAddStageJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty("width", m_addStageWidth);
-        json.addProperty("height", m_addStageHeight);
-        json.addProperty("prevWidth", m_prevAddStageWidth);
-        json.addProperty("prevHeight", m_prevAddStageHeight);
-        json.addProperty("maximized", m_addStageMaximized);
-        return json;
+    public JsonArray getRemoteNodes(JsonObject note) {
+
+        JsonArray jsonArray = new JsonArray();
+
+        for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+            ErgoNodeData ergNodeData = entry.getValue();
+            if(!(ergNodeData instanceof ErgoNodeLocalData)){
+                JsonObject jsonObj = ergNodeData.getJsonObject();
+                jsonArray.add(jsonObj);
+            }
+        }
+      
+        return jsonArray;
     }
 
-     public JsonObject getJsonObject() {
+    public JsonArray getLocalNodes(JsonObject note) {
+        JsonArray jsonArray = new JsonArray();
+
+        for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+            ErgoNodeData ergNodeData = entry.getValue();
+
+            if(ergNodeData instanceof ErgoNodeLocalData){
+                JsonObject jsonObj = ergNodeData.getJsonObject();
+                jsonArray.add(jsonObj);
+            }
+
+        }
+
+        return jsonArray;
+    }
+
+    public JsonArray getNodes(JsonObject note){
+        return getNodesJsonArray();
+    }
+
+
+     public JsonObject getDataJson() {
         JsonObject json = new JsonObject();
 
         json.add("nodes", getNodesJsonArray());
-        json.addProperty("defaultAddType", m_defaultAddType);
-        json.add("addStage", getAddStageJson());
-     
-        if(m_ergoLocalNode != null){
-            json.add("localNode", m_ergoLocalNode.getJsonObject());
+        if(m_defaultNodeId != null){
+            json.addProperty("defaultNodeId", m_defaultNodeId);
         }
         return json;
     }
 
+
+
     public void save() {
+        JsonObject saveJson = getDataJson();
+        m_ergoNodes.getNetworksData().save("data",".", App.NODE_NETWORK, ErgoNetwork.NETWORK_ID, saveJson);
         
-        m_ergoNodes.getNetworksData().save("data",".", ErgoNodes.NETWORK_ID, ErgoNetwork.NETWORK_ID, getJsonObject());
-        
+ 
     }
 
   
-
+    /*
     public VBox getGridBox(SimpleDoubleProperty width, SimpleDoubleProperty scrollWidth) {
         VBox gridBox = new VBox();
 
         Runnable updateGrid = () -> {
             gridBox.getChildren().clear();
           
-            if(m_ergoLocalNode != null){
-                HBox fullNodeRowItem = m_ergoLocalNode.getRowItem();
+            if(m_localDataList != null){
+                HBox fullNodeRowItem = m_localDataList.getRowItem();
                 fullNodeRowItem.prefWidthProperty().bind(width.subtract(scrollWidth));
                 gridBox.getChildren().add(fullNodeRowItem);
             }            
@@ -317,8 +562,9 @@ public class ErgoNodesList {
         m_doGridUpdate.addListener((obs, oldval, newval) -> updateGrid.run());
 
         return gridBox;
-    }
+    } */
 
+    /*
     public void getMenu(MenuButton menuBtn, SimpleObjectProperty<ErgoNodeData> selectedNode){
 
         Runnable updateMenu = () -> {
@@ -336,14 +582,14 @@ public class ErgoNodesList {
             });
             menuBtn.getItems().add(noneMenuItem);
 
-            if(m_ergoLocalNode != null){
-                MenuItem localNodeMenuItem = new MenuItem( m_ergoLocalNode.getName());
-                if(m_ergoLocalNode != null && newSelectedNodedata != null && m_ergoLocalNode.getId().equals(newSelectedNodedata.getId())){
+            if(m_localDataList != null){
+                MenuItem localNodeMenuItem = new MenuItem( m_localDataList.getName());
+                if(m_localDataList != null && newSelectedNodedata != null && m_localDataList.getId().equals(newSelectedNodedata.getId())){
                     localNodeMenuItem.setId("selectedMenuItem");
                     localNodeMenuItem.setText(localNodeMenuItem.getText());
                 }
                 localNodeMenuItem.setOnAction(e->{
-                    selectedNode.set(m_ergoLocalNode);
+                    selectedNode.set(m_localDataList);
                 });
 
                 menuBtn.getItems().add( localNodeMenuItem );
@@ -377,21 +623,17 @@ public class ErgoNodesList {
         m_doGridUpdate.addListener((obs, oldval, newval) -> updateMenu.run());
 
     }
-
+ */
     
    
-    public SimpleStringProperty selectedIdProperty() {
-        return m_selectedId;
-    }
-
-    public void setselectedId(String id) {
-        m_selectedId.set(id);
-        save();
-    }
 
     
 
     public void shutdown() {
+        for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+            ErgoNodeData ergNodeData = entry.getValue();
+            ergNodeData.shutdown();
+        }
 
     }
 
@@ -400,643 +642,22 @@ public class ErgoNodesList {
         save();
     }*/
 
-    public void addLocalNode(){
-        if(m_ergoLocalNode == null){
-            m_ergoLocalNode = new ErgoNodeLocalData(FriendlyId.createFriendlyId(), this);
-            m_ergoLocalNode.addUpdateListener(m_nodeUpdateListener);
-            m_doGridUpdate.set(LocalDateTime.now());
-            save();
+    private String m_tmpId = null;
+
+    private String getNewId(){
+        m_tmpId = FriendlyId.createFriendlyId();
+
+        while(getNodeById(m_tmpId) != null){
+            m_tmpId = FriendlyId.createFriendlyId();
         }
+
+        return m_tmpId;
     }
+
+
 
     public ErgoNodes getErgoNodes() {
         return m_ergoNodes;
-    }
-
-    public void showAddNodeStage() {
-        if (m_addStage == null) {
-            String friendlyId = FriendlyId.createFriendlyId();
-
-            SimpleStringProperty nodeOption = new SimpleStringProperty(m_ergoLocalNode == null ? ErgoNodeLocalData.LOCAL_NODE : PUBLIC);
-
-            // Alert a = new Alert(AlertType.NONE, "updates: " + updatesEnabled, ButtonType.CLOSE);
-            //a.show();
-            NamedNodesList nodesList = new NamedNodesList( false, getErgoNodes().getNetworksData().getExecService());
-
-            //private
-            SimpleObjectProperty<NetworkType> networkTypeOption = new SimpleObjectProperty<NetworkType>(NetworkType.MAINNET);
-            SimpleStringProperty clientTypeOption = new SimpleStringProperty(ErgoNodeData.LIGHT_CLIENT);
-
-            Image icon = new Image(ErgoNodes.getSmallAppIconString());
-            String name = m_ergoNodes.getName();
-
-            VBox layoutBox = new VBox();
-
-            m_addStage = new Stage();
-            m_addStage.getIcons().add(icon);
-            m_addStage.setResizable(false);
-            m_addStage.initStyle(StageStyle.UNDECORATED);
-
-            double minWidth = 600;
-            double minHeight = 500;
-
-            Scene addNodeScene = new Scene(layoutBox, m_addStageWidth, m_addStageHeight);
-            addNodeScene.setFill(null);
-            String heading = "Add Node";
-            Button closeBtn = new Button();
-
-            String titleString = heading + " - " + name;
-            m_addStage.setTitle(titleString);
-
-            Button maximizeBtn = new Button();
-
-            HBox titleBox = App.createTopBar(icon, maximizeBtn, closeBtn, m_addStage);
-            Text headingText = new Text(heading);
-            headingText.setFont(App.txtFont);
-            headingText.setFill(Color.WHITE);
-
-            HBox headingBox = new HBox(headingText);
-            headingBox.prefHeight(40);
-            headingBox.setAlignment(Pos.CENTER_LEFT);
-            HBox.setHgrow(headingBox, Priority.ALWAYS);
-            headingBox.setPadding(new Insets(10, 10, 10, 10));
-            headingBox.setId("headingBox");
-
-            HBox headingPaddingBox = new HBox(headingBox);
-
-            headingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
-
-            VBox headerBox = new VBox(titleBox, headingPaddingBox);
-
-            headerBox.setPadding(new Insets(0, 5, 0, 5));
-
-            SimpleDoubleProperty rowHeight = new SimpleDoubleProperty(40);
-
-            Text nodeTypeText = new Text("Type ");
-            nodeTypeText.setFill(App.txtColor);
-            nodeTypeText.setFont(App.txtFont);
-
-            MenuButton typeBtn = new MenuButton();
-            typeBtn.setId("bodyRowBox");
-            typeBtn.setMinWidth(300);
-            typeBtn.setAlignment(Pos.CENTER_LEFT);
-
-            MenuItem defaultClientItem = new MenuItem("Public node (Remote client)");
-            defaultClientItem.setOnAction((e) -> {
-
-                nodeOption.set(PUBLIC);
-
-            });
-            defaultClientItem.setId("rowBtn");
-
-            MenuItem configureItem = new MenuItem("Custom (Remote client)");
-            configureItem.setOnAction((e) -> {
-
-                nodeOption.set(CUSTOM);
-
-            });
-            configureItem.setId("rowBtn");
-
-            MenuItem localNodeItem = new MenuItem("Local Node (Local host)");
-            localNodeItem.setOnAction(e->{});
-            localNodeItem.setId("rowBtn");
-            localNodeItem.setOnAction(e->{
-                nodeOption.set(ErgoNodeLocalData.LOCAL_NODE);
-            });
-            Runnable addLocalNodeOption = ()->{
-                if(m_ergoLocalNode == null){
-                    if(!typeBtn.getItems().contains(localNodeItem)){
-                        typeBtn.getItems().add(0,localNodeItem);
-                    }
-                }else{
-                    if(typeBtn.getItems().contains(localNodeItem)){
-                        typeBtn.getItems().remove(localNodeItem);
-                    }
-                }
-            };
-            addLocalNodeOption.run();
-
-            m_doGridUpdate.addListener((obs,oldval,newval)->addLocalNodeOption.run());            
-
-            typeBtn.getItems().addAll(defaultClientItem, configureItem);
-
-            Text publicNodesText = new Text("Public Nodes");
-            publicNodesText.setFill(App.txtColor);
-            publicNodesText.setFont(App.txtFont);
-
-            Tooltip enableUpdatesTip = new Tooltip("Update");
-            enableUpdatesTip.setShowDelay(new javafx.util.Duration(100));
-
-            BufferedButton getNodesListBtn = new BufferedButton(getDownloadImgUrl(), 30);
-            getNodesListBtn.setTooltip(enableUpdatesTip);
-            final String updateEffectId = "UPDATE_DISABLED";
-            Runnable updateEnableEffect = () -> {
-                boolean updatesEnabled = false;
-
-                enableUpdatesTip.setText("Updates settings: " + (updatesEnabled ? "Enabled" : "Disabled"));
-                if (!updatesEnabled) {
-                    if (getNodesListBtn.getBufferedImageView().getEffect(updateEffectId) == null) {
-                        getNodesListBtn.getBufferedImageView().applyEffect(new InvertEffect(updateEffectId, 0.7));
-                    }
-                } else {
-                    getNodesListBtn.getBufferedImageView().removeEffect(updateEffectId);
-                }
-            };
-
-            getNodesListBtn.setOnAction((e) -> {
-                nodesList.getGitHubList(getErgoNodes().getNetworksData().getExecService());
-            });
-
-        
-
-            updateEnableEffect.run();
-            Region btnSpacerRegion = new Region();
-            HBox.setHgrow(btnSpacerRegion, Priority.ALWAYS);
-
-            HBox publicNodesBox = new HBox(publicNodesText, btnSpacerRegion, getNodesListBtn);
-            publicNodesBox.setAlignment(Pos.CENTER_LEFT);
-            publicNodesBox.setMinHeight(40);
-          
-
-            HBox nodeTypeBox = new HBox(nodeTypeText, typeBtn);
-            // Binding<Double> viewportWidth = Bindings.createObjectBinding(()->settingsScroll.viewportBoundsProperty().get().getWidth(), settingsScroll.viewportBoundsProperty());
-
-
-            typeBtn.minWidthProperty().bind(nodeTypeBox.widthProperty().subtract(nodeTypeText.layoutBoundsProperty().get().getWidth()).subtract(5));
-            nodeTypeBox.setAlignment(Pos.CENTER_LEFT);
-            nodeTypeBox.setPadding(new Insets(0));
-            nodeTypeBox.minHeightProperty().bind(rowHeight);
-            HBox.setHgrow(nodeTypeBox, Priority.ALWAYS);
-            VBox namedNodesGridBox = nodesList.getGridBox();
-
-            ScrollPane namedNodesScroll = new ScrollPane(namedNodesGridBox);
-            namedNodesScroll.setId("darkBox");
-            namedNodesScroll.setPadding(new Insets(10));
-
-            HBox nodeScrollBox = new HBox(namedNodesScroll);
-            nodeScrollBox.setPadding(new Insets(0, 15, 0, 0));
-
-            Text namedNodeText = new Text("Node ");
-            namedNodeText.setFill(App.altColor);
-            namedNodeText.setFont(App.txtFont);
-
-            Button namedNodeBtn = new Button();
-            namedNodeBtn.setId("darkBox");
-            namedNodeBtn.setAlignment(Pos.CENTER_LEFT);
-            namedNodeBtn.setPadding(new Insets(5, 5, 5, 10));
-
-            Runnable updateSelectedBtn = () -> {
-                String selectedId = nodesList.selectedNamedNodeIdProperty().get();
-                if (selectedId == null) {
-                    namedNodeBtn.setText("(select node)");
-                } else {
-                    NamedNodeUrl namedNodeUrl = nodesList.getNamedNodeUrl(selectedId);
-                    if (namedNodeUrl != null) {
-                        namedNodeBtn.setText(namedNodeUrl.getName());
-                    } else {
-                        namedNodeBtn.setText("(select node)");
-                    }
-                }
-            };
-
-            updateSelectedBtn.run();
-
-            nodesList.selectedNamedNodeIdProperty().addListener((obs, oldval, newVal) -> updateSelectedBtn.run());
-
-            HBox nodesBox = new HBox(namedNodeText, namedNodeBtn);
-            nodesBox.setAlignment(Pos.CENTER_LEFT);
-            nodesBox.setMinHeight(40);
-            nodesBox.setPadding(new Insets(10, 0, 0, 0));
-
-            namedNodeBtn.prefWidthProperty().bind(nodesBox.widthProperty().subtract(namedNodeText.layoutBoundsProperty().get().getWidth()).subtract(15));
-            namedNodesScroll.prefViewportWidthProperty().bind(nodesBox.widthProperty());
-
-            SimpleDoubleProperty scrollWidth = new SimpleDoubleProperty(0);
-
-            namedNodesGridBox.heightProperty().addListener((obs, oldVal, newVal) -> {
-                double scrollViewPortHeight = namedNodesScroll.prefViewportHeightProperty().doubleValue();
-                double gridBoxHeight = newVal.doubleValue();
-
-                if (gridBoxHeight > scrollViewPortHeight) {
-                    scrollWidth.set(40);
-                }
-
-            });
-
-            nodesList.gridWidthProperty().bind(nodesBox.widthProperty().subtract(40).subtract(scrollWidth));
-
-            VBox lightClientOptions = new VBox(publicNodesBox, nodeScrollBox, nodesBox);
-            lightClientOptions.setId("bodyBox");
-            lightClientOptions.setPadding(new Insets(5,10,10,20));
-            /* 
-            *
-            ***********Custom properties 
-            *
-             */
-            Text nodeName = new Text(String.format("%-13s", "Name"));
-            nodeName.setFill(App.txtColor);
-            nodeName.setFont(App.txtFont);
-
-            TextField nodeNameField = new TextField("Node #" + friendlyId);
-            nodeNameField.setFont(App.txtFont);
-            nodeNameField.setId("formField");
-            HBox.setHgrow(nodeNameField, Priority.ALWAYS);
-
-            HBox nodeNameBox = new HBox(nodeName, nodeNameField);
-            nodeNameBox.setAlignment(Pos.CENTER_LEFT);
-            nodeNameBox.minHeightProperty().bind(rowHeight);
-
-            Text networkTypeText = new Text(String.format("%-13s", "Network Type"));
-            networkTypeText.setFill(App.txtColor);
-            networkTypeText.setFont(App.txtFont);
-
-            MenuButton networkTypeBtn = new MenuButton("MAINNET");
-            networkTypeBtn.setFont(App.txtFont);
-            networkTypeBtn.setId("formField");
-            HBox.setHgrow(networkTypeBtn, Priority.ALWAYS);
-
-            MenuItem mainnetItem = new MenuItem("MAINNET");
-            mainnetItem.setId("rowBtn");
-
-            MenuItem testnetItem = new MenuItem("TESTNET");
-            testnetItem.setId("rowBtn");
-
-            networkTypeBtn.getItems().addAll(mainnetItem, testnetItem);
-
-            HBox networkTypeBox = new HBox(networkTypeText, networkTypeBtn);
-            networkTypeBox.setAlignment(Pos.CENTER_LEFT);
-            networkTypeBox.minHeightProperty().bind(rowHeight);
-
-            Text apiKeyText = new Text(String.format("%-13s", "API Key"));
-            apiKeyText.setFill(App.txtColor);
-            apiKeyText.setFont(App.txtFont);
-
-            TextField apiKeyField = new TextField("");
-            apiKeyField.setFont(App.txtFont);
-            apiKeyField.setId("formField");
-            apiKeyField.setPromptText("(enter API Key)");
-            HBox.setHgrow(apiKeyField, Priority.ALWAYS);
-
-            HBox apiKeyBox = new HBox(apiKeyText, apiKeyField);
-            apiKeyBox.setAlignment(Pos.CENTER_LEFT);
-            apiKeyBox.minHeightProperty().bind(rowHeight);
-
-            Text nodePortText = new Text(String.format("%-13s", "Port"));
-            nodePortText.setFill(App.txtColor);
-            nodePortText.setFont(App.txtFont);
-
-            TextField nodePortField = new TextField("9053");
-            nodePortField.setId("formField");
-            HBox.setHgrow(nodePortField, Priority.ALWAYS);
-
-            nodePortField.textProperty().addListener((obs, oldval, newVal) -> {
-
-                if (!newVal.matches("\\d*")) {
-                    newVal = newVal.replaceAll("[^\\d]", "");
-
-                }
-                int intVal = Integer.parseInt(newVal);
-
-                if (intVal > 65535) {
-                    intVal = 65535;
-                }
-
-                nodePortField.setText(intVal + "");
-
-            });
-
-            nodePortField.focusedProperty().addListener((obs, oldval, newVal) -> {
-                if (!newVal) {
-                    String portString = nodePortField.getText();
-                    int intVal = Integer.parseInt(portString);
-
-                    if (intVal < 1025) {
-                        if (networkTypeOption.get().equals(NetworkType.TESTNET)) {
-                            nodePortField.setText(ErgoNodes.TESTNET_PORT + "");
-                        } else {
-                            nodePortField.setText(ErgoNodes.MAINNET_PORT + "");
-                        }
-
-                        Alert portSmallAlert = new Alert(AlertType.NONE, "The minimum port value which may be assigned is: 1025\n\n(Default value used.)", ButtonType.CLOSE);
-                        portSmallAlert.initOwner(m_addStage);
-                        portSmallAlert.setHeaderText("Invalid Port");
-                        portSmallAlert.setTitle("Invalid Port");
-                        portSmallAlert.show();
-                    }
-
-                }
-            });
-
-            HBox nodePortBox = new HBox(nodePortText, nodePortField);
-            nodePortBox.setAlignment(Pos.CENTER_LEFT);
-            nodePortBox.minHeightProperty().bind(rowHeight);
-
-            testnetItem.setOnAction((e) -> {
-                networkTypeBtn.setText(testnetItem.getText());
-                networkTypeOption.set(NetworkType.TESTNET);
-                int portValue = Integer.parseInt(nodePortField.getText());
-                if (portValue == ErgoNodes.MAINNET_PORT) {
-                    nodePortField.setText(ErgoNodes.TESTNET_PORT + "");
-                }
-            });
-
-            mainnetItem.setOnAction((e) -> {
-                networkTypeBtn.setText(mainnetItem.getText());
-                networkTypeOption.set(NetworkType.MAINNET);
-
-                int portValue = Integer.parseInt(nodePortField.getText());
-                if (portValue == ErgoNodes.TESTNET_PORT) {
-                    nodePortField.setText(ErgoNodes.MAINNET_PORT + "");
-                }
-
-            });
-
-            Text nodeUrlText = new Text(String.format("%-13s", "IP"));
-            nodeUrlText.setFill(App.txtColor);
-            nodeUrlText.setFont(App.txtFont);
-
-            TextField nodeUrlField = new TextField("127.0.0.1");
-            nodeUrlField.setFont(App.txtFont);
-            nodeUrlField.setId("formField");
-            HBox.setHgrow(nodeUrlField, Priority.ALWAYS);
-
-            HBox nodeUrlBox = new HBox(nodeUrlText, nodeUrlField);
-            nodeUrlBox.setAlignment(Pos.CENTER_LEFT);
-            nodeUrlBox.minHeightProperty().bind(rowHeight);
-
-            Region urlSpaceRegion = new Region();
-            urlSpaceRegion.setMinHeight(40);
-
-            VBox customClientOptionsBox = new VBox(nodeNameBox, networkTypeBox, nodeUrlBox, nodePortBox, apiKeyBox);
-            customClientOptionsBox.setPadding(new Insets(15, 0, 0, 15));
-            customClientOptionsBox.setId("bodyBox");
-        
-            Text localNodeHeadingText = new Text("Local Node");
-            localNodeHeadingText.setFont(App.txtFont);
-            localNodeHeadingText.setFill(App.txtColor);
-
-            HBox localNodeHeadingBox = new HBox(localNodeHeadingText);
-            headingBox.prefHeight(40);
-            headingBox.setAlignment(Pos.CENTER_LEFT);
-            HBox.setHgrow(headingBox, Priority.ALWAYS);
-            headingBox.setPadding(new Insets(10, 10, 10, 10));
-            headingBox.setId("headingBox");
-
-            HBox localNodeHeadingPaddingBox = new HBox(localNodeHeadingBox);
-            localNodeHeadingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
-
-
-            TextArea localNodeTextArea = new TextArea(ErgoNodeLocalData.DESCRIPTION);
-            localNodeTextArea.setWrapText(true);
-            localNodeTextArea.setEditable(false);
-            VBox.setVgrow(localNodeTextArea, Priority.ALWAYS);
-
-    
-
-    
-
-
-
-            VBox localNodeTextAreaBox = new VBox(localNodeTextArea);
-            localNodeTextAreaBox.setPadding(new Insets(10));
-            localNodeTextArea.setId("bodyBox");
-            HBox.setHgrow(localNodeTextAreaBox, Priority.ALWAYS);
-            VBox.setVgrow(localNodeTextAreaBox,Priority.ALWAYS);
-
-            final String swapIncreaseUrl = Utils.getIncreseSwapUrl();
-            Tooltip swapIncreaseTooltip = new Tooltip("Open Url: " + swapIncreaseUrl);
-            swapIncreaseTooltip.setShowDelay(new Duration(50));
-
-            BufferedButton swapIncreaseBtn = new BufferedButton("/assets/warning-30.png", 30);
-            swapIncreaseBtn.setTooltip(swapIncreaseTooltip);
-            swapIncreaseBtn.setText("Increase swap size");
-            swapIncreaseBtn.setGraphicTextGap(10);
-            swapIncreaseBtn.setTextAlignment(TextAlignment.RIGHT);
-            swapIncreaseBtn.setOnAction((e)->{
-                m_ergoNodes.getNetworksData().getHostServices().showDocument(swapIncreaseUrl);
-            });
-            HBox swapBox = new HBox(swapIncreaseBtn);
-            HBox.setHgrow(swapBox, Priority.ALWAYS);
-            swapBox.setMinHeight(30);
-            swapBox.setAlignment(Pos.CENTER_RIGHT);
-            swapBox.setPadding(new Insets(0,10,0,10));
-
-            VBox localNodeOptionsBox = new VBox(localNodeHeadingBox, localNodeTextAreaBox);
-            localNodeOptionsBox.setPadding(new Insets(15,0,0,15));
-            VBox.setVgrow(localNodeOptionsBox, Priority.ALWAYS);
-            
-
-            VBox bodyOptionBox = new VBox(m_ergoLocalNode == null ? localNodeOptionsBox : lightClientOptions);
-            VBox.setVgrow(bodyOptionBox, Priority.ALWAYS);
-            bodyOptionBox.setPadding(new Insets(0, 0, 15, 15));
-
-            Button nextBtn = new Button("Add");
-            nextBtn.setPadding(new Insets(5, 15, 5, 15));
-
-            HBox nextBox = new HBox(nextBtn);
-            nextBox.setPadding(new Insets(0, 0, 0, 0));
-            nextBox.setMinHeight(50);
-            nextBox.setAlignment(Pos.CENTER_RIGHT);
-            HBox.setHgrow(nextBox, Priority.ALWAYS);
-
-            VBox bodyBox = new VBox(nodeTypeBox, bodyOptionBox, nextBox);
-            bodyBox.setId("bodyBox");
-            bodyBox.setPadding(new Insets(0, 10, 0, 10));
-            VBox.setVgrow(bodyBox, Priority.ALWAYS);
-            VBox bodyPaddingBox = new VBox(bodyBox);
-            bodyPaddingBox.setPadding(new Insets(0, 5, 0, 5));
-            VBox.setVgrow(bodyPaddingBox, Priority.ALWAYS);
-
-            Region footerSpacer = new Region();
-            footerSpacer.setMinHeight(5);
-
-            VBox footerBox = new VBox(footerSpacer);
-
-            layoutBox.getChildren().addAll(headerBox, bodyPaddingBox, footerBox);
-        
-            namedNodesScroll.prefViewportHeightProperty().bind(m_addStage.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(publicNodesBox.heightProperty()).subtract(nodesBox.heightProperty()));
-
-            rowHeight.bind(m_addStage.heightProperty().subtract(headerBox.heightProperty()).subtract(nodeTypeBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(95).divide(5));
-
-            addNodeScene.getStylesheets().add("/css/startWindow.css");
-            m_addStage.setScene(addNodeScene);
-            m_addStage.show();
-
-            ChangeListener<? super Node> listFocusListener = (obs, oldval, newVal) -> {
-                if (newVal != null && newVal instanceof IconButton) {
-                    IconButton iconButton = (IconButton) newVal;
-                    String btnId = iconButton.getButtonId();
-                    if (btnId != null) {
-                        nodesList.selectedNamedNodeIdProperty().set(btnId);
-                    }
-                }
-            };
-
-            Runnable setPublic = () -> {
-
-                bodyOptionBox.getChildren().clear();
-
-                bodyOptionBox.getChildren().add(lightClientOptions);
-
-                addNodeScene.focusOwnerProperty().addListener(listFocusListener);
-                typeBtn.setText(defaultClientItem.getText());
-       
-            };
-
-            Runnable setCuston = () -> {
-                bodyOptionBox.getChildren().clear();
-
-                bodyOptionBox.getChildren().add(customClientOptionsBox);
-
-                addNodeScene.focusOwnerProperty().removeListener(listFocusListener);
-                typeBtn.setText(configureItem.getText());
-               
-            };
-
-            Runnable setLocal = () -> {
-
-
-                bodyOptionBox.getChildren().clear();
-                bodyOptionBox.getChildren().add(localNodeOptionsBox);
-
-                addNodeScene.focusOwnerProperty().removeListener(listFocusListener);
-                typeBtn.setText(localNodeItem.getText());
-                if(m_addStage.isMaximized()){
-                    maximizeBtn.fire();
-                }
-
-            };
-
-            Runnable switchPublic = () -> {
-                switch (nodeOption.get()) {
-                    case CUSTOM:
-                        setCuston.run();
-                        break;
-                    case ErgoNodeLocalData.LOCAL_NODE:
-                        setLocal.run();
-                        break;
-                    default:
-                        setPublic.run();
-                        break;
-                }
-            };
-
-            nodeOption.addListener((obs, oldVal, newVal) -> {
-                switchPublic.run();
-              
-            });
-
-            switchPublic.run();
-
-    
-
-            ScheduledExecutorService executor = Executors.newScheduledThreadPool(1, new ThreadFactory() {
-                public Thread newThread(Runnable r) {
-                    Thread t = Executors.defaultThreadFactory().newThread(r);
-                    t.setDaemon(true);
-                    return t;
-                }
-            });
-
-            Runnable setUpdated = () -> {
-                save();
-            };
-
-            addNodeScene.widthProperty().addListener((obs, oldVal, newVal) -> {
-                m_addStageWidth = newVal.doubleValue();
-
-                if (m_lastExecution != null && !(m_lastExecution.isDone())) {
-                    m_lastExecution.cancel(false);
-                }
-
-                m_lastExecution = executor.schedule(setUpdated, EXECUTION_TIME, TimeUnit.MILLISECONDS);
-            });
-
-            addNodeScene.heightProperty().addListener((obs, oldVal, newVal) -> {
-                m_addStageHeight = newVal.doubleValue();
-
-                if (m_lastExecution != null && !(m_lastExecution.isDone())) {
-                    m_lastExecution.cancel(false);
-                }
-
-                m_lastExecution = executor.schedule(setUpdated, EXECUTION_TIME, TimeUnit.MILLISECONDS);
-            });
-
-            ResizeHelper.addResizeListener(m_addStage, minWidth, minHeight, Double.MAX_VALUE, Double.MAX_VALUE);
-
-            maximizeBtn.setOnAction(maxEvent -> {
-                boolean maximized = m_addStage.isMaximized();
-
-                m_addStageMaximized = !maximized;
-
-                if (!maximized) {
-                    m_prevAddStageWidth = m_addStage.getWidth();
-                    m_prevAddStageHeight = m_addStage.getHeight();
-                }
-                save();
-                m_addStage.setMaximized(m_addStageMaximized);
-            });
-
-            Runnable doClose = () -> {
-                if(m_addStage != null){
-                    m_addStage.close();
-                    m_addStage = null;
-                }
-            };
-            Runnable showNoneSelect = () -> {
-                Alert a = new Alert(AlertType.NONE, "Select a node.", ButtonType.OK);
-                a.setTitle("Select a node");
-                a.initOwner(m_addStage);
-                a.show();
-            };
-
-            Runnable setupLocalNode = ()->{
-                m_ergoLocalNode.setup();
-            };
-            
-            nextBtn.setOnAction((e) -> {
-                switch (nodeOption.get()) {
-                    case CUSTOM:
-                        add(new ErgoNodeData(this, clientTypeOption.get(), new NamedNodeUrl(friendlyId, nodeNameField.getText(), nodeUrlField.getText(), Integer.parseInt(nodePortField.getText()), apiKeyField.getText(), networkTypeOption.get())), true);
-                        m_doGridUpdate.set(LocalDateTime.now());
-                        doClose.run();
-                        break;
-                    case ErgoNodeLocalData.LOCAL_NODE:
-                        addLocalNode();
-                        setupLocalNode.run();
-                        
-                        doClose.run();
-                    break;
-                    default:
-                        String nodeId = nodesList.selectedNamedNodeIdProperty().get();
-                        if (nodeId != null) {
-                            NamedNodeUrl namedNodeUrl = nodesList.getNamedNodeUrl(nodeId);
-
-                            add(new ErgoNodeData(this, ErgoNodeData.LIGHT_CLIENT, namedNodeUrl), true);
-                            m_doGridUpdate.set(LocalDateTime.now());
-                            doClose.run();
-                        } else {
-                            showNoneSelect.run();
-                        }
-                        break;
-                }
-            });
-
-            m_ergoNodes.shutdownNowProperty().addListener((obs, oldVal, newVal) -> {
-                doClose.run();
-            });
-
-            m_addStage.setOnCloseRequest((e) -> doClose.run());
-
-            closeBtn.setOnAction((e) -> doClose.run());
-        } else {
-            if (m_addStage.isIconified()) {
-                m_addStage.setIconified(false);
-            }
-            m_addStage.show();
-      
-            
-        }
     }
 
     public String getMemoryInfoString(FreeMemory freeMemory){
@@ -1086,8 +707,201 @@ public class ErgoNodesList {
         return -1; 
     }
 
-    public ErgoNodeLocalData getErgoLocalNode() {
-        return m_ergoLocalNode;
+    public ErgoNodeLocalData getLocalNode(String id) {
+
+        ErgoNodeData nodeData = m_dataList.get(id);
+            
+        return nodeData instanceof ErgoNodeLocalData ? (ErgoNodeLocalData) nodeData : null;
+        
     }
+
+
+
+    public ErgoNodeData getRemoteNodeByUrl(String urlString){
+        if (urlString != null) {
+              
+            for (Map.Entry<String, ErgoNodeData> entry : m_dataList.entrySet()) {
+                ErgoNodeData nodeData = entry.getValue();
+
+                if(nodeData.getNamedNodeUrl().getUrlString().equals(urlString)){
+                    return nodeData;
+                }
+            }
+            
+        }
+        return null;
+    }
+
+    public String addRemoteNode(JsonObject note){
+        if(note != null){
+            JsonElement dataElement = note.get("data");
+            JsonObject dataJson = dataElement != null ? dataElement.getAsJsonObject() : null;
+            
+            
+            if(dataJson != null){
+
+                NamedNodeUrl nodeUrl = null;
+                try{
+                    nodeUrl = new NamedNodeUrl(dataJson);
+                }catch(Exception e){
+                    try {
+                        Files.writeString(App.logFile.toPath(), "\naddRemoteNode failed: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e1) {
+
+                    }
+                }
+
+
+                if(nodeUrl != null){
+                    
+
+                    ErgoNodeData existingNode = getRemoteNodeByUrl(nodeUrl.getUrlString());
+        
+                    if(existingNode != null){
+                        return existingNode.getNetworkId();
+                    }
+                    
+                   
+                    String configId = FriendlyId.createFriendlyId();
+                    String networkId = getNewId();
+                    ErgoNodeData ergoNodeData = new ErgoNodeData(networkId, nodeUrl.getName(), ErgoNodeData.LIGHT_CLIENT, configId, this, nodeUrl);
+
+                   
+                    addRemoteNode(ergoNodeData, true);
+
+                    return networkId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public ExecutorService getExecService(){
+        return getNetworksData().getExecService();
+    }
+
+
+    public JsonObject addLocalNode(JsonObject note){
+       
+        if(note != null){
+            JsonElement dataElement = note.get("data");
+
+            if(dataElement != null && dataElement.isJsonObject()){
+
+        
+                JsonObject dataJson = dataElement.getAsJsonObject();
+
+                JsonElement namedNodeElement = dataJson.get("namedNode");
+                
+
+                JsonElement configFileNameElement = dataJson.get("configFileName");
+                JsonElement configTextElement = dataJson.get("configText");
+
+                JsonElement isAppElement = dataJson.get("isAppFile");
+                JsonElement appFileElement = dataJson.get("appFile");
+
+                JsonElement appDirElement = dataJson.get("appDir");
+
+                if(namedNodeElement != null && namedNodeElement.isJsonObject() && appDirElement != null){
+                    NamedNodeUrl namedNodeUrl = null;
+                    try {
+                        JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
+                     
+                        namedNodeUrl = new NamedNodeUrl(namedNodeJson);
+                    } catch (Exception e1) {
+                        return Utils.getMsgObject(App.ERROR, e1.toString());
+                    }
+
+                    if(configFileNameElement != null){
+                        String configFileName = configFileNameElement.getAsString();
+                        String configText = configTextElement != null ? configTextElement.getAsString() : null;
+
+                        File roots[] = App.getRoots();
+                        String appDirString = appDirElement != null && appDirElement.isJsonPrimitive() ? appDirElement.getAsString() : null;
+
+                        File appDir = appDirElement != null && Utils.findPathPrefixInRoots(roots, appDirString) ? new File(appDirString) : null;
+
+                        
+
+                        if(appDir != null){
+            
+
+                            if(!appDir.isDirectory()){
+                                try {
+                                    boolean success = appDir.mkdirs();
+                                    if (!success && !appDir.isDirectory()) {
+                                    
+                                        return Utils.getMsgObject(App.ERROR, "Unable to access folder location");
+                                    }
+
+                                } catch (SecurityException e1) {
+                                    return Utils.getMsgObject(App.ERROR, e1.toString());
+                                }
+                            }
+
+                            if(getLocalNodeByFile(appDir) != null){
+                                return Utils.getMsgObject(App.ERROR, "Directory contains an existing node");
+                            }
+
+                            boolean isAppFile = isAppElement != null && isAppElement.isJsonPrimitive() ? isAppElement.getAsBoolean() : false;
+                            String appFileString = isAppFile && appFileElement != null && appFileElement.isJsonPrimitive() ? appFileElement.getAsString() : null;
+
+                            File appFile = appFileString != null && Utils.findPathPrefixInRoots(roots, appFileString) ? new File(appFileString) : null;
+                        
+            
+                            if((isAppFile && appFile != null) || !isAppFile){
+                                
+                                
+                                String id = getNewId();
+                                String configId = FriendlyId.createFriendlyId();
+                                
+                                
+                                try {
+                                    ErgoNodeLocalData localNodeData = new ErgoNodeLocalData(id,configId, appDir, isAppFile, appFile, configFileName, configText, namedNodeUrl, this);
+                                    addNode(localNodeData, true);
+                                             
+                                    JsonObject returnObject = Utils.getJsonObject("code", App.SUCCESS);
+                                    returnObject.addProperty("id",id);
+                                    returnObject.addProperty("configId", configId);
+
+                                    return returnObject;
+                                } catch (Exception e1) {
+                                    return Utils.getMsgObject(App.ERROR, e1.toString());
+                                }
+                                
+                            }else{
+                                
+                                return Utils.getMsgObject(App.ERROR, "App file missing");
+                                
+                            }
+                        
+                        }else{
+                
+                            return Utils.getMsgObject(App.ERROR, "Directory element missing");
+                        }
+                    }else{
+                        return Utils.getMsgObject(App.ERROR, "Config element missing");
+                    }
+                
+                }else{
+                    
+                    return Utils.getMsgObject(App.ERROR, "Named node json object missing");
+                }
+
+
+            }else{
+                return Utils.getMsgObject(App.ERROR, "Note data element required");
+            }
+        }else{
+            return Utils.getMsgObject(App.ERROR, "Note is null");
+        }
+                    
+          
+
+        
+
+    }
+
 
 }

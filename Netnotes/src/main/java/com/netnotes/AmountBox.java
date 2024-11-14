@@ -1,10 +1,7 @@
 package com.netnotes;
 
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import com.devskiller.friendly_id.FriendlyId;
 
@@ -30,7 +27,6 @@ public class AmountBox extends HBox implements AmountBoxInterface {
     private int m_minImgWidth = 250;
     private long m_timestamp = 0;
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
-    private ErgoTokens m_ergoTokens = null;
 
     private ChangeListener<PriceQuote> m_priceQuoteListener = null;
     private ChangeListener<BigDecimal> m_amountListener = null;
@@ -44,13 +40,12 @@ public class AmountBox extends HBox implements AmountBoxInterface {
  
     
 
-    public AmountBox(ErgoTokens ergoTokens, PriceAmount priceAmount, Scene scene) {
+    public AmountBox(PriceAmount priceAmount, Scene scene) {
         super();
         int rowPadding = 2;
 
         m_id = FriendlyId.createFriendlyId();
         m_priceAmount = priceAmount;
-        m_ergoTokens = ergoTokens;
         
         TextField currencyName = new TextField(priceAmount.getCurrency().getName());
         HBox.setHgrow(currencyName,Priority.ALWAYS);
@@ -79,7 +74,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         balanceFieldBox.setMaxHeight(18);
 
         //tokenId
-        Label tokenIdIcon = new Label("⊢");
+        Label tokenIdIcon = new Label("  ");
         tokenIdIcon.setId("logoBtn");
 
         Label tokenIdText = new Label("Token Id"); 
@@ -103,7 +98,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         tokenIdBox.setPadding(new Insets(0,0,rowPadding,0));
 
         //Description
-        Label descriptionIcon = new Label("⊢");
+        Label descriptionIcon = new Label("  ");
         descriptionIcon.setId("logoBtn");
 
         Label descriptionText = new Label("Description"); 
@@ -128,7 +123,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         descriptionBox.setPadding(new Insets(0, 0,rowPadding,0));
         //emissionAmount
 
-        Label emissionAmountIcon = new Label("⊢");
+        Label emissionAmountIcon = new Label("  ");
         emissionAmountIcon.setId("logoBtn");
 
         Label emissionAmountText = new Label("Emission"); 
@@ -153,7 +148,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         emissionAmountBox.setPadding(new Insets(0,0,rowPadding,0));
         //decimals
 
-        Label decimalsIcon = new Label("⊢");
+        Label decimalsIcon = new Label("  ");
         decimalsIcon.setId("logoBtn");
 
         Label decimalsText = new Label("Decimals"); 
@@ -178,7 +173,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         //Url
 
-        Label urlIcon = new Label("⊢");
+        Label urlIcon = new Label("  ");
         urlIcon.setId("logoBtn");
 
         Label urlText = new Label("Url"); 
@@ -190,24 +185,8 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         HBox.setHgrow(urlField,Priority.ALWAYS);
         urlField.textProperty().bind(m_priceAmount.getCurrency().urlProperty());
 
-        Label urlBtn = new Label("⇱");
-        urlBtn.setId("lblBtn");
 
-        urlBtn.setOnMouseClicked(e->{
-           
-            
-            m_ergoTokens.getNetworksData().getHostServices().showDocument(m_priceAmount.getCurrency().urlProperty().get());
-            
-            try {
-                Files.writeString(App.logFile.toPath(),m_priceAmount.getCurrency().urlProperty().get() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
 
-            }
-
-            //m_priceAmount.getCurrency().visitUrl();
-            
-            
-        });
 
         HBox urlFieldBox = new HBox(urlField);
         HBox.setHgrow(urlFieldBox,Priority.ALWAYS);
@@ -215,13 +194,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         urlFieldBox.setAlignment(Pos.CENTER_LEFT);
         urlFieldBox.setMaxHeight(18);
   
-        HBox urlBox = new HBox(urlIcon, urlText, urlFieldBox, urlBtn);
+        HBox urlBox = new HBox(urlIcon, urlText, urlFieldBox);
         HBox.setHgrow(urlBox,Priority.ALWAYS);
         urlBox.setAlignment(Pos.CENTER_LEFT);
         urlBox.setPadding(new Insets(0,0,rowPadding,0));
         //Image
 
-        Label imageIcon = new Label("⊢");
+        Label imageIcon = new Label("  ");
         imageIcon.setId("logoBtn");
 
         Label imageText = new Label("Image"); 
@@ -247,14 +226,9 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         imageBox.setAlignment(Pos.CENTER_LEFT);
         imageBox.setPadding(new Insets(0,0,rowPadding,0));
 
-        
-        ///
-
         Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷ " : "⏵ ");
         toggleShowSubMenuBtn.setId("caretBtn");
         toggleShowSubMenuBtn.setMinWidth(25);
-
-
 
         VBox bodyBox = new VBox( imageBox, tokenIdBox, urlBox, descriptionBox, emissionAmountBox, decimalsBox);
         HBox.setHgrow(bodyBox,Priority.ALWAYS);
@@ -263,7 +237,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         HBox bodyPaddingBox = new HBox();
         HBox.setHgrow(bodyBox,Priority.ALWAYS);
         bodyBox.setAlignment(Pos.CENTER_LEFT);
-        bodyPaddingBox.setPadding(new Insets(0,25,0,25));
+        
 
         HBox topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, balanceFieldBox);
         HBox.setHgrow(topBox, Priority.ALWAYS);
@@ -330,10 +304,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
        
     }
 
-    public void update(){
-        m_priceAmount.getCurrency().update();
-    }
-  
+   
 
     public long getTimeStamp(){
         return m_timestamp;
@@ -397,7 +368,4 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         
     }
 
-    public void updateToken(){
-        m_priceAmount.getCurrency().update();
-    }
 }

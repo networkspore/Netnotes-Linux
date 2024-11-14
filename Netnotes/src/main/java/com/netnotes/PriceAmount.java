@@ -22,7 +22,7 @@ public class PriceAmount  {
     private final PriceCurrency m_currency;
     
     private long m_created = System.currentTimeMillis();
-    private long m_timeStamp = 0;
+    private long m_timeStamp = System.currentTimeMillis();
     private String m_marketId = null;
 
     public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency, SimpleObjectProperty<PriceQuote> priceQuoteProperty){
@@ -102,7 +102,7 @@ public class PriceAmount  {
         String name = nameElement != null && nameElement.isJsonPrimitive() ? nameElement.getAsString() : "null"; 
         String tokenType = tokenTypeElement != null && tokenTypeElement.isJsonPrimitive() ? tokenTypeElement.getAsString() : null;
         String networkType = networkTypeElement != null && networkTypeElement.isJsonPrimitive() ? networkTypeElement.getAsString() : NetworkType.MAINNET.toString();
-        PriceCurrency importCurrency = new PriceCurrency(ergoTokens, tokenId,name,decimals,tokenType, networkType);
+        PriceCurrency importCurrency = new PriceCurrency(tokenId,name,decimals,tokenType, networkType);
 
 
         m_currency = importCurrency;
@@ -112,6 +112,45 @@ public class PriceAmount  {
         
     }
     
+
+    public JsonObject getAmountObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("decimalAmount", getBigDecimalAmount());
+        json.addProperty("longAmount", getLongAmount());
+        json.addProperty("name", getCurrency().getName());
+        json.addProperty("tokenId", getCurrency().getTokenId());
+        json.addProperty("decimals", getCurrency().getDecimals());
+
+        return json;
+    }
+
+    public static PriceAmount getByAmountObject(JsonObject json, NetworkType networkType){
+
+        JsonElement decimalElement = json.get("decimalAmount");
+        JsonElement longElement = json.get("longAmount");
+        JsonElement nameElement = json.get("name");
+        JsonElement tokenIdElement = json.get("tokenId");
+        JsonElement decimalsElement = json.get("decimals");
+
+        BigDecimal decimalAmount = decimalElement != null ? decimalElement.getAsBigDecimal() : null;
+        long longAmount = decimalAmount == null && longElement != null ? longElement.getAsLong() : -1;
+
+        if(decimalAmount == null && longAmount == -1){
+            return null;
+        }
+
+        String name = nameElement != null ? nameElement.getAsString() : null;
+        String tokenId = tokenIdElement != null ? tokenIdElement.getAsString() : null;
+        int decimals = decimalsElement != null ? decimalsElement.getAsInt() : -1;
+
+        if(name == null || tokenId == null || decimals == -1){
+            return null;
+        }
+        PriceCurrency currency = new PriceCurrency(tokenId, name, decimals, "simple", networkType.toString());
+
+        return decimalAmount != null ? new PriceAmount(decimalAmount, currency) : new PriceAmount(longAmount, currency);
+        
+    }
    
 
 

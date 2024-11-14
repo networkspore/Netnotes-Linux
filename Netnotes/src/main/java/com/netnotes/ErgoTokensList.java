@@ -46,11 +46,12 @@ public class ErgoTokensList  {
 
     private final SimpleObjectProperty<ErgoExplorerList> m_ergoExplorersList = new SimpleObjectProperty<>(null);
 
-    private ErgoToken m_ergoToken = null; 
+    private ErgoNetworkToken m_ergoToken = null;
+
+
 
     private File m_tokensDir;
     public ErgoTokensList(ErgoTokens ergoTokens) {
-       
         m_ergoTokens = ergoTokens;
         setup();
     }
@@ -160,7 +161,7 @@ public class ErgoTokensList  {
                         }
                     }
                     save();
-                    m_ergoTokens.sendMessage(App.UPDATED, System.currentTimeMillis());
+               
        
                 }
             } catch (IOException e) {
@@ -176,6 +177,11 @@ public class ErgoTokensList  {
             openJsonArray(jsonArray);
         }
     }
+
+    public ErgoExplorers getErgoExplorers()  {
+        return m_ergoTokens.getErgoNetworkData().getErgoExplorers();
+    }
+
   
     private void openJsonArray(JsonArray jsonArray){
         for(int i = 0; i < jsonArray.size() ; i ++){
@@ -195,7 +201,6 @@ public class ErgoTokensList  {
             }
 
         }
-        m_ergoTokens.sendMessage(App.UPDATED, System.currentTimeMillis());
     }
     
     /*public ErgoTokensList(ArrayList<ErgoTokenData> networkTokenList, NetworkType networkType, ErgoTokens ergoTokens) {
@@ -370,7 +375,7 @@ public class ErgoTokensList  {
         if(tokenId != null){
             if(tokenId.equals(ErgoCurrency.TOKEN_ID)){
                
-                m_ergoToken = m_ergoToken == null || (m_ergoToken != null) ? new ErgoToken(this) : m_ergoToken;
+                m_ergoToken = m_ergoToken == null || (m_ergoToken != null) ? new ErgoNetworkToken(this) : m_ergoToken;
                    
                 return m_ergoToken;
             }else{
@@ -428,7 +433,7 @@ public class ErgoTokensList  {
 
     public JsonObject getTokensStageObject() {
         JsonObject tokenStageObject = new JsonObject();
-        tokenStageObject.addProperty("subject", "GET_ERGO_TOKENS_STAGE");
+        tokenStageObject.addProperty(App.CMD, "GET_ERGO_TOKENS_STAGE");
         return tokenStageObject;
     }
 
@@ -441,6 +446,10 @@ public class ErgoTokensList  {
         addToken(tokenData, true);
     }
 
+    public ErgoNetwork getErgoNetwork(){
+        return m_ergoTokens.getErgoNetworkData().getErgoNetwork();
+    }
+
     public void addToken(ErgoTokenData tokenData, boolean save) {
        
         if (tokenData != null && tokenData.getTokenId() != null && tokenData.getName() != null) {
@@ -448,7 +457,15 @@ public class ErgoTokensList  {
                 m_dataList.add( tokenData);
                 if(save){
                     save();
-                    m_ergoTokens.sendMessage(App.LIST_ITEM_ADDED, System.currentTimeMillis(), tokenData.getTokenId());
+                    long timestamp =  System.currentTimeMillis();
+
+                    JsonObject json = Utils.getJsonObject("networkId", ErgoTokens.NETWORK_ID);
+                    json.addProperty("id", tokenData.getNetworkId());
+                    json.addProperty("code", App.LIST_ITEM_ADDED);
+                    json.addProperty("timeStamp", timestamp);
+
+                    getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timestamp, ErgoTokens.NETWORK_ID, json.toString());
+
                    
                 }
             }else{
@@ -477,7 +494,9 @@ public class ErgoTokensList  {
                   
                     if(save){
                         save();
-                        m_ergoTokens.sendMessage(App.LIST_ITEM_REMOVED, System.currentTimeMillis(), tokenId);
+                        long timestamp = System.currentTimeMillis();
+                        JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, tokenData.getNetworkId());
+                        m_ergoTokens.sendMessage(App.LIST_ITEM_REMOVED, timestamp, ErgoTokens.NETWORK_ID,  json.toString());
                     }
                     break;
                 }
@@ -494,7 +513,10 @@ public class ErgoTokensList  {
             addToken(tokenData, false);
             save();
 
-            m_ergoTokens.sendMessage(App.LIST_UPDATED, System.currentTimeMillis(), tokenData.getTokenId());
+            long timestamp = System.currentTimeMillis();
+            JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, tokenData.getNetworkId());
+
+            m_ergoTokens.sendMessage(App.LIST_UPDATED, System.currentTimeMillis(), ErgoTokens.NETWORK_ID,  json.toString());
         }
     }
 

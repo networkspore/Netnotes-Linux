@@ -1,7 +1,5 @@
 package com.netnotes;
 
-import java.awt.Color;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -15,36 +13,13 @@ import com.netnotes.ErgoTransactionPartner.PartnerType;
 import com.utils.Utils;
 import com.google.gson.JsonArray;
 
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.ListChangeListener;
-import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
-import javafx.geometry.Pos;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import javafx.util.Duration;
 
 public class ErgoTransaction {
   
@@ -132,37 +107,37 @@ public class ErgoTransaction {
         return null;
     }
 
-
+    public ErgoExplorers getExplorer(){
+        return getParentAddress().getErgoNetworkData().getErgoExplorers();
+    }
   
 
     public void doUpdate( boolean force){
-        NoteInterface noteInterface = getExplorer();
-        if(noteInterface != null){
 
-            long numConfirmations = numConfirmationsProperty().get();
 
-            if(numConfirmations < m_requiredConfirmations || force){
-          
-                JsonObject note = Utils.getCmdObject("getTransaction");
-                note.addProperty("networkId",getParentAddress().getErgoNetworkData().getId());
-                note.addProperty("txId", getTxId());
+        long numConfirmations = numConfirmationsProperty().get();
 
-                noteInterface.sendNote(note, (onSucceeded)->{
-                    Object sourceObject = onSucceeded.getSource().getValue();
-                    if(sourceObject != null && sourceObject instanceof JsonObject){
-                        Platform.runLater(()-> update((JsonObject) sourceObject));
-                    }
-                }, (onFailed)->{
-                    
-                    try {
-                        Files.writeString(App.logFile.toPath(), "\ntx doUpdate failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e) {
+        if(numConfirmations < m_requiredConfirmations || force){
         
-                    }
+            JsonObject note = Utils.getCmdObject("getTransaction");
+            note.addProperty("txId", getTxId());
 
-                }, null);
-            }
+            getExplorer().sendNote(note, (onSucceeded)->{
+                Object sourceObject = onSucceeded.getSource().getValue();
+                if(sourceObject != null && sourceObject instanceof JsonObject){
+                    Platform.runLater(()-> update((JsonObject) sourceObject));
+                }
+            }, (onFailed)->{
+                
+                try {
+                    Files.writeString(App.logFile.toPath(), "\ntx doUpdate failed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+    
+                }
+
+            });
         }
+        
     }
 
     public Stage getStage(){
@@ -286,9 +261,9 @@ public class ErgoTransaction {
     
 
     public void open(){
-        showErgoTxStage();
+       // showErgoTxStage();
     }
-
+/*
      public void showErgoTxStage(){
         if(m_stage == null){
            
@@ -525,7 +500,7 @@ public class ErgoTransaction {
             toBox.setPadding(new Insets(0,15,0,10));
             toBox.setMinHeight(30);
 
-            AmountBox ergoAmountBox = new AmountBox(getParentAddress().getErgoNetworkData().getErgoTokens(), getErgoAmount(), txScene);
+            AmountBox ergoAmountBox = new AmountBox(getErgoAmount(), txScene);
             HBox.setHgrow(ergoAmountBox, Priority.ALWAYS);
        
    
@@ -607,16 +582,14 @@ public class ErgoTransaction {
             
         }
     }
-
+*/
     public AddressData getParentAddress(){
         return m_parentAddress;
     }
 
 
 
-    public NoteInterface getExplorer(){
-        return getParentAddress().getErgoNetworkData().selectedExplorerData().get();
-    }
+   
 
     public SimpleStringProperty partnerTypeProperty(){
         return m_txPartnerTypeProperty;
@@ -625,16 +598,15 @@ public class ErgoTransaction {
     public void openLink(){
         NoteInterface noteInterface = getExplorer();
         JsonObject note = Utils.getCmdObject("getWebsiteTxLink");
-        note.addProperty("networkId",getParentAddress().getErgoNetworkData().getId());
         note.addProperty("txId", getTxId());
 
         Object obj = noteInterface.sendNote(note);
         if(obj != null && obj instanceof String){
             String explorerUrlString = (String) obj;
-            getParentAddress().getNetworksData().getHostServices().showDocument(explorerUrlString);
+            getParentAddress().getNetworksData().openHostUrl(explorerUrlString);
         }
     }
-
+    /*
     public HBox getTxBox(){
         Text txPartnerTypeText = new Text("Unknown");
         txPartnerTypeText.setFill(App.txtColor);
@@ -844,7 +816,7 @@ public class ErgoTransaction {
         
         return txBox;
     }
-
+    */
     public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
         return m_lastUpdated;
     }
@@ -880,7 +852,7 @@ public class ErgoTransaction {
                         String name = nameElement.getAsString();
                         String tokenType = tokenTypeElement.getAsString();
                         
-                        PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(ergoTokens, tokenId, name, decimals, tokenType, getParentAddress().getNetworkType().toString()));    
+                        PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency( tokenId, name, decimals, tokenType, getParentAddress().getNetworkType().toString()));    
                         tokenArrayList.add(tokenAmount);  
                         
                     }
@@ -1094,7 +1066,7 @@ public class ErgoTransaction {
         JsonObject json = new JsonObject();
       
         json.addProperty("txId", m_txId);
-        json.addProperty("parentAddress", m_parentAddress.getAddress().toString());
+        json.addProperty("parentAddress", m_parentAddress.getAddressString());
         json.addProperty("timeStamp", m_timeStamp);
         json.addProperty("txType", m_txTypeProperty.get());
         json.addProperty("status", m_status.get());

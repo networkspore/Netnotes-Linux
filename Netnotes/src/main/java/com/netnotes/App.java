@@ -11,6 +11,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.collections.ListChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 
 import java.security.spec.InvalidKeySpecException;
@@ -18,6 +19,7 @@ import java.security.NoSuchAlgorithmException;
 
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.control.Button;
@@ -75,8 +77,8 @@ import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 
 public class App extends Application {
 
-    public static final String CURRENT_VERSION = "v0.2.1-beta";
-
+    public static final String CURRENT_VERSION = "v0.4.0-beta";
+ 
     public static final String GITHUB_USER = "networkspore";
     public static final String GITHUB_PROJECT = "Netnotes-Linux";
     public static final String CMD_SHOW_APPSTAGE = "SHOW_APPSTAGE";
@@ -87,8 +89,6 @@ public class App extends Application {
     public final static double MENU_BAR_IMAGE_WIDTH = 18;
 
     public final static String ASSETS_DIRECTORY = "/assets";
-
-    public static final String GET_DATA = "GET_DATA";
 
     public final static String AUTORUN_WARNING = "The autorun feature requires an encrypted version of your private key to be saved to disk.\n\nNotice: In order to minimize the security risk the key will be encrypted using platform specific information. Updating or changing base system hardware, such as your motherboard or bios, may invalidate the key and require the autorun feature to be re-enabled in Netnotes settings.\n\n";
     
@@ -103,26 +103,51 @@ public class App extends Application {
     public static final int UPDATED = 4;
     public static final int SHUTDOWN = 5;
     public static final int WARNING = 6;
+    public static final int STATUS = 7;
+    public static final int INFO = 8;
+    public static final int SUCCESS = 9;
+    public static final int STOPPING = 10;
+    public static final int UPDATING = 11;
     
-    public static final int LIST_CHANGED = 10;
-    public static final int LIST_CHECKED = 11;
-    public static final int LIST_UPDATED = 12;
-    public static final int LIST_ITEM_ADDED = 13;
-    public static final int LIST_ITEM_REMOVED = 14;
+    public static final int LIST_CHANGED = 20;
+    public static final int LIST_CHECKED = 21;
+    public static final int LIST_UPDATED = 22;
+    public static final int LIST_ITEM_ADDED = 23;
+    public static final int LIST_ITEM_REMOVED = 24;
+    public static final int LIST_DEFAULT_CHANGED= 25;
+
+
 
     public static final String STATIC_TYPE = "STATIC";
     public static final String APP_TYPE = "App";
     public static final String NETWORK_TYPE = "Network";
 
-    public static final String WALLET_TYPE = "Wallets";
-    public static final String NODE_TYPE = "Nodes";
-    public static final String TOKEN_TYPE = "Tokens";
-    public static final String EXPLORER_TYPE = "Explorers";
+    public static final String WALLET_NETWORK = "WALLET_NETWORK";
+    public static final String NODE_NETWORK = "NODE_NETWORK";
+    public static final String TOKEN_NETWORK = "TOKENS_NETWORK";
+    public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
+    public static final String MARKET_NETWORK = "MARKET_NETWORK";
 
     public static final String STATUS_STOPPED = "Stopped";
     public static final String STATUS_STARTED = "Started";
     public static final String STATUS_STARTING = "Starting";
+    public static final String STATUS_UNAVAILABLE = "Unavailable";
+    public static final String STATUS_AVAILABLE = "Available";
+    public static final String STATUS_ERROR = "Error";
 
+    public static final String LOCAL = "Local";
+    public static final String CMD = "cmd";
+
+    public static final String OFFLINE = "Offline";
+
+    public static final String CHECK_MARK = "🗸";
+    public static final String PLAY = "▶";
+    public static final String STOP = "⏹";
+    public static final String CIRCLE = "○";
+    public static final String RADIO_BTN = "◉";
+
+    public static final  int ROW_HEIGHT = 27;
+    public static final  int MAX_ROW_HEIGHT = 20;
     
     //public members
     public static Font mainFont;
@@ -162,7 +187,6 @@ public class App extends Application {
 
     private NetworksData m_networksData;
 
-    private HostServices m_hostServices;
     //private java.awt.SystemTray m_tray;
     //private java.awt.TrayIcon m_trayIcon;
     private final static long EXECUTION_TIME = 500;
@@ -175,22 +199,19 @@ public class App extends Application {
 
     @Override
     public void start(Stage appStage) {
-        Font.loadFont(App.class.getResource("/assets/OCRAEXT.TTF").toExternalForm(),12);
+        Font.loadFont(App.class.getResource("/assets/OCRAEXT.TTF").toExternalForm(),16);
         Font.loadFont(App.class.getResource("/assets/DejaVuSansMono.ttf").toExternalForm(),20);
 
         mainFont =  Font.font("OCR A Extended", FontWeight.BOLD, 20);
         txtFont = Font.font("OCR A Extended", 15);
         titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 12);
   
-        m_hostServices = getHostServices();
-
         appStage.setResizable(false);
         appStage.initStyle(StageStyle.UNDECORATED);
         appStage.setTitle("Netnotes");
         appStage.getIcons().add(logo);
 
-        
-
+    
         try{
             AppData appData = new AppData();
             startApp(appData, appStage);
@@ -201,9 +222,11 @@ public class App extends Application {
     }
 
     private Stage m_statusStage = null;
+   
 
     public void setupApp(Stage appStage){
         Button closeBtn = new Button();
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
         createPassword(appStage, "Create Password - Netnotes", icon, logo, closeBtn, (onFinished)->{
             Object sourceObject = onFinished.getSource().getValue();
 
@@ -236,7 +259,7 @@ public class App extends Application {
                 }
             }
 
-        });
+        }, executorService);
         appStage.show();
         closeBtn.setOnAction(e->{
             shutdownNow();
@@ -257,7 +280,7 @@ public class App extends Application {
         HBox imageBox = new HBox(imageButton);
         imageBox.setAlignment(Pos.CENTER);
 
-        Text passwordTxt = new Text("〉 Enter password:");
+        Text passwordTxt = new Text("Enter password:");
         passwordTxt.setFill(txtColor);
         passwordTxt.setFont(txtFont);
 
@@ -432,7 +455,7 @@ public class App extends Application {
     private void openNetnotes(AppData appData,  Stage appStage) {
 
 
-        m_networksData = new NetworksData(appData, m_hostServices);    
+        m_networksData = new NetworksData(appData);    
 
         loadMainStage(appStage);
         
@@ -441,7 +464,7 @@ public class App extends Application {
        
     }
 
-    public static HBox createShrinkTopBar(Image iconImage, String titleString, Button maximizeBtn,  Button shrinkBtn, Button closeBtn, Stage theStage, SimpleBooleanProperty isShrunk, AppData appData, ExecutorService execService) {
+    /*public static HBox createShrinkTopBar(Image iconImage, String titleString, Button maximizeBtn,  Button shrinkBtn, Button closeBtn, Stage theStage, SimpleBooleanProperty isShrunk, AppData appData, ExecutorService execService) {
       
 
         ImageView barIconView = new ImageView(iconImage);
@@ -475,7 +498,7 @@ public class App extends Application {
                 ResizeHelper.addResizeListener(theStage,passSceneWidth,passSceneHeight, passSceneWidth,passSceneHeight);
       
                 theStage.setHeight(passSceneHeight);
-                verifyAppKey(theStage, appData,execService, (onSucceeded)->{
+                verifyAppKey(theStage, appData, execService, (onSucceeded)->{
    
                     theStage.setScene(originalScene);
                     isShrunk.set(false);
@@ -556,128 +579,10 @@ public class App extends Application {
         });
 
         return newTopBar;
-    }
+    }*/
     
-   
 
-    public static void verifyAppKey( Runnable runnable, NetworksData networksData){
-        verifyAppKey("Enter Password", "", runnable, networksData);
-    }
-
-    public static void verifyAppKey(String titleStr, String str, Runnable runnable, NetworksData networksData) {
-
-        String title = "Netnotes - Authorization - " + titleStr;
-
-        Stage passwordStage = new Stage();
-        passwordStage.getIcons().add(logo);
-        passwordStage.setResizable(false);
-        passwordStage.initStyle(StageStyle.UNDECORATED);
-        passwordStage.setTitle(title);
-
-        Button closeBtn = new Button();
-
-        HBox titleBox = createTopBar(icon, title, closeBtn, passwordStage);
-
-        ImageView btnImageView = new ImageView(App.logo);
-        btnImageView.setPreserveRatio(true);
-        btnImageView.setFitHeight(75);
-        
-
-        Label textField = new Label("Netnotes");
-        textField.setFont(mainFont);
-        textField.setPadding(new Insets(15,0,0,15));
-        
-
-        VBox imageBox = new VBox(btnImageView, textField);
-        imageBox.setAlignment(Pos.CENTER);
-
-        Text passwordTxt = new Text("〉 Enter password:");
-        passwordTxt.setFill(txtColor);
-        passwordTxt.setFont(txtFont);
-
-        PasswordField passwordField = new PasswordField();
-        passwordField.setFont(txtFont);
-        passwordField.setId("passField");
-
-        HBox.setHgrow(passwordField, Priority.ALWAYS);
-
-        HBox passwordBox = new HBox(passwordTxt, passwordField);
-        passwordBox.setAlignment(Pos.CENTER_LEFT);
-        passwordBox.setPadding(new Insets(10, 0, 0, 0));
-
-
-        VBox.setMargin(passwordBox, new Insets(5, 10, 15, 20));
-
-        TextArea textArea = new TextArea(str);
-        textArea.setFont(App.txtFont);
-        HBox.setHgrow(textArea, Priority.ALWAYS);
-        textArea.setPrefRowCount(6);
-        textArea.setEditable(false);
-        textArea.setWrapText(false);
-
-        HBox infoBox = new HBox(textArea);
-        HBox.setHgrow(infoBox, Priority.ALWAYS);
-        VBox.setVgrow(infoBox,Priority.ALWAYS);
-        infoBox.setPadding(new Insets(5,0,0,15));
-
-        VBox layoutVBox = new VBox(titleBox, imageBox,infoBox, passwordBox);
-        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
-
-        Scene passwordScene = new Scene(layoutVBox, 800, 600);
-        passwordScene.setFill(null);
-        passwordScene.getStylesheets().add("/css/startWindow.css");
-        passwordStage.setScene(passwordScene);
-
-        Stage statusStage = getStatusStage("Verifying", "Verifying...");
-
-        passwordField.setOnKeyPressed(e -> {
-
-            KeyCode keyCode = e.getCode();
-
-            if (keyCode == KeyCode.ENTER) {
-
-                if (passwordField.getText().length() < 6) {
-                    passwordField.setText("");
-                } else {
-
-                    statusStage.show();
-
-                    FxTimer.runLater(Duration.ofMillis(100), () -> {
-
-                        boolean verified =  networksData.verifyAppPassword(passwordField.getText());
-                        Platform.runLater(() -> passwordField.setText(""));
-                        statusStage.close();
-                        if (verified) {
-                            passwordStage.close();
-                            
-
-                            runnable.run();
-
-                        }
-
-                    });
-                }
-            }
-        });
-
-        closeBtn.setOnAction(e -> {
-            passwordStage.close();
-
-        });
-
-        passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
-            if (newVal != null && !(newVal instanceof PasswordField)) {
-                Platform.runLater(() -> passwordField.requestFocus());
-            }
-        });
-        passwordStage.show();
- 
-        Platform.runLater(() ->{
-       
-        
-            passwordField.requestFocus();}
-        );
-    }
+  
 
     public void createAutorunKeyDialog(Stage appStage, boolean isNewKey, Runnable newKey, Runnable disableAutorun){
 
@@ -731,7 +636,7 @@ public class App extends Application {
         imageBox.setAlignment(Pos.CENTER);
 
  
-        Text passwordTxt = new Text("〉 Enter password:");
+        Text passwordTxt = new Text("Enter password:");
         passwordTxt.setFill(txtColor);
         passwordTxt.setFont(txtFont);
 
@@ -824,17 +729,17 @@ public class App extends Application {
         Platform.runLater(() ->passwordField.requestFocus());
 
     }
-    private VBox m_headerBox = new VBox();
-    private HBox m_staticBox;
+
+    
     private VBox m_contentBox;
-    private VBox m_footerBox = new VBox();
+    private HBox m_footerBox = new HBox();
     private HBox m_titleBox = new HBox();
     private VBox m_menuBox;
     private ScrollPane m_staticContent;
     private ScrollPane m_menuScroll;
     private ScrollPane m_appContent;
 
-    private final static double DEFAULT_STATIC_WIDTH = 400;
+    public final static double DEFAULT_STATIC_WIDTH = 500;
 
     private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH);
 
@@ -850,8 +755,8 @@ public class App extends Application {
         m_titleBox = createTopBar(icon, maximizeBtn, closeBtn, appStage);
 
         
-        m_headerBox.setPadding(new Insets(0, 2, 2, 2));
-       // m_headerBox.setId("bodyBox");
+        //m_headerBox.setPadding(new Insets(0, 2, 2, 2));
+      
 
         m_staticContent = new ScrollPane();
        
@@ -859,15 +764,10 @@ public class App extends Application {
         //m_staticContent.setPrefHeight(220);
 
  
-        m_staticBox = new HBox();
-        m_staticBox.setAlignment(Pos.CENTER_LEFT);
-        VBox.setVgrow(m_staticBox,Priority.ALWAYS);
-        m_staticBox.setPadding(new Insets(0,0,0,1));
+
         m_appContent = new ScrollPane();
 
-
-        m_contentBox = new VBox(m_headerBox, m_appContent);
-        HBox.setHgrow(m_contentBox, Priority.ALWAYS);
+        m_contentBox = new VBox();
         VBox.setVgrow(m_contentBox, Priority.ALWAYS);
 
         Region vBar = new Region();
@@ -876,7 +776,7 @@ public class App extends Application {
         vBar.setMinWidth(2);
         vBar.setId("vGradient");
 
-
+  
         
         m_menuBox = new VBox();
         VBox.setVgrow(m_menuBox, Priority.ALWAYS);
@@ -890,9 +790,12 @@ public class App extends Application {
 
   
 
-        HBox mainHbox = new HBox(m_menuBox, vBar, m_staticBox, m_contentBox);
+        HBox mainHbox = new HBox(m_menuBox, vBar, m_contentBox);
         VBox.setVgrow(mainHbox, Priority.ALWAYS);
         HBox.setHgrow(mainHbox, Priority.ALWAYS);
+    
+
+
       
         VBox layout = new VBox(m_titleBox, mainHbox, m_footerBox);
         VBox.setVgrow(layout, Priority.ALWAYS);
@@ -915,12 +818,12 @@ public class App extends Application {
 
         m_networksData.menuTabProperty().addListener((obs,oldval,newval)->{
             if(newval != null){
-                if(!m_staticBox.getChildren().contains(m_staticContent)){
-                    m_staticBox.getChildren().addAll(m_staticContent);
+                if(!mainHbox.getChildren().contains(m_staticContent)){
+                    mainHbox.getChildren().add(2, m_staticContent);
                 }
             }else{
-                if(m_staticBox.getChildren().contains(m_staticContent)){
-                    m_staticBox.getChildren().removeAll(m_staticContent);
+                if(mainHbox.getChildren().contains(m_staticContent)){
+                    mainHbox.getChildren().remove(m_staticContent);
                 }
             }
         });
@@ -929,12 +832,12 @@ public class App extends Application {
 
 
         m_staticContent.prefViewportWidthProperty().bind(m_staticContentWidth);
-        m_staticContent.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(m_headerBox.heightProperty().subtract(10)));
+        m_staticContent.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
 
-
+      
         m_menuScroll.setPrefViewportWidth(35);
         m_menuScroll.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(125));
-        
+    
 
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         Runnable save = () -> {
@@ -1080,7 +983,7 @@ public class App extends Application {
         HBox imageBox = new HBox(imageBtn);
         imageBox.setAlignment(Pos.CENTER);
 
-        Text passwordTxt = new Text("〉 Enter password:");
+        Text passwordTxt = new Text("Enter password:");
         passwordTxt.setFill(txtColor);
         passwordTxt.setFont(txtFont);
 
@@ -1143,7 +1046,7 @@ public class App extends Application {
             }
         });
 
-        Text reenterTxt = new Text("〉 Confirm password:");
+        Text reenterTxt = new Text("Confirm password:");
         reenterTxt.setFill(txtColor);
         reenterTxt.setFont(txtFont);
 
@@ -1218,7 +1121,7 @@ public class App extends Application {
         return passwordStage;
     }
 
-    public static void createPassword(Stage passwordStage, String topTitle, Image windowLogo, Image mainLogo, Button closeBtn, EventHandler<WorkerStateEvent> onSucceeded) {
+    public static void createPassword(Stage passwordStage, String topTitle, Image windowLogo, Image mainLogo, Button closeBtn, EventHandler<WorkerStateEvent> onSucceeded, ExecutorService execService) {
         
         passwordStage.setTitle(topTitle);
 
@@ -1230,7 +1133,7 @@ public class App extends Application {
         HBox imageBox = new HBox(imageBtn);
         imageBox.setAlignment(Pos.CENTER);
 
-        Text passwordTxt = new Text("〉 Create password:");
+        Text passwordTxt = new Text("Create password:");
         passwordTxt.setFill(txtColor);
         passwordTxt.setFont(txtFont);
 
@@ -1271,7 +1174,7 @@ public class App extends Application {
             passwordStage.close();
         });
 
-        Text reenterTxt = new Text("〉 Confirm password:");
+        Text reenterTxt = new Text("Confirm password:");
         reenterTxt.setFill(txtColor);
         reenterTxt.setFont(txtFont);
 
@@ -1338,7 +1241,7 @@ public class App extends Application {
             String passStr = passwordField.getText();
             if (passStr.equals(createPassField2.getText())) {
 
-                Utils.returnObject(passStr, onSucceeded, e1 -> {
+                Utils.returnObject(passStr,execService, onSucceeded, e1 -> {
                     closeBtn.fire();
                 });
             } else {
@@ -1397,7 +1300,7 @@ public class App extends Application {
         HBox imageBox = new HBox(imageButton);
         imageBox.setAlignment(Pos.CENTER);
 
-        Text promptTxt = new Text("〉 " + prompt + ":");
+        Text promptTxt = new Text("" + prompt + ":");
         promptTxt.setFill(txtColor);
         promptTxt.setFont(txtFont);
 
@@ -1841,7 +1744,7 @@ public class App extends Application {
         HBox imageBox = new HBox(imageButton);
         imageBox.setAlignment(Pos.CENTER);
 
-        Text passwordTxt = new Text("〉 Enter password:");
+        Text passwordTxt = new Text("Enter password:");
         passwordTxt.setFill(txtColor);
         passwordTxt.setFont(txtFont);
 

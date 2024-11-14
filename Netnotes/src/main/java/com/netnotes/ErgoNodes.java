@@ -1,18 +1,12 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
+
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 
 public class ErgoNodes extends Network implements NoteInterface {
@@ -21,40 +15,32 @@ public class ErgoNodes extends Network implements NoteInterface {
 
     public final static String NAME = "Ergo Nodes";
     public final static String DESCRIPTION = "Ergo Nodes allows you to configure your access to the Ergo blockchain";
-    public final static String NETWORK_ID = "ERGO_NODES";
+
     public final static String SUMMARY = "";
 
     public final static int MAINNET_PORT = 9053;
     public final static int TESTNET_PORT = 9052;
     public final static int EXTERNAL_PORT = 9030;
 
-    private File m_appDir = null;
-
     private ErgoNodesList m_ergoNodesList = null;
-    private ErgoNetworkData m_ergNetData;
+    private ErgoNetwork m_ergoNetwork;
 
     public ErgoNodes(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, NETWORK_ID, ergoNetwork);
-        m_appDir = new File(ergoNetwork.getAppDir() + "/nodes");
-        m_ergNetData = ergoNetworkData;
+        super(new Image(getAppIconString()), NAME, App.NODE_NETWORK, ergoNetwork);
+
+        
+        m_ergoNetwork = ergoNetwork;
        
    
         setStageWidth(750);
-        if (!m_appDir.isDirectory()) {
-
-            try {
-                Files.createDirectories(m_appDir.toPath());
-            } catch (IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.show();
-            }
-
-            
-        
-        }
-      
+  
+        m_ergoNodesList = new ErgoNodesList(this, ergoNetworkData);
     }
 
+    public ErgoNetwork getErgoNetwork(){
+        return m_ergoNetwork;
+    }
+    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
@@ -75,55 +61,74 @@ public class ErgoNodes extends Network implements NoteInterface {
     }
 
 
+    
 
-    public File getAppDir() {
-        return m_appDir;
-    }
-
-    public String getType(){
-        return App.NODE_TYPE;
-    }
 
     @Override
     public Object sendNote(JsonObject note){
-        if(note != null && m_ergoNodesList != null){
-            JsonElement subjecElement = note.get("subject");
-            JsonElement networkIdElement = note.get("networkId");
+        
+        if(m_ergoNodesList != null){
+            JsonElement cmdElement = note.get(App.CMD);
 
-            if( subjecElement != null && subjecElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()){
-                String networkId = networkIdElement.getAsString();
-            
-                if(networkId.equals(m_ergNetData.getId())){
-                    switch (subjecElement.getAsString()) {
-                        case "getNodes":
-                            
-                        case "getNodeById":
-                                
-                        case "openNode":
-                            
-                    }
-                }
-                
+            switch (cmdElement.getAsString()) {
+                case "getNodes":
+                    return m_ergoNodesList.getNodes(note);
+                case "addRemoteNode":
+                    return m_ergoNodesList.addRemoteNode(note);
+                case "getRemoteNodes":
+                    return m_ergoNodesList.getRemoteNodes(note);
+                case "getLocalNodes":
+                    return m_ergoNodesList.getLocalNodes(note);
+                case "getDefault":
+                    return m_ergoNodesList.getDefault();
+                case "setDefault":
+                    return m_ergoNodesList.setDefault(note);
+                case "clearDefault":
+                    return m_ergoNodesList.clearDefault();
+                case "getDefaultInterface":
+                    return m_ergoNodesList.getDefaultInterface(note);
+                case "getNoteInterface":
+                    return m_ergoNodesList.getNoteInterface(note);
+                case "removeNodes":
+                    return m_ergoNodesList.removeNodes(note);
+                case "addLocalNode":
+                    return m_ergoNodesList.addLocalNode(note);
+
             }
+             
         }
         return null;
     }
   
 
+ 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-       /* JsonElement subjecElement = note.get("subject");
-        JsonElement networkTypeElement = note.get("networkType");
-        JsonElement nodeIdElement = note.get("nodeId"); */
+        JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
+        JsonElement idElement = note != null ? note.get("id") : null;
+        
+        if(cmdElement != null){
+
+            switch(cmdElement.getAsString()){
+                
+                default: 
+                    String id = idElement != null ? idElement.getAsString() : m_ergoNodesList.getDefaultNodeId();
+                
+                    ErgoNodeData nodeData = m_ergoNodesList.getNodeById(id);
+                
+                    if(nodeData != null){
+                    
+                        return nodeData.sendNote(note, onSucceeded, onFailed);
+                    }
+            }
+        }
 
         return false;
     }
 
-  
+  /*
 
-
- /*
 
     private Stage m_stage = null;
 
@@ -295,33 +300,27 @@ public class ErgoNodes extends Network implements NoteInterface {
 
 
     @Override
-    public void remove() {
-        super.remove();
-        if (m_ergoNodesList != null && m_ergoNodesList.getErgoLocalNode() != null) {
-            m_ergoNodesList.getErgoLocalNode().stop();
-        }
-    }
-
-    @Override
     protected void start(){
         if(getConnectionStatus() == App.STOPPED){
             super.start();
-            if(m_ergoNodesList == null){
-                m_ergoNodesList = new ErgoNodesList(this);
-            }
+          
         }
     }
 
     @Override
     protected void stop(){
         super.stop();
+     
+    }
+
+    @Override
+    public void shutdown(){
         if(m_ergoNodesList != null){
             m_ergoNodesList.shutdown();
-            m_ergoNodesList = null;
         }
     }
 
     public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(NETWORK_ID, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+        return new NetworkInformation(App.NODE_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
     }
 }

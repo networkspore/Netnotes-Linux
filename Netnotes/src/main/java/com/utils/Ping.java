@@ -1,16 +1,36 @@
 package com.utils;
 
-public class Ping{
-    private boolean m_available;
-    private long m_timeStamp;
-    private String m_error;
-    private int m_ping;
+import java.util.ArrayList;
 
-    public Ping(boolean available, String error, int ping){
+import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+
+
+
+public class Ping{
+    private boolean m_available = false;
+    private long m_timeStamp = 0;
+    private String m_error = "";
+    private double m_avgPing = 0;
+
+    public Ping(boolean available, String error, double avgPing){
         m_available = available;
         m_error = error;
-        m_ping = ping;
+        m_avgPing = avgPing;
         m_timeStamp = System.currentTimeMillis();
+    }
+
+    public Ping(JsonObject json){
+        JsonElement availableElement = json != null ? json.get("available") : null;
+        JsonElement timeStampElement = json != null ? json.get("timeStamp") : null;
+        JsonElement avgPingElement = json != null ? json.get("ping") : null;
+        JsonElement errorElement = json != null ? json.get("error") : null;
+
+        m_available = availableElement != null ? availableElement.getAsBoolean() : false;
+        m_timeStamp = timeStampElement != null ? timeStampElement.getAsLong() : 0;
+        m_avgPing = avgPingElement != null ? avgPingElement.getAsDouble() : 0;
+        m_error = errorElement != null ? errorElement.getAsString() : "not initialized";
+  
     }
 
     public boolean getAvailable(){
@@ -29,12 +49,12 @@ public class Ping{
         return m_timeStamp;
     }
 
-    public int getPing(){
-        return m_ping;
+    public double getAvgPing(){
+        return m_avgPing;
     }
 
-    public void setPing(int ping){
-        m_ping = ping;
+    public void setAvgPing(double ping){
+        m_avgPing = ping;
     }
 
     public String getError(){
@@ -45,4 +65,12 @@ public class Ping{
         m_error = error;
     }
 
+    public JsonObject getJsonObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("available", m_available);
+        json.addProperty("timeStamp", m_timeStamp);
+        json.addProperty("ping", m_avgPing);
+        json.addProperty("error", m_error);
+        return json;
+    }
 }

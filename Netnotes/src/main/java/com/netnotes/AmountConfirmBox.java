@@ -10,9 +10,6 @@ import javafx.scene.image.ImageView;
 
 import java.math.BigDecimal;
 
-
-import com.utils.Utils;
-
 import javafx.scene.layout.VBox;
 
 public class AmountConfirmBox extends AmountBox {
@@ -71,8 +68,7 @@ public class AmountConfirmBox extends AmountBox {
         TextField currencyName = new TextField(m_defaultName);
         currencyName.setFont(App.txtFont);
         currencyName.setPadding(new Insets(3, 10, 3, 10));
-        currencyName.setPrefWidth(Utils.measureString(currencyName.getText(), new java.awt.Font("OCR A Extended",java.awt.Font.PLAIN, 14))+ 30);;
-
+        currencyName.setPrefWidth(60);
 
         
 

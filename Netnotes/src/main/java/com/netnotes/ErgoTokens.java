@@ -1,9 +1,5 @@
 package com.netnotes;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonElement;
@@ -12,7 +8,6 @@ import com.utils.Utils;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 
 public class ErgoTokens extends Network implements NoteInterface {
@@ -44,9 +39,7 @@ public class ErgoTokens extends Network implements NoteInterface {
     }
 
 
-    public String getType(){
-        return App.TOKEN_TYPE;
-    }
+    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
@@ -70,7 +63,7 @@ public class ErgoTokens extends Network implements NoteInterface {
    
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         Object obj = sendNote(note);        
         
         Utils.returnObject(obj,getNetworksData().getExecService(), onSucceeded, onFailed);
@@ -81,7 +74,7 @@ public class ErgoTokens extends Network implements NoteInterface {
 
     @Override
     public Object sendNote(JsonObject note){
-        JsonElement subjectElement = note.get("subject");
+        JsonElement subjectElement = note.get(App.CMD);
         JsonElement networkIdElement = note.get("networkId");
     
 
@@ -214,7 +207,7 @@ public class ErgoTokens extends Network implements NoteInterface {
                 public void sendMessage(String networkId, int code, long timestamp, String msg){
 
                 }
-                public void sendMessage(String networkId, int code, long timestamp, JsonObject json){
+                public void sendMessage(int code, long timestamp, JsonObject json){
                 }
 
             };   

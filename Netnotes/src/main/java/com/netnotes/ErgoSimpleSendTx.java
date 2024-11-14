@@ -122,7 +122,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
 
  
     public void open(){
-        showErgoTxStage();
+       
     }
     /*
     public void showErgoTxStage(){
@@ -480,7 +480,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
       
         JsonObject json = new JsonObject();
         json.addProperty("txId", getTxId());
-        json.addProperty("parentAddress",getParentAddress().getAddress().toString());
+        json.addProperty("parentAddress",getParentAddress().getAddressString());
         json.addProperty("timeStamp", getTimeStamp());
         json.addProperty("txType",  getTxType());
         json.addProperty("status", statusProperty().get());

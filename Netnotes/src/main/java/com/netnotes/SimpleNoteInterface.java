@@ -12,7 +12,10 @@ public interface SimpleNoteInterface {
 
     Object sendNote(JsonObject note);
 
-    void sendMessage(String id, int code, long timeStamp, String str);
+    void sendMessage(int code, long timestamp,String networkId, Number number);
+
+    void sendMessage(int code, long timeStamp,String networkId, String str);
+
 
     void shutdown();
 

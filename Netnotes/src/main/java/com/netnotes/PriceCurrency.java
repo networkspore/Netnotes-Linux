@@ -43,11 +43,10 @@ public class PriceCurrency {
     private SimpleStringProperty m_url = new SimpleStringProperty();
 
     private HashData m_hashData = null;
-    private ErgoTokens m_ergoTokens = null;
+
     public final SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(null); 
 
-    public PriceCurrency(ErgoTokens ergoTokens, String tokenId, String name, int decimals, String tokenType, String networkType){
-        m_ergoTokens = ergoTokens;
+    public PriceCurrency(String tokenId, String name, int decimals, String tokenType, String networkType){
         m_tokenId = tokenId;
         m_name = name;
         m_symbol = name;
@@ -55,30 +54,12 @@ public class PriceCurrency {
         m_imageString = "/assets/unknown-unit.png";
         m_fractionalPrecision = decimals;
         m_networkType = networkType;
-        m_ergoTokens = ergoTokens;
         m_url.set(DEFAULT_TOKEN_URL + m_tokenId);
-        update();
     }
 
-    private JsonObject m_note = null;
 
-    public void update(){
-       //if(m_ergoTokens != null){
-            m_note = Utils.getCmdObject("getAddToken");
-            m_note.addProperty("networkId", m_ergoTokens.getErgoNetworkData().getId());
-            m_note.addProperty("tokenId", m_tokenId);
-            m_note.addProperty("name", m_name);
-            m_note.addProperty("decimals", m_fractionalPrecision);
-
-            Object obj = m_ergoTokens.sendNote(m_note);
-            
-            m_note = null;
-
-            if(obj != null && obj instanceof JsonObject){
-                JsonObject jsonObject = (JsonObject) obj;
-                openJson(jsonObject);
-            } 
- //       }
+    public PriceCurrency(JsonObject json){
+        openJson(json);
     }
 
    /* public void setErgoTokens(ErgoTokens ergoTokens){

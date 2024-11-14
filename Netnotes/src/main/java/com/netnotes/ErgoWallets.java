@@ -1,12 +1,9 @@
 package com.netnotes;
 
-import java.io.File;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
 
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 
 
@@ -21,7 +18,7 @@ public class ErgoWallets extends Network implements NoteInterface {
     public final static String SUMMARY = "Access can be controlled with the Ergo Wallet, in order to keep the wallet isolated, or access can be given to the Ergo Network in order to make transactions, or the Ergo Explorer to get your ERG ballance and to the KuCoin Exchange to get your ERG value real time.";
     public final static String NAME = "Ergo Wallet";
     public final static ExtensionFilter ergExt = new ExtensionFilter("Ergo Wallet (Satergo compatible)", "*.erg");
-    public final static String NETWORK_ID = "ERGO_WALLETS";
+
     public final static String DONATION_ADDRESS_STRING = "9h123xUZMi26FZrHuzsFfsTpfD3mMuTxQTNEhAjTpD83EPchePU";
 
     private ErgoNetworkData m_ergNetData;
@@ -31,8 +28,9 @@ public class ErgoWallets extends Network implements NoteInterface {
 
 
     public ErgoWallets( ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, NETWORK_ID, ergoNetwork);
+        super(new Image(getAppIconString()), NAME, App.WALLET_NETWORK, ergoNetwork);
         m_ergNetData = ergoNetworkData;
+        m_ergoWalletDataList = new ErgoWalletDataList(this);
 
     }
 
@@ -67,87 +65,66 @@ public class ErgoWallets extends Network implements NoteInterface {
 
     @Override
     public Object sendNote(JsonObject note){
+     
         if(note != null && m_ergoWalletDataList != null){
-            JsonElement subjecElement = note.get("subject");
-            JsonElement networkIdElement = note.get("networkId");
+            JsonElement cmdElement = note.get(App.CMD);
 
-            if( subjecElement != null && subjecElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()){
-                String networkId = networkIdElement.getAsString();
-            
-                if(networkId.equals(m_ergNetData.getId())){
-                    switch (subjecElement.getAsString()) {
-                        case "getWallets":
-                            return m_ergoWalletDataList.getWallets();
-                        case "getWalletById":
-                            return m_ergoWalletDataList.getWalletById(note);
-                        case "getWalletByName":
-                            return m_ergoWalletDataList.getWalletByName(note);    
-                        case "openWallet":
-                            return m_ergoWalletDataList.openWallet(note);
-                    }
+            if( cmdElement != null && cmdElement.isJsonPrimitive()){
+                switch (cmdElement.getAsString()) {
+                    case "getWallets":
+                        return m_ergoWalletDataList.getWallets();
+                    case "setDefault":
+                        return m_ergoWalletDataList.setDefault(note);
+                    case "clearDefault":
+                        return m_ergoWalletDataList.clearDefault();
+                    case "getDefault":
+                        return m_ergoWalletDataList.getDefault();
+                    case "getDefaultInterface":
+                        return m_ergoWalletDataList.getDefaultInterface();
+                    case "getWalletById":
+                        return m_ergoWalletDataList.getWalletById(note);
+                    case "getWalletByName":
+                        return m_ergoWalletDataList.getWalletByName(note);    
+                    case "openWallet":
+                        return m_ergoWalletDataList.openWallet(note);
+                    case "removeWallet":
+                        return m_ergoWalletDataList.removeWallet(note);
                 }
-                
             }
         }
         return null;
     }
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
-        JsonElement subjecElement = note.get("subject");
-        JsonElement networkIdElement = note.get("networkId");
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        JsonElement subjecElement = note.get(App.CMD);
+      
+    
         
-
-        if (subjecElement != null  && networkIdElement != null) {
-            Utils.returnObject(sendNote(note), getNetworksData().getExecService(), onSucceeded, onFailed);
+        if (subjecElement != null) {
+            String subject  = subjecElement.getAsString();
+            switch(subject){
+                
+            }
+            
         }
+       
+
         return false;
     }
 
     
-   
 
 
- 
 
     @Override
-    public void start(){
-        if(getConnectionStatus() == App.STOPPED){
-            super.start();
-            m_ergoWalletDataList = new ErgoWalletDataList(this);
-            
-        }
-    }
-
-    @Override
-    public void stop(){
-        if(getConnectionStatus() != App.STOPPED){
-            super.stop();
-            
-            if(m_ergoWalletDataList != null){
-                m_ergoWalletDataList.shutdown();
-                m_ergoWalletDataList = null;
-            }
-            
-        }
-    }
-
-
-
     public String getDescription(){
         return DESCRIPTION;
     }
-    
-    public String getType(){
-        return App.WALLET_TYPE;
-    }
-
-
-
 
   
     public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(NETWORK_ID, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+        return new NetworkInformation(App.WALLET_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
     }
 
 }

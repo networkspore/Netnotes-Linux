@@ -1,11 +1,10 @@
 package com.netnotes;
 
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-//import java.io.File;
 import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
 
 import org.ergoplatform.appkit.NetworkType;
 
@@ -20,7 +19,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
@@ -30,8 +28,8 @@ public class ErgoExplorerData {
      
     
      
-     public final SimpleObjectProperty<ErgoNetworkUrl> m_websiteUrlProperty = new SimpleObjectProperty<>();
-     public final SimpleObjectProperty< ErgoNetworkUrl> m_ergoNetworkUrlProperty = new SimpleObjectProperty<>();
+     public ErgoNetworkUrl m_websiteUrlProperty = null;
+     public ErgoNetworkUrl m_ergoNetworkUrlProperty = null;
      private ErgoExplorerList m_explorerList = null;
 
     /* private String m_radioOffUrl = "/assets/radio-button-off-30.png";
@@ -60,8 +58,8 @@ public class ErgoExplorerData {
 
      public ErgoExplorerData(String id,String name, String imgUrl, String apiUrl,String websiteName, String webstiteUrl, ErgoExplorerList explorerList){
           m_id = id; 
-          m_ergoNetworkUrlProperty.set(new ErgoNetworkUrl(id,name, "https", apiUrl, 443, NetworkType.MAINNET ));
-          m_websiteUrlProperty.set( new ErgoNetworkUrl( id, websiteName, "https", webstiteUrl, 443, NetworkType.MAINNET));
+          m_ergoNetworkUrlProperty = new ErgoNetworkUrl(id,name, "https", apiUrl, 443, NetworkType.MAINNET );
+          m_websiteUrlProperty = new ErgoNetworkUrl( id, websiteName, "https", webstiteUrl, 443, NetworkType.MAINNET);
           m_explorerList = explorerList;
           m_imgUrl = imgUrl;
      }
@@ -78,19 +76,15 @@ public class ErgoExplorerData {
           JsonElement imgUrlElement = json.get("imgUrl");
 
           if(ergoNetworkUrl != null && ergoNetworkUrl.isJsonObject()){
-               m_ergoNetworkUrlProperty.set( new ErgoNetworkUrl(ergoNetworkUrl.getAsJsonObject()) );          
+               m_ergoNetworkUrlProperty =  new ErgoNetworkUrl(ergoNetworkUrl.getAsJsonObject());          
           }else{
                throw new Exception("Insuffient data");
           }
-          
+
           m_imgUrl = imgUrlElement != null && imgUrlElement.isJsonPrimitive() ? imgUrlElement.getAsString() : ErgoExplorers.getSmallAppIconString();
           
-          if(webUrlElement != null && webUrlElement.isJsonObject()){
-               m_websiteUrlProperty.set(new ErgoNetworkUrl(webUrlElement.getAsJsonObject()));
-          }else{
-               String id = m_ergoNetworkUrlProperty.get().getId();
-               m_websiteUrlProperty.set(new ErgoNetworkUrl(id, "Explorer Website", "https", "explorer.ergoplatform.com", 443, NetworkType.MAINNET));
-          }
+          m_websiteUrlProperty = webUrlElement != null && webUrlElement.isJsonObject() ? new ErgoNetworkUrl(webUrlElement.getAsJsonObject()) : null;
+          
      }
 
      public String getImgUrl(){
@@ -102,10 +96,11 @@ public class ErgoExplorerData {
      }
   
      public void getLatestBlocks(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
-
-        String urlString = namedUrl.getUrlString() + "/api/v1/blocks/";
-        Utils.getUrlJson(urlString, getNetworksData().getExecService(), onSucceeded, onFailed, null);
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
+               String urlString = namedUrl.getUrlString() + "/api/v1/blocks/";
+               Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+          }
     }
 
     
@@ -119,42 +114,59 @@ public class ErgoExplorerData {
      }
 
      public void getTokenInfo(String tokenId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
-
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          
           String urlString = namedUrl.getUrlString() + "/api/v1/tokens/" + tokenId;
 
           
 
-          Utils.getUrlJson(urlString, getNetworksData().getExecService(), onSucceeded, onFailed, null);
+          Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
      }
 
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-          JsonElement subjectElement = note.get("subject");
-          JsonElement networkIdElement = note.get("networkId");
-     
-          if (subjectElement != null && subjectElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()) {
-               String networkId = networkIdElement.getAsString();
-          
-               if(networkId.equals(m_explorerList.getErgoNetworkData().getId())){
-                    String subject = subjectElement.getAsString();
+     public ExecutorService getExecService(){
+          return getNetworksData().getExecService();
+     }
 
-                    switch(subject){
-                         case "getTransaction":
-                              getTransaction(note, onSucceeded, onFailed);
-                              return true;
-                         case "getBalance":
-                              getBalance(note, onSucceeded, onFailed);
-                              return true;
-                         case "getTokenInfo":
-                              getTokenInfo(note, onSucceeded, onFailed);
-                         default:
-                              Object obj = sendNote(note);
-                              Utils.returnObject(obj,m_explorerList.getErgoExplorer().getNetworksData().getExecService(), onSucceeded, onFailed);
-                              return obj != null;  
-                    }
-                    
-               
+     public void getNetworkState(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
+               String urlString = namedUrl.getUrlString() + "/api/v1/networkState";
+
+               Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+          }else{
+               Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
+          }
+     }
+
+
+
+    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+          JsonElement cmdElement = note.get(App.CMD);
+          if (cmdElement != null && cmdElement.isJsonPrimitive()) {
+            
+               String subject = cmdElement.getAsString();
+
+               switch(subject){
+                    case "getTransaction":
+                         getTransaction(note, onSucceeded, onFailed);
+                         return true;
+                    case "getBalance":
+                         getBalance(note, onSucceeded, onFailed);
+                         return true;
+                    case "getTokenInfo":
+                         getTokenInfo(note, onSucceeded, onFailed);
+                         return true;
+                    case "getNetworkState":
+                         getNetworkState(note, onSucceeded, onFailed);
+                         return true;
+                    case "getAddressTransactions":
+                         getAddressTransactions(note, onSucceeded, onFailed);
+                    default:
+                         Utils.returnObject(sendNote(note), getExecService(), onSucceeded, onFailed);
                }
+                     
+               
           }
 
           return false;
@@ -162,7 +174,7 @@ public class ErgoExplorerData {
     }
 
      /*public Object sendNote(JsonObject note){
-          JsonElement subjectElement = note.get("subject");
+          JsonElement subjectElement = note.get(App.CMD);
           JsonElement networkIdElement = note.get("networkId");
         
           if (subjectElement != null && subjectElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()) {
@@ -186,21 +198,21 @@ public class ErgoExplorerData {
      }*/
 
      public Object sendNote(JsonObject note){
-          JsonElement subjectElement = note.get("subject");
-          JsonElement networkIdElement = note.get("networkId");
+          JsonElement subjectElement = note.get(App.CMD);
         
-          if (subjectElement != null && subjectElement.isJsonPrimitive() && networkIdElement != null && networkIdElement.isJsonPrimitive()) {
-               String networkId = networkIdElement.getAsString();
+          if (subjectElement != null && subjectElement.isJsonPrimitive()) {
+               
           
-               if(networkId.equals(m_explorerList.getErgoNetworkData().getId())){
-                    String subject = subjectElement.getAsString();
+               String subject = subjectElement.getAsString();
 
-                    switch(subject){
-                         default:    
-                    }
+               switch(subject){
+                    case "getWebsiteTxLink":
+                         return getWebsiteTxLink(note);
+                    default:    
+               }
                     
                
-               }
+               
           }
           return null;
      }
@@ -209,44 +221,39 @@ public class ErgoExplorerData {
 
     public NoteInterface getNoteInterface(){
      
-          ErgoExplorerData thisExplorer = this;
           return new NoteInterface() {
                
                public String getName(){
-                    return thisExplorer.getName();
+                    return ErgoExplorerData.this.getName();
                }
 
                public String getNetworkId(){
-                    return thisExplorer.getId();
+                    return ErgoExplorerData.this.getId();
                }
 
                public Image getAppIcon(){
-                    return thisExplorer.getImgUrl() != null ? new Image(thisExplorer.getImgUrl()) : null;
-               }
-
-               public Image getSmallAppIcon(){
-                    return thisExplorer.getImgUrl() != null ? new Image(thisExplorer.getImgUrl()) : null;
+                    return ErgoExplorerData.this.getImgUrl() != null ? new Image(ErgoExplorerData.this.getImgUrl()) : null;
                }
 
                public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
                     return null;
                }
 
-               public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
-                   return thisExplorer.sendNote(note, onSucceeded, onFailed);
+               public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+                   return ErgoExplorerData.this.sendNote(note, onSucceeded, onFailed);
                }
 
                public Object sendNote(JsonObject note){
-                    return thisExplorer.sendNote(note);
+                    return ErgoExplorerData.this.sendNote(note);
                }
 
                public JsonObject getJsonObject(){
-                    return thisExplorer.getJsonObject();
+                    return ErgoExplorerData.this.getJsonObject();
                }
 
                
 
-               public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+               public TabInterface getTab(Stage appStage,String locationString, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
                     return null;
                }
                public String getType(){
@@ -268,10 +275,6 @@ public class ErgoExplorerData {
 
                public void removeUpdateListener(){
                   
-               }
-
-               public void remove(){
-           
                }
 
                public void shutdown(){}
@@ -313,15 +316,16 @@ public class ErgoExplorerData {
 
      protected void getBalance(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
 
-          String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
-   
-          Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
+               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
+               Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
+          }
      }
 
      private void getTransaction(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-          JsonElement txIdElement = note.get("txId");
+          JsonElement txIdElement = note!=null ? note.get("txId") : null;
 
           if(txIdElement != null && txIdElement.isJsonPrimitive()){
                getTransaction(txIdElement.getAsString(), onSucceeded, onFailed);
@@ -330,14 +334,17 @@ public class ErgoExplorerData {
 
      protected void getTransaction(String txId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
 
-          String urlString = namedUrl.getUrlString() + "/api/v1/transactions/" + txId;
-   
-          Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, null);
+               String urlString = namedUrl.getUrlString() + "/api/v1/transactions/" + txId;
+     
+               Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
+          }
      }
 
-     private void getAddressTransactions(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
+     private void getAddressTransactions(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement addressElement = note.get("address");
           JsonElement startIndexElement = note.get("startIndex");
           JsonElement limitElement = note.get("limit");
@@ -346,34 +353,58 @@ public class ErgoExplorerData {
           int limit = limitElement != null && limitElement.isJsonPrimitive() ? limitElement.getAsInt() : 0;
 
           if(addressElement != null && addressElement.isJsonPrimitive()){
-               getAddressTransactions(addressElement.getAsString(), startIndex, limit, onSucceeded, onFailed, null);
+               getAddressTransactions(addressElement.getAsString(), startIndex, limit, onSucceeded, onFailed);
           }
      }
 
-      public void getAddressTransactions(String address,int startIndex, int limit,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+      public void getAddressTransactions(String address,int startIndex, int limit,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
          
-          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty.get();
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
 
-          String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/transactions?offset=" + (startIndex < 0 ? 0 : startIndex ) + "&limit=" + (limit < 1 ? 500 : (limit > 500 ? 500 : limit));          
-   
-          Utils.getUrlJson(urlString,getNetworksData().getExecService(), onSucceeded, onFailed, progressIndicator);
+               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/transactions?offset=" + (startIndex < 0 ? 0 : startIndex ) + "&limit=" + (limit < 1 ? 500 : (limit > 500 ? 500 : limit));          
+     
+               Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
+          }
      }
 
      public String getWebsiteTxLink(String txId) {
 
-          ErgoNetworkUrl namedUrl = m_websiteUrlProperty.get();
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
 
-          String urlString = namedUrl.getUrlString() + "/en/transactions/" + txId;
-   
-          return urlString;
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
+
+               String urlString = namedUrl.getUrlString() + "/en/transactions/" + txId;
+     
+               return urlString;
+          }
+
+          return null;
      }
 
-     public SimpleObjectProperty<ErgoNetworkUrl> websiteUrlProperty(){
+     public JsonObject getWebsiteTxLink(JsonObject note) {
+     
+          JsonElement txIdElement = note != null ? note.get("txId") : null;
+          String txId = txIdElement != null ? txIdElement.getAsString() : null;
+          
+          String txLink = getWebsiteTxLink(txId);
+
+          if(txId != null && txLink != null){
+               JsonObject json = Utils.getJsonObject("txId", txId);
+               json.addProperty("websiteTxLink", txLink);
+               json.addProperty("id", getId());
+               return json;
+          }
+
+          return null;
+     }
+
+     public ErgoNetworkUrl websiteNetworkUrl(){
           return m_websiteUrlProperty;
      }
 
 
-     public SimpleObjectProperty<ErgoNetworkUrl> ergoNetworkUrlProperty(){
+     public ErgoNetworkUrl ergoNetworkUrl(){
           return m_ergoNetworkUrlProperty;
      }
 
@@ -382,11 +413,11 @@ public class ErgoExplorerData {
      }
 
      public String getName() {
-          return m_ergoNetworkUrlProperty.get() == null ? "INVALID" : m_ergoNetworkUrlProperty.get().getName();
+          return m_ergoNetworkUrlProperty == null ? "INVALID" : m_ergoNetworkUrlProperty.getName();
      }
 
      public NetworkType getNetworkType() {
-        return m_ergoNetworkUrlProperty.get() == null ? null : m_ergoNetworkUrlProperty.get().getNetworkType();
+        return m_ergoNetworkUrlProperty == null ? null : m_ergoNetworkUrlProperty.getNetworkType();
     }
 
 
@@ -399,9 +430,18 @@ public class ErgoExplorerData {
     public JsonObject getJsonObject(){
 
           JsonObject json = new JsonObject();
+
+          json.addProperty("name", getName());
+          json.addProperty("id", m_id);
           json.addProperty("explorerId", m_id);
-          json.add("ergoNetworkUrl", m_ergoNetworkUrlProperty.get().getJsonObject());
-          json.add("webUrl", m_websiteUrlProperty.get().getJsonObject());
+          
+          if(m_ergoNetworkUrlProperty != null){
+               json.add("ergoNetworkUrl", m_ergoNetworkUrlProperty.getJsonObject());
+          }
+
+          if(m_websiteUrlProperty != null){
+               json.add("webUrl", m_websiteUrlProperty.getJsonObject());
+          }
           return json;
     }
 
