@@ -136,9 +136,9 @@ public class NetworksData extends Network implements NoteInterface {
     private BufferedButton m_settingsBtn;
     private Button m_appsBtn = new Button();
     
-    private SettingsTab m_settingsTab = null;
+    /*private SettingsTab m_settingsTab = null;
     private NetworkTab m_networkTab = null;
-    private AppsTab m_appsTab = null;
+    private AppsTab m_appsTab = null;*/
 
     private Label m_tabLabel = new Label("");
     
@@ -223,6 +223,10 @@ public class NetworksData extends Network implements NoteInterface {
         
 
 
+    }
+
+    public HashMap<String, NoteInterface> appsMap(){
+        return m_apps;
     }
 
     private boolean isConfigId(String configId){
@@ -603,7 +607,7 @@ public class NetworksData extends Network implements NoteInterface {
 
                 noteInterface.shutdown();
 
-                if(m_currentMenuTab.get() != null && m_currentMenuTab.get().getTabId().equals(networkId)){
+                if(m_currentMenuTab.get() != null && m_currentMenuTab.get().getAppId().equals(networkId)){
                     open(NetworkTab.NAME, App.STATIC_TYPE, m_localId);
                 }
                 
@@ -1300,7 +1304,7 @@ public NoteInterface getApp(String networkId) {
 
     public void open(String networkId, String type, String locationId){
 
-        String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getTabId() : null;
+        String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getAppId() : null;
 
         if(type == null || networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
             return;
@@ -1398,43 +1402,28 @@ public NoteInterface getApp(String networkId) {
 
     private TabInterface getStaticTab(String networkId){
 
+        if(m_currentMenuTab.get() != null && m_currentMenuTab.get().getAppId().equals(networkId)){
+            return m_currentMenuTab.get();
+        }
         switch(networkId){
             case AppsTab.NAME:
-                m_appsTab = m_appsTab == null ?  new AppsTab(m_appStage,this, m_widthObject , m_settingsBtn) : m_appsTab;
-            return m_appsTab;
+                return new AppsTab(m_appStage,this, m_widthObject, m_settingsBtn) ;
+            
 
             case SettingsTab.NAME:
                 
-                m_settingsTab = m_settingsTab == null ?  new SettingsTab(m_appStage,this, getAppData(), m_widthObject , m_settingsBtn) : m_settingsTab;
-              
-            return m_settingsTab;
+                return  new SettingsTab(m_appStage,this, getAppData(), m_widthObject , m_settingsBtn) ;
+            
             
             case NetworkTab.NAME:
-                m_networkTab = m_networkTab == null ? new NetworkTab() : m_networkTab;
-            return m_networkTab;
+                return new NetworkTab();
+            
             
         }
 
         return null;
     }
 
-    private void shutdownStaticTab(String id){
-        switch(id){
-            case AppsTab.NAME:
-                m_appsTab = null;
-            break;
-            case SettingsTab.NAME:
-                
-                m_settingsTab = null;
-                
-            break;
-            case NetworkTab.NAME:
-                m_networkTab = null;
-            break;
-            
-        }
-
-    }
 
   
     public SimpleObjectProperty<TabInterface> menuTabProperty() {
@@ -1690,13 +1679,6 @@ public NoteInterface getApp(String networkId) {
               
                 oldval.setCurrent(false);
                 oldval.shutdown();
-                switch(oldval.getType()){
-                    case App.STATIC_TYPE:
-                        shutdownStaticTab(oldval.getTabId());
-                    break;
-                    case App.NETWORK_TYPE:
-                    break;
-                }
             }
 
           
@@ -2618,7 +2600,7 @@ public NoteInterface getApp(String networkId) {
 
     }*/
 
-    private class NetworkTab extends VBox  implements TabInterface{
+    private class NetworkTab extends AppBox  implements TabInterface{
         public static final String NAME = "Networks";
         private boolean m_current = false;
         private NoteMsgInterface m_networksDataMsgInterface = null;
@@ -2653,7 +2635,7 @@ public NoteInterface getApp(String networkId) {
 
 
         public NetworkTab(){
-
+            super(NAME);
            
             
             prefWidthProperty().bind(m_widthObject);

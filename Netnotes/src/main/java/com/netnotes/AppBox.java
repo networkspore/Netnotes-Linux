@@ -7,10 +7,23 @@ import javafx.event.EventHandler;
 import javafx.scene.layout.VBox;
 
 public class AppBox extends VBox implements SimpleNoteInterface{
-
+    
+    private String m_appId;
 
     public AppBox(){
         super();
+    }
+
+    public AppBox(String appId){
+        m_appId = appId;
+    }
+
+    public void setAppId(String appId){
+        m_appId = appId;
+    }
+
+    public String getAppId(){
+        return m_appId;
     }
 
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){

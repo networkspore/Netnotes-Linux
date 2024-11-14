@@ -49,6 +49,7 @@ An evolving desktop application which allows you to install and control your acc
 
 Future development aims to include the ability to communicate with the web browsers, utilizing a unique communication technique of passing notes.
 Features
+
 Networks
 ==
 

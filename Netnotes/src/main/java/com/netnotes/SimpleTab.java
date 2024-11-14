@@ -4,10 +4,9 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.scene.control.Button;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class SimpleTab extends VBox implements TabInterface {
+public class SimpleTab extends AppBox implements TabInterface {
     
     public static final String NAME = "Network";
 
@@ -17,15 +16,13 @@ public class SimpleTab extends VBox implements TabInterface {
     
    
     public SimpleTab(Stage appStage, NetworksData networksData, SimpleDoubleProperty widthObject, Button menuBtn){
-        super();
+        super(NAME);
         m_menuBtn = menuBtn;
         prefWidthProperty().bind(widthObject);
       
     }
 
-    public String getTabId(){
-        return NAME;
-    }
+ 
     public String getName(){
         return NAME;
     }

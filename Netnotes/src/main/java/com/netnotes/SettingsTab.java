@@ -11,13 +11,10 @@ import org.reactfx.util.FxTimer;
 import com.utils.Utils;
 
 import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -27,7 +24,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -35,10 +31,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
-public class SettingsTab extends VBox implements TabInterface  {
+public class SettingsTab extends AppBox implements TabInterface  {
     public final static String NAME = "Settings";
  
-    private SimpleDoubleProperty m_widthObject = null;
     private final Button m_menuBtn;
 
     private SimpleBooleanProperty m_current = new SimpleBooleanProperty(true);
@@ -52,20 +47,11 @@ public class SettingsTab extends VBox implements TabInterface  {
         m_menuBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
     }
 
-    public String getType(){
-        return App.STATIC_TYPE;
-    }
 
-    public boolean isStatic(){
-        return true;
-    }
-    
 
     public SettingsTab(Stage appStage, NetworksData networksData, AppData appData, SimpleDoubleProperty widthObject, Button menuBtn){
-        super();
+        super(NAME);
         m_menuBtn = menuBtn;
-        m_widthObject = widthObject;
-      
 
         Button settingsButton = App.createImageButton(App.logo, "Settings");
 
@@ -403,20 +389,11 @@ public class SettingsTab extends VBox implements TabInterface  {
         return m_titleProperty;
     }
     
-    public String getTabId(){
-        return NAME;
-    }
-
+ 
     public String getName(){
         return NAME;
     }
 
-    public static String createTabId(String parent){
-        return NAME +":" + parent;
-    }
 
-    public void shutdown(){
-        this.prefWidthProperty().unbind();
-        
-    }
+ 
 }

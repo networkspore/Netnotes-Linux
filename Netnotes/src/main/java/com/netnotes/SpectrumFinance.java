@@ -271,7 +271,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return m_spectrumFinanceTab;
     }
 
-    private class SpectrumFinanceTab extends VBox implements TabInterface{
+    private class SpectrumFinanceTab extends AppBox implements TabInterface{
         private Button m_menuBtn;
         private SpectrumDataList m_spectrumData = null;
 
@@ -281,7 +281,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
 
         public SpectrumFinanceTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
-        
+            super(getNetworkId());
             addListeners();
             getData();
 
@@ -615,21 +615,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
             return SpectrumFinance.this.getName();
         }
 
-        @Override
-        public String getTabId() {
-            return getNetworkId();
-        }
+    
 
-        @Override
-        public String getType() {
-            return App.APP_TYPE;
-        }
 
-        @Override
-        public boolean isStatic() {
-           
-            return true;
-        }
 
         @Override
         public void setCurrent(boolean value) {

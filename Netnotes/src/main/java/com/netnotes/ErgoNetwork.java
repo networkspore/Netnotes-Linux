@@ -304,7 +304,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
         return m_ergoNetworkTab;
     }
 
-    private class ErgoNetworkTab extends VBox implements TabInterface{
+    private class ErgoNetworkTab extends AppBox implements TabInterface{
         
 
         private ScrollPane m_walletScroll;
@@ -319,19 +319,18 @@ public class ErgoNetwork extends Network implements NoteInterface {
         private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
         private Button m_menuBtn;
 
-        public String getTabId(){
-            return getNetworkId();
-        }
-
+        private SimpleStringProperty m_titleProperty = new SimpleStringProperty(getName());
         public String getName(){
             return ErgoNetwork.this.getName();
         }
         public SimpleStringProperty titleProperty(){
-            return null;
+            return m_titleProperty;
         }
 
+        
+
         public ErgoNetworkTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
-            super();
+            super(NETWORK_ID);
             m_menuBtn = networkBtn;
      
             setPrefWidth(App.DEFAULT_STATIC_WIDTH);
@@ -456,13 +455,6 @@ public class ErgoNetwork extends Network implements NoteInterface {
             return m_current.get();
         } 
     
-        public String getType(){
-            return App.STATIC_TYPE;
-        }
-    
-        public boolean isStatic(){
-            return true;
-        }
 
     }
 
