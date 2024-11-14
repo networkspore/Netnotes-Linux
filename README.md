@@ -58,7 +58,8 @@ Ergo Explorer: Currently set to use the default Ergo Platform explorer API, the 
 Ergo Tokens: Add / remove or modify the way tokens display in your wallet. Ergo Tokens lets you ensure that your wallet can represent your newest tokens with the icon of your choosing, as well as has a list of default settings. Ergo tokens is the jump off point for token integration.
 
 Ergo Markets: Allows you to receive, and utilize live price information (currently only supporting KuCoin) in your wallet.
---KuCoin Exchange--
+
+--KuCoin Exchange (Refactoring not in use yet)--
 
 This app connects to the KuCoin public API in order to allow you to search and watch your favorite currencies and view live chart price information.
 
