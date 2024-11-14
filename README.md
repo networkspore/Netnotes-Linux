@@ -67,7 +67,7 @@ Charts: The live chart allows for zooming in on the candlestick charts, which ar
 
 Credits
 ===
-Wallets
+Wallet / Node
 -
 1. Satergo's encoding/encryption and interfaece, original source found at: https://github.com/Satergo/Satergo
 2. Utilized in tandem, with Satergo for wallet generation, and node client interface https://github.com/ergoplatform/ergo-appkit
@@ -76,7 +76,3 @@ Encryption
 -
 1. DevSkiller friendly id is used in place of creation of UUID, to allow for more favorable encoding:  https://github.com/Devskiller/friendly-id
 2. Joubin Mohammad Houshyar <alphazero@sensesay.net> Java implentation of BLAKE2B cryptographic digest algorithm:  https://github.com/alphazero/Blake2b
-
-General
--
-1. Stackoverflow utilized for window resize helper, and window drag features, as well as general bug fixes

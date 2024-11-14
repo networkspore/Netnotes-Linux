@@ -46,7 +46,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
-import javax.net.ssl.HttpsURLConnection;
 
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
@@ -61,10 +60,6 @@ import java.math.BigDecimal;
 import java.net.URLConnection;
 import java.lang.Double;
 
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
@@ -72,7 +67,6 @@ import javafx.event.EventHandler;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
-import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import org.apache.commons.codec.DecoderException;
@@ -91,10 +85,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.netnotes.App;
-import com.netnotes.ErgoNodes;
 import com.netnotes.FreeMemory;
 import com.netnotes.HashData;
-import com.netnotes.NetworksData;
 import com.netnotes.PriceAmount;
 import com.netnotes.PriceCurrency;
 import com.satergo.extra.AESEncryption;
