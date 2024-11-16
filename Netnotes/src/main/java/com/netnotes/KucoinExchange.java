@@ -1074,8 +1074,5 @@ public class KucoinExchange extends Network implements NoteInterface {
     public String getDescription(){
         return DESCRIPTION;
     }
-    @Override
-    public String getType(){
-        return App.APP_TYPE;
-    }
+
 }

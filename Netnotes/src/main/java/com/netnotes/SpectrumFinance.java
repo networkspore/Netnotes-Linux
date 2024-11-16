@@ -260,9 +260,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
     
-    public String getType(){
-        return App.APP_TYPE;
-    }
+
     private SpectrumFinanceTab m_spectrumFinanceTab = null;;
 
     @Override

@@ -38,10 +38,7 @@ public class ErgoTokenMarkets extends Network implements NoteInterface {
     public Image getAppIcon(){
         return new Image("/assets/bar-chart-150.png");   
     }
-    @Override
-    public String getType(){
-        return "ErgoMarkets";
-    }
+
     @Override
     public String getDescription(){
         return DESCRIPTION;

@@ -42,10 +42,6 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
 
   
-    @Override
-    public String getType(){
-        return App.NETWORK_TYPE;
-    }
 
     private File m_appDir = null;
 

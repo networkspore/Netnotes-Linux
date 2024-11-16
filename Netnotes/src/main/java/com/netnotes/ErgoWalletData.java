@@ -41,10 +41,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     private ErgoWalletDataList m_ergoWalletsDataList;
     private String m_configId;
-    @Override
-    public String getType(){
-        return "DATA";
-    }
 
   
     // private ErgoWallet m_ergoWallet;
@@ -431,10 +427,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
             public TabInterface getTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
                 return ErgoWalletData.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
-            }
-
-            public String getType(){
-                return ErgoWalletData.this.getType();
             }
 
 

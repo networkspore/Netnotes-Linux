@@ -1109,6 +1109,7 @@
 #menuTabBtn {
     -fx-background-color: transparent;
     -fx-opacity: .8;
+    -fx-min-height: 40;
 }
 
 #menuTabBtn:hover {

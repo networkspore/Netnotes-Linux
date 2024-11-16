@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.gson.JsonObject;
+import com.netnotes.IconButton.IconStyle;
 
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -47,6 +48,7 @@ public class Network  {
 
     private String m_name;
     private Image m_icon;
+    private IconButton m_iconBtn;
 
     public Network(Image icon, String name, String id, NetworksData networksData) {
         m_icon = icon;
@@ -71,6 +73,16 @@ public class Network  {
         return null;
     }
 
+    public IconButton getIconButton(double size){
+        if(m_iconBtn != null){
+            return m_iconBtn;
+        }else{
+            m_iconBtn = new IconButton(m_icon, m_name, IconStyle.ICON);
+            m_iconBtn.setImageWidth(m_stageWidth);
+            return m_iconBtn; 
+        }
+    }
+
     
     public void addMsgListener(NoteMsgInterface item) {
         if (!m_msgListeners.contains(item)) {
@@ -84,15 +96,7 @@ public class Network  {
 
     }
 
-    private String m_type = null;
 
-    public String getType(){
-        return m_type;
-    }
-
-    public void setType(String type){
-        m_type = type;
-    }
 
     private String m_description = null;
 
@@ -141,9 +145,7 @@ public class Network  {
                 return Network.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
             }
 
-            public String getType(){
-                return Network.this.getType();
-            }
+
 
 
             public NetworksData getNetworksData(){

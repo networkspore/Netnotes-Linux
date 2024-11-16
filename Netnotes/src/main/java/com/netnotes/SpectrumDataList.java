@@ -49,10 +49,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     private SpectrumSort m_sortMethod = new SpectrumSort();
     private String m_searchText = null;
-    @Override
-    public String getType(){
-        return "DATA";
-    }
+   
 
     private int m_connectionStatus = App.STOPPED;
     

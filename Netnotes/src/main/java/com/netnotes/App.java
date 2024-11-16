@@ -119,8 +119,7 @@ public class App extends Application {
 
 
     public static final String STATIC_TYPE = "STATIC";
-    public static final String APP_TYPE = "App";
-    public static final String NETWORK_TYPE = "Network";
+
 
     public static final String WALLET_NETWORK = "WALLET_NETWORK";
     public static final String NODE_NETWORK = "NODE_NETWORK";
