@@ -114,8 +114,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
             }
 
             public void sendMessage(int code, long timeStamp, String poolId, Number num){
-                if(code == App.STATUS){
-                    switch(num.intValue()){
+  
+                    switch(code){
                         case App.LIST_CHANGED:
                         case App.LIST_UPDATED:
                         
@@ -126,6 +126,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
                         case App.STOPPED:
 
                         break;
+                        case App.STARTED:
+                            m_connectionStatus = App.STARTED;
                         case App.ERROR:
                          //   JsonElement msgElement = json != null ? json.get("msg") : null;
                             m_connectionStatus = App.ERROR;
@@ -134,11 +136,12 @@ public class SpectrumDataList extends Network implements NoteInterface {
                         //  getLastUpdated().set(LocalDateTime.now());
                         break;
                     } 
-                }
+                
             }
         
             public void sendMessage(int code, long timestamp, String networkId, String msg){
                 if(code == App.ERROR){
+                    m_connectionStatus = App.ERROR;
                     m_statusMsg.set("Error: " + msg);
                 }
             }

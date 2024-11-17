@@ -1,19 +1,11 @@
 package com.netnotes;
 
-import java.io.File;
-import java.io.IOException;
-
-import java.nio.file.Files;
 import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonElement;
-import com.utils.Utils;
 
 import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 
 public class ErgoNetworkData {
     
@@ -39,16 +31,7 @@ public class ErgoNetworkData {
         m_id = FriendlyId.createFriendlyId();
         m_ergoNetwork = ergoNetwork;
 
-        File appDir = ergoNetwork.getAppDir();
 
-        if (!appDir.isDirectory()) {
-            try {
-                Files.createDirectory(appDir.toPath());
-            } catch (IOException e) {
-
-            }
-        }
-       
         installNetworks();
         
         

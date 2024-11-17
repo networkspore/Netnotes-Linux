@@ -2,7 +2,6 @@ package com.netnotes;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
@@ -22,7 +21,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
-import com.google.gson.JsonObject;;
 
 public class LockField extends HBox {
     private final TextField m_textField;
@@ -30,7 +28,6 @@ public class LockField extends HBox {
     private final Text m_text;
     private String m_lockString;
     private String m_unlockString;
-    private String m_prompt;
     private final HBox m_fieldBox;
     private final Button m_enterBtn;
     private SimpleStringProperty m_lockId = new SimpleStringProperty(null);

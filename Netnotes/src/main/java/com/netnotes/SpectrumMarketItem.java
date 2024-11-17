@@ -163,9 +163,10 @@ public class SpectrumMarketItem {
 
         SimpleDoubleProperty chartHeightObject = new SimpleDoubleProperty(regularHeight);
 
-        BufferedMenuButton menuBtn = new BufferedMenuButton();
+        /*BufferedMenuButton menuBtn = new BufferedMenuButton();
         menuBtn.setId("menuBtn");
-        menuBtn.getBufferedImageView().setFitWidth(15);
+        menuBtn.getBufferedImageView().setFitWidth(15);*/
+
         /*menuBtn.setGraphic(IconButton.getIconView(new Image(m_isFavorite.get() ? "/assets/star-30.png" : "/assets/star-outline-30.png"), 30));
         favoriteBtn.setOnAction(e -> {
             boolean newVal = !m_isFavorite.get();
@@ -485,23 +486,27 @@ public class SpectrumMarketItem {
                     }
                     
                     public void sendMessage(int code, long timeStamp, String networkId, Number num){
-                        if(code == App.STATUS){
-                            switch(code){
-                                case App.STARTED:
-                                case App.LIST_UPDATED:
-                                    updateRowImg.run();
-                                    
-                                break;
-                    
-                                case App.STOPPED:
+                      
+                        switch(code){
+                            case App.STARTED:
+                            case App.LIST_UPDATED:
+                                updateRowImg.run();
+                                
+                            break;
+                
+                            case App.STOPPED:
 
-                                break;
-                            }   
-                        }
+                            break;
+                        }   
+                        
                     }
 
                     public void sendMessage(int code, long timestamp, String networkId, String msg){
-                        
+                        switch(code){
+                            case App.ERROR:
+                            updateRowImg.run();
+                            break;
+                        }   
                     }
 
                   
@@ -542,15 +547,15 @@ public class SpectrumMarketItem {
         HBox.setHgrow(priceVBox,Priority.ALWAYS);
         priceVBox.setAlignment(Pos.CENTER_LEFT);
 
-        HBox menuBtnBox = new HBox(menuBtn);
+        /*HBox menuBtnBox = new HBox(menuBtn);
         menuBtnBox.setMaxHeight(32);
         menuBtnBox.setAlignment(Pos.CENTER_LEFT);
 
         VBox leftMarginVBox = new VBox(menuBtnBox);
         leftMarginVBox.setAlignment(Pos.TOP_CENTER);
-        leftMarginVBox.setId("darkBox");
+        leftMarginVBox.setId("darkBox");*/
 
-        HBox rowBox = new HBox(leftMarginVBox, rowImgBox,  priceVBox );
+        HBox rowBox = new HBox( rowImgBox,  priceVBox );
         rowBox.setId("rowBox");
         rowBox.setAlignment(Pos.TOP_LEFT);
         rowBox.maxWidthProperty().bind(m_dataList.gridWidthProperty());

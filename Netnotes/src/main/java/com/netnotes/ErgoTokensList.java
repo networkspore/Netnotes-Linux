@@ -45,28 +45,28 @@ public class ErgoTokensList  {
     private final SimpleObjectProperty<ErgoTokenData> m_selectedNetworkToken = new SimpleObjectProperty<>(null);
 
     private final SimpleObjectProperty<ErgoExplorerList> m_ergoExplorersList = new SimpleObjectProperty<>(null);
-
     private ErgoNetworkToken m_ergoToken = null;
+    private File m_tokensDir = null;
 
-
-
-    private File m_tokensDir;
     public ErgoTokensList(ErgoTokens ergoTokens) {
         m_ergoTokens = ergoTokens;
         setup();
     }
 
     private void setup(){
-        m_tokensDir = new File(m_ergoTokens.getErgoNetworkData().getErgoNetwork().getAppDir().getAbsolutePath() + "/tokens");
-        if(!m_tokensDir.isDirectory()){
-            try {
-                Files.createDirectories(m_tokensDir.toPath());
-            
-            } catch (IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.show();
-            }
+        File assetsDir;
+        try {
+            assetsDir = getNetworksData().getAssetsDir();
+        } catch (IOException e) {
+            Alert a = new Alert(AlertType.NONE, "Assets unaccessible: " + e.toString(), ButtonType.OK);
+            a.setHeaderText("Error");
+            a.setTitle("Error");
+            a.show();
+            return;
         }
+
+        m_tokensDir = new File(assetsDir.getAbsolutePath() + "/" + "Ergo");
+        
 
         JsonObject json = m_ergoTokens.getNetworksData().getData("tokenList", m_ergoTokens.getNetworkType().toString(), ErgoTokens.NETWORK_ID, ErgoNetwork.NETWORK_ID);      
         JsonElement jsonArrayElement = json != null ? json.get("data") : null;

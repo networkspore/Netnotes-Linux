@@ -40,11 +40,6 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public final static String SUMMARY = "";
     public final static String NETWORK_ID = "ERGO_NETWORK";
 
-
-  
-
-    private File m_appDir = null;
-
     private NetworkType m_networkType = NetworkType.MAINNET;
 
    // private File logFile = new File("netnotes-log.txt");
@@ -55,37 +50,12 @@ public class ErgoNetwork extends Network implements NoteInterface {
  //   private Image m_txImage = new Image("/assets/transaction-list-30.png");
 //    private Image m_sendImage = new Image("/assets/arrow-send-white-30.png");
 
-    
-    private File m_networksDir;
+
 
     //private SimpleBooleanProperty m_shuttingdown = new SimpleBooleanProperty(false);
     public ErgoNetwork(NetworksData networksData) {
         super(new Image("/assets/ergo-network-30.png"), NAME, NETWORK_ID, networksData);
-        m_networksDir = new File (getNetworksData().getAppDir().getAbsolutePath() +"/networks");
-        if(!m_networksDir.isDirectory()){
-            try {
-                Files.createDirectory(m_networksDir.toPath());
-            } catch (IOException e) {
-                try {
-                    Files.writeString(App.logFile.toPath(), "Cannot create network directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                    
-                }
-            }
-        }
-        m_appDir = new File( m_networksDir.getAbsolutePath() + "/Ergo");
-
-        if(!m_appDir.isDirectory()){
-            try {
-                Files.createDirectory(m_appDir.toPath());
-            } catch (IOException e) {
-                try {
-                    Files.writeString(App.logFile.toPath(), "Cannot create ergo directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                    
-                }
-            }
-        }
+        
 
         setKeyWords(new String[]{"blockchain","smart contracts", "programmable", "dApp", "wallet"});
 
@@ -99,30 +69,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
         return DESCRIPTION;
     }
 
-    public File getAppDir(){
-        if(!m_appDir.isDirectory()){
-            
-            try {
-                m_appDir.mkdirs();
-                
-            } catch (SecurityException e) {
-                try {
-                    Files.writeString(App.logFile.toPath(), "Cannot create ergo directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                    
-                }
-            }
-            
-        }
 
-        return m_appDir;
-    }
 
-    public JsonObject getAppDir(JsonObject note){
-        JsonObject json = new JsonObject();
-        json.addProperty("appDir", getAppDir().getAbsolutePath());
-        return json;    
-    }
 
     private Image m_smallAppIcon = new Image(getSmallAppIconString());
 

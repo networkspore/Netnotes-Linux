@@ -60,9 +60,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public static String NAME = "Spectrum Finance";
     public final static String NETWORK_ID = "SPECTRUM_FINANCE";
 
-    private static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
-        ErgoNetwork.getNetworkInformation(),
-        NetworksData.NO_NETWORK
+    private final static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
+        ErgoNetwork.getNetworkInformation()
     };
 
     private String m_currentNetworkId = ErgoNetwork.NETWORK_ID;
@@ -83,7 +82,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     public static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
-    private File m_appDir = null;
+
    // private File m_dataFile = null;
 
 
@@ -91,6 +90,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public static final String MARKET_DATA_ID = "marketData";
     public static final String TICKER_DATA_ID = "tickerData";
+
+    public static final String MARKETS_LIST = "MARKETS_LIST";
 
     private ArrayList<SpectrumMarketData> m_marketsList = new ArrayList<>();
 
@@ -105,30 +106,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public SpectrumFinance(NetworksData networksData) {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
-        setAppDir();
+
     }
 
  
-    public void setAppDir() {
-     
-        m_appDir = new File(getNetworksData().getAppDir().getAbsolutePath() + "/" + NAME);
-       
-        if (!m_appDir.isDirectory()) {
 
-            try {
-                Files.createDirectories(m_appDir.toPath());
-            } catch (IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.show();
-            }
 
-        }
-        
-    }
 
-    public File getAppDir() {
-        return m_appDir;
-    }
     public static String getAppIconString(){
         return "/assets/spectrum-150.png";
     }
@@ -150,11 +134,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     @Override
     public void addMsgListener(NoteMsgInterface item){
-        try {
-            Files.writeString(App.logFile.toPath(), "\nspectrum add msgListener: " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
- 
-        }
+        
         super.addMsgListener(item);
     }
 
@@ -282,7 +262,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             super(getNetworkId());
             addListeners();
             getData();
-
+            m_appStage = appStage;
             m_menuBtn = menuBtn;
             setPrefWidth(App.DEFAULT_STATIC_WIDTH);
             setMaxWidth(App.DEFAULT_STATIC_WIDTH);
@@ -561,7 +541,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
 
             bodyPaddingBox.prefWidthProperty().bind(widthProperty().subtract(1));
-            scrollPane.prefViewportWidthProperty().bind(m_appStage.widthProperty());
+            scrollPane.prefViewportWidthProperty().bind(widthObject);
 
            // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
            
@@ -581,7 +561,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             gridHeight.bind(scrollHeight);
 
         
-            scrollPane.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(footerVBox.heightProperty()));
+            scrollPane.prefViewportHeightProperty().bind(heightObject.subtract(footerVBox.heightProperty()));
 
             chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
        
@@ -594,9 +574,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     lastUpdatedField.setText(m_spectrumData.statusMsgProperty().get());
                 }
             });
-
-        
-          
         
         }
 
@@ -631,10 +608,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             m_networkInterface.set(null);
 
-            if(m_appStage != null){
-                m_appStage.close();
-                m_appStage = null;
-            }
+            m_appStage = null;
 
             
         }
@@ -731,7 +705,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         public void setCurrentNetworkId(String networkId, boolean update){
             m_currentNetworkId = networkId;
 
-            NoteInterface networkInterface = m_currentNetworkId != null && !m_currentNetworkId.equals(NetworksData.NO_NETWORK.getNetworkId())? getNetworksData().getNetwork(m_currentNetworkId) : null;
+            NoteInterface networkInterface = m_currentNetworkId != null ? getNetworksData().getNetwork(m_currentNetworkId) : null;
     
             m_networkInterface.set(networkInterface);
      
@@ -747,8 +721,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
             String selectedMarketId = m_currentNetworkId;
         
             SimpleBooleanProperty found = new SimpleBooleanProperty(false);
+            
+            for(int i = 0; i < SUPPORTED_NETWORKS.length ; i++ ){
+                NetworkInformation networkInfo = SUPPORTED_NETWORKS[i];
+               
 
-            for(NetworkInformation networkInfo : SUPPORTED_NETWORKS ){
                 NoteInterface noteInterface = getNetworksData().getNetwork(networkInfo.getNetworkId());
                 ImageView imgView = new ImageView(new Image(networkInfo.iconString()));
                 imgView.setPreserveRatio(true);
@@ -787,6 +764,21 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
                 networkMenuBtn.getItems().add(menuItem);
             }
+
+            MenuItem noneItem = new MenuItem("(none)");
+            if(selectedMarketId == null){
+                noneItem.setId("selectedMenuItem");
+            }
+            noneItem.setOnAction(e->{
+                if(selectedMarketId != null){
+                    setCurrentNetworkId(null, true);
+                    ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-30.png"));
+                    menuBtnGraphic.setPreserveRatio(true);
+                    menuBtnGraphic.setFitWidth(30);
+                    networkMenuBtn.setGraphic(menuBtnGraphic);
+                    getNetworkMenu(networkMenuBtn);
+                }
+            });
 
             if(!found.get()){
                 ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-120.png"));
@@ -952,17 +944,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
         long timeStamp = System.currentTimeMillis();
 
         if(m_marketsList.size() == 0){
-            for(int i = 0; i < size; i++){
-                SpectrumMarketData marketData = data.get(i);
-               if(data != null){
-                    m_marketsList.add(marketData);
-                    data.clear();
-
-                    sendMessage(App.STATUS, timeStamp,marketData.getPoolId(), App.LIST_CHANGED);
-                    
-               }
-            }
-           
+                for(int i = 0; i < size; i++){
+                    SpectrumMarketData marketData = data.get(i);
+                    if(marketData != null){
+                        m_marketsList.add(marketData);    
+                    }
+                }
+                data.clear();
+          
+            sendMessage(App.LIST_CHANGED, timeStamp,MARKETS_LIST, m_marketsList.size());
         }else{
             SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
             for(int i = 0; i < size; i++){
@@ -979,9 +969,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
             data.clear();
             if(changed.get()){
-                sendMessage(App.STATUS, timeStamp,NETWORK_ID, App.LIST_CHANGED);
+                sendMessage(App.LIST_CHANGED, timeStamp,MARKETS_LIST,  m_marketsList.size());
             }else{
-                sendMessage(App.STATUS, timeStamp,NETWORK_ID, App.LIST_UPDATED);
+                sendMessage(App.LIST_UPDATED, timeStamp,MARKETS_LIST,  m_marketsList.size());
             }
             
         }
@@ -1164,7 +1154,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                  
                         }*/
                         setConnectionStatus(App.STARTED);
-                        sendMessage(App.STATUS, System.currentTimeMillis(), NETWORK_ID, App.STARTED);
+                        sendMessage(App.STARTED, System.currentTimeMillis(), NETWORK_ID, App.STARTED);
                         getMarketUpdate(marketJsonArray);
                     } 
                 }, (onfailed)->{

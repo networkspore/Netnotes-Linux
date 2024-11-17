@@ -2,7 +2,6 @@ package com.netnotes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.gson.JsonObject;
 import com.netnotes.IconButton.IconStyle;
@@ -13,7 +12,6 @@ import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;

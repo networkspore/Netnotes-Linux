@@ -136,11 +136,13 @@ public class NetworksData {
     private ScrollPane m_menuScroll;
     private ScrollPane m_subMenuScroll;
     private VBox m_subMenuBox = new VBox();
-
+    private HBox m_topBarBox;
+    private HBox m_menuContentBox;
     private SimpleObjectProperty<TabInterface> m_currentMenuTab = new SimpleObjectProperty<TabInterface>();
     private BufferedButton m_settingsBtn;
     private BufferedButton m_appsBtn;
     private BufferedButton m_networkBtn;
+
 
     /*private SettingsTab m_settingsTab = null;
     private NetworkTab m_networkTab = null;
@@ -479,9 +481,7 @@ public class NetworksData {
     }
 
 
-    public File getAppDir() {
-        return m_appData.getAppDir();
-    }
+
 
     public void openHostUrl(String url) {
         
@@ -523,7 +523,7 @@ public class NetworksData {
             m_apps.put(networkId, noteInterface);
             
             if(isSave){
-
+                save();
                 long timestamp = System.currentTimeMillis();
                 JsonObject resultJson = new JsonObject();
                 resultJson.addProperty("code", App.LIST_ITEM_ADDED);
@@ -682,19 +682,24 @@ public class NetworksData {
         return null;
     }
 
-public NoteInterface getApp(String networkId) {
-    if (networkId != null) {
+    private Network getAppNetwork(String networkId){
+        if (networkId != null) {
 
-        NoteInterface noteInterface = getAppInterface(networkId);
+            NoteInterface noteInterface = getAppInterface(networkId);
 
-        if (noteInterface != null && noteInterface instanceof Network) {
-            Network network = (Network) noteInterface;
-            return network.getNoteInterface();
+            if (noteInterface != null && noteInterface instanceof Network) {
+                Network network = (Network) noteInterface;
+                return network;
+            }
+            
         }
-        
+        return null;
     }
-    return null;
-}
+
+    public NoteInterface getApp(String networkId) {
+        Network network = getAppNetwork(networkId);
+        return network != null ? network.getNoteInterface() : null;
+    }
 
 
     private void installNetwork(String networkId){
@@ -713,7 +718,7 @@ public NoteInterface getApp(String networkId) {
 
         if(getApp(networkId) == null && isAppSupported(networkId)){
            
-            addApp(createNetwork(networkId), true);
+            addApp(createApp(networkId), true);
            
         }
 
@@ -995,16 +1000,19 @@ public NoteInterface getApp(String networkId) {
             return;
         }
       
-        NoteInterface noteInterface = getApp(networkId);
+        Network appNetwork = getAppNetwork(networkId);
+
+
     
-        Network noteInterfaeNetwork = (Network) noteInterface;
+        if(appNetwork != null){
+       
 
-        TabInterface tab = noteInterface != null ? noteInterface.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, noteInterfaeNetwork.getIconButton(App.MENU_BAR_IMAGE_WIDTH)) : null;
- 
-        m_currentMenuTab.set(tab != null ? tab : null);
+            TabInterface tab = appNetwork.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, appNetwork.getIconButton(App.MENU_BAR_IMAGE_WIDTH));
+    
+            m_currentMenuTab.set(tab != null ? tab : null);
 
-        //TODO: add to appslist
-        
+            //TODO: add to appslist
+        }
     }
   
     public void closeMenuTab(){
@@ -1319,15 +1327,15 @@ public NoteInterface getApp(String networkId) {
             closeMenuTab();
         });
 
-        HBox topBarBox = new HBox(m_tabLabel, logoGrowRegion, closeTabBtn);
-        HBox.setHgrow(topBarBox, Priority.ALWAYS);
-        topBarBox.setAlignment(Pos.CENTER_LEFT);
-        topBarBox.setId("networkTopBar");
+        m_topBarBox = new HBox(m_tabLabel, logoGrowRegion, closeTabBtn);
+        HBox.setHgrow(m_topBarBox, Priority.ALWAYS);
+        m_topBarBox.setAlignment(Pos.CENTER_LEFT);
+        m_topBarBox.setId("networkTopBar");
 
         
    
 
-        HBox gradBox = new HBox();
+        m_menuContentBox = new HBox();
 
         Region hBar = new Region();
         hBar.setPrefWidth(400);
@@ -1338,6 +1346,10 @@ public NoteInterface getApp(String networkId) {
         HBox gBox = new HBox(hBar);
         gBox.setAlignment(Pos.CENTER);
         gBox.setPadding(new Insets(0, 0, 10, 0));
+        
+       
+        
+       
 
         
         m_currentMenuTab.addListener((obs,oldval,newval)->{
@@ -1350,14 +1362,14 @@ public NoteInterface getApp(String networkId) {
 
           
             m_subMenuBox.getChildren().clear();
-            gradBox.getChildren().clear();
+            m_menuContentBox.getChildren().clear();
 
             if(newval != null && newval instanceof Pane){
                 m_tabLabel.setText(newval.getName());
        
-                m_subMenuBox.getChildren().addAll(topBarBox,gBox, (Pane) newval);
-                gradBox.getChildren().addAll(m_subMenuBox, vBar);
-                m_subMenuScroll.setContent( gradBox );
+                m_subMenuBox.getChildren().addAll(m_topBarBox, gBox, (Pane) newval);
+                m_menuContentBox.getChildren().addAll(m_subMenuBox, vBar);
+                m_subMenuScroll.setContent( m_menuContentBox );
 
                 newval.setCurrent(true);
                
@@ -1371,7 +1383,9 @@ public NoteInterface getApp(String networkId) {
     }
 
     
-
+    private File getAppDir(){
+        return m_appData.getAppDir();
+    }
     
     public File getDataDir(){
         File dataDir = new File(getAppDir().getAbsolutePath() + "/data");
@@ -1388,6 +1402,16 @@ public NoteInterface getApp(String networkId) {
             }
         }
         return dataDir;
+    }
+
+    public File getAssetsDir() throws IOException{
+        File assetsDir = new File(getDataDir().getAbsolutePath() + "/assets");
+        if(!assetsDir.isDirectory()){
+          
+            Files.createDirectory(assetsDir.toPath());
+          
+        }
+        return assetsDir;
     }
 
     public File getIdDataFile(){
@@ -2183,7 +2207,7 @@ public NoteInterface getApp(String networkId) {
             prefWidthProperty().bind(m_widthObject);
             prefHeightProperty().bind(m_heightObject);
             setAlignment(Pos.CENTER);
-
+            minHeightProperty().bind(m_heightObject);
     
            
             m_listBox.setPadding(new Insets(10));
@@ -2475,6 +2499,7 @@ public NoteInterface getApp(String networkId) {
             }else{
                 
                 IconButton emptyAddAppBtn = new IconButton(new Image("/assets/settings-outline-white-30.png"), "Install Network", IconStyle.ICON);
+                emptyAddAppBtn.disableActions();
                 emptyAddAppBtn.setOnAction(e->{
                     showInstallContextMenu();
                 });
@@ -2505,7 +2530,7 @@ public NoteInterface getApp(String networkId) {
         public ManageAppsTab(){
             super(NAME);
       
-            
+            minHeightProperty().bind(m_heightObject);
             minWidthProperty().bind(m_widthObject);
             maxWidthProperty().bind(m_widthObject);
             setAlignment(Pos.TOP_CENTER);
@@ -2759,6 +2784,7 @@ public NoteInterface getApp(String networkId) {
                 }
             }else{
                 IconButton emptyAddAppBtn = new IconButton(new Image("/assets/settings-outline-white-120.png"), "Install App", IconStyle.ICON);
+                emptyAddAppBtn.disableActions();
                 emptyAddAppBtn.setOnAction(e->{
                     showInstallContextMenu();
                 });
@@ -2840,13 +2866,13 @@ public NoteInterface getApp(String networkId) {
     }
 
     public class AppsTab extends AppBox implements TabInterface  {
-        public static final int PADDING = 10;
+        //public static final int PADDING = 10;
         public static final String NAME = "Apps";
     
     
         private SimpleBooleanProperty m_current = new SimpleBooleanProperty(true);
-        private SimpleStringProperty m_iconStyle;
-        private HBox m_headerBox;
+
+        private VBox m_footerBox;
         private VBox m_listBox;
     
     
@@ -2857,38 +2883,53 @@ public NoteInterface getApp(String networkId) {
             
             minWidthProperty().bind(m_widthObject);
             maxWidthProperty().bind(m_widthObject);
+            minHeightProperty().bind(m_heightObject);
+
             setAlignment(Pos.TOP_CENTER);
+
+
     
-            BufferedButton manageBtn = new BufferedButton("/assets/filter.png", App.MENU_BAR_IMAGE_WIDTH);
+           
+            
+
+            m_listBox = new VBox();
+            HBox.setHgrow(m_listBox, Priority.ALWAYS);
+            m_listBox.setPadding(new Insets(5));
+            m_listBox.setAlignment(Pos.TOP_CENTER);
+            
+
+            Region hBar = new Region();
+            hBar.prefWidthProperty().bind(m_widthObject.subtract(40));
+            hBar.setPrefHeight(2);
+            hBar.setMinHeight(2);
+            hBar.setId("hGradient");
+
+            Button manageBtn = new Button("Manage Apps");
+            manageBtn.prefWidthProperty().bind(m_widthObject);
+            manageBtn.setId("rowBtn");
             manageBtn.setOnAction(e->{
                 openStatic(ManageAppsTab.NAME);
             });
-    
-            BufferedButton itemStyleBtn = new BufferedButton("/assets/list-outline-white-25.png", App.MENU_BAR_IMAGE_WIDTH);
-            itemStyleBtn.setOnAction(e->{
-                if(m_iconStyle.get().equals(IconStyle.ICON)){
-                    m_iconStyle.set(IconStyle.ROW);
-                }else{
-                    m_iconStyle.set(IconStyle.ICON);
-                }
-            });
-    
-            m_iconStyle.addListener((obs,oldval,newval)->update());
-            
+
             HBox manageBtnBox = new HBox(manageBtn);
             HBox.setHgrow(manageBtnBox, Priority.ALWAYS);
+            manageBtnBox.setAlignment(Pos.CENTER);
+            manageBtnBox.setPadding(new Insets(5,0,0,0));
+
+
+
+            m_footerBox = new VBox(hBar, manageBtnBox);
+            HBox.setHgrow(m_footerBox, Priority.ALWAYS);
+            m_footerBox.setPadding(new Insets(2,5,2,2));
     
-            m_headerBox = new HBox(manageBtnBox, itemStyleBtn);
-            HBox.setHgrow(m_headerBox, Priority.ALWAYS);
-            m_headerBox.setAlignment(Pos.CENTER_LEFT);
-            m_headerBox.setPadding(new Insets(2));
-    
-            m_listBox = new VBox();
-            HBox.setHgrow(m_listBox, Priority.ALWAYS);
-            m_listBox.setPadding(new Insets(PADDING));
-            m_listBox.setAlignment(Pos.TOP_CENTER);
-    
-            getChildren().addAll(m_headerBox, m_listBox);
+            m_listBox.minHeightProperty().bind(m_heightObject.subtract(m_footerBox.heightProperty()));
+
+            getChildren().addAll(m_listBox, m_footerBox);
+
+
+            update();
+
+            
         }
     
  
@@ -2901,70 +2942,23 @@ public NoteInterface getApp(String networkId) {
         }
     
         public void update(){
-            
-            double minSize = m_listBox.widthProperty().get() - 110;
-            minSize = minSize < 110 ? 100 : minSize;
-    
-            int numCells = m_apps.size();
-            double width = widthProperty().get();
-            width = width < minSize ? width : minSize;
-            
-            String currentIconStyle = m_iconStyle.get();
-            
+       
             m_listBox.getChildren().clear();
     
-            if (numCells != 0) {
+            if (m_apps.size() != 0) {
     
-               
-                if (currentIconStyle.equals(IconStyle.ROW)) {
-                    for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
-                        NoteInterface noteInterface = entry.getValue();
-                
-                        IconButton iconButton = new IconButton(noteInterface.getAppIcon(), noteInterface.getName(), IconStyle.ROW);
-                        iconButton.setPrefWidth(width);
-                        m_listBox.getChildren().add(iconButton);
-                    }
-                } else {
-    
-                    double imageWidth = 75;
-                    double cellPadding = 15;
-                    double cellWidth = imageWidth + (cellPadding * 2);
-    
-                    int floor = (int) Math.floor(width / cellWidth);
-                    int numCol = floor == 0 ? 1 : floor;
-                    // currentNumCols.set(numCol);
-                  //  int numRows = numCells > 0 && numCol != 0 ? (int) Math.ceil(numCells / (double) numCol) : 1;
-    
-                  ArrayList<HBox> rowsBoxes = new ArrayList<HBox>();
-    
-                  ItemIterator grid = new ItemIterator();
-                  //j = row
-                  //i = col
-      
-                  for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
-                        NoteInterface noteInterface = entry.getValue();
-    
-                        if(rowsBoxes.size() < (grid.getJ() + 1)){
-                            HBox newHBox = new HBox();
-                            rowsBoxes.add(newHBox);
-                            m_listBox.getChildren().add(newHBox);
-                        }
-    
-                        HBox rowBox = rowsBoxes.get(grid.getJ());
-    
-                        IconButton iconButton = new IconButton(noteInterface.getAppIcon(), noteInterface.getName(), IconStyle.ICON);
-    
-                        rowBox.getChildren().add(iconButton);
-        
-                        if (grid.getI() < numCol) {
-                            grid.setI(grid.getI() + 1);
-                        } else {
-                            grid.setI(0);
-                            grid.setJ(grid.getJ() + 1);
-                        }
-                  }
-    
+                for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
+                    NoteInterface noteInterface = entry.getValue();
+            
+                    IconButton iconButton = new IconButton(noteInterface.getAppIcon(), noteInterface.getName(), IconStyle.ROW);
+                    iconButton.disableActions();
+                    iconButton.prefWidthProperty().bind(m_widthObject);
+                    iconButton.setOnAction(e->{
+                        openApp(noteInterface.getNetworkId());
+                    });
+                    m_listBox.getChildren().add(iconButton);
                 }
+            
             }else{
                 
                 IconButton emptyAddAppBtn = new IconButton(new Image("/assets/settings-outline-white-120.png"), "Install", IconStyle.ICON);
@@ -3012,7 +3006,44 @@ public NoteInterface getApp(String networkId) {
             }
         }
     }
-
+    /*
+                    double imageWidth = 75;
+                    double cellPadding = 15;
+                    double cellWidth = imageWidth + (cellPadding * 2);
+    
+                    int floor = (int) Math.floor(width / cellWidth);
+                    int numCol = floor == 0 ? 1 : floor;
+                    // currentNumCols.set(numCol);
+                  //  int numRows = numCells > 0 && numCol != 0 ? (int) Math.ceil(numCells / (double) numCol) : 1;
+    
+                  ArrayList<HBox> rowsBoxes = new ArrayList<HBox>();
+    
+                  ItemIterator grid = new ItemIterator();
+                  //j = row
+                  //i = col
+      
+                  for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
+                        NoteInterface noteInterface = entry.getValue();
+    
+                        if(rowsBoxes.size() < (grid.getJ() + 1)){
+                            HBox newHBox = new HBox();
+                            rowsBoxes.add(newHBox);
+                            m_listBox.getChildren().add(newHBox);
+                        }
+    
+                        HBox rowBox = rowsBoxes.get(grid.getJ());
+    
+                        IconButton iconButton = new IconButton(noteInterface.getAppIcon(), noteInterface.getName(), IconStyle.ICON);
+    
+                        rowBox.getChildren().add(iconButton);
+        
+                        if (grid.getI() < numCol) {
+                            grid.setI(grid.getI() + 1);
+                        } else {
+                            grid.setI(0);
+                            grid.setJ(grid.getJ() + 1);
+                        }
+                  } */
 
     public class SettingsTab extends AppBox implements TabInterface  {
         public final static String NAME = "Settings";
@@ -3033,7 +3064,7 @@ public NoteInterface getApp(String networkId) {
     
         public SettingsTab(){
             super(NAME);
-           
+            minHeightProperty().bind(m_heightObject);
     
             Button settingsButton = App.createImageButton(App.logo, "Settings");
     

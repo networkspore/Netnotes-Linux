@@ -100,18 +100,12 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     private ArrayList<MessageInterface> m_msgListeners = new ArrayList<>();
     private SimpleObjectProperty<JsonObject> m_socketMsg = new SimpleObjectProperty<>(null);
-
+    private NetworksData m_networksData;
    //private AtomicInteger m_reconnectTries = new AtomicInteger(0);
 
     public KucoinExchange(NetworksData networksData) {
-        this(null, networksData);
-        setup(null);
-    }
-
-    public KucoinExchange(JsonObject jsonObject, NetworksData networksData) {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
-
-        setup(jsonObject);
+        m_networksData = networksData;
     }
 
 
@@ -189,39 +183,7 @@ public class KucoinExchange extends Network implements NoteInterface {
     }
 
 
-    private void setup(JsonObject jsonObject) {
 
-
-        String fileString = null;
-        String appDirFileString = null;
-        if (jsonObject != null) {
-            JsonElement appDirElement = jsonObject.get("appDir");
-      
-            JsonElement dataFileElement = jsonObject.get("dataFile");
-
-            fileString = dataFileElement == null ? null : dataFileElement.toString();
-
-            appDirFileString = appDirElement == null ? null : appDirElement.getAsString();
-
-        }
-
-        m_appDir = appDirFileString == null ? new File(getNetworksData().getAppDir().getAbsolutePath() + "/" + NAME) : new File(appDirFileString);
-
-        if (!m_appDir.isDirectory()) {
-
-            try {
-                Files.createDirectories(m_appDir.toPath());
-            } catch (IOException e) {
-                Alert a = new Alert(AlertType.NONE, e.toString(), ButtonType.CLOSE);
-                a.show();
-            }
-
-        }
-
-   
-        m_dataFile = new File(fileString == null ? m_appDir.getAbsolutePath() + "/" + NAME + ".dat" : fileString);
-
-    }
 
 
 
