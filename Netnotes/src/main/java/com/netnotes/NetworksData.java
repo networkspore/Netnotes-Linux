@@ -1102,34 +1102,29 @@ public class NetworksData {
 
 
 
-   // private VBox m_appTabsBox;
-  //  private VBox m_menuContentBox;
+
 
  
 
     private SimpleDoubleProperty m_menuWidth;
-
+    private VBox m_contentBox;
+    private ContentTabs m_contentTabs;
 
     public void createMenu(Stage appStage,SimpleDoubleProperty menuWidth, HBox menuBox, ScrollPane subMenuScroll, VBox contentBox){
          
         m_menuWidth = menuWidth;
-
-   
-    
+        m_contentBox = contentBox;
         m_appStage = appStage;
         m_subMenuScroll = subMenuScroll;
       
-
         m_subMenuBox.setAlignment(Pos.TOP_LEFT);
-       // m_subMenuBox.setId("appMenuBox");
-
-        m_heightObject.bind(contentBox.heightProperty().subtract(38));
+       
+        m_heightObject.bind(contentBox.heightProperty().subtract(45));
   
         m_tabLabel.setPadding(new Insets(2,0,2,5));
         m_tabLabel.setFont(App.titleFont);
+
         m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
-
-
 
         HBox vBar = new HBox();
         vBar.setAlignment(Pos.CENTER);
@@ -1142,7 +1137,7 @@ public class NetworksData {
         menuVBar.setPrefWidth(2);
         menuVBar.setMinWidth(2);
         menuVBar.setId("vGradient");
-
+        
         HBox menuVBarBox = new HBox(menuVBar);
         VBox.setVgrow(menuVBarBox, Priority.ALWAYS);
         menuVBarBox.setMinWidth(5);
@@ -1150,10 +1145,12 @@ public class NetworksData {
         menuVBarBox.setId("darkBox");
 
         m_appsMenu = new AppsMenu();
+        m_contentTabs = new ContentTabs();
      
-        menuBox.getChildren().addAll( m_appsMenu, menuVBarBox);
+        menuBox.getChildren().addAll( m_appsMenu, menuVBar);
         
-     
+        m_contentBox.getChildren().add(m_contentTabs);
+             
         Region logoGrowRegion = new Region();
         HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
 
@@ -1169,11 +1166,9 @@ public class NetworksData {
         m_topBarBox.setAlignment(Pos.CENTER_LEFT);
         m_topBarBox.setId("networkTopBar");
 
-        
-   
-
         m_menuContentBox = new HBox();
         m_menuContentBox.setId("darkBox");
+        
         Region hBar = new Region();
         hBar.setPrefWidth(400);
         hBar.setPrefHeight(2);
@@ -1184,7 +1179,6 @@ public class NetworksData {
         gBox.setAlignment(Pos.CENTER);
         gBox.setPadding(new Insets(0, 0, 10, 0));
         
-        
         m_currentMenuTab.addListener((obs,oldval,newval)->{
 
             if(oldval != null){
@@ -1193,7 +1187,6 @@ public class NetworksData {
                 oldval.shutdown();
             }
 
-          
             m_subMenuBox.getChildren().clear();
             m_menuContentBox.getChildren().clear();
 
@@ -3371,19 +3364,38 @@ public class NetworksData {
     
         }
     
-       private SimpleStringProperty m_titleProperty = new SimpleStringProperty(NAME);
+        private SimpleStringProperty m_titleProperty = new SimpleStringProperty(NAME);
     
         public SimpleStringProperty titleProperty(){
             return m_titleProperty;
         }
-        
-     
+         
         public String getName(){
             return NAME;
         }
     
-    
-     
     }
+
+    private class ContentTabs extends VBox{
+        private ScrollPane m_tabsScroll;
+        private ScrollPane m_bodyScroll;
+        private SimpleDoubleProperty m_tabsHeight = new SimpleDoubleProperty(40);
+
+        public ContentTabs(){
+
+            m_tabsScroll = new ScrollPane();
+            m_tabsScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
+            m_tabsScroll.prefViewportHeightProperty().bind(m_tabsHeight);
+
+            m_bodyScroll = new ScrollPane();
+            m_bodyScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
+            m_bodyScroll.prefViewportHeightProperty().bind(m_contentBox.heightProperty().subtract(m_tabsHeight).subtract(1));
+
+            getChildren().addAll(m_tabsScroll, m_bodyScroll);
+
+
+        }
+
+    } 
     
 }

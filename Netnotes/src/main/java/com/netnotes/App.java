@@ -733,9 +733,9 @@ public class App extends Application {
     private HBox m_menuBox;
     private ScrollPane m_staticContent;
 
-    public final static double DEFAULT_STATIC_WIDTH = 495;
+    public final static double DEFAULT_STATIC_WIDTH = 500;
 
-    private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH);
+    private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH +5);
     private SimpleDoubleProperty m_menuWidth = new SimpleDoubleProperty(55);
     private void loadMainStage(Stage appStage) {
    
@@ -761,7 +761,7 @@ public class App extends Application {
 
         m_contentBox = new VBox();
         VBox.setVgrow(m_contentBox, Priority.ALWAYS);
-
+        HBox.setHgrow(m_contentBox, Priority.ALWAYS);
 
 
   
@@ -799,12 +799,12 @@ public class App extends Application {
 
         appScene.getWindow().centerOnScreen();
 
-        m_networksData.createMenu(appStage,m_menuWidth, m_menuBox, m_staticContent, m_contentBox);
+        m_networksData.createMenu(appStage, m_menuWidth, m_menuBox, m_staticContent, m_contentBox);
 
         m_networksData.menuTabProperty().addListener((obs,oldval,newval)->{
             if(newval != null){
                 if(!mainHbox.getChildren().contains(m_staticContent)){
-                    mainHbox.getChildren().add(2, m_staticContent);
+                    mainHbox.getChildren().add(1, m_staticContent);
                 }
             }else{
                 if(mainHbox.getChildren().contains(m_staticContent)){
