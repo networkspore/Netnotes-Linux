@@ -4,15 +4,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import com.google.gson.JsonObject;
-import com.netnotes.IconButton.IconStyle;
-
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
@@ -21,13 +21,10 @@ public class Network  {
     private int m_connectionStatus = 0;
     private String m_networkId;
     private NetworksData m_networksData;
-   // private ArrayList<NoteInterface> m_tunnelInterfaceList = new ArrayList<>();
     private NoteInterface m_parentInterface = null;
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<LocalDateTime>(LocalDateTime.now());
     private ChangeListener<LocalDateTime> m_changeListener = null;
     private SimpleObjectProperty<LocalDateTime> m_shutdownNow = new SimpleObjectProperty<>(null);
-   // private SimpleObjectProperty<NoteHook> m_noteHookProperty = new SimpleObjectProperty<>(null);
-
     public final static long EXECUTION_TIME = 500;
 
     public final static double SMALL_STAGE_WIDTH = 500;
@@ -46,7 +43,7 @@ public class Network  {
 
     private String m_name;
     private Image m_icon;
-    private IconButton m_iconBtn;
+    private Button m_appBtn;
 
     public Network(Image icon, String name, String id, NetworksData networksData) {
         m_icon = icon;
@@ -71,13 +68,21 @@ public class Network  {
         return null;
     }
 
-    public IconButton getIconButton(double size){
-        if(m_iconBtn != null){
-            return m_iconBtn;
+    public Button getButton(double size){
+        if(m_appBtn != null){
+            return m_appBtn;
         }else{
-            m_iconBtn = new IconButton(m_icon, m_name, IconStyle.ICON);
-            m_iconBtn.setImageWidth(m_stageWidth);
-            return m_iconBtn; 
+            Tooltip tooltip = new Tooltip(getName());
+            tooltip.setShowDelay(javafx.util.Duration.millis(100));
+            ImageView imgView = new ImageView(getAppIcon());
+            imgView.setPreserveRatio(true);
+            imgView.setFitWidth(size);
+
+            m_appBtn = new Button();
+            m_appBtn.setGraphic(imgView);
+            m_appBtn.setId("menuTabBtn");
+            m_appBtn.setTooltip(tooltip);
+            return m_appBtn; 
         }
     }
 

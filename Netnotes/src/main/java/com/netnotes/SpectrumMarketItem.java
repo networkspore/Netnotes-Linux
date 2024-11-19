@@ -157,9 +157,9 @@ public class SpectrumMarketItem {
     public void setupRowBox() {
 
         String friendlyId = FriendlyId.createFriendlyId();
-        double regularHeight = 32;
+        double regularHeight = 50;
         double focusedHeight = 150;
-        int  chartWidthOffset = 240;
+        int  chartWidthOffset = 200;
 
         SimpleDoubleProperty chartHeightObject = new SimpleDoubleProperty(regularHeight);
 
@@ -199,21 +199,12 @@ public class SpectrumMarketItem {
             }
         });
 
-        HBox openChartBtnBox = new HBox(openChartBtn);
-        openChartBtnBox.setMaxHeight(32);
-        openChartBtnBox.setAlignment(Pos.CENTER);
-       
 
-        HBox rowChartBox = new HBox(openChartBtnBox);
-        rowChartBox.setAlignment(Pos.TOP_LEFT);
-        rowChartBox.setPadding(new Insets(0,5, 0, 0));
 
        ImageView rowChartImgView = new ImageView();
        rowChartImgView.setPreserveRatio(false);
      
         HBox chartBox = new HBox(rowChartImgView);
-        
-    
         chartBox.setPadding(new Insets(0));
         chartBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
 
@@ -221,13 +212,12 @@ public class SpectrumMarketItem {
         String initialValue = m_isInvert.get() ? m_marketData.getInvertedLastPrice().doubleValue() + "" :  m_marketData.getLastPrice().doubleValue() + "";
         initialValue = initialValue.substring(0,Math.min(12, initialValue.length()));
         
+       
+
         TextField priceText = new TextField(initialValue);
         priceText.setEditable(false);
-        priceText.setFont(Font.font("OCR A Extended", FontWeight.BOLD, 16));
-   
-       
-        HBox.setHgrow(priceText, Priority.ALWAYS);
-        
+        priceText.setId("priceText");
+        priceText.setPrefWidth(100);
         
         Text symbolText = new Text(m_marketData.getCurrentSymbol(m_isInvert.get()));
         symbolText.setFont(Font.font("DejaVu Sans Mono, Book", FontWeight.NORMAL, 14));
@@ -235,17 +225,25 @@ public class SpectrumMarketItem {
         
         DropShadow shadow = new DropShadow();
         symbolText.setEffect(shadow);
+        
+        HBox openChartBtnBox = new HBox(openChartBtn);
+        openChartBtnBox.setPadding(new Insets(5, 0,0,10));
+        HBox priceHBox = new HBox(priceText, openChartBtnBox);
+        HBox.setHgrow(priceHBox, Priority.ALWAYS);
+        priceHBox.setAlignment(Pos.TOP_RIGHT);
+        priceHBox.setPadding(new Insets(5,0,5,0));
+ 
+        priceHBox.setMinWidth(90);
 
-        HBox symbolTextBox = new HBox(symbolText);
+        /*HBox symbolTextBox = new HBox();
         symbolTextBox.setMaxHeight(  regularHeight);
         symbolTextBox.setMinHeight(regularHeight);
-        symbolTextBox.setAlignment(Pos.CENTER_LEFT);
+        symbolTextBox.setAlignment(Pos.CENTER_LEFT);*/
 
-        HBox symbolTextPaddingBox = new HBox(symbolTextBox);
-      
+        HBox symbolTextPaddingBox = new HBox(symbolText, priceHBox);
         VBox.setVgrow(symbolTextPaddingBox, Priority.ALWAYS);
-        HBox.setHgrow(symbolTextPaddingBox, Priority.ALWAYS);
-        symbolTextPaddingBox.setAlignment(Pos.CENTER_LEFT);
+        symbolTextPaddingBox.prefWidthProperty().bind(m_dataList.gridWidthProperty());
+        symbolTextPaddingBox.setAlignment(Pos.TOP_LEFT);
 
   
         SimpleObjectProperty<Image> baseImg = new SimpleObjectProperty<>();
@@ -392,9 +390,9 @@ public class SpectrumMarketItem {
             SpectrumChartView chartView =  m_marketData.getSpectrumChartView().get();
             int height = (int) chartHeightObject.get();
             boolean isCurrent = height > (int) regularHeight;
-            int w = (int) m_dataList.gridWidthProperty().get() - (isCurrent ? chartWidthOffset : (chartWidthOffset-30));
+           // int w = ;
     
-            int width = w < chartWidthOffset ? chartWidthOffset : w  ;
+            int width = (int) m_dataList.gridWidthProperty().get() - (isCurrent ? chartWidthOffset : 0); //w < chartWidthOffset ? chartWidthOffset : w  ;
 
             if(chartView != null ){
                 if(chartView.getConnectionStatus() != App.ERROR ){
@@ -434,10 +432,11 @@ public class SpectrumMarketItem {
                         rowChartImgView.setFitHeight(m_rowImg.getHeight());
 
                         String priceString = String.format("%-12s", numbers.getClose().doubleValue()).substring(0,12).trim();
-        
+                        
+                        priceText.setPrefWidth(isCurrent ? 130 : 100);
                         priceText.setText(priceString);
-                        priceText.setAlignment(isCurrent ? Pos.CENTER : Pos.CENTER_LEFT);
-
+               
+                        
              
                     }
 
@@ -535,15 +534,9 @@ public class SpectrumMarketItem {
         Region phb1 = new Region();
         HBox.setHgrow(phb1,Priority.ALWAYS);
 
-        
-        HBox priceHBox = new HBox(priceText, rowChartBox);
-        HBox.setHgrow(priceHBox, Priority.ALWAYS);
-        priceHBox.setAlignment(Pos.CENTER_LEFT);
-        priceHBox.setPadding(new Insets(5,0,5,0));
-        priceHBox.setId("darkBox");
-        priceHBox.setMinWidth(90);
+      
 
-        VBox priceVBox = new VBox(priceHBox, statsBox);
+        VBox priceVBox = new VBox( statsBox);
         HBox.setHgrow(priceVBox,Priority.ALWAYS);
         priceVBox.setAlignment(Pos.CENTER_LEFT);
 
@@ -637,7 +630,7 @@ public class SpectrumMarketItem {
             boolean isCurrent = newval != null && newval.equals(rowBox);
             rowBox.setId(isCurrent ? "headingBox" : "rowBox");
             chartHeightObject.set(isCurrent ? focusedHeight : regularHeight);
-            symbolTextPaddingBox.setAlignment(isCurrent ? Pos.TOP_LEFT: Pos.CENTER_LEFT);
+        
             imagesBox.setAlignment(isCurrent ? Pos.TOP_LEFT : Pos.CENTER);
         
         };
@@ -648,9 +641,12 @@ public class SpectrumMarketItem {
         
         numbersObject.addListener((obs,oldval,newval)->{
             if(newval != null){
-                
+                symbolTextPaddingBox.getChildren().remove(priceHBox);
                 if(!statsBox.getChildren().contains(statsVbox)){
                     statsBox.getChildren().add(statsVbox);
+                  
+                    statsVbox.getChildren().add(0,priceHBox);
+                    
                 }
               
                 openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
@@ -667,7 +663,8 @@ public class SpectrumMarketItem {
                 percentChangeText.setFill(increaseDirection == 0 ? App.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
             
             }else{
-                
+                statsVbox.getChildren().remove(priceHBox);
+                symbolTextPaddingBox.getChildren().add(priceHBox);
                 statsBox.getChildren().clear();
             
             }
@@ -985,7 +982,7 @@ public class SpectrumMarketItem {
     private WritableImage m_rowWImg = null;
     
     private SpectrumNumbers m_numbers = null;
-    
+    private NoteMsgInterface m_chartMsgInterface;
 
     public void showStage() {
         if (m_stage == null) {
@@ -1432,7 +1429,7 @@ public class SpectrumMarketItem {
             
         String friendlyId = FriendlyId.createFriendlyId();
 
-        SimpleObjectProperty<NoteMsgInterface> listListenerObject = new SimpleObjectProperty<>(null);
+ 
 
      
        
@@ -1440,34 +1437,28 @@ public class SpectrumMarketItem {
         FxTimer.runLater(Duration.ofMillis(150),()->{
             SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
             
-            if(chartView != null && listListenerObject.get() == null){
+            if(chartView != null && m_chartMsgInterface == null){
               
-                NoteMsgInterface msgInterface = new NoteMsgInterface() {
+                m_chartMsgInterface = new NoteMsgInterface() {
                     public String getId() {
                         return friendlyId;
                     }
 
                     public void sendMessage(int code, long timestamp,String networkId, Number num){
-                        if(code == App.STATUS){
-                            switch(num.intValue()){
-                                case App.STARTED:
-                                case App.LIST_UPDATED:
-                                case App.LIST_CHECKED:
-                                case App.LIST_CHANGED:
-                                    createChart.run();  
-                                    if(m_marketData.getQuoteSymbol().equals("SigUSD")){
-                                            try {
-                                                Files.writeString(App.logFile.toPath(),"received " + timestamp, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
-                                            } catch (IOException e) {
-                                        
-                                            }
-                                        }  
-                                break;
-                                case App.STOPPED:
-        
-                                break;
-                            }  
-                        }
+                     
+                        switch(code){
+                            case App.STARTED:
+                            case App.LIST_UPDATED:
+                            case App.LIST_CHECKED:
+                            case App.LIST_CHANGED:
+                                createChart.run();  
+                         
+                            break;
+                            case App.STOPPED:
+    
+                            break;
+                        }  
+                        
                     }
 
                     public void sendMessage(int code, long timestamp, String networkId, String msg){
@@ -1477,8 +1468,8 @@ public class SpectrumMarketItem {
                   
                 };
                 
-                listListenerObject.set(msgInterface);
-                chartView.addMsgListener(msgInterface);
+                
+                chartView.addMsgListener(m_chartMsgInterface);
                 chartScroll.viewportBoundsProperty().addListener(boundsChangeListener);
             }
             
@@ -1681,8 +1672,8 @@ public class SpectrumMarketItem {
                 m_shutdown.removeListener(shutdownListener);
                 m_isInvert.removeListener(invertListener);
 
-                if(listListenerObject.get() != null){
-                    spectrumChartView.removeMsgListener(listListenerObject.get() );
+                if(m_chartMsgInterface != null){
+                    spectrumChartView.removeMsgListener(m_chartMsgInterface);
                 }
                 if(m_stage != null){
                     m_stage.close();

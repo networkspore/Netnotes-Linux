@@ -42,8 +42,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -132,18 +130,17 @@ public class NetworksData {
     private AppData m_appData;
 
     private Stage m_appStage = null;
-    private ChangeListener<Bounds> m_boundsListener = null;
-    private ScrollPane m_menuScroll;
     private ScrollPane m_subMenuScroll;
     private VBox m_subMenuBox = new VBox();
     private HBox m_topBarBox;
     private HBox m_menuContentBox;
     private SimpleObjectProperty<TabInterface> m_currentMenuTab = new SimpleObjectProperty<TabInterface>();
-    private BufferedButton m_settingsBtn;
+    private BufferedMenuButton m_settingsBtn;
     private BufferedButton m_appsBtn;
+    private Tooltip m_appsToolTip;
     private BufferedButton m_networkBtn;
 
-
+    private AppsMenu m_appsMenu = null;
     /*private SettingsTab m_settingsTab = null;
     private NetworkTab m_networkTab = null;
     private AppsTab m_appsTab = null;*/
@@ -490,9 +487,11 @@ public class NetworksData {
 
 
     private void sendMessage(int code, long timestamp, String type, String msg){
-        
+        if(m_appsMenu != null){
+            m_appsMenu.sendMessage(code, timestamp, type, msg);
+        }
         TabInterface tabInterface = m_currentMenuTab.get();
-        if(tabInterface != null && (tabInterface instanceof AppsTab || tabInterface instanceof ManageNetworksTab) ){
+        if(tabInterface != null && (tabInterface instanceof ManageAppsTab || tabInterface instanceof ManageNetworksTab) ){
             tabInterface.sendMessage(code, timestamp, type, msg);
         }
 
@@ -755,11 +754,11 @@ public class NetworksData {
             long timestamp = System.currentTimeMillis();
             JsonObject resultJson = new JsonObject();
             resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
-            resultJson.addProperty("networkId", NETWORKS);
+            resultJson.addProperty("networkId", APPS);
             resultJson.addProperty("timeStamp", timestamp);
             resultJson.add("ids", result);
 
-            sendMessage( App.LIST_ITEM_REMOVED, timestamp, NETWORKS, resultJson.toString());
+            sendMessage( App.LIST_ITEM_REMOVED, timestamp, APPS, resultJson.toString());
 
             save();
         }
@@ -813,11 +812,11 @@ public class NetworksData {
                 long timestamp = System.currentTimeMillis();
                 JsonObject resultJson = new JsonObject();
                 resultJson.addProperty("code", App.LIST_ITEM_REMOVED);
-                resultJson.addProperty("networkId", NETWORKS);
+                resultJson.addProperty("networkId", APPS);
                 resultJson.addProperty("timeStamp", timestamp);
                 resultJson.addProperty("id", networkId);
 
-                sendMessage( App.LIST_ITEM_ADDED, timestamp, NETWORKS, resultJson.toString());
+                sendMessage( App.LIST_ITEM_REMOVED, timestamp, APPS, resultJson.toString());
 
                 save();
             }
@@ -1007,11 +1006,11 @@ public class NetworksData {
         if(appNetwork != null){
        
 
-            TabInterface tab = appNetwork.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, appNetwork.getIconButton(App.MENU_BAR_IMAGE_WIDTH));
+            TabInterface tab = appNetwork.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, appNetwork.getButton(BTN_IMG_SIZE));
     
-            m_currentMenuTab.set(tab != null ? tab : null);
+            m_currentMenuTab.set( tab);
 
-            //TODO: add to appslist
+        
         }
     }
   
@@ -1083,19 +1082,12 @@ public class NetworksData {
             case ManageAppsTab.NAME:
                 return new ManageAppsTab();
 
-            case AppsTab.NAME:
-                return new AppsTab() ;
-            
-
-            case SettingsTab.NAME:
-                
+            case SettingsTab.NAME:                
                 return  new SettingsTab() ;
-            
-            
+
             case ManageNetworksTab.NAME:
                 return new ManageNetworksTab();
-            
-            
+
         }
 
         return null;
@@ -1108,62 +1100,36 @@ public class NetworksData {
     };
 
 
-    private VBox m_menuBox = null;
+
 
    // private VBox m_appTabsBox;
   //  private VBox m_menuContentBox;
 
  
-    private void initMenu(){
+
+    private SimpleDoubleProperty m_menuWidth;
+
+
+    public void createMenu(Stage appStage,SimpleDoubleProperty menuWidth, HBox menuBox, ScrollPane subMenuScroll, VBox contentBox){
+         
+        m_menuWidth = menuWidth;
+
+   
+    
+        m_appStage = appStage;
+        m_subMenuScroll = subMenuScroll;
+      
+
+        m_subMenuBox.setAlignment(Pos.TOP_LEFT);
+       // m_subMenuBox.setId("appMenuBox");
+
+        m_heightObject.bind(contentBox.heightProperty().subtract(38));
+  
         m_tabLabel.setPadding(new Insets(2,0,2,5));
         m_tabLabel.setFont(App.titleFont);
         m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
 
 
-        Tooltip appsToolTip = new Tooltip("Apps");
-        appsToolTip.setShowDelay(new javafx.util.Duration(100));
-
-
-
-        m_appsBtn = new BufferedButton("/assets/apps-outline-35.png", BTN_IMG_SIZE);
-        m_appsBtn.setId("menuTabBtn");
-        m_appsBtn.setTooltip(appsToolTip);
-
-   
-
-        Tooltip settingsTooltip = new Tooltip("Settings");
-        settingsTooltip.setShowDelay(new javafx.util.Duration(100));
-        
-        m_settingsBtn = new BufferedButton("/assets/settings-outline-white-30.png", BTN_IMG_SIZE);
-        m_settingsBtn.setTooltip(settingsTooltip);
-        m_settingsBtn.setId("menuTabBtn");
-        
-      //  m_appTabsBox = new VBox();
-       // m_menuContentBox = new VBox(m_appTabsBox);
-
-        m_networkBtn =new BufferedButton("/assets/globe-outline-white-30.png", BTN_IMG_SIZE);
-        m_networkBtn.disablePressedEffects();
-        
-    }
-
-    
-
-
-    public void createMenu(Stage appStage,VBox menuBox,ScrollPane menuScroll,ScrollPane subMenuScroll, VBox contentBox){
-         
-         
-
-        m_menuBox = menuBox;
-        m_appStage = appStage;
-        m_subMenuScroll = subMenuScroll;
-        m_boundsListener = (obs,oldval,newval)->{
-            m_widthObject.set(newval.getWidth()-2);
-            m_heightObject.set(newval.getHeight()-40);
-        };    
-        m_subMenuScroll.viewportBoundsProperty().addListener(m_boundsListener);
-
-        m_subMenuBox.setAlignment(Pos.TOP_LEFT);
-        m_subMenuBox.setId("darkBox");
 
         HBox vBar = new HBox();
         vBar.setAlignment(Pos.CENTER);
@@ -1171,152 +1137,23 @@ public class NetworksData {
         vBar.setMinWidth(1);
         VBox.setVgrow(vBar, Priority.ALWAYS);
        
-        initMenu();
+        Region menuVBar = new Region();
+        VBox.setVgrow(menuVBar, Priority.ALWAYS);
+        menuVBar.setPrefWidth(2);
+        menuVBar.setMinWidth(2);
+        menuVBar.setId("vGradient");
 
-        
-        m_menuScroll = menuScroll;
+        HBox menuVBarBox = new HBox(menuVBar);
+        VBox.setVgrow(menuVBarBox, Priority.ALWAYS);
+        menuVBarBox.setMinWidth(5);
+        menuVBarBox.setAlignment(Pos.CENTER_LEFT);
+        menuVBarBox.setId("darkBox");
 
-        
-        ContextMenu networkContextMenu = new ContextMenu();
-
-
-
-        BufferedButton networkMenuBtn = new BufferedButton("/assets/caret-down-15.png", 10);
-        networkMenuBtn.setId("iconBtnDark");
-       
-
-        HBox networkMenuBtnBox = new HBox(networkMenuBtn);
-
-        VBox.setVgrow(networkMenuBtnBox, Priority.ALWAYS);
-        HBox.setHgrow(networkMenuBtnBox, Priority.ALWAYS);
-        networkMenuBtnBox.setAlignment(Pos.TOP_RIGHT);
-        networkMenuBtnBox.setOnMouseClicked(e->m_networkBtn.fire());
-
-
-        HBox socketBox = new HBox();
-        socketBox.setId("socketBox");
-
-        socketBox.setMouseTransparent(true);
-        socketBox.setMaxWidth(App.MENU_BAR_IMAGE_WIDTH);
-        socketBox.setMaxHeight(App.MENU_BAR_IMAGE_WIDTH);
-
-        
-        
-
-        StackPane currentNetworkBox = new StackPane(m_networkBtn, socketBox, networkMenuBtnBox);
-        HBox.setHgrow(currentNetworkBox, Priority.ALWAYS);
-        currentNetworkBox.setAlignment(Pos.CENTER);
-
-        
-
-        Runnable showNetworkMenu = () ->{
-  
-            networkContextMenu.getItems().clear();
-            for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
-            
-                NoteInterface noteInterface = entry.getValue();
-
-                if(noteInterface instanceof Network){
-                    Network network = (Network) noteInterface;
-                    
-                    ImageView menuItemImg = new ImageView();
-                    menuItemImg.setPreserveRatio(true);
-                    menuItemImg.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
-                    menuItemImg.setImage(network.getAppIcon());
-
-                    MenuItem menuItem = new MenuItem(network.getName(), menuItemImg);
-                    menuItem.setOnAction(e->{
-                       
-                        openNetwork(network.getNetworkId());
-                    });
-                    networkContextMenu.getItems().add(menuItem);
-                }
-            }
-
-            MenuItem manageMenuItem = new MenuItem("Manage networks...");
-            manageMenuItem.setOnAction(e->{
-                openStatic(ManageNetworksTab.NAME);
-            });
-
-            SeparatorMenuItem separatorMenuItem = new SeparatorMenuItem();
-
-            networkContextMenu.getItems().addAll(separatorMenuItem, manageMenuItem);
-
-            Point2D p = networkMenuBtn.localToScene(0.0, 0.0);
-
-            networkContextMenu.show(networkMenuBtn,
-                    p.getX() + networkMenuBtn.getScene().getX() + networkMenuBtn.getScene().getWindow().getX() + networkMenuBtn.getLayoutBounds().getWidth(),
-                    (p.getY() + networkMenuBtn.getScene().getY() + networkMenuBtn.getScene().getWindow().getY()));
-        };
-
-        
-
-
-
-        networkMenuBtn.setOnAction(e->showNetworkMenu.run());
-
-
-        Tooltip currentNetworkTooltip = new Tooltip();
-        currentNetworkTooltip.setShowDelay(javafx.util.Duration.millis(150));
-
-        m_networkBtn.setTooltip(currentNetworkTooltip);        
-
-
-        VBox bottomBox = new VBox();
-
-
+        m_appsMenu = new AppsMenu();
      
-        m_menuBox.getChildren().addAll(m_appsBtn, m_menuScroll, m_settingsBtn, currentNetworkBox, bottomBox);
+        menuBox.getChildren().addAll( m_appsMenu, menuVBarBox);
         
      
-        m_appsBtn.setOnAction(e -> {
-            if(m_apps.size() > 0){
-                openStatic(AppsTab.NAME);
-            }else{
-                openStatic(ManageAppsTab.NAME);
-            }
-        });
-
-        m_settingsBtn.setOnAction(e->{
-            openStatic(SettingsTab.NAME);
-        });
-    
-        m_networkBtn.setOnAction(e->{
-            NoteInterface noteInterface = getNetworkInterface(m_currentNetworkId.get());
-
-            if(noteInterface != null && noteInterface instanceof Network){
-                Network currentNetwork = (Network) noteInterface;
-                openNetwork(currentNetwork.getNetworkId());
-            }else{
-                openStatic(ManageNetworksTab.NAME);
-            }
-
-        });
-
-        Runnable updateCurrentNetwork = ()->{
-            NoteInterface noteInterface = getNetworkInterface(m_currentNetworkId.get());
-      
-
-            if(noteInterface != null && noteInterface instanceof Network){
-                
-                Network currentNetwork = (Network) noteInterface;
-                
-                m_networkBtn.setImage(currentNetwork.getAppIcon());
-                currentNetworkTooltip.setText(currentNetwork.getName());
-               
-     
-            }else{
-                m_networkBtn.setImage( new Image("/assets/globe-outline-white-30.png"));
-                currentNetworkTooltip.setText("Select network");
-                
-            }
-        };
-
-        updateCurrentNetwork.run();
-
-        m_currentNetworkId.addListener((obs,oldval,newval)->updateCurrentNetwork.run());
-
- 
         Region logoGrowRegion = new Region();
         HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
 
@@ -1336,7 +1173,7 @@ public class NetworksData {
    
 
         m_menuContentBox = new HBox();
-
+        m_menuContentBox.setId("darkBox");
         Region hBar = new Region();
         hBar.setPrefWidth(400);
         hBar.setPrefHeight(2);
@@ -1347,10 +1184,6 @@ public class NetworksData {
         gBox.setAlignment(Pos.CENTER);
         gBox.setPadding(new Insets(0, 0, 10, 0));
         
-       
-        
-       
-
         
         m_currentMenuTab.addListener((obs,oldval,newval)->{
 
@@ -1364,7 +1197,7 @@ public class NetworksData {
             m_subMenuBox.getChildren().clear();
             m_menuContentBox.getChildren().clear();
 
-            if(newval != null && newval instanceof Pane){
+            if(newval != null){
                 m_tabLabel.setText(newval.getName());
        
                 m_subMenuBox.getChildren().addAll(m_topBarBox, gBox, (Pane) newval);
@@ -2189,6 +2022,7 @@ public class NetworksData {
             
         }
         public void setCurrent(boolean value){
+            m_settingsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
             m_current = value;
         }
         public boolean getCurrent(){
@@ -2459,7 +2293,7 @@ public class NetworksData {
 
                             MenuItem removeItem = new MenuItem("🗑   Uninstall");
                             removeItem.setOnAction(e->{
-                                
+                                menuBtn.hide();
                                 removeNetwork(network.getNetworkId(), true);
                                 
                             });
@@ -2535,10 +2369,7 @@ public class NetworksData {
             maxWidthProperty().bind(m_widthObject);
             setAlignment(Pos.TOP_CENTER);
 
-            m_current.addListener((obs,oldval,newval)->{
-                m_appsBtn.setId(newval ? "activeMenuBtn" : "menuTabBtn");
-            });
-
+        
             
 
 
@@ -2586,7 +2417,7 @@ public class NetworksData {
             installText.setMinWidth(58);
 
             TextField installField = new TextField();
-            installField.setPromptText("(Select network to install)");
+            installField.setPromptText("(Select app to install)");
             installField.setEditable(false);
             HBox.setHgrow(installField, Priority.ALWAYS);
 
@@ -2755,6 +2586,7 @@ public class NetworksData {
 
                     MenuItem removeItem = new MenuItem("🗑   Uninstall");
                     removeItem.setOnAction(e->{
+                        appListmenuBtn.hide();
                         removeApp(appInterface.getNetworkId());
                     });
 
@@ -2798,8 +2630,11 @@ public class NetworksData {
 
         @Override
         public void sendMessage(int code, long timestamp,String networkId, String msg){
-            
-            updateAppList();
+            switch(networkId){
+                case APPS:
+                    updateAppList();
+                break;
+            }
         }
 
         public void update(){
@@ -2836,9 +2671,9 @@ public class NetworksData {
         }
     
         public void setCurrent(boolean value){
-        
+            m_settingsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
             m_current.set(value);
-            m_appsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
+          
         }
 
         
@@ -2859,50 +2694,215 @@ public class NetworksData {
 
         @Override
         public void sendMessage(int code, long timestamp, String networkId, Number number) {
-            if(networkId != null && networkId.equals(NetworksData.NETWORK_ID)){
-                update();
+            switch(networkId){
+                case APPS:
+                    update();
+                break;
             }
         }
     }
 
-    public class AppsTab extends AppBox implements TabInterface  {
+    public class AppsMenu extends VBox {
         //public static final int PADDING = 10;
         public static final String NAME = "Apps";
-    
-    
-        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(true);
-
-        private VBox m_footerBox;
+  
         private VBox m_listBox;
     
-    
-    
-        public AppsTab(){
-            super(NAME);
+        public AppsMenu(){
+            super();
             
             
-            minWidthProperty().bind(m_widthObject);
-            maxWidthProperty().bind(m_widthObject);
-            minHeightProperty().bind(m_heightObject);
+            minWidthProperty().bind(m_menuWidth.add(5));
+            maxWidthProperty().bind(m_menuWidth.add(5));
+            
+            
 
             setAlignment(Pos.TOP_CENTER);
 
+               
+            Tooltip settingsTooltip = new Tooltip("Settings");
+            settingsTooltip.setShowDelay(new javafx.util.Duration(100));
 
-    
-           
+         
             
+            MenuItem settingsManageAppsItem = new MenuItem("Manage Apps…");
+            settingsManageAppsItem.setOnAction(e->{
+                openStatic(ManageAppsTab.NAME);
+            });
+            MenuItem settingsManageNetworksItem = new MenuItem("Manage Networks…");
+            settingsManageNetworksItem.setOnAction(e->{
+                openStatic(ManageNetworksTab.NAME);
+            });
+            MenuItem settingsAppItem = new MenuItem("Settings");
+            settingsAppItem.setOnAction(e->{
+                openStatic(SettingsTab.NAME);
+            });
+
+            SeparatorMenuItem seperatorItem = new SeparatorMenuItem();
+
+            
+            m_settingsBtn = new BufferedMenuButton("/assets/settings-outline-white-30.png", BTN_IMG_SIZE);
+            m_settingsBtn.setTooltip(settingsTooltip);
+            m_settingsBtn.setId("menuTabBtn");
+
+            m_settingsBtn.getItems().addAll(settingsManageAppsItem, settingsManageNetworksItem,seperatorItem, settingsAppItem);
+        //  m_appTabsBox = new VBox();
+        // m_menuContentBox = new VBox(m_appTabsBox);
+
+            m_networkBtn =new BufferedButton("/assets/globe-outline-white-30.png", BTN_IMG_SIZE);
+            m_networkBtn.disablePressedEffects();
+            m_networkBtn.setId("menuTabBtn");
 
             m_listBox = new VBox();
             HBox.setHgrow(m_listBox, Priority.ALWAYS);
-            m_listBox.setPadding(new Insets(5));
+            m_listBox.setPadding(new Insets(0,5,2,5));
             m_listBox.setAlignment(Pos.TOP_CENTER);
+          
+
+            
+                
+            
+            ContextMenu networkContextMenu = new ContextMenu();
+
+
+
+            BufferedButton networkMenuBtn = new BufferedButton("/assets/caret-down-15.png", 10);
+            networkMenuBtn.setId("iconBtnDark");
+        
+
+            HBox networkMenuBtnBox = new HBox(networkMenuBtn);
+            networkMenuBtnBox.setId("hand");
+            VBox.setVgrow(networkMenuBtnBox, Priority.ALWAYS);
+            HBox.setHgrow(networkMenuBtnBox, Priority.ALWAYS);
+            networkMenuBtnBox.setAlignment(Pos.TOP_RIGHT);
+            networkMenuBtnBox.setOnMouseClicked(e->m_networkBtn.fire());
+
+
+            HBox socketBox = new HBox();
+            socketBox.setId("socketBox");
+
+            socketBox.setMouseTransparent(true);
+            socketBox.setMaxWidth(App.MENU_BAR_IMAGE_WIDTH);
+            socketBox.setMaxHeight(App.MENU_BAR_IMAGE_WIDTH);
+
+            
             
 
-            Region hBar = new Region();
+            StackPane currentNetworkBox = new StackPane(m_networkBtn, socketBox, networkMenuBtnBox);
+            HBox.setHgrow(currentNetworkBox, Priority.ALWAYS);
+            currentNetworkBox.setAlignment(Pos.CENTER);
+
+            
+
+            Runnable showNetworkMenu = () ->{
+    
+                networkContextMenu.getItems().clear();
+                for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
+                
+                    NoteInterface noteInterface = entry.getValue();
+
+                    if(noteInterface instanceof Network){
+                        Network network = (Network) noteInterface;
+                        
+                        ImageView menuItemImg = new ImageView();
+                        menuItemImg.setPreserveRatio(true);
+                        menuItemImg.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                        menuItemImg.setImage(network.getAppIcon());
+
+                        MenuItem menuItem = new MenuItem(network.getName(), menuItemImg);
+                        menuItem.setOnAction(e->{
+                        
+                            openNetwork(network.getNetworkId());
+                        });
+                        networkContextMenu.getItems().add(menuItem);
+                    }
+                }
+
+                MenuItem manageMenuItem = new MenuItem("Manage networks...");
+                manageMenuItem.setOnAction(e->{
+                    openStatic(ManageNetworksTab.NAME);
+                });
+
+                SeparatorMenuItem separatorMenuItem = new SeparatorMenuItem();
+
+                networkContextMenu.getItems().addAll(separatorMenuItem, manageMenuItem);
+
+                Point2D p = networkMenuBtn.localToScene(0.0, 0.0);
+
+                networkContextMenu.show(networkMenuBtn,
+                        p.getX() + networkMenuBtn.getScene().getX() + networkMenuBtn.getScene().getWindow().getX() + networkMenuBtn.getLayoutBounds().getWidth(),
+                        (p.getY() + networkMenuBtn.getScene().getY() + networkMenuBtn.getScene().getWindow().getY()));
+            };
+
+            
+
+
+
+            networkMenuBtn.setOnAction(e->showNetworkMenu.run());
+
+
+            Tooltip currentNetworkTooltip = new Tooltip();
+            currentNetworkTooltip.setShowDelay(javafx.util.Duration.millis(150));
+
+            m_networkBtn.setTooltip(currentNetworkTooltip);        
+
+
+                
+          
+        
+            m_networkBtn.setOnAction(e->{
+                NoteInterface noteInterface = getNetworkInterface(m_currentNetworkId.get());
+
+                if(noteInterface != null && noteInterface instanceof Network){
+                    Network currentNetwork = (Network) noteInterface;
+                    openNetwork(currentNetwork.getNetworkId());
+                }else{
+                    openStatic(ManageNetworksTab.NAME);
+                }
+
+            });
+
+            Runnable updateCurrentNetwork = ()->{
+                NoteInterface noteInterface = getNetworkInterface(m_currentNetworkId.get());
+        
+
+                if(noteInterface != null && noteInterface instanceof Network){
+                    
+                    Network currentNetwork = (Network) noteInterface;
+                    
+                    m_networkBtn.setImage(currentNetwork.getAppIcon());
+                    currentNetworkTooltip.setText(currentNetwork.getName());
+                
+        
+                }else{
+                    m_networkBtn.setImage( new Image("/assets/globe-outline-white-30.png"));
+                    currentNetworkTooltip.setText("Select network");
+                    
+                }
+            };
+
+            updateCurrentNetwork.run();
+
+            m_currentNetworkId.addListener((obs,oldval,newval)->updateCurrentNetwork.run());
+
+
+
+            
+            HBox listBoxPadding = new HBox(m_listBox);
+            listBoxPadding.minHeightProperty().bind(m_appStage.getScene().heightProperty().subtract(50).subtract(m_settingsBtn.heightProperty()).subtract(currentNetworkBox.heightProperty()));
+            listBoxPadding.setId("appMenuBox");
+            VBox scrollContentBox = new VBox(listBoxPadding);
+
+            ScrollPane listScroll = new ScrollPane(scrollContentBox);
+            listScroll.prefViewportWidthProperty().bind(m_menuWidth.add(5));
+            listScroll.prefViewportHeightProperty().bind(m_appStage.getScene().heightProperty().subtract(50).subtract(m_settingsBtn.heightProperty()).subtract(currentNetworkBox.heightProperty()));
+        
+
+            /*Region hBar = new Region();
             hBar.prefWidthProperty().bind(m_widthObject.subtract(40));
             hBar.setPrefHeight(2);
             hBar.setMinHeight(2);
-            hBar.setId("hGradient");
+            hBar.setId("hGradient");*/
 
             Button manageBtn = new Button("Manage Apps");
             manageBtn.prefWidthProperty().bind(m_widthObject);
@@ -2917,15 +2917,9 @@ public class NetworksData {
             manageBtnBox.setPadding(new Insets(5,0,0,0));
 
 
-
-            m_footerBox = new VBox(hBar, manageBtnBox);
-            HBox.setHgrow(m_footerBox, Priority.ALWAYS);
-            m_footerBox.setPadding(new Insets(2,5,2,2));
     
-            m_listBox.minHeightProperty().bind(m_heightObject.subtract(m_footerBox.heightProperty()));
-
-            getChildren().addAll(m_listBox, m_footerBox);
-
+            getChildren().addAll(listScroll, m_settingsBtn, currentNetworkBox);
+            setId("appMenuBox");
 
             update();
 
@@ -2933,78 +2927,59 @@ public class NetworksData {
         }
     
  
-    
-        @Override
         public void sendMessage(int code, long timestamp,String networkId, String msg){
-            if(networkId.equals(APPS)){
-                update();
+            switch(networkId){
+                case APPS:
+                    update();
+                    break;
             }
         }
-    
+
         public void update(){
        
+
             m_listBox.getChildren().clear();
-    
+
             if (m_apps.size() != 0) {
+                if(m_appsBtn != null){
+                    m_appsBtn = null;
+                    m_appsToolTip = null;
+                }
     
                 for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
                     NoteInterface noteInterface = entry.getValue();
-            
-                    IconButton iconButton = new IconButton(noteInterface.getAppIcon(), noteInterface.getName(), IconStyle.ROW);
-                    iconButton.disableActions();
-                    iconButton.prefWidthProperty().bind(m_widthObject);
-                    iconButton.setOnAction(e->{
+                    Button appBtn = ((Network) noteInterface).getButton(BTN_IMG_SIZE);
+                    appBtn.setOnAction(e->{
                         openApp(noteInterface.getNetworkId());
                     });
-                    m_listBox.getChildren().add(iconButton);
+                    m_listBox.getChildren().add(appBtn);
+                    
                 }
             
             }else{
                 
-                IconButton emptyAddAppBtn = new IconButton(new Image("/assets/settings-outline-white-120.png"), "Install", IconStyle.ICON);
-                emptyAddAppBtn.setOnAction(e->{
-                    openStatic(ManageAppsTab.NAME);
-                });
-                HBox addBtnBox = new HBox(emptyAddAppBtn);
-                HBox.setHgrow(addBtnBox, Priority.ALWAYS);
-                addBtnBox.setAlignment(Pos.CENTER);
-                VBox.setVgrow(addBtnBox, Priority.ALWAYS);
-                m_listBox.getChildren().add(addBtnBox);
+                if(m_appsToolTip == null){
+                    m_appsToolTip = new Tooltip("Manage Apps");
+                    m_appsToolTip.setShowDelay(new javafx.util.Duration(100));
+
+                    
+                    m_appsBtn = new BufferedButton("/assets/apps-outline-35.png", BTN_IMG_SIZE);
+                    m_appsBtn.setId("menuTabBtn");
+                    m_appsBtn.setTooltip(m_appsToolTip);
+                    m_appsBtn.setOnAction(e -> {
+                
+                        openStatic(ManageAppsTab.NAME);
+                        
+                    });
+                }
+
+                if(!m_listBox.getChildren().contains(m_appsBtn)){
+                    m_listBox.getChildren().add(m_appsBtn);
+                }
             }
         }
     
       
-        public String getName(){
-            return NAME;
-        }
-       
-        public void setCurrent(boolean value){
-            m_appsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
-            m_current.set(value);
-        }
-    
-        
-        public boolean getCurrent(){
-            return m_current.get();
-        } 
-    
-    
-        private SimpleStringProperty m_titleProperty = new SimpleStringProperty(NAME);
-    
-        public SimpleStringProperty titleProperty(){
-            return m_titleProperty;
-        }
-    
-        public void shutdown(){
-            this.prefWidthProperty().unbind();
-        }
-    
-        @Override
-        public void sendMessage(int code, long timestamp, String networkId, Number number) {
-            if(networkId != null && networkId.equals(NetworksData.NETWORK_ID)){
-                update();
-            }
-        }
     }
     /*
                     double imageWidth = 75;

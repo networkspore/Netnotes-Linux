@@ -394,7 +394,6 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 
           
                 Button loadingBtn = new Button();
-                loadingBtn.setFont(App.txtFont);
                 loadingBtn.setTextFill(Color.WHITE);
                 loadingBtn.setId("transparentColor");
                 loadingBtn.setGraphicTextGap(15);

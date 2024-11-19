@@ -5,8 +5,9 @@ import javafx.animation.PauseTransition;
  * Netnotes
  *
  */
+
+//import javafx.application.HostServices;
 import javafx.application.Application;
-import javafx.application.HostServices;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -729,15 +730,13 @@ public class App extends Application {
     private VBox m_contentBox;
     private HBox m_footerBox = new HBox();
     private HBox m_titleBox = new HBox();
-    private VBox m_menuBox;
+    private HBox m_menuBox;
     private ScrollPane m_staticContent;
-    private ScrollPane m_menuScroll;
-    private ScrollPane m_appContent;
 
-    public final static double DEFAULT_STATIC_WIDTH = 500;
+    public final static double DEFAULT_STATIC_WIDTH = 495;
 
     private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH);
-
+    private SimpleDoubleProperty m_menuWidth = new SimpleDoubleProperty(55);
     private void loadMainStage(Stage appStage) {
    
         Button closeBtn = new Button();
@@ -760,32 +759,26 @@ public class App extends Application {
 
  
 
-        m_appContent = new ScrollPane();
-
         m_contentBox = new VBox();
         VBox.setVgrow(m_contentBox, Priority.ALWAYS);
 
-        Region vBar = new Region();
-        VBox.setVgrow(vBar, Priority.ALWAYS);
-        vBar.setPrefWidth(2);
-        vBar.setMinWidth(2);
-        vBar.setId("vGradient");
+
 
   
         
-        m_menuBox = new VBox();
+        m_menuBox = new HBox();
         VBox.setVgrow(m_menuBox, Priority.ALWAYS);
-        m_menuBox.setId("menuBox");
+
         m_menuBox.setPadding(new Insets(2, 0, 2, 0));
         m_menuBox.setId("appMenuBox");
-        m_menuBox.setMinWidth(50);
-        m_menuBox.setMaxWidth(50);
+        m_menuBox.minWidthProperty().bind(m_menuWidth.add(5));
+        m_menuBox.maxWidthProperty().bind(m_menuWidth.add(5));
         VBox.setVgrow(m_menuBox, Priority.ALWAYS);
 
 
   
 
-        HBox mainHbox = new HBox(m_menuBox, vBar, m_contentBox);
+        HBox mainHbox = new HBox(m_menuBox, m_contentBox);
         VBox.setVgrow(mainHbox, Priority.ALWAYS);
         HBox.setHgrow(mainHbox, Priority.ALWAYS);
     
@@ -800,16 +793,13 @@ public class App extends Application {
         appScene.setFill(null);
         appScene.getStylesheets().add("/css/startWindow.css");
 
-        m_menuScroll = new ScrollPane();
-        m_menuScroll.setPrefViewportHeight( m_networksData.getStageHeight() - 125);
-        
-       
+ 
         appStage.setScene(appScene);
         
 
         appScene.getWindow().centerOnScreen();
 
-        m_networksData.createMenu(appStage,m_menuBox, m_menuScroll, m_staticContent, m_contentBox);
+        m_networksData.createMenu(appStage,m_menuWidth, m_menuBox, m_staticContent, m_contentBox);
 
         m_networksData.menuTabProperty().addListener((obs,oldval,newval)->{
             if(newval != null){
@@ -828,10 +818,6 @@ public class App extends Application {
 
         m_staticContent.prefViewportWidthProperty().bind(m_staticContentWidth);
         m_staticContent.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
-
-      
-        m_menuScroll.setPrefViewportWidth(35);
-        m_menuScroll.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(125));
     
 
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);

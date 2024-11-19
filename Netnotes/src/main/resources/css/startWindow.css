@@ -110,6 +110,14 @@
     
 }
 
+#priceText{
+    -fx-font-family: 'DejaVu Sans Mono, Book';
+    -fx-background-color: transparent;
+    -fx-opacity: 1;
+    -fx-font-size: 16;
+    -fx-text-fill: white;
+    
+}
 
 #logoLbl{
     -fx-font-family: 'DejaVu Sans Mono, Book';
@@ -1026,7 +1034,7 @@
 
 #socketBox{
     -fx-background-color: linear-gradient(to bottom,#00000050 0%, #77777780 15%, #00000070 75%, #00000050 100% );
-
+    
     -fx-border-color: #33333350;
     -fx-border-width: 1 1 1 1;
     -fx-border-style: solid;
@@ -1109,7 +1117,8 @@
 #menuTabBtn {
     -fx-background-color: transparent;
     -fx-opacity: .8;
-    -fx-min-height: 40;
+    -fx-min-height: 45;
+    -fx-min-width: 45;
 }
 
 #menuTabBtn:hover {
@@ -1120,6 +1129,8 @@
 #activeMenuBtn {
     -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888840 4%, #77777740 100%);
     -fx-opacity: .8;
+    -fx-min-height: 45;
+    -fx-min-width: 45;
 }
 #activeMenuBtn:hover {
     -fx-background-color: linear-gradient(to right, #ffffffAA 0%, #EEEEEE40 4%, #FFFFFF40 100%);

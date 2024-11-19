@@ -596,6 +596,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         @Override
         public void setCurrent(boolean value) {
+          
             m_menuBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
             m_current.set(value);
             
