@@ -257,6 +257,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
         private NoteMsgInterface m_networkMsgInterface;
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>();
         private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
+        private HBox m_menuBar;
+        private VBox m_bodyPaddingBox;
 
         public SpectrumFinanceTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
             super(getNetworkId());
@@ -483,12 +485,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 save();
             });
 
-            HBox menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
-            HBox.setHgrow(menuBar, Priority.ALWAYS);
-            menuBar.setAlignment(Pos.CENTER_LEFT);
-            menuBar.setId("menuBar");
-            menuBar.setPadding(new Insets(1, 2, 1, 5));
-
+            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
+            HBox.setHgrow(m_menuBar, Priority.ALWAYS);
+            m_menuBar.setAlignment(Pos.CENTER_LEFT);
+            m_menuBar.setId("menuBar");
+            m_menuBar.setPadding(new Insets(1, 2, 1, 5));
+            m_menuBar.setMinHeight(25);
 
 
       
@@ -497,11 +499,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
   
             ScrollPane scrollPane = new ScrollPane(chartList);
             scrollPane.setPadding(new Insets(2));
-            HBox headingsBox = new HBox();
+        //    HBox headingsBox = new HBox();
 
- 
-            VBox bodyPaddingBox = new VBox(headingsBox, scrollPane);
-            bodyPaddingBox.setPadding(new Insets(5,5,0,5));
+            HBox menuBarBox = new HBox(m_menuBar);
+            HBox.setHgrow(menuBarBox,Priority.ALWAYS);
+            menuBarBox.setPadding(new Insets(0,0,10,0));
+            
+            m_bodyPaddingBox = new VBox(menuBarBox, scrollPane);
+            m_bodyPaddingBox.setPadding(new Insets(0,5,0,5));
 
      
 
@@ -535,12 +540,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
 
-            getChildren().addAll( bodyPaddingBox, footerVBox);
+            getChildren().addAll( m_bodyPaddingBox, footerVBox);
 
-            HBox menuPaddingBox = new HBox(menuBar);
-            menuPaddingBox.setPadding(new Insets(0, 0, 0, 0));
 
-            bodyPaddingBox.prefWidthProperty().bind(widthProperty().subtract(1));
+            
+
+            m_bodyPaddingBox.prefWidthProperty().bind(widthProperty().subtract(1));
             scrollPane.prefViewportWidthProperty().bind(widthObject);
 
            // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
@@ -635,22 +640,22 @@ public class SpectrumFinance extends Network implements NoteInterface {
                             return networkInterfaceId;
                         }
                         public void sendMessage(int code, long timeStamp, String networkId, Number num){
+                            switch(code){
+                                case App.STARTED:
+                                   
+                                break;
+                                case App.STOPPED:
                                 
+                                break;
+                                case App.LIST_CHANGED:
+                                case App.LIST_UPDATED:
+                                
+                                break;
+                            }
                         }
                     
                         public void sendMessage(int code, long timestamp, String networkId, String msg){
-                                switch(code){
-                                    case App.STARTED:
-                                    
-                                    break;
-                                    case App.STOPPED:
-                                    
-                                    break;
-                                    case App.LIST_CHANGED:
-                                    case App.LIST_UPDATED:
-                                    
-                                    break;
-                                }
+                                
                         }
                     
                         
