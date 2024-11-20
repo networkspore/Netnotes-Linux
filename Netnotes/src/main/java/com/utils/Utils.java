@@ -459,6 +459,25 @@ public class Utils {
         return priceTotal;
     }
 
+     
+    public static String parseMsgForJsonId(String msg){
+        if(msg != null){
+            JsonParser jsonParser = new JsonParser();
+
+            JsonElement jsonElement = jsonParser.parse(msg);
+
+            if(jsonElement != null && jsonElement.isJsonObject()){
+                JsonObject json = jsonElement.getAsJsonObject();
+                JsonElement idElement = json.get("id");
+                if(idElement != null && !idElement.isJsonNull()){
+                    return idElement.getAsString();
+                }
+            }
+        }
+
+        return null;
+    }
+
     public static String formatCryptoString(double price, String target, int precision, boolean valid) {
         String formatedDecimals = String.format("%."+precision+"f", price);
         String priceTotal = valid ? formatedDecimals : "-";

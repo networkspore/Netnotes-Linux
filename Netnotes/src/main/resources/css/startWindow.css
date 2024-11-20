@@ -6,6 +6,7 @@
 
 }
 
+
 .root * {
    
     -fx-text-fill: #cdd4da;
@@ -1464,26 +1465,37 @@
     -fx-font-size: 16;
 }
 
+#tabsBox{
+    -fx-background-color: #05050570; 
+}
+
 #tabBtn {
-    -fx-background-color: #05050570;
-   
-   
+    -fx-background-color: transparent;
+
+    -fx-border-color: #222222;
+    -fx-border-width: 1px 1px 1px 1px;
+    -fx-border-style: solid;
     -fx-text-fill: #777777A0;
-    -fx-opacity:.8;
+    -fx-opacity:.9;
     -fx-font-size: 14px;
     -fx-font-family: 'OCR A Extended';
+    -fx-cursor: hand;
 }
 #tabBtn:hover{
+    -fx-background-color: #15151570;
     -fx-opacity:1;
 }
 
 #tabBtnSelected {
-    -fx-background-color: #33333350;
-
+    -fx-background-color:linear-gradient(to bottom, #ffffffAA 0%, #111111 4%, #111111 100%);;
+    -fx-border-color: #222222;
+    -fx-border-width: 1px 1px 1px 1px;
+    -fx-border-style: solid;
     -fx-text-fill: #ffffff;
     -fx-font-size: 14px;
     -fx-font-family: 'OCR A Extended';
     -fx-opacity:1;
+    -fx-cursor:hand;
 }
 
 #bodyRight{

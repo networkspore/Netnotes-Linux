@@ -31,12 +31,15 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import javafx.application.Platform;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -1109,6 +1112,8 @@ public class NetworksData {
     private SimpleDoubleProperty m_menuWidth;
     private VBox m_contentBox;
     private ContentTabs m_contentTabs;
+
+  
 
     public void createMenu(Stage appStage,SimpleDoubleProperty menuWidth, HBox menuBox, ScrollPane subMenuScroll, VBox contentBox){
          
@@ -3376,24 +3381,142 @@ public class NetworksData {
     
     }
 
-    private class ContentTabs extends VBox{
+    public ContentTabs getContentTabs(){
+        return m_contentTabs;
+    }
+
+
+
+
+    public class ContentTabs extends VBox{
+        private HBox m_tabsContent;
         private ScrollPane m_tabsScroll;
         private ScrollPane m_bodyScroll;
         private SimpleDoubleProperty m_tabsHeight = new SimpleDoubleProperty(40);
 
-        public ContentTabs(){
+       
+        private HashMap<String, ContentTab> m_itemTabs = new HashMap<>();
 
-            m_tabsScroll = new ScrollPane();
+        private SimpleStringProperty m_currentId = new SimpleStringProperty(null);
+
+        public ContentTabs(){
+            m_tabsContent = new HBox();
+            m_tabsContent.setAlignment(Pos.BOTTOM_LEFT);
+            m_tabsScroll = new ScrollPane(m_tabsContent);
+
             m_tabsScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
             m_tabsScroll.prefViewportHeightProperty().bind(m_tabsHeight);
+            m_tabsScroll.setId("tabsBox");
+
+            m_tabsScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+                m_tabsContent.prefHeight(newval.getHeight()-1);
+                m_tabsContent.prefWidth(newval.getWidth()-1);
+            });
 
             m_bodyScroll = new ScrollPane();
             m_bodyScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
-            m_bodyScroll.prefViewportHeightProperty().bind(m_contentBox.heightProperty().subtract(m_tabsHeight).subtract(1));
+            m_bodyScroll.prefViewportHeightProperty().bind(m_contentBox.heightProperty().subtract(m_tabsScroll.heightProperty()).subtract(1));
 
             getChildren().addAll(m_tabsScroll, m_bodyScroll);
 
+            m_currentId.addListener((obs,oldval,newval)->{
+                if(newval != null){
+                    ContentTab tab = m_itemTabs.get(newval);
+                    if(tab != null){
+                        m_bodyScroll.setContent(tab.getPane());
+                    }else{
+                        m_currentId.set(null);
+                    }
+                }else{
+                    m_bodyScroll.setContent(null);
+                }
+            });
+        }
 
+        public ContentTab getTab(String id){
+            return m_itemTabs.get(id);
+        }
+
+        public boolean contains(String id){
+            return m_itemTabs.get(id) != null;
+        }
+
+        public void addContentTab(ContentTab tab){
+            Pane tabPane = tab.getPane();
+            String id = tab.getId();
+            if(tabPane != null && id != null){
+                m_itemTabs.put(id, tab);
+                tab.currentIdProperty().bind(m_currentId);
+                m_contentTabs.getChildren().add(tab.getTabBox());
+                tab.onCloseBtn(e->{
+                    removeContentTab(id);
+                });
+                tab.onTabClicked(e->{
+                    m_currentId.set(tab.getId());
+                });
+                /*Binding<Double> prefWidth = Bindings.createObjectBinding(()->m_bodyScroll.viewportBoundsProperty().get() != null ? (m_bodyScroll.viewportBoundsProperty().get().getWidth() < 400 ? 400 : m_bodyScroll.viewportBoundsProperty().get().getWidth()) : 400, m_bodyScroll.viewportBoundsProperty());
+                Binding<Double> prefHeight = Bindings.createObjectBinding(()->m_bodyScroll.viewportBoundsProperty().get() != null ? (m_bodyScroll.viewportBoundsProperty().get().getHeight() < 400 ? 400 : m_bodyScroll.viewportBoundsProperty().get().getHeight()) : 400, m_bodyScroll.viewportBoundsProperty());
+                tabPane.prefWidthProperty().bind(prefWidth);
+                tabPane.prefHeightProperty().bind(prefHeight);*/
+                m_currentId.set(id);
+            }
+        }
+
+
+        public ContentTab removeContentTab(String id){
+            if(m_currentId.get() != null && m_currentId.get().equals(id)){
+                m_currentId.set(null);
+            }
+           
+            ContentTab tab = m_itemTabs.remove(id);
+            if(tab != null){
+                tab.currentIdProperty().unbind();
+                tab.onCloseBtn(null);
+                tab.onTabClicked(null);
+                Pane tabPane = tab.getPane();
+                tabPane.prefWidthProperty().unbind();
+                tabPane.prefHeightProperty().unbind();
+            }
+
+            return tab;
+        }
+
+    
+        public ArrayList<ContentTab> getContentTabByParentId(String parentId){
+            ArrayList<ContentTab> result = new ArrayList<>();
+            
+            for (Map.Entry<String, ContentTab> entry : m_itemTabs.entrySet()) {
+                ContentTab contentTab = entry.getValue();
+                if(parentId != null){   
+                    if(contentTab.getParentId() != null && contentTab.getParentId().equals(parentId)){
+                        result.add(contentTab);
+                    }
+                }else{
+                    if(contentTab.getParentId() == null){
+                        result.add(contentTab);
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        public void removeByParentId(String id){
+            for (Map.Entry<String, ContentTab> entry : m_itemTabs.entrySet()) {
+                ContentTab contentTab = entry.getValue();
+                
+                if(contentTab.getParentId().equals(id)){
+                    removeContentTab(contentTab.getId());
+                }
+            }        
+        }
+
+        public void sendMessage(int code, long timestamp, String type, String msg){
+            switch(type){
+                case APPS:
+                    removeByParentId(Utils.parseMsgForJsonId(msg));
+                break;
+            }
         }
 
     } 
