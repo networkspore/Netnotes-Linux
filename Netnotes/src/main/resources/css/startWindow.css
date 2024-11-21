@@ -1466,7 +1466,22 @@
 }
 
 #tabsBox{
-    -fx-background-color: #05050570; 
+    -fx-background-color: #05050510; 
+}
+
+#tabLabel{
+    -fx-font-size: 12px;
+    -fx-font-family: 'OCR A Extended';
+    -fx-text-fill: #777777A0;
+    -fx-max-width: 110;
+    -fx-min-width: 20;
+}
+
+#tabLabelSelected{
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12px;
+    -fx-font-family: 'OCR A Extended';
+    -fx-max-width: 170;
 }
 
 #tabBtn {
@@ -1480,6 +1495,7 @@
     -fx-font-size: 14px;
     -fx-font-family: 'OCR A Extended';
     -fx-cursor: hand;
+    
 }
 #tabBtn:hover{
     -fx-background-color: #15151570;
@@ -1487,7 +1503,7 @@
 }
 
 #tabBtnSelected {
-    -fx-background-color:linear-gradient(to bottom, #ffffffAA 0%, #111111 4%, #111111 100%);;
+    -fx-background-color:linear-gradient(to bottom, #ffffff 0%, #111111 4%, #111111 100%);;
     -fx-border-color: #222222;
     -fx-border-width: 1px 1px 1px 1px;
     -fx-border-style: solid;

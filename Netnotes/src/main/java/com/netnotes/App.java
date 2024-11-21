@@ -813,7 +813,7 @@ public class App extends Application {
             }
         });
 
-        ResizeHelper.addResizeListener(appStage, 600, 250, Double.MAX_VALUE, Double.MAX_VALUE);
+        ResizeHelper.addResizeListener(appStage, 800, 250, Double.MAX_VALUE, Double.MAX_VALUE);
 
 
         m_staticContent.prefViewportWidthProperty().bind(m_staticContentWidth);
@@ -1441,7 +1441,7 @@ public class App extends Application {
 
         HBox newTopBar = new HBox(barIconView, newTitleLbl, spacer, minimizeBtn, maximizeBtn, closeBtn);
         newTopBar.setAlignment(Pos.CENTER_LEFT);
-        newTopBar.setPadding(new Insets(7, 8, 10, 10));
+        newTopBar.setPadding(new Insets(7, 8, 3, 10));
         newTopBar.setId("topBar");
 
         Delta dragDelta = new Delta();
@@ -1577,7 +1577,7 @@ public class App extends Application {
 
         HBox newTopBar = new HBox(barIconView, newTitleLbl, spacer, minimizeBtn, closeBtn);
         newTopBar.setAlignment(Pos.CENTER_LEFT);
-        newTopBar.setPadding(new Insets(7, 8, 10, 10));
+        newTopBar.setPadding(new Insets(7, 8, 5, 10));
         newTopBar.setId("topBar");
 
         Delta dragDelta = new Delta();

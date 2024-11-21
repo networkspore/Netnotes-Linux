@@ -29,6 +29,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 
 
 public class SpectrumDataList extends Network implements NoteInterface {
@@ -74,12 +75,13 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private Graphics2D m_labelG2d = null;
 
     private NoteMsgInterface m_spectrumMsgInterface = null;
+    private Stage m_appStage;
     
-    public SpectrumDataList(String id, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, SimpleObjectProperty<HBox> currentBox, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface) {
+    public SpectrumDataList(String id,Stage appStage, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, SimpleObjectProperty<HBox> currentBox, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface) {
         
         super(null, "spectrumDataList", id, spectrumFinance);
         m_spectrumFinance = spectrumFinance;
-       
+        m_appStage = appStage;
         setup();
         
         m_networkInterface = networkInterface;
@@ -100,6 +102,10 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     }
     
+    public Stage appStage(){
+        return m_appStage;
+    }
+
     public SimpleObjectProperty<NoteInterface> networkInterfaceProperty(){
         return m_networkInterface;
     }

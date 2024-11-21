@@ -52,6 +52,11 @@ public class TimeSpan {
         return m_id;
     }
 
+    @Override
+    public String toString(){
+        return m_name;
+    }
+
     public JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
         json.addProperty("id", m_id);

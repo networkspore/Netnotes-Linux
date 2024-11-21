@@ -32,12 +32,15 @@ import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
@@ -143,11 +146,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         
 
         boolean removed = super.removeMsgListener(item);
-        try {
-            Files.writeString(App.logFile.toPath(), "\nspectrum remove msg listneer: " + removed + " " + item.getId() + " " + getConnectionStatus(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e) {
- 
-        }
+     
         return removed;
     }
     
@@ -255,7 +254,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
         private NoteMsgInterface m_networkMsgInterface;
-        private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>();
+        private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
         private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
@@ -280,7 +279,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
 
 
-            m_spectrumData = new SpectrumDataList(FriendlyId.createFriendlyId(), SpectrumFinance.this, gridWidth,gridHeight, currentBox, m_itemTimeSpan, m_networkInterface);
+            m_spectrumData = new SpectrumDataList(FriendlyId.createFriendlyId(), appStage, SpectrumFinance.this, gridWidth,gridHeight, currentBox, m_itemTimeSpan, m_networkInterface);
 
 
             Region spacer = new Region();
@@ -447,11 +446,23 @@ public class SpectrumFinance extends Network implements NoteInterface {
             menuBarRegion1.setMinWidth(10);
 
             
-            MenuButton timeSpanBtn = new MenuButton(m_itemTimeSpan.getName());
-            timeSpanBtn.setFont(App.txtFont);
-            timeSpanBtn.setContentDisplay(ContentDisplay.LEFT);
-            timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
+            ContextMenu timeSpanMenu = new ContextMenu();
 
+            Label timeSpanLabel = new Label();
+            timeSpanLabel.setId("urlField");
+            timeSpanLabel.setMinWidth(80);
+            timeSpanLabel.setPrefWidth(80);
+            timeSpanLabel.textProperty().bind( Bindings.concat( m_itemTimeSpan.asString(), " 🞃"));
+            timeSpanLabel.setAlignment(Pos.CENTER_RIGHT);
+
+            timeSpanLabel.setOnMouseClicked(e->{
+                Point2D p = timeSpanLabel.localToScene(0.0, 0.0);
+
+                timeSpanMenu.show(timeSpanLabel,
+                p.getX() + timeSpanLabel.getScene().getX() + timeSpanLabel.getScene().getWindow().getX(),
+                (p.getY() + timeSpanLabel.getScene().getY() + timeSpanLabel.getScene().getWindow().getY()
+                        + timeSpanLabel.getLayoutBounds().getHeight()));
+            });
             
             String[] spans = { "1hour", "8hour", "12hour", "1day", "1week", "1month", "6month", "1year" };
 
@@ -476,16 +487,16 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
                 });
 
-                timeSpanBtn.getItems().add(menuItm);
+                timeSpanMenu.getItems().add(menuItm);
 
             }
 
             m_itemTimeSpan.addListener((obs,oldval,newval)->{
-                timeSpanBtn.setText(newval.getName());
+           //     timeSpanLabel.setText(newval.getName() + " ▾");
                 save();
             });
 
-            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
+            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanLabel, rightSideMenu);
             HBox.setHgrow(m_menuBar, Priority.ALWAYS);
             m_menuBar.setAlignment(Pos.CENTER_LEFT);
             m_menuBar.setId("menuBar");

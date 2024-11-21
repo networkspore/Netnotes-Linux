@@ -193,16 +193,10 @@ public class SpectrumChartView {
             boolean removed = m_msgListeners.remove(item);
             
             
-            if (m_msgListeners.size() == 1) {
+            if (m_msgListeners.size() == 0) {
                 stop();
             }
-            if(m_marketData.getQuoteSymbol().equals("SigUSD")){
-                try {
-                    Files.writeString(App.logFile.toPath(),"removed " + item.getId(), StandardOpenOption.CREATE,StandardOpenOption.APPEND);
-                } catch (IOException e) {
-            
-                }
-            }  
+        
             return removed;
         }
 

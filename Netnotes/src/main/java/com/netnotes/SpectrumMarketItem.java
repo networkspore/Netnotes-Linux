@@ -96,7 +96,7 @@ public class SpectrumMarketItem {
 
     private SpectrumDataList m_dataList = null;
     private final SpectrumMarketData m_marketData;
-    private Stage m_stage = null;
+   // private Stage m_stage = null;
 
     private SimpleBooleanProperty m_showSwap = new SimpleBooleanProperty(false);
     private SimpleLongProperty m_shutdown = new SimpleLongProperty(0);
@@ -968,7 +968,7 @@ public class SpectrumMarketItem {
 
 
     public void open(){
-        showStage();
+        openContentTab();
     }
     
     public boolean isInvert(){
@@ -983,7 +983,603 @@ public class SpectrumMarketItem {
     
     private SpectrumNumbers m_numbers = null;
     private NoteMsgInterface m_chartMsgInterface;
+    private ContentTab m_contentTab = null;
 
+    public Scene getScene(){
+        return m_dataList.appStage().getScene();
+    }
+
+    public void openContentTab() {
+        if (m_contentTab == null) {
+      
+
+            VBox layoutBox = new VBox();
+            layoutBox.setPrefWidth(900);
+            layoutBox.setPrefHeight(800);
+
+            layoutBox.setMinHeight(200);
+            layoutBox.setMinWidth(200);
+
+            if(!m_marketData.isPool() || m_marketData.getSpectrumChartView().get() == null){
+                Alert a = new Alert(AlertType.NONE, "Price history unavailable.", ButtonType.OK);
+                a.setHeaderText("Notice");
+                a.setTitle("Notice: Price history unavailable");
+                a.showAndWait();
+                return;
+            }
+            SpectrumChartView spectrumChartView = m_marketData.getSpectrumChartView().get();
+            SimpleBooleanProperty shutdownSwap = new SimpleBooleanProperty(false);
+            SimpleObjectProperty<TimeSpan> timeSpanObject = new SimpleObjectProperty<>(new TimeSpan("30min"));
+ 
+
+            final double chartScrollVvalue = 1;
+            final double chartScrollHvalue = 1;
+
+            SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(12);
+            SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
+
+            SpectrumFinance exchange = m_dataList.getSpectrumFinance();
+           
+
+            Image logo = m_dataList.getSpectrumFinance().getSmallAppIcon();
+            SimpleStringProperty titleProperty = new SimpleStringProperty(m_marketData.getCurrentSymbol(isInvert()) + (m_marketData != null ? " - " +(isInvert() ? m_marketData.getInvertedLastPrice().toString() : m_marketData.getLastPrice()) + "" : ""));
+
+
+            BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton invertBtn = new BufferedButton( m_isInvert.get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
+            
+            invertBtn.setOnAction(e->{
+                m_dataList.isInvertProperty().set(!m_dataList.isInvertProperty().get());
+            });
+
+
+
+            HBox menuAreaBox = new HBox();
+            HBox.setHgrow(menuAreaBox, Priority.ALWAYS);
+            menuAreaBox.setAlignment(Pos.CENTER_LEFT);
+
+            HBox menuBar = new HBox(menuButton, menuAreaBox,  invertBtn);
+            HBox.setHgrow(menuBar, Priority.ALWAYS);
+            menuBar.setAlignment(Pos.CENTER_LEFT);
+            menuBar.setId("menuBar");
+            menuBar.setPadding(new Insets(1, 0, 1, 5));
+
+            MenuItem setChartRangeItem = new MenuItem("Set price range");
+
+            setChartRangeItem.setId("urlMenuItem");
+            /*MenuItem zoomIn = new MenuItem("Zoom in             [ + ]");
+            zoomIn.setId("urlMenuItem");
+            MenuItem zoomOut = new MenuItem("Zoom out            [ - ]");
+            zoomOut.setId("urlMenuItem");
+            MenuItem resetZoom = new MenuItem("Reset zoom  [ Backspace ]");
+            resetZoom.setId("urlMenuItem");
+             */
+            menuButton.getItems().addAll(setChartRangeItem);
+
+    
+            Text headingText = new Text(m_marketData.getCurrentSymbol(isInvert()) + "  - ");
+            headingText.setFont(App.txtFont);
+            headingText.setFill(Color.WHITE);
+
+            Region headingSpacerL = new Region();
+      
+
+
+  
+
+            MenuButton timeSpanBtn = new MenuButton(timeSpanObject.get().getName());
+            timeSpanBtn.setFont(App.txtFont);
+
+            timeSpanObject.addListener((obs,oldval,newval)->{
+                timeSpanBtn.setText(newval.getName());
+            });
+
+            timeSpanBtn.setContentDisplay(ContentDisplay.LEFT);
+            timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
+            
+            Region headingBoxSpacerR = new Region();
+            HBox.setHgrow(headingBoxSpacerR,Priority.ALWAYS);
+
+  
+
+            HBox headingBox = new HBox(headingSpacerL, headingText, timeSpanBtn, headingBoxSpacerR);
+            headingBox.prefHeight(40);
+            headingBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(headingBox, Priority.ALWAYS);
+            headingBox.setPadding(new Insets(5, 5, 5, 5));
+            headingBox.setId("headingBox");
+            
+   
+
+            RangeBar chartRange = new RangeBar(rangeWidth, rangeHeight, getNetworksData().getExecService());
+            ImageView chartImageView = new ImageView();
+            chartImageView.setPreserveRatio(true);
+            ScrollPane chartScroll = new ScrollPane(chartImageView);
+            
+            headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
+         
+
+            Region headingPaddingRegion = new Region();
+            headingPaddingRegion.setMinHeight(5);
+            headingPaddingRegion.setPrefHeight(5);
+
+            VBox paddingBox = new VBox(menuBar, headingPaddingRegion, headingBox);
+            paddingBox.setPadding(new Insets(0, 5, 0, 5));
+
+            VBox headerVBox = new VBox(paddingBox);
+            chartScroll.setPadding(new Insets(0, 0, 0, 0));
+
+            setChartRangeItem.setOnAction((e)->chartRange.toggleSettingRange());
+
+
+    
+                        //⯈🗘
+            Button toggleSwapBtn = new Button("⯈");
+            toggleSwapBtn.setTextFill(App.txtColor);
+            toggleSwapBtn.setFont( Font.font("OCR A Extended", 10));
+            toggleSwapBtn.setPadding(new Insets(2,2,2,1));
+            toggleSwapBtn.setId("barBtn");
+            //toggleSwapBtn.setMinWidth(20);
+            toggleSwapBtn.setOnAction(e->{
+                m_showSwap.set(!m_showSwap.get());
+            });
+
+            Region topRegion = new Region();
+            VBox.setVgrow(topRegion, Priority.ALWAYS);
+
+          
+            HBox swapButtonPaddingBox = new HBox(toggleSwapBtn);
+            swapButtonPaddingBox.setId("darkBox");
+            swapButtonPaddingBox.setPadding(new Insets(1,0,1,2));
+
+            VBox swapButtonBox = new VBox(swapButtonPaddingBox);
+            VBox.setVgrow(swapButtonBox,Priority.ALWAYS);
+            swapButtonBox.setAlignment(Pos.CENTER);
+            swapButtonBox.setId("darkBox");
+
+            
+            HBox bodyBox = new HBox(chartRange, chartScroll, swapButtonBox);
+            bodyBox.setId("bodyBox");
+            bodyBox.setAlignment(Pos.TOP_LEFT);
+            HBox bodyPaddingBox = new HBox(bodyBox);
+            bodyPaddingBox.setPadding(new Insets(0, 5, 5 ,5));
+
+            //Binding<Double> bodyHeightBinding = Bindings.createObjectBinding(()->bodyBox.layoutBoundsProperty().get().getHeight(), bodyBox.layoutBoundsProperty());
+            SimpleObjectProperty<VBox> swapBoxObject = new SimpleObjectProperty<>(null);
+
+
+            toggleSwapBtn.prefHeightProperty().bind(bodyBox.heightProperty());
+   
+
+
+
+            layoutBox.getChildren().addAll(headerVBox, bodyPaddingBox);
+
+
+          
+            
+            
+            Runnable updateShowSwap = ()->{
+    
+                boolean showSwap = m_showSwap.get();
+    
+                if( showSwap){
+                    toggleSwapBtn.setText("⯈");
+                    
+                    if(shutdownSwap.get()){
+                        shutdownSwap.set(false);
+                        swapBoxObject.set( getSwapBox(getScene(), shutdownSwap));
+                    }else{
+                        if(swapBoxObject.get() == null){
+                            swapBoxObject.set( getSwapBox(getScene(), shutdownSwap));    
+                        }
+                    }
+                    
+                    bodyBox.getChildren().add(swapBoxObject.get());
+                }else{
+                    toggleSwapBtn.setText("⯇");
+                    
+                    if(swapBoxObject.get() != null){
+                        VBox swapBox = swapBoxObject.get();
+                        if(bodyBox.getChildren().contains(swapBox)){
+                            bodyBox.getChildren().remove(swapBox);
+                        }
+                      //  swapBoxObject.set(null);
+                    }
+                }
+    
+            };
+    
+            m_showSwap.addListener((obs,oldVal,newVal)->updateShowSwap.run());
+    
+            updateShowSwap.run();
+
+            chartScroll.prefViewportWidthProperty().bind(layoutBox.widthProperty().subtract(45));
+            chartScroll.prefViewportHeightProperty().bind(layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
+
+            rangeHeight.bind(layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(65));
+
+            int cellWidth = 20;
+            int cellPadding = 3;
+            java.awt.Font labelFont = m_dataList.getLabelFont();
+            FontMetrics labelMetrics = m_dataList.getLabelMetrics();
+            int amStringWidth = labelMetrics.stringWidth(" a.m. ");
+            int zeroStringWidth = labelMetrics.stringWidth("0");
+
+            Runnable setChartScrollRight = () ->{
+                Platform.runLater(()->chartScroll.setVvalue(chartScrollVvalue));
+                Platform.runLater(()->chartScroll.setHvalue(chartScrollHvalue));
+            };
+            
+
+            Runnable createChart = () ->{
+                Bounds bounds = chartScroll.viewportBoundsProperty().get();
+                          
+                int viewPortHeight = (int) bounds.getHeight();
+                int viewPortWidth = (int) bounds.getWidth();
+                int maxBars =  (SpectrumChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding));
+
+                TimeSpan timeSpan = timeSpanObject.get();
+                long timestamp = System.currentTimeMillis();
+
+                spectrumChartView.processData(
+                    m_isInvert.get(), 
+                    maxBars, 
+                    timeSpanObject.get(),
+                    timestamp,
+                     m_dataList.getSpectrumFinance().getExecService(), 
+                     (onSucceeded)->{
+                        Object sourceValue = onSucceeded.getSource().getValue();
+                        if(sourceValue != null && sourceValue instanceof SpectrumNumbers){
+                            SpectrumNumbers numbers = (SpectrumNumbers) sourceValue;
+                            
+                            int size = numbers.dataLength();
+
+                        
+                            if(size > 0){
+                           
+                                int totalCellWidth = cellWidth + cellPadding;
+                                
+                                int itemsTotalCellWidth = size * (totalCellWidth);
+
+                                int scaleLabelLength = (numbers.getClose() +"").length();
+
+                                int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
+                                
+                                
+
+                                int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, SpectrumChartView.MIN_CHART_WIDTH));
+                                
+                                int height = Math.min(SpectrumChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, SpectrumChartView.MIN_CHART_HEIGHT));
+
+                                boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
+                            
+                                m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
+                                m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
+                               
+                                m_numbers = numbers;
+            
+                                
+                                SpectrumChartView.updateBufferedImage(
+                                    m_img, 
+                                    m_g2d, 
+                                    labelFont, 
+                                    labelMetrics, 
+                                    numbers,
+                                    cellWidth, 
+                                    cellPadding, 
+                                    scaleColWidth,
+                                    amStringWidth,
+                                    timeSpan, 
+                                    chartRange
+                                );
+
+                                /*File saveFile = new File(m_marketData.getCurrentSymbol(false) + ".json");
+                                SpectrumPrice[] data = spectrumChartView.getSpectrumData();
+                                String lastPrices = "";
+                                for(int i = data.length-1 ; i > data.length -6 ; i --){
+                                    lastPrices += "\n " + data[i].getPrice().doubleValue() + " ";
+                                }
+                                try {
+                                    Files.writeString(saveFile.toPath(), lastPrices + " isPositive: " + numbers.getLastCloseDirection(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                    
+                                } catch (IOException e1) {
+                            
+                                }*/
+                               
+                               
+                                chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
+                                
+                                if(isNewImg){
+                                    setChartScrollRight.run();
+                                    if(viewPortWidth > SpectrumChartView.MAX_CHART_WIDTH){
+                                        chartImageView.setFitWidth(viewPortWidth);
+                                    }else{
+                                        
+                                        chartImageView.setFitWidth(m_img.getWidth());
+                                        
+                                    }
+                                    
+                                }
+                            }
+                        }
+                        
+                     }, 
+                     (onFailed)->{
+
+                     });
+            };
+            
+            Runnable updateChart = () ->{
+                
+                TimeSpan timeSpan = timeSpanObject.get();
+               
+                if(m_numbers != null){
+                    SpectrumNumbers numbers = m_numbers;
+                    
+                    int size = numbers.dataLength();
+
+                
+                    if(size > 0){
+                    
+                        int totalCellWidth = cellWidth + cellPadding;
+                        
+                        int itemsTotalCellWidth = size * (totalCellWidth);
+
+                        int scaleLabelLength = (numbers.getClose() +"").length();
+
+                        int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
+                        
+                        Bounds bounds = chartScroll.viewportBoundsProperty().get();
+                        int viewPortHeight = (int) bounds.getHeight();
+                        int viewPortWidth = (int) bounds.getWidth();
+                        
+                        int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
+                        int height = Math.min(SpectrumChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, SpectrumChartView.MIN_CHART_HEIGHT));
+
+                        
+
+                        boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
+                    
+                        m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
+                        m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
+                        
+                        
+                        SpectrumChartView.updateBufferedImage(
+                            m_img, 
+                            m_g2d, 
+                            labelFont, 
+                            labelMetrics, 
+                            numbers,
+                            cellWidth, 
+                            cellPadding, 
+                            scaleColWidth,
+                            amStringWidth,
+                            timeSpan, 
+                            chartRange
+                        );
+                        
+                        chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
+                        if(isNewImg){
+                            setChartScrollRight.run();
+                            double w = Math.max(viewPortWidth, SpectrumChartView.MAX_CHART_WIDTH);
+                            if(w > viewPortHeight){
+                                chartImageView.setFitWidth(w);
+                            }else{
+                                chartImageView.setFitHeight(viewPortHeight);
+                            }
+                        }
+                    }
+                }
+                        
+                     
+            };
+
+            
+            ChangeListener<Bounds> boundsChangeListener = (obs,oldval,newval)->{
+           
+                    createChart.run();
+              
+              
+
+            };
+     
+            
+            chartRange.bottomVvalueProperty().addListener((obs,oldval,newval)->{
+                if(chartRange.settingRangeProperty().get()){
+                    updateChart.run();
+                    
+                }
+            });
+
+            chartRange.topVvalueProperty().addListener((obs,oldval,newval)->{
+                if(chartRange.settingRangeProperty().get()){
+                    updateChart.run();
+                }
+            });
+
+        
+
+            SimpleObjectProperty<ControlInterface> currentControl = new SimpleObjectProperty<>(null);
+
+            currentControl.addListener((obs,oldval,newval)->{
+                if(oldval != null){
+                    oldval.cancel();
+                }
+                if(newval != null){
+                    menuAreaBox.getChildren().add(newval.getControlBox());
+                }else{
+                    menuAreaBox.getChildren().clear();
+                }
+
+            });
+    
+
+            chartRange.settingRangeProperty().addListener((obs,oldval,newval)->{
+                if(newval){
+                    currentControl.set(chartRange);
+                }else{
+                    if(currentControl.get() != null && currentControl.get().equals(chartRange)){
+                        currentControl.set(null);
+                    }
+                }
+                createChart.run();
+            });
+    
+            timeSpanObject.addListener((obs,oldval,newval)->createChart.run());
+
+            
+        String friendlyId = FriendlyId.createFriendlyId();
+
+ 
+
+     
+       
+
+            SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
+            
+            if(chartView != null && m_chartMsgInterface == null){
+              
+                m_chartMsgInterface = new NoteMsgInterface() {
+                    public String getId() {
+                        return friendlyId;
+                    }
+
+                    public void sendMessage(int code, long timestamp,String networkId, Number num){
+                     
+                        switch(code){
+                            case App.STARTED:
+                            case App.LIST_UPDATED:
+                            case App.LIST_CHECKED:
+                            case App.LIST_CHANGED:
+                                createChart.run();  
+                         
+                            break;
+                            case App.STOPPED:
+    
+                            break;
+                        }  
+                        
+                    }
+
+                    public void sendMessage(int code, long timestamp, String networkId, String msg){
+                       
+                    }
+        
+                  
+                };
+                
+                
+                chartView.addMsgListener(m_chartMsgInterface);
+                chartScroll.viewportBoundsProperty().addListener(boundsChangeListener);
+            }
+            
+        
+      
+
+     
+        
+            
+          
+            String[] spans = TimeSpan.AVAILABLE_TIMESPANS;
+
+            for (int i = 0; i < spans.length; i++) {
+
+                String span = spans[i];
+                TimeSpan timeSpan = new TimeSpan(span);
+                MenuItem menuItm = new MenuItem(timeSpan.getName());
+                menuItm.setId("urlMenuItem");
+                menuItm.setUserData(timeSpan);
+
+                menuItm.setOnAction(action -> {
+                  
+      
+
+                    Object item = menuItm.getUserData();
+
+                    if (item != null && item instanceof TimeSpan) {
+
+                        timeSpanObject.set((TimeSpan)item);
+               
+                        
+                    }
+
+                });
+
+                timeSpanBtn.getItems().add(menuItm);
+
+            }
+
+            timeSpanBtn.textProperty().addListener((obs, oldVal, newVal) -> {
+                Object objData = timeSpanBtn.getUserData();
+
+                if (newVal != null && !newVal.equals(timeSpanObject.get().getName()) && objData != null && objData instanceof TimeSpan) {
+
+                    timeSpanObject.set((TimeSpan) objData);
+                  
+                    setChartScrollRight.run();
+                   // chartView.reset();
+                   // setCandles.run();
+      
+                }
+            });
+            
+
+
+
+            ChangeListener<Boolean> invertListener = (obs,oldval,newval)->{
+               
+                invertBtn.setImage( new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
+                titleProperty.set(exchange.getName() + " - " +  m_marketData.getCurrentSymbol(newval) + " - " + (newval ? m_marketData.getInvertedLastPrice() + "" : m_marketData.getLastPrice() + "") + ""  );
+                headingText.setText(m_marketData.getCurrentSymbol(newval));
+                chartRange.reset();
+                createChart.run();
+            };
+
+            m_isInvert.addListener(invertListener);
+
+
+            String contentTabId = FriendlyId.createFriendlyId();
+            m_contentTab = new ContentTab(contentTabId, SpectrumFinance.NETWORK_ID, logo, titleProperty.get(), layoutBox);
+            m_contentTab.getTabLabel().textProperty().bind(titleProperty);
+            
+            ChangeListener<Number> shutdownListener = (obs,oldval,newval)->{
+               m_contentTab.close();
+            };
+
+            m_shutdown.addListener(shutdownListener);
+
+            m_contentTab.shutdownMilliesProperty().addListener((obs,oldval,newval)->{
+                if(newval.longValue() > 0){
+                    shutdownSwap.set(true);
+                    m_shutdown.removeListener(shutdownListener);
+                    m_isInvert.removeListener(invertListener);
+
+                    if(m_chartMsgInterface != null){
+                        spectrumChartView.removeMsgListener(m_chartMsgInterface);
+                        m_chartMsgInterface = null;
+                    } 
+                    m_img = null;
+                    m_g2d = null;
+                    
+                    m_contentTab = null;
+            
+                }
+            });
+
+            getNetworksData().getContentTabs().addContentTab(m_contentTab);
+
+            createChart.run();
+
+        } else {
+            if(!getNetworksData().getContentTabs().contains(m_contentTab.getId())){
+                getNetworksData().getContentTabs().addContentTab(m_contentTab);
+            }
+        }
+    }
+
+
+/* 
     public void showStage() {
         if (m_stage == null) {
             if(!m_marketData.isPool() || m_marketData.getSpectrumChartView().get() == null){
@@ -1042,13 +1638,13 @@ public class SpectrumMarketItem {
             MenuItem setChartRangeItem = new MenuItem("Set price range");
 
             setChartRangeItem.setId("urlMenuItem");
-            /*MenuItem zoomIn = new MenuItem("Zoom in             [ + ]");
-            zoomIn.setId("urlMenuItem");
-            MenuItem zoomOut = new MenuItem("Zoom out            [ - ]");
-            zoomOut.setId("urlMenuItem");
-            MenuItem resetZoom = new MenuItem("Reset zoom  [ Backspace ]");
-            resetZoom.setId("urlMenuItem");
-             */
+         //   MenuItem zoomIn = new MenuItem("Zoom in             [ + ]");
+         //   zoomIn.setId("urlMenuItem");
+         //   MenuItem zoomOut = new MenuItem("Zoom out            [ - ]");
+         //   zoomOut.setId("urlMenuItem");
+        //    MenuItem resetZoom = new MenuItem("Reset zoom  [ Backspace ]");
+        //    resetZoom.setId("urlMenuItem");
+             
             menuButton.getItems().addAll(setChartRangeItem);
 
     
@@ -1272,18 +1868,18 @@ public class SpectrumMarketItem {
                                     chartRange
                                 );
 
-                                /*File saveFile = new File(m_marketData.getCurrentSymbol(false) + ".json");
-                                SpectrumPrice[] data = spectrumChartView.getSpectrumData();
-                                String lastPrices = "";
-                                for(int i = data.length-1 ; i > data.length -6 ; i --){
-                                    lastPrices += "\n " + data[i].getPrice().doubleValue() + " ";
-                                }
-                                try {
-                                    Files.writeString(saveFile.toPath(), lastPrices + " isPositive: " + numbers.getLastCloseDirection(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                    
-                                } catch (IOException e1) {
-                            
-                                }*/
+                                //File saveFile = new File(m_marketData.getCurrentSymbol(false) + ".json");
+                                //SpectrumPrice[] data = spectrumChartView.getSpectrumData();
+                                //String lastPrices = "";
+                                //for(int i = data.length-1 ; i > data.length -6 ; i --){
+                                //    lastPrices += "\n " + data[i].getPrice().doubleValue() + " ";
+                                //}
+                                //try {
+                                //    Files.writeString(saveFile.toPath(), lastPrices + " isPositive: " + numbers.getLastCloseDirection(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                //    
+                                //} catch (IOException e1) {
+                                //
+                                //}
                                
                                
                                 chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
@@ -1691,7 +2287,7 @@ public class SpectrumMarketItem {
             m_stage.requestFocus();
         }
     }
-
+    */
 
 
     public NetworksData getNetworksData(){
@@ -2011,7 +2607,7 @@ public class SpectrumMarketItem {
                 if(!Utils.onlyZero(str)){
                     BigDecimal bigAmount = new BigDecimal(str);
                     currentAmount.set(bigAmount);
-                    Files.writeString(App.logFile.toPath(), "\ncurrentAmount: " + bigAmount.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+              
                 }else{
                     currentAmount.set(BigDecimal.ZERO);
                 }
