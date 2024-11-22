@@ -952,38 +952,51 @@ public class NetworksData {
     }
 
     private void openStatic(String networkId){
-        String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getAppId() : null;
+        TabInterface currentTab = m_currentMenuTab.get();
+
+        String currentTabId = currentTab != null ? currentTab.getAppId() : null;
 
         if(networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
             return;
         }
 
         TabInterface tab = getStaticTab(networkId);
+    
         if(tab != null){
+            if(currentTab != null){
+                currentTab.setStatus(App.STATUS_MINIMIZED);
+            }
             m_currentMenuTab.set(tab);
+            tab.setStatus(App.STATUS_STARTED);
         }
    
     }
 
    
     private void openNetwork(String networkId){
+        TabInterface currentTab = m_currentMenuTab.get();
         
-        
-        String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getAppId() : null;
+        String currentTabId = currentTab != null ? currentTab.getAppId() : null;
 
         if(networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
+            currentTab.setStatus(App.STATUS_MINIMIZED);
+            m_currentMenuTab.set(null);
             return;
         }
       
         NoteInterface noteInterface = getNetwork(networkId);
         
         if(noteInterface != null){
+            if(currentTab != null){
+                currentTab.setStatus(App.STATUS_MINIMIZED);
+            }
+         
 
             TabInterface tab = noteInterface != null ? noteInterface.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, m_networkBtn) : null;
     
             
             m_currentMenuTab.set(tab);
-
+            tab.setStatus(App.STATUS_STARTED);
             if(m_currentNetworkId.get() == null || (m_currentNetworkId.get() != null && !m_currentNetworkId.get().equals(networkId))){
                 m_currentNetworkId.set(networkId);
                 save();
@@ -992,17 +1005,24 @@ public class NetworksData {
     }
 
     private void openApp(String networkId){
+        TabInterface currentTab = m_currentMenuTab.get();
 
-        String currentTabId = m_currentMenuTab.get() != null ? m_currentMenuTab.get().getAppId() : null;
+        String currentTabId = currentTab != null ? currentTab.getAppId() : null;
 
         if(networkId == null || (currentTabId != null &&  currentTabId.equals(networkId))){
+            
+            currentTab.setStatus(App.STATUS_MINIMIZED);
+            m_currentMenuTab.set(null);
             return;
         }
       
         Network appNetwork = getAppNetwork(networkId);
 
         if(appNetwork != null){
-       
+            if(currentTab != null){
+                currentTab.setStatus(App.STATUS_MINIMIZED);
+            }
+
             TabInterface tab = appNetwork.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, appNetwork.getButton(BTN_IMG_SIZE));
             
             m_currentMenuTab.set( tab);
@@ -1150,12 +1170,12 @@ public class NetworksData {
         Region logoGrowRegion = new Region();
         HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
 
-        Label minimizeTabBtn = new Label("🢐");
-        minimizeTabBtn.setId("caretBtn");
-        minimizeTabBtn.setOnMouseClicked(e->{
+        BufferedButton minimizeTabBtn = new BufferedButton("/assets/minimize-white-20.png", 16);
+        minimizeTabBtn.setId("toolBtn");
+        minimizeTabBtn.setOnAction(e->{
             TabInterface tab = m_currentMenuTab.get();
             if(tab instanceof ManageAppsTab || tab instanceof ManageNetworksTab || tab instanceof SettingsTab){
-                tab.setStatus(App.STATUS_STOPPED);
+               
                 m_currentMenuTab.set(null);
             }else{
                 tab.setStatus(App.STATUS_MINIMIZED);
@@ -1167,8 +1187,6 @@ public class NetworksData {
         closeTabBtn.setPadding(new Insets(0, 2, 0, 2));
         closeTabBtn.setId("closeBtn");
         closeTabBtn.setOnAction(e->{
-            TabInterface tab = m_currentMenuTab.get();
-            tab.setStatus(App.STATUS_STOPPED);
             m_currentMenuTab.set(null);
         });
 
@@ -1194,7 +1212,9 @@ public class NetworksData {
 
             if(oldval != null){
                 if(!oldval.getStatus().equals(App.STATUS_MINIMIZED)){
-                    oldval.shutdown();
+                    oldval.setStatus(App.STATUS_STOPPED);
+                    //oldval.shutdown();
+                   
                 }
             }
 
@@ -2882,13 +2902,9 @@ public class NetworksData {
 
                 if(noteInterface != null && noteInterface instanceof Network){
                     Network currentNetwork = (Network) noteInterface;
-                    TabInterface tab = m_currentMenuTab.get();
-                    if(tab.getStatus().equals(App.STATUS_STARTED)){
-                        tab.setStatus(App.STATUS_MINIMIZED);
-                        m_currentMenuTab.set(null);
-                    }else{
-                        openNetwork(currentNetwork.getNetworkId());
-                    }
+                   
+                    openNetwork(currentNetwork.getNetworkId());
+                    
                    
                 }else{
                     openStatic(ManageNetworksTab.NAME);
@@ -2984,13 +3000,9 @@ public class NetworksData {
                     NoteInterface noteInterface = entry.getValue();
                     Button appBtn = ((Network) noteInterface).getButton(BTN_IMG_SIZE);
                     appBtn.setOnAction(e->{
-                        TabInterface tab = m_currentMenuTab.get();
-                        if(tab != null && tab.getStatus().equals(App.STATUS_STARTED)){
-                            tab.setStatus(App.STATUS_MINIMIZED);
-                            m_currentMenuTab.set(null);
-                        }else{
-                            openApp(noteInterface.getNetworkId());
-                        }
+                     
+                        openApp(noteInterface.getNetworkId());
+                        
                     });
                     m_listBox.getChildren().add(appBtn);
                     
