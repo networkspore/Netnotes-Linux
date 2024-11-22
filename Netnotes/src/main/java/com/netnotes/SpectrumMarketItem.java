@@ -1565,6 +1565,7 @@ public class SpectrumMarketItem {
                     m_contentTab = null;
             
                 }
+                
             });
 
             getNetworksData().getContentTabs().addContentTab(m_contentTab);

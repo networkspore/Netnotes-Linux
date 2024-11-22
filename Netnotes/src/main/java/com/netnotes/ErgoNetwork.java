@@ -244,8 +244,12 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     @Override
     public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
-        m_ergoNetworkTab = new ErgoNetworkTab(appStage, locationId, heightObject, widthObject, networkBtn);
-        return m_ergoNetworkTab;
+        if(m_ergoNetworkTab != null){
+            return m_ergoNetworkTab;
+        }else{
+            m_ergoNetworkTab = new ErgoNetworkTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            return m_ergoNetworkTab;
+        }
     }
 
     private class ErgoNetworkTab extends AppBox implements TabInterface{
@@ -260,7 +264,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
         private NoteMsgInterface m_ergoNetworkMsgInterface = null;
         
-        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
+        private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
         private Button m_menuBtn;
 
         private SimpleStringProperty m_titleProperty = new SimpleStringProperty(getName());
@@ -389,14 +393,28 @@ public class ErgoNetwork extends Network implements NoteInterface {
         }
 
     
-        public void setCurrent(boolean value){
-            m_menuBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
-            m_current.set(value);
+        public void setStatus(String value){
+            switch(value){
+                case App.STATUS_STOPPED:
+                    m_menuBtn.setId("menuTabBtn");
+                    shutdown();
+                    m_ergoNetworkTab = null;
+                break;
+                case App.STATUS_MINIMIZED:
+                    m_menuBtn.setId("minimizedMenuBtn"); 
+                break;
+                case App.STATUS_STARTED:
+                    m_menuBtn.setId("activeMenuBtn");
+                break;
+                
+            }
+            
+            m_status.set(value);
         }
     
         
-        public boolean getCurrent(){
-            return m_current.get();
+        public String getStatus(){
+            return m_status.get();
         } 
     
 

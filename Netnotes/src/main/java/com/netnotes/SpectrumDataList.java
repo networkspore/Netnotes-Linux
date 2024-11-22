@@ -3,6 +3,9 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -600,6 +603,11 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     @Override
     public void shutdown(){
+        try {
+                Files.writeString(App.logFile.toPath(), "spectrum finance data list shutdown\n" , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+ 
+            }
         m_connectionStatus = App.STOPPED;
 
         m_marketsList.forEach((item)->{

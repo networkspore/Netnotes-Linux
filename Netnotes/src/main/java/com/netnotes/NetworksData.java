@@ -37,8 +37,6 @@ import com.utils.Utils;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import javafx.application.Platform;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -581,7 +579,7 @@ public class NetworksData {
 
 
     private boolean removeNetwork(String networkId, boolean isSave){       
-       
+    
         if(networkId != null) {
             
             NoteInterface noteInterface = m_networks.remove(networkId);
@@ -1003,22 +1001,16 @@ public class NetworksData {
       
         Network appNetwork = getAppNetwork(networkId);
 
-
-    
         if(appNetwork != null){
        
-
             TabInterface tab = appNetwork.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, appNetwork.getButton(BTN_IMG_SIZE));
-    
+            
             m_currentMenuTab.set( tab);
-
-        
+            tab.setStatus(App.STATUS_STARTED);
         }
     }
   
-    public void closeMenuTab(){
-        m_currentMenuTab.set(null);
-    }
+
 
     public List<NoteInterface> getAppsContainsAllKeyWords(String... keyWords){
         //m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().equals(base)).collect(Collectors.toList());
@@ -1158,14 +1150,29 @@ public class NetworksData {
         Region logoGrowRegion = new Region();
         HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
 
-        Label closeTabBtn = new Label("🢐");
-        closeTabBtn.setId("caretBtn");
-
-        closeTabBtn.setOnMouseClicked(e->{
-            closeMenuTab();
+        Label minimizeTabBtn = new Label("🢐");
+        minimizeTabBtn.setId("caretBtn");
+        minimizeTabBtn.setOnMouseClicked(e->{
+            TabInterface tab = m_currentMenuTab.get();
+            if(tab instanceof ManageAppsTab || tab instanceof ManageNetworksTab || tab instanceof SettingsTab){
+                tab.setStatus(App.STATUS_STOPPED);
+                m_currentMenuTab.set(null);
+            }else{
+                tab.setStatus(App.STATUS_MINIMIZED);
+                m_currentMenuTab.set(null);
+            }
         });
 
-        m_topBarBox = new HBox(m_tabLabel, logoGrowRegion, closeTabBtn);
+        BufferedButton closeTabBtn = new BufferedButton("/assets/close-outline-white.png", 16);
+        closeTabBtn.setPadding(new Insets(0, 2, 0, 2));
+        closeTabBtn.setId("closeBtn");
+        closeTabBtn.setOnAction(e->{
+            TabInterface tab = m_currentMenuTab.get();
+            tab.setStatus(App.STATUS_STOPPED);
+            m_currentMenuTab.set(null);
+        });
+
+        m_topBarBox = new HBox(m_tabLabel, logoGrowRegion, minimizeTabBtn, closeTabBtn);
         HBox.setHgrow(m_topBarBox, Priority.ALWAYS);
         m_topBarBox.setAlignment(Pos.CENTER_LEFT);
         m_topBarBox.setId("networkTopBar");
@@ -1186,12 +1193,13 @@ public class NetworksData {
         m_currentMenuTab.addListener((obs,oldval,newval)->{
 
             if(oldval != null){
-              
-                oldval.setCurrent(false);
-                oldval.shutdown();
+                if(!oldval.getStatus().equals(App.STATUS_MINIMIZED)){
+                    oldval.shutdown();
+                }
             }
 
             m_subMenuBox.getChildren().clear();
+            
             m_menuContentBox.getChildren().clear();
 
             if(newval != null){
@@ -1201,10 +1209,10 @@ public class NetworksData {
                 m_menuContentBox.getChildren().addAll(m_subMenuBox, vBar);
                 m_subMenuScroll.setContent( m_menuContentBox );
 
-                newval.setCurrent(true);
+         
                
             }else{
-                  m_subMenuScroll.setContent(null);
+                m_subMenuScroll.setContent(null);
             }
           
 
@@ -2006,7 +2014,7 @@ public class NetworksData {
 
     private class ManageNetworksTab extends AppBox  implements TabInterface{
         public static final String NAME = "Networks";
-        private boolean m_current = false;
+        private String m_status = App.STATUS_STOPPED;
         private VBox m_listBox = new VBox();
         private ContextMenu m_installContextMenu = new ContextMenu();
         private SimpleObjectProperty<NetworkInformation> m_installItemInformation = new SimpleObjectProperty<>(null);
@@ -2018,12 +2026,23 @@ public class NetworksData {
         public void shutdown(){
             
         }
-        public void setCurrent(boolean value){
-            m_settingsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
-            m_current = value;
+        public void setStatus(String value){
+            switch(value){
+                case App.STATUS_STOPPED:
+                case App.STATUS_MINIMIZED:
+                    m_settingsBtn.setId("menuTabBtn");
+                break;
+                case App.STATUS_STARTED:
+                    m_settingsBtn.setId("activeMenuBtn");
+                break;
+                
+            }
+              
+            m_status = value;
         }
-        public boolean getCurrent(){
-            return m_current;
+
+        public String getStatus(){
+            return m_status;
         }
      
         public SimpleStringProperty titleProperty(){
@@ -2351,7 +2370,7 @@ public class NetworksData {
         public static final String NAME = "Manage Apps";
 
 
-        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(true);
+        private String m_status = App.STATUS_STOPPED;
         private SimpleStringProperty m_selectedAppId = new SimpleStringProperty(null);
         private ContextMenu m_installContextMenu = new ContextMenu();
         private VBox m_listBox = new VBox();
@@ -2578,6 +2597,7 @@ public class NetworksData {
                     MenuItem openItem = new MenuItem("⇲   Open…");
                     openItem.setOnAction(e->{
                         appListmenuBtn.hide();
+
                         openApp(appInterface.getNetworkId());
                     });
 
@@ -2667,15 +2687,25 @@ public class NetworksData {
             return NAME;
         }
     
-        public void setCurrent(boolean value){
-            m_settingsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
-            m_current.set(value);
-          
+        public void setStatus(String value){
+            
+            switch(value){
+                case App.STATUS_STOPPED:
+                case App.STATUS_MINIMIZED:
+                    m_settingsBtn.setId("menuTabBtn");
+                break;
+                case App.STATUS_STARTED:
+                    m_settingsBtn.setId("activeMenuBtn");
+                break;
+                
+            }
+              
+            m_status = value;
         }
 
         
-        public boolean getCurrent(){
-            return m_current.get();
+        public String getStatus(){
+            return m_status;
         } 
 
 
@@ -2852,7 +2882,14 @@ public class NetworksData {
 
                 if(noteInterface != null && noteInterface instanceof Network){
                     Network currentNetwork = (Network) noteInterface;
-                    openNetwork(currentNetwork.getNetworkId());
+                    TabInterface tab = m_currentMenuTab.get();
+                    if(tab.getStatus().equals(App.STATUS_STARTED)){
+                        tab.setStatus(App.STATUS_MINIMIZED);
+                        m_currentMenuTab.set(null);
+                    }else{
+                        openNetwork(currentNetwork.getNetworkId());
+                    }
+                   
                 }else{
                     openStatic(ManageNetworksTab.NAME);
                 }
@@ -2947,7 +2984,13 @@ public class NetworksData {
                     NoteInterface noteInterface = entry.getValue();
                     Button appBtn = ((Network) noteInterface).getButton(BTN_IMG_SIZE);
                     appBtn.setOnAction(e->{
-                        openApp(noteInterface.getNetworkId());
+                        TabInterface tab = m_currentMenuTab.get();
+                        if(tab != null && tab.getStatus().equals(App.STATUS_STARTED)){
+                            tab.setStatus(App.STATUS_MINIMIZED);
+                            m_currentMenuTab.set(null);
+                        }else{
+                            openApp(noteInterface.getNetworkId());
+                        }
                     });
                     m_listBox.getChildren().add(appBtn);
                     
@@ -3021,15 +3064,25 @@ public class NetworksData {
         public final static String NAME = "Settings";
     
     
-        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(true);
+        private String m_status = App.STATUS_STOPPED;
         
-        public boolean getCurrent(){
-            return m_current.get();
+        public String getStatus(){
+            return m_status;
         } 
     
-        public void setCurrent(boolean value){
-            m_current.set(value);
-            m_settingsBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
+        public void setStatus(String value){
+            switch(value){
+                case App.STATUS_STOPPED:
+                case App.STATUS_MINIMIZED:
+                    m_settingsBtn.setId("menuTabBtn");
+                break;
+                case App.STATUS_STARTED:
+                    m_settingsBtn.setId("activeMenuBtn");
+                break;
+                
+            }
+              
+            m_status = value;
         }
     
     

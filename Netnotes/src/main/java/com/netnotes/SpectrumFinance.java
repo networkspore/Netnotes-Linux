@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -32,15 +31,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
@@ -135,21 +127,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
 
-    @Override
-    public void addMsgListener(NoteMsgInterface item){
-        
-        super.addMsgListener(item);
-    }
 
-    @Override
-    public boolean removeMsgListener(NoteMsgInterface item){
-        
-
-        boolean removed = super.removeMsgListener(item);
-     
-        return removed;
-    }
-    
 
     public Stage getAppStage() {
         return m_appStage;
@@ -244,8 +222,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     @Override
     public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
-        m_spectrumFinanceTab = new SpectrumFinanceTab(appStage, locationId, heightObject, widthObject, menuBtn);
-        return m_spectrumFinanceTab;
+        if(m_spectrumFinanceTab != null){
+            return m_spectrumFinanceTab;
+        }else{
+            m_spectrumFinanceTab = new SpectrumFinanceTab(appStage, locationId, heightObject, widthObject, menuBtn);
+            return m_spectrumFinanceTab;
+        }
     }
 
     private class SpectrumFinanceTab extends AppBox implements TabInterface{
@@ -255,7 +237,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
         private NoteMsgInterface m_networkMsgInterface;
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
-        private SimpleBooleanProperty m_current = new SimpleBooleanProperty(false);
+        private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
 
@@ -268,6 +250,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             setPrefWidth(App.DEFAULT_STATIC_WIDTH);
             setMaxWidth(App.DEFAULT_STATIC_WIDTH);
 
+ 
             double defaultGridWidth = App.DEFAULT_STATIC_WIDTH - 30;
             double defaultGridHeight = heightObject.get() - 100;      
 
@@ -445,24 +428,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
             Region menuBarRegion1 = new Region();
             menuBarRegion1.setMinWidth(10);
 
-            
-            ContextMenu timeSpanMenu = new ContextMenu();
-
-            Label timeSpanLabel = new Label();
-            timeSpanLabel.setId("urlField");
-            timeSpanLabel.setMinWidth(80);
-            timeSpanLabel.setPrefWidth(80);
-            timeSpanLabel.textProperty().bind( Bindings.concat( m_itemTimeSpan.asString(), " 🞃"));
-            timeSpanLabel.setAlignment(Pos.CENTER_RIGHT);
-
-            timeSpanLabel.setOnMouseClicked(e->{
-                Point2D p = timeSpanLabel.localToScene(0.0, 0.0);
-
-                timeSpanMenu.show(timeSpanLabel,
-                p.getX() + timeSpanLabel.getScene().getX() + timeSpanLabel.getScene().getWindow().getX(),
-                (p.getY() + timeSpanLabel.getScene().getY() + timeSpanLabel.getScene().getWindow().getY()
-                        + timeSpanLabel.getLayoutBounds().getHeight()));
-            });
+         
+            MenuButton timeSpanBtn = new MenuButton();
+            timeSpanBtn.setId("urlMenuButton");
+            timeSpanBtn.setMinWidth(100);
+            timeSpanBtn.setPrefWidth(100);
+            timeSpanBtn.textProperty().bind( Bindings.concat( m_itemTimeSpan.asString(), " 🞃"));
+            timeSpanBtn.setAlignment(Pos.CENTER_RIGHT);
+            timeSpanBtn.setPadding(Insets.EMPTY);
+    
             
             String[] spans = { "1hour", "8hour", "12hour", "1day", "1week", "1month", "6month", "1year" };
 
@@ -487,7 +461,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
                 });
 
-                timeSpanMenu.getItems().add(menuItm);
+                timeSpanBtn.getItems().add(menuItm);
 
             }
 
@@ -496,7 +470,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 save();
             });
 
-            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanLabel, rightSideMenu);
+            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
             HBox.setHgrow(m_menuBar, Priority.ALWAYS);
             m_menuBar.setAlignment(Pos.CENTER_LEFT);
             m_menuBar.setId("menuBar");
@@ -596,10 +570,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
 
-        @Override
-        public boolean getCurrent() {
-            return m_current.get();
-        }
+        
 
         @Override
         public String getName() {  
@@ -607,14 +578,30 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }
 
     
-
-
+        @Override
+        public String getStatus() {
+            return m_status.get();
+        }
 
         @Override
-        public void setCurrent(boolean value) {
-          
-            m_menuBtn.setId(value ? "activeMenuBtn" : "menuTabBtn");
-            m_current.set(value);
+        public void setStatus(String value) {
+            
+            switch(value){
+                case App.STATUS_STOPPED:
+                    m_menuBtn.setId("menuTabBtn");
+                    shutdown();
+                    m_spectrumFinanceTab = null;
+                break;
+                case App.STATUS_MINIMIZED:
+                    m_menuBtn.setId("minimizedMenuBtn"); 
+                break;
+                case App.STATUS_STARTED:
+                    m_menuBtn.setId("activeMenuBtn");
+                break;
+                
+            }
+
+            m_status.set(value);
             
         }
 
@@ -627,7 +614,6 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             m_appStage = null;
 
-            
         }
  
 
@@ -1132,12 +1118,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     @Override
     public void stop(){
         setConnectionStatus(App.STOPPED);
-        try {
-            Files.writeString(App.logFile.toPath(), "\nStopped", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-        } catch (IOException e1) {
-
-        }
-        
+ 
         m_marketsList.clear();
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
             m_scheduledFuture.cancel(false);
@@ -1244,11 +1225,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 break;
                 case "id":
                     m_searchList = m_marketsList.stream().filter(item -> item.getBaseId().equals(base)).collect(Collectors.toList());
-                    try {
-                        Files.writeString(App.logFile.toPath(),"\nfound: " + m_searchList.size() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e) {
-                        
-                    }
+                 
+                    
                     break;
             }
         }
@@ -1265,17 +1243,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 break;
                 case "firstId":
                     m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteId().equals(quote)).findFirst();
-                    try {
-                        Files.writeString(App.logFile.toPath(),"\n m_marketsList: " + m_marketsList.size() + " found: " + json.toString() + " "  , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e) {
-                        
-                    }
+                  
+                    
                     if(m_quoteOptional.isPresent()){
-                        try {
-                            Files.writeString(App.logFile.toPath(),"\n found: " + m_quoteOptional.get()  , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        } catch (IOException e) {
-                            
-                        }
+                     
+                        
                         return m_quoteOptional.get();
                     }
                 break;

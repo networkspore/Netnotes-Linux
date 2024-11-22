@@ -10,9 +10,8 @@ public interface TabInterface {
     String getAppId();
     String getName();
     void shutdown();
-    void setCurrent(boolean value);
-    boolean getCurrent();
-
+    void setStatus(String status);
+    String getStatus();
     SimpleStringProperty titleProperty();
     void sendMessage(int code, long timestamp,String networkId, Number number);
     void sendMessage(int code, long timeStamp,String networkId, String str);

@@ -124,6 +124,7 @@ public class App extends Application {
     public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
     public static final String MARKET_NETWORK = "MARKET_NETWORK";
 
+    public static final String STATUS_MINIMIZED = "Minimized";
     public static final String STATUS_STOPPED = "Stopped";
     public static final String STATUS_STARTED = "Started";
     public static final String STATUS_STARTING = "Starting";

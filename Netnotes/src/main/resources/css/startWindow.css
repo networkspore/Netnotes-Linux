@@ -254,6 +254,22 @@
     -fx-opacity: 1;
 
 }
+#urlMenuButton {
+   
+    -fx-text-fill: #777777;
+    -fx-background-radius: 10px;
+    -fx-background-color:black;
+    -fx-opacity: .7;
+    -fx-font-size: 11px;
+    -fx-font-family: 'OCR A Extended';
+    -fx-padding: 0;
+    -fx-cursor: hand;
+
+}
+#urlMenuButton:hover {
+ 
+    -fx-opacity:1;
+}
 
 
 #urlField {
@@ -1127,6 +1143,13 @@
     -fx-opacity: 1;
 }
 
+#minimizedMenuBtn {
+    -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888810 4%, #77777700 100%);
+    -fx-opacity: .8;
+    -fx-min-height: 45;
+    -fx-min-width: 45;
+}
+
 #activeMenuBtn {
     -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888840 4%, #77777740 100%);
     -fx-opacity: .8;
@@ -1319,8 +1342,8 @@
     -fx-opacity: 1;
 }
 
-#centeredTextArea *.text {
-    -fx-text-alignment: center;
+#centeredTextArea {
+    -fx-alignment: center;
     -fx-background-color: #33333350;
 }
 
