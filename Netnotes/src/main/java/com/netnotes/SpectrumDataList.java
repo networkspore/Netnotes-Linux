@@ -603,11 +603,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     @Override
     public void shutdown(){
-        try {
-                Files.writeString(App.logFile.toPath(), "spectrum finance data list shutdown\n" , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
  
-            }
         m_connectionStatus = App.STOPPED;
 
         m_marketsList.forEach((item)->{
