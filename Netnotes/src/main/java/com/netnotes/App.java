@@ -788,7 +788,7 @@ public class App extends Application {
       
         VBox layout = new VBox(m_titleBox, mainHbox, m_footerBox);
         VBox.setVgrow(layout, Priority.ALWAYS);
-        layout.setPadding(new Insets(0, 2, 2, 2));
+        layout.setPadding(new Insets(0, 2, 2, 0));
 
         Scene appScene = new Scene(layout, m_networksData.getStageWidth(), m_networksData.getStageHeight());
         appScene.setFill(null);

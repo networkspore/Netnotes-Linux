@@ -1134,8 +1134,8 @@
 #menuTabBtn {
     -fx-background-color: transparent;
     -fx-opacity: .8;
-    -fx-min-height: 45;
-    -fx-min-width: 45;
+    -fx-min-height: 52;
+    -fx-min-width: 52;
 }
 
 #menuTabBtn:hover {
@@ -1146,15 +1146,15 @@
 #minimizedMenuBtn {
     -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888810 4%, #77777700 100%);
     -fx-opacity: .8;
-    -fx-min-height: 45;
-    -fx-min-width: 45;
+    -fx-min-height: 52;
+    -fx-min-width: 52;
 }
 
 #activeMenuBtn {
     -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888840 4%, #77777740 100%);
     -fx-opacity: .8;
-    -fx-min-height: 45;
-    -fx-min-width: 45;
+    -fx-min-height: 52;
+    -fx-min-width: 52;
 }
 #activeMenuBtn:hover {
     -fx-background-color: linear-gradient(to right, #ffffffAA 0%, #EEEEEE40 4%, #FFFFFF40 100%);

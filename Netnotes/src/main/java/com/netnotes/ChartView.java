@@ -7,10 +7,6 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
-//import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 
 import java.time.format.DateTimeFormatter;
@@ -36,8 +32,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 
 public class ChartView {
-    
-    private File logFile = new File("netnotes-log.txt");
 
     private NumberClass m_numberClass = new NumberClass();
 

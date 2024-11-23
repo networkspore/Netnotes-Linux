@@ -2759,12 +2759,12 @@ public class NetworksData {
             super();
             
             
-            minWidthProperty().bind(m_menuWidth.add(5));
-            maxWidthProperty().bind(m_menuWidth.add(5));
+            minWidthProperty().bind(m_menuWidth.add(0));
+            maxWidthProperty().bind(m_menuWidth.add(0));
             
             
 
-            setAlignment(Pos.TOP_CENTER);
+            setAlignment(Pos.TOP_LEFT);
 
                
             Tooltip settingsTooltip = new Tooltip("Settings");
@@ -2802,7 +2802,7 @@ public class NetworksData {
 
             m_listBox = new VBox();
             HBox.setHgrow(m_listBox, Priority.ALWAYS);
-            m_listBox.setPadding(new Insets(0,5,2,5));
+            m_listBox.setPadding(new Insets(0,0,2,0));
             m_listBox.setAlignment(Pos.TOP_CENTER);
           
 
@@ -2940,13 +2940,13 @@ public class NetworksData {
             
             HBox listBoxPadding = new HBox(m_listBox);
             listBoxPadding.minHeightProperty().bind(m_appStage.getScene().heightProperty().subtract(50).subtract(m_settingsBtn.heightProperty()).subtract(currentNetworkBox.heightProperty()));
-            listBoxPadding.setId("appMenuBox");
+            //listBoxPadding.setId("appMenuBox");
             VBox scrollContentBox = new VBox(listBoxPadding);
 
             ScrollPane listScroll = new ScrollPane(scrollContentBox);
-            listScroll.prefViewportWidthProperty().bind(m_menuWidth.add(5));
+            listScroll.prefViewportWidthProperty().bind(m_menuWidth);
             listScroll.prefViewportHeightProperty().bind(m_appStage.getScene().heightProperty().subtract(50).subtract(m_settingsBtn.heightProperty()).subtract(currentNetworkBox.heightProperty()));
-        
+           // listScroll.setId("appMenuBox");
 
             /*Region hBar = new Region();
             hBar.prefWidthProperty().bind(m_widthObject.subtract(40));
