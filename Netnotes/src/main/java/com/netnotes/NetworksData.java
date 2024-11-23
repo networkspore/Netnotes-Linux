@@ -3453,6 +3453,9 @@ public class NetworksData {
 
 
     public class ContentTabs extends VBox{
+        public final static double TAB_SCROLL_HEIGHT = 19;
+        public final static double EXTENDED_TAB_SCROLL_HEIGHT = 28;
+
         private HBox m_tabsBox;
         private ScrollPane m_tabsScroll;
        // private ScrollPane m_bodyScroll;
@@ -3462,7 +3465,7 @@ public class NetworksData {
         private HashMap<String, ContentTab> m_itemTabs = new HashMap<>();
 
         private SimpleStringProperty m_currentId = new SimpleStringProperty(null);
-
+        
         public ContentTabs(){
             m_tabsBox = new HBox();
             m_tabsBox.setAlignment(Pos.CENTER_LEFT);
@@ -3471,10 +3474,25 @@ public class NetworksData {
             m_tabsScroll = new ScrollPane(m_tabsBox);
             m_tabsScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
             m_tabsScroll.setMinHeight(0);
-            m_tabsScroll.setPrefViewportHeight(19);
-          //  m_tabsScroll.setMinViewportHeight(20);
-          //  m_tabsScroll.setPrefViewportHeight(20);
+            m_tabsScroll.setPrefViewportHeight(TAB_SCROLL_HEIGHT);
             m_tabsScroll.setId("tabsBox");
+
+            m_tabsBox.widthProperty().addListener((obs,oldval,newval)->{
+                if(newval.doubleValue() > m_tabsScroll.viewportBoundsProperty().get().getWidth()){
+                    if(m_tabsScroll.getPrefViewportHeight() != EXTENDED_TAB_SCROLL_HEIGHT){
+                        m_tabsScroll.setPrefViewportHeight(EXTENDED_TAB_SCROLL_HEIGHT);
+                    }
+                    if(newval.doubleValue() > oldval.doubleValue()){
+                        m_tabsScroll.setHvalue(m_tabsScroll.getHmax());
+                    }
+                }else{
+                 
+                    m_tabsScroll.setPrefViewportHeight(TAB_SCROLL_HEIGHT);
+                    
+                   
+                }
+
+            });
 
             m_bodyBox = new StackPane();
             HBox.setHgrow(m_bodyBox, Priority.ALWAYS);
@@ -3564,10 +3582,20 @@ public class NetworksData {
             }
 
             if(isCurrentTab){
-               
+
                 for (Map.Entry<String, ContentTab> entry : m_itemTabs.entrySet()) {
                     
                     m_currentId.set(entry.getKey());
+                    if(m_tabsBox.widthProperty().get() > m_tabsScroll.viewportBoundsProperty().get().getWidth()){
+                        ContentTab currentTab = entry.getValue();
+                        HBox tabBox = currentTab.getTabBox();
+                        double x = tabBox.getLayoutX();
+
+                        double hPos = x / tabBox.widthProperty().get();
+
+                        m_tabsScroll.setHvalue(hPos);
+                    }
+
                     break;
                 }
             }
