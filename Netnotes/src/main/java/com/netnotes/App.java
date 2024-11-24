@@ -737,7 +737,7 @@ public class App extends Application {
     public final static double DEFAULT_STATIC_WIDTH = 500;
 
     private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH +5);
-    private SimpleDoubleProperty m_menuWidth = new SimpleDoubleProperty(55);
+    private SimpleDoubleProperty m_menuWidth = new SimpleDoubleProperty(52);
     private void loadMainStage(Stage appStage) {
    
         Button closeBtn = new Button();
@@ -771,9 +771,9 @@ public class App extends Application {
         VBox.setVgrow(m_menuBox, Priority.ALWAYS);
 
         m_menuBox.setPadding(new Insets(2, 0, 2, 0));
-        m_menuBox.setId("appMenuBox");
-        m_menuBox.minWidthProperty().bind(m_menuWidth.add(5));
-        m_menuBox.maxWidthProperty().bind(m_menuWidth.add(5));
+       // m_menuBox.setId("appMenuBox");
+        m_menuBox.minWidthProperty().bind(m_menuWidth.add(2));
+        m_menuBox.maxWidthProperty().bind(m_menuWidth.add(2));
         VBox.setVgrow(m_menuBox, Priority.ALWAYS);
 
 

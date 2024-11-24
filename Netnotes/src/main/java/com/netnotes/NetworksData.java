@@ -1156,7 +1156,7 @@ public class NetworksData {
         
         HBox menuVBarBox = new HBox(menuVBar);
         VBox.setVgrow(menuVBarBox, Priority.ALWAYS);
-        menuVBarBox.setMinWidth(5);
+        menuVBarBox.setMinWidth(2);
         menuVBarBox.setAlignment(Pos.CENTER_LEFT);
         menuVBarBox.setId("darkBox");
 
@@ -2758,14 +2758,7 @@ public class NetworksData {
         public AppsMenu(){
             super();
             
-            
-            minWidthProperty().bind(m_menuWidth.add(0));
-            maxWidthProperty().bind(m_menuWidth.add(0));
-            
-            
-
-            setAlignment(Pos.TOP_LEFT);
-
+           
                
             Tooltip settingsTooltip = new Tooltip("Settings");
             settingsTooltip.setShowDelay(new javafx.util.Duration(100));
@@ -2827,16 +2820,19 @@ public class NetworksData {
 
             HBox socketBox = new HBox();
             socketBox.setId("socketBox");
-
+            socketBox.setMaxHeight(BTN_IMG_SIZE);
+            socketBox.setMaxWidth(BTN_IMG_SIZE);
             socketBox.setMouseTransparent(true);
-            socketBox.setMaxWidth(App.MENU_BAR_IMAGE_WIDTH);
-            socketBox.setMaxHeight(App.MENU_BAR_IMAGE_WIDTH);
+       
 
             
             
 
             StackPane currentNetworkBox = new StackPane(m_networkBtn, socketBox, networkMenuBtnBox);
-            HBox.setHgrow(currentNetworkBox, Priority.ALWAYS);
+            currentNetworkBox.setMaxWidth(52);
+            currentNetworkBox.setMaxHeight(52);
+            currentNetworkBox.setMinWidth(52);
+            currentNetworkBox.setMinHeight(52);
             currentNetworkBox.setAlignment(Pos.CENTER);
 
             

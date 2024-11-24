@@ -1051,7 +1051,7 @@
 
 #socketBox{
     -fx-background-color: linear-gradient(to bottom,#00000050 0%, #77777780 15%, #00000070 75%, #00000050 100% );
-    
+    -fx-alignment: center;
     -fx-border-color: #33333350;
     -fx-border-width: 1 1 1 1;
     -fx-border-style: solid;
@@ -1134,32 +1134,46 @@
 #menuTabBtn {
     -fx-background-color: transparent;
     -fx-opacity: .8;
-    -fx-min-height: 52;
-    -fx-min-width: 52;
+    -fx-min-height: 50;
+    -fx-min-width: 50;
+    -fx-max-width: 50;
+    -fx-alignment: center;
 }
 
-#menuTabBtn:hover {
-   
+#menuTabBtn:hover {   
     -fx-opacity: 1;
 }
 
 #minimizedMenuBtn {
-    -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888810 4%, #77777700 100%);
+    -fx-background-color:radial-gradient(center 2% 50%, radius 100%, #ffffffAA 1%, #88888800 8%, transparent 100%);
     -fx-opacity: .8;
-    -fx-min-height: 52;
-    -fx-min-width: 52;
+    -fx-min-height: 50;
+    -fx-min-width: 50;
+    -fx-max-width: 50;
+    -fx-alignment: center;
+}
+
+#minimizedMenuBtn:hover{
+    -fx-opacity: 1;
 }
 
 #activeMenuBtn {
-    -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #88888840 4%, #77777740 100%);
+    -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #11111140 4%, #111111 100%);
     -fx-opacity: .8;
-    -fx-min-height: 52;
-    -fx-min-width: 52;
+    -fx-min-height: 50;
+    -fx-min-width: 50;
+    -fx-max-width: 50;
+    -fx-alignment: center;
 }
 #activeMenuBtn:hover {
     -fx-background-color: linear-gradient(to right, #ffffffAA 0%, #EEEEEE40 4%, #FFFFFF40 100%);
     -fx-opacity: 1;
 }
+
+
+
+
+
 
 #menuBtnDisabled {
     -fx-padding: 2 4 2 4;
