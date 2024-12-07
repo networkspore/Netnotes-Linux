@@ -261,7 +261,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         Label timeStampIcon = new Label("  ");
         timeStampIcon.setId("logoBtn");
 
-        Label timeStampText = new Label("Token Id");
+        Label timeStampText = new Label("Time Stamp");
         timeStampText.setFont(App.txtFont);
         timeStampText.setPadding(new Insets(0, 5, 0, 5));
         timeStampText.setMinWidth(m_leftColWidth);

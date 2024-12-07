@@ -75,6 +75,7 @@ public class AddressBox extends HBox {
         HBox.setHgrow(headingTextBox, Priority.ALWAYS);
         headingTextBox.setAlignment(Pos.CENTER);
         headingTextBox.setMouseTransparent(true);
+        
 
         m_addressTextArea = new TextArea();
         HBox.setHgrow(m_addressTextArea, Priority.ALWAYS);
@@ -82,20 +83,18 @@ public class AddressBox extends HBox {
         m_addressTextArea.setEditable(false);
         m_addressTextArea.setWrapText(true);
         m_addressTextArea.setMouseTransparent(true);
-        m_addressTextArea.setMinHeight(48);
+        m_addressTextArea.setMinHeight(53);
         
 
         HBox addressTextAreaBox = new HBox(m_addressTextArea);
         HBox.setHgrow(addressTextAreaBox, Priority.ALWAYS);
-        VBox.setVgrow(addressTextAreaBox, Priority.ALWAYS);
         addressTextAreaBox.setPadding(new Insets(0,10,0,10));
         addressTextAreaBox.setMouseTransparent(true);
 
         VBox stackPaneVBox = new VBox(headingTextBox);
         HBox.setHgrow(stackPaneVBox, Priority.ALWAYS);
-        VBox.setVgrow(stackPaneVBox, Priority.ALWAYS);
         stackPaneVBox.setAlignment(Pos.CENTER_LEFT);
-        stackPaneVBox.setPadding(new Insets(0,0,0,20));
+        stackPaneVBox.setPadding(new Insets(10,0,10,20));
         stackPaneVBox.setMouseTransparent(true);
 
         HBox imgViewBox = new HBox(m_backgroundImgView);

@@ -5,10 +5,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.Scene;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.text.Text;
 
 import com.google.gson.JsonElement;
 
@@ -27,7 +25,6 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
     private SimpleObjectProperty<BigDecimal> m_minimumFee = new SimpleObjectProperty<>(BigDecimal.valueOf(0.001));
     private final TextArea m_warningTextArea;
     private final HBox m_warningBox;
-    private BigDecimal m_warningErgsWTokens;
 
     public ErgoWalletAmountSendBoxes(Scene scene, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
         super();
@@ -37,8 +34,6 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
         m_balanceObject = balanceObject;
         
         m_scene = scene;
-
-        setMinAmountsWTokens(new ErgoAmount(m_minimumFee.get(), networktype).getLongAmount());
 
         m_balanceChangeListener = (obs,oldval, newval) ->{
             update(newval);
@@ -80,11 +75,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
       
     }
 
-    public void setMinAmountsWTokens(long warningLong){
-        ErgoAmount ergoAmount = new ErgoAmount(warningLong, m_networkType);
-       // m_minErgsWTokens;
-        m_warningErgsWTokens = ergoAmount.getBigDecimalAmount();
-    }
+
 
     public TextArea warningField(){
         return m_warningTextArea;
@@ -99,8 +90,9 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
         int boxesSize = getAmountListSize();
 
         if(ergoAmountSendBox != null && boxesSize > 1){
+            BigDecimal minFee = m_minimumFee.get();
             BigDecimal ergoAmountRemaining = ergoAmountSendBox.getBalanceRemaining();
-            boolean isTokenWarning = ergoAmountRemaining.compareTo(m_warningErgsWTokens) < 0;
+            boolean isTokenWarning = ergoAmountRemaining.compareTo(minFee) < 0;
             if(isTokenWarning){
                 AmountBoxInterface[] boxesArray = getAmountBoxArray();
                 m_warningBoolean = false;
@@ -115,7 +107,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
                 }
                 if(m_warningBoolean){
                 
-                    String warningText = "Recommended minimum remaining balance of " + m_warningErgsWTokens + "ERG for keeping tokens in address.";
+                    String warningText = "Notice: Addresses must maintain a minimum ~" + minFee + " ERG when containing tokens.";
                     if(!m_warningTextArea.getText().equals(warningText)){
                         m_warningTextArea.setText(warningText);
                     }

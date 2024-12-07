@@ -1,0 +1,73 @@
+{
+  "code": 1,
+  "timeStamp": 1733557835798,
+  "txId": "f80a44a4dc015d1d551a972d3378f954203a9c54df9c00b8964525f516cb996e",
+  "result": "Success",
+  "data": {
+    "node": {
+      "name": "Public Node #1",
+      "url": "http://213.239.193.208:9053",
+      "apiKey": ""
+    },
+    "explorer": {
+      "url": "https://api.ergoplatform.com"
+    },
+    "wallet": {
+      "name": "backup2",
+      "address": "9fXcrCy2cRaPnnX8RZUVCjsPG78KdFncP5fy1byjbncLhBGvct6"
+    },
+    "recipient": {
+      "address": "9eyE6HQd7JRHp92fZFCjHB5RsS2kthk46sFBFxyYSygpPvBeA5b",
+      "addressType": "P2PK"
+    },
+    "fee": {
+      "decimalAmount": 0.001,
+      "longAmount": 1000000,
+      "name": "Ergo",
+      "tokenId": "0000000000000000000000000000000000000000000000000000000000000000",
+      "decimals": 9
+    },
+    "assets": [
+      {
+        "decimalAmount": 7.00048377,
+        "longAmount": 7000483770,
+        "name": "Ergo",
+        "tokenId": "0000000000000000000000000000000000000000000000000000000000000000",
+        "decimals": 9
+      },
+      {
+        "decimalAmount": 21069420,
+        "longAmount": 21069420,
+        "name": "🚬",
+        "tokenId": "ebb40ecab7bb7d2a935024100806db04f44c62c33ae9756cf6fc4cb6b9aa2d12",
+        "decimals": 0
+      },
+      {
+        "decimalAmount": 69420,
+        "longAmount": 69420,
+        "name": "rsHOSKY",
+        "tokenId": "6ad70cdbf928a2bdd397041a36a5c2490a35beb4d20eabb5666f004b103c7189",
+        "decimals": 0
+      },
+      {
+        "decimalAmount": 1202965.445,
+        "longAmount": 1202965445000,
+        "name": "Satoshi",
+        "tokenId": "4de9e7e628e4f473f954ee74c622033cf03005198293d0d2cd4ccc64288da17e",
+        "decimals": 6
+      },
+      {
+        "decimalAmount": 1234321,
+        "longAmount": 1234321,
+        "name": "COS",
+        "tokenId": "f0d5bdf474fcbd4249608e6dc6e9cf34a327b218f66445ea545b4c711b4676e3",
+        "decimals": 0
+      }
+    ],
+    "network": {
+      "networkType": "MAINNET",
+      "networkHeight": 1411850,
+      "timeStamp": 1733557453161
+    }
+  }
+}

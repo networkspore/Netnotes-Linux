@@ -2385,7 +2385,7 @@ public class ErgoWalletsAppBox extends AppBox {
                         sendReceiptHBarGBox.setAlignment(Pos.CENTER);
                         sendReceiptHBarGBox.setPadding(new Insets(0,0,10,0));
 
-                        JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 120);
+                        JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 140);
                         HBox.setHgrow(sendReceiptJsonBox, Priority.ALWAYS);
                         sendReceiptJsonBox.setPadding(new Insets(2,10,0,10));
                         sendReceiptJsonBox.updateParameters(receiptJson);
