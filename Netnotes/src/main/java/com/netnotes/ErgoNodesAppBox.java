@@ -588,7 +588,7 @@ public class ErgoNodesAppBox extends AppBox {
    
             
             Tooltip errorTooltip = new Tooltip();
-            Button backButton = new Button("🠜");
+            Button backButton = new Button("🡄");
             backButton.setId("lblBtn");
 
             backButton.setOnAction(e -> {
@@ -992,7 +992,7 @@ public class ErgoNodesAppBox extends AppBox {
             m_appDirString = appDirResult != null ? appDirResult.get("appDir").getAsString() + "/" + DEFAULT_NODE_FOLDER_NAME : AppData.HOME_DIRECTORY.getAbsolutePath() + "/" + DEFAULT_NODE_FOLDER_NAME;
             
 
-            Button backButton = new Button("🠜");
+            Button backButton = new Button("🡄");
             backButton.setId("lblBtn");
 
             backButton.setOnAction(e -> {
@@ -1816,7 +1816,7 @@ public class ErgoNodesAppBox extends AppBox {
 
             this.removeIds = new JsonArray();
 
-            this.backButton = new Label("🠜");
+            this.backButton = new Label("🡄");
             this.backButton.setId("lblBtn");
 
             this.backButton.setOnMouseClicked(e -> {
@@ -2185,7 +2185,7 @@ public class ErgoNodesAppBox extends AppBox {
             m_configId = configId;
             
 
-            Label backButton = new Label("🠜");
+            Label backButton = new Label("🡄");
             backButton.setId("lblBtn");
 
             backButton.setOnMouseClicked(e -> {

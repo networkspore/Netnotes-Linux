@@ -62,17 +62,18 @@ public class ErgoNodeConfigFile{
 
     public void readFile(File file) throws IOException{
         m_inputBuffer.clear();
-        readFile: try(
+         try(
             
             InputStream stream = file == null ? App.class.getResource("/txt/DefaultNode.conf").openStream() : new FileInputStream(file);
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
         ){
     
 
+            READ_FILE: 
             while(true) {
                 String line = reader.readLine();
                 if (line == null) {
-                    break readFile;
+                    break;
                 }
                 line = line.trim();
 
@@ -110,7 +111,7 @@ public class ErgoNodeConfigFile{
                                 String nLine = reader.readLine();
 
                                 if(nLine == null){
-                                    break readFile;
+                                    break READ_FILE;
                                 }
                                 nLine = nLine.trim();
                                 currentItem.getValueLines().add(nLine);

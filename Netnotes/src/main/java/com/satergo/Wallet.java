@@ -2,6 +2,7 @@ package com.satergo;
 
 import com.satergo.ergo.Balance;
 import com.satergo.extra.AESEncryption;
+import com.utils.Utils;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -21,6 +22,7 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -95,7 +97,7 @@ public final class Wallet {
             detailsIv = AESEncryption.generateNonce12();
             detailsSecretKey = AESEncryption.generateSecretKey(newPassword, detailsIv);
         } catch (WalletKey.Failure e) {
-            throw new Exception("Password failed");
+            throw new Exception("Password failed " + Utils.formatDateTimeString(LocalDateTime.now()));
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }
@@ -219,7 +221,7 @@ public final class Wallet {
                 detailsEncryptionIv = AESEncryption.generateNonce12();
                 detailsEncryptionKey = AESEncryption.generateSecretKey(password, detailsEncryptionIv);
             } catch (AEADBadTagException e) {
-                throw new Exception("Password failed");
+                throw new Exception("Password failed " + Utils.formatDateTimeString(LocalDateTime.now()));
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(e);
             }

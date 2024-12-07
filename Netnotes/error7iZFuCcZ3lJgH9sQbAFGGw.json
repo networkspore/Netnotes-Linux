@@ -1,0 +1,43 @@
+{
+  "code": 2,
+  "msg": "org.ergoplatform.appkit.InputBoxesSelectionException$NotEnoughCoinsForChangeException: Not enough nanoERGs (0 nanoERG) to create 1 change boxes, \nfor Stream(Map(c0bfa5ebb35e9f12d072ed938349d938cb0fd07cb25da7df1de21c9113cb58db -\u003e 1, 0779ec04f2fae64e87418a1ad917639d4668f78484f45df962b0dec14a2591d2 -\u003e 100))",
+  "errTxId": "error7iZFuCcZ3lJgH9sQbAFGGw",
+  "result": "Error",
+  "data": {
+    "node": {
+      "name": "Public Node #1",
+      "url": "http://213.239.193.208:9053",
+      "apiKey": ""
+    },
+    "explorer": {
+      "url": "https://api.ergoplatform.com"
+    },
+    "wallet": {
+      "name": "wallet1",
+      "address": "9iERcytxacRhrj76GpEwjMToFkPjUE5f6AR3W9GPKEs4eK63J2P"
+    },
+    "recipient": {
+      "address": "9eyE6HQd7JRHp92fZFCjHB5RsS2kthk46sFBFxyYSygpPvBeA5b",
+      "addressType": "P2PK"
+    },
+    "fee": {
+      "decimalAmount": 0.001,
+      "longAmount": 1000000,
+      "name": "Ergo",
+      "tokenId": "0000000000000000000000000000000000000000000000000000000000000000",
+      "decimals": 9
+    },
+    "assets": [
+      {
+        "decimalAmount": 0.0359,
+        "longAmount": 35900000,
+        "name": "Ergo",
+        "tokenId": "0000000000000000000000000000000000000000000000000000000000000000",
+        "decimals": 9
+      }
+    ],
+    "network": {
+      "networkType": "MAINNET"
+    }
+  }
+}

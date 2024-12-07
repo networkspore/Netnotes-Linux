@@ -3,15 +3,16 @@ import com.google.gson.JsonObject;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.ObservableList;
 import javafx.scene.Scene;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.text.Text;
 
 import com.google.gson.JsonElement;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import org.ergoplatform.appkit.NetworkType;
 
@@ -22,6 +23,11 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
     private final NetworkType m_networkType;
     private SimpleObjectProperty<JsonObject> m_balanceObject;
     private ChangeListener<JsonObject> m_balanceChangeListener;
+    private SimpleObjectProperty<PriceAmount> m_feeAmount = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<BigDecimal> m_minimumFee = new SimpleObjectProperty<>(BigDecimal.valueOf(0.001));
+    private final TextArea m_warningTextArea;
+    private final HBox m_warningBox;
+    private BigDecimal m_warningErgsWTokens;
 
     public ErgoWalletAmountSendBoxes(Scene scene, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
         super();
@@ -32,6 +38,8 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
         
         m_scene = scene;
 
+        setMinAmountsWTokens(new ErgoAmount(m_minimumFee.get(), networktype).getLongAmount());
+
         m_balanceChangeListener = (obs,oldval, newval) ->{
             update(newval);
         };
@@ -40,20 +48,98 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
 
         JsonObject balanceJson = balanceObject.get();
        
-
+        
 
         update(balanceJson);
+
+        m_warningTextArea = new TextArea();
+        m_warningTextArea.setMinHeight(53);
+        m_warningTextArea.setMaxHeight(53);
+        HBox.setHgrow(m_warningTextArea, Priority.ALWAYS);
+        m_warningTextArea.setEditable(false);
+        m_warningTextArea.setWrapText(true);
+        m_warningTextArea.setId("textAreaInput");
+       
+
+
+        m_warningBox = new HBox(m_warningTextArea);
+        HBox.setHgrow(m_warningBox, Priority.ALWAYS);
+
+        m_warningTextArea.textProperty().addListener((obs,oldval,newval)->{
+            if(newval.length() > 0){
+                if(!lastRowHBox().getChildren().contains(m_warningBox)){
+                    lastRowHBox().getChildren().add(m_warningBox);
+                }
+            }else{
+                if(lastRowHBox().getChildren().contains(m_warningBox)){
+                    lastRowHBox().getChildren().remove(m_warningBox);
+                }
+            }
+        });
+
+      
     }
 
-  
-    @Override
-    public void updateGrid(){
-        super.updateGrid();
-
-            
-        
+    public void setMinAmountsWTokens(long warningLong){
+        ErgoAmount ergoAmount = new ErgoAmount(warningLong, m_networkType);
+       // m_minErgsWTokens;
+        m_warningErgsWTokens = ergoAmount.getBigDecimalAmount();
     }
 
+    public TextArea warningField(){
+        return m_warningTextArea;
+    }
+
+    private boolean m_warningBoolean;
+
+    public void updateWarnings(){
+        AmountBoxInterface ergoAmountBoxInterface = getAmountBox(ErgoCurrency.TOKEN_ID);
+        ErgoWalletAmountSendBox ergoAmountSendBox = ergoAmountBoxInterface != null && ergoAmountBoxInterface instanceof ErgoWalletAmountSendBox ? (ErgoWalletAmountSendBox) ergoAmountBoxInterface : null;
+    
+        int boxesSize = getAmountListSize();
+
+        if(ergoAmountSendBox != null && boxesSize > 1){
+            BigDecimal ergoAmountRemaining = ergoAmountSendBox.getBalanceRemaining();
+            boolean isTokenWarning = ergoAmountRemaining.compareTo(m_warningErgsWTokens) < 0;
+            if(isTokenWarning){
+                AmountBoxInterface[] boxesArray = getAmountBoxArray();
+                m_warningBoolean = false;
+                for(AmountBoxInterface boxInterface : boxesArray){
+                    if(boxInterface instanceof ErgoWalletAmountSendBox){
+                        ErgoWalletAmountSendBox sendBox = (ErgoWalletAmountSendBox) boxInterface;
+                        if(sendBox.getTokenId() != ErgoCurrency.TOKEN_ID && sendBox.getBalanceRemaining().compareTo(BigDecimal.ZERO) > 0){
+                            m_warningBoolean = true;
+                            break;
+                        }
+                    }
+                }
+                if(m_warningBoolean){
+                
+                    String warningText = "Recommended minimum remaining balance of " + m_warningErgsWTokens + "ERG for keeping tokens in address.";
+                    if(!m_warningTextArea.getText().equals(warningText)){
+                        m_warningTextArea.setText(warningText);
+                    }
+                        
+                    
+                }else{
+                    m_warningTextArea.setText("");
+                }
+            }else{
+                m_warningTextArea.setText("");
+            }
+        }else{
+            m_warningTextArea.setText("");
+        }
+
+    }
+
+    public SimpleObjectProperty<PriceAmount> feeAmountProperty(){
+        return m_feeAmount;
+    }
+
+    public SimpleObjectProperty<BigDecimal> minimumFeeProperty(){
+        return m_minimumFee;
+    }
     
     public void update(JsonObject json){
 
@@ -71,16 +157,13 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
             AmountBoxInterface amountBoxInterface = getAmountBox(ErgoCurrency.TOKEN_ID);
             if(amountBoxInterface == null){
                 ErgoAmount ergoAmount = new ErgoAmount(nanoErg, m_networkType);
-                ErgoWalletAmountSendBox box = new ErgoWalletAmountSendBox(ergoAmount, m_scene);
+                ErgoWalletAmountSendBox box = new ErgoWalletAmountSendBox(this, ergoAmount, m_scene);
                 box.setTimeStamp(timeStamp);
                 add(box);
             }else{
                 ErgoWalletAmountSendBox ergoAmountBox = (ErgoWalletAmountSendBox) amountBoxInterface;
-
-                ergoAmountBox.setBalance(timeStamp, nanoErg);
-           
-                
-                
+                ergoAmountBox.getBalanceAmount().setLongAmount(nanoErg, timeStamp);
+             
             }
           
      
@@ -113,13 +196,13 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
               
                     ErgoWalletAmountSendBox amountBox = (ErgoWalletAmountSendBox) getAmountBox(tokenId);
                     if(amountBox == null){
-                        ErgoWalletAmountSendBox box = new ErgoWalletAmountSendBox(tokenAmount, getScene());
+                        ErgoWalletAmountSendBox box = new ErgoWalletAmountSendBox(this, tokenAmount, m_scene);
                         box.setTimeStamp(timeStamp);
                         add(box);
                           
                  
                     }else{
-                        amountBox.setBalance(timeStamp, amount);
+                        amountBox.getBalanceAmount().setLongAmount( amount, timeStamp);
                     //    amountBox.setTimeStamp(timeStamp);
                     //    amountBox.getPriceAmount().setLongAmount(amount);
                        
@@ -135,15 +218,19 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
             }
      
              
-        } 
+        }else{
+            clear();
+        }
 
        
     }
 
     public void reset(){
-       
-        for(int i = 0; i < getAmountBoxList().size();i++ ){
-            AmountBoxInterface amountBox = getAmountBoxList().get(i);
+        AmountBoxInterface[] amountBoxAray =  getAmountBoxArray();
+                    
+        for(int i = 0; i < amountBoxAray.length ;i++ ){
+            AmountBoxInterface amountBox = amountBoxAray[i];
+
             if(amountBox instanceof ErgoWalletAmountSendBox){   
                 ErgoWalletAmountSendBox sendBox = (ErgoWalletAmountSendBox) amountBox;
                 
@@ -154,22 +241,5 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
     }
 
 
-    public void updateToken(String id){
-        if(id != null){
-            ObservableList <AmountBoxInterface> list = amountsList();
-    
-            int size = list.size();
-        
-            for(int i = 0; i < size; i++){
-                AmountBoxInterface amountBox = list.get(i);
-
-                if(id.equals(amountBox.getTokenId())){
-                   
-                    break;
-                }
-            }
-        }
-    
-       
-    }
+  
 }

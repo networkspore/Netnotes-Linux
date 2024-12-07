@@ -1,6 +1,7 @@
 package com.netnotes;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 import org.ergoplatform.appkit.Address;
 import org.ergoplatform.appkit.NetworkType;
@@ -12,69 +13,123 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 
-import javafx.embed.swing.SwingFXUtils;
-
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.ContentDisplay;
-import javafx.scene.control.TextField;
+import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.image.WritableImage;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 
 
 public class AddressBox extends HBox {
 
+    public final static String EMPTY_TEXT = "Enter Address";
 
     private NetworkType m_networkType = NetworkType.MAINNET;
     // private boolean m_valid = false;
 
     private String m_id = FriendlyId.createFriendlyId();
-    private int m_minHeight = 40;
+    private int m_minHeight = 75;
 
     private final SimpleObjectProperty<LocalDateTime> m_LastUpdated = new SimpleObjectProperty<LocalDateTime>(LocalDateTime.now());
 
     private SimpleObjectProperty<AddressInformation> m_addressInformation = new SimpleObjectProperty<>(null);
+    private StackPane m_stackPane;
+    private ImageView m_backgroundImgView;
+    private Text m_headingText;
+    private TextArea m_addressTextArea;
+
+    private ArrayList<String> m_invalidAddressList = new ArrayList<>();
 
 //String explorerId, NetworksData networksData
     public AddressBox(AddressInformation addressInformation, Scene scene, NetworkType networkType) {
         super();
         setFocusTraversable(true);
         setMinHeight(m_minHeight);
+        setPrefHeight(m_minHeight);
+        setId("bodyBox2");
+
         m_networkType = networkType;
         m_addressInformation.set(addressInformation);
         
-  
-
-        Button addressBtn = new Button();
-        addressBtn.setId("transparentColor");
-        addressBtn.setContentDisplay(ContentDisplay.LEFT);
-        addressBtn.setAlignment(Pos.CENTER_LEFT);
-        addressBtn.setPadding(new Insets(0));
-        addressBtn.setMouseTransparent(true);
+        m_headingText = new Text();
+        m_headingText.setMouseTransparent(true);
+        m_headingText.setFont(App.txtFont);
+        m_headingText.setFill(App.txtColor);
         
-        getChildren().add(addressBtn);
+        m_backgroundImgView = new ImageView();
+        m_backgroundImgView.setFitHeight(m_minHeight);
+        m_backgroundImgView.setMouseTransparent(true);
+        m_backgroundImgView.setPreserveRatio(true);
+        m_backgroundImgView.setId("backgroundImage");
 
-        addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-            if(getChildren().contains(addressBtn)){
-                addressBtn.fire();
+        HBox headingTextBox = new HBox(m_headingText);
+        HBox.setHgrow(headingTextBox, Priority.ALWAYS);
+        headingTextBox.setAlignment(Pos.CENTER);
+        headingTextBox.setMouseTransparent(true);
+
+        m_addressTextArea = new TextArea();
+        HBox.setHgrow(m_addressTextArea, Priority.ALWAYS);
+        m_addressTextArea.setId("priceFieldRegular");
+        m_addressTextArea.setEditable(false);
+        m_addressTextArea.setWrapText(true);
+        m_addressTextArea.setMouseTransparent(true);
+        m_addressTextArea.setMinHeight(48);
+        
+
+        HBox addressTextAreaBox = new HBox(m_addressTextArea);
+        HBox.setHgrow(addressTextAreaBox, Priority.ALWAYS);
+        VBox.setVgrow(addressTextAreaBox, Priority.ALWAYS);
+        addressTextAreaBox.setPadding(new Insets(0,10,0,10));
+        addressTextAreaBox.setMouseTransparent(true);
+
+        VBox stackPaneVBox = new VBox(headingTextBox);
+        HBox.setHgrow(stackPaneVBox, Priority.ALWAYS);
+        VBox.setVgrow(stackPaneVBox, Priority.ALWAYS);
+        stackPaneVBox.setAlignment(Pos.CENTER_LEFT);
+        stackPaneVBox.setPadding(new Insets(0,0,0,20));
+        stackPaneVBox.setMouseTransparent(true);
+
+        HBox imgViewBox = new HBox(m_backgroundImgView);
+        HBox.setHgrow(imgViewBox, Priority.ALWAYS);
+        VBox.setVgrow(imgViewBox, Priority.ALWAYS);
+        imgViewBox.setAlignment(Pos.CENTER);
+        
+        m_addressTextArea.textProperty().addListener((obs,oldval,newval)->{
+            if(newval.length() > 0){
+                if(!stackPaneVBox.getChildren().contains(addressTextAreaBox)){
+                    stackPaneVBox.getChildren().add(addressTextAreaBox);
+                    headingTextBox.setAlignment(Pos.CENTER_LEFT);
+                    imgViewBox.setAlignment(Pos.CENTER_LEFT);
+                }
+
+            }else{
+                if(stackPaneVBox.getChildren().contains(addressTextAreaBox)){
+                    stackPaneVBox.getChildren().remove(addressTextAreaBox);
+                    headingTextBox.setAlignment(Pos.CENTER);
+                    imgViewBox.setAlignment(Pos.CENTER);
+                }
+              
             }
         });
-        //addressBtn.setGraphicTextGap(25);
 
-      
-       
-          
+
+        m_stackPane = new StackPane(imgViewBox,stackPaneVBox);
+        m_stackPane.setAlignment(Pos.CENTER_LEFT);
+        m_stackPane.setId("hand");
+        HBox.setHgrow(m_stackPane, Priority.ALWAYS);
+        
+        getChildren().add(m_stackPane);
+
+
 
         setAlignment(Pos.CENTER_LEFT);
 
@@ -82,39 +137,44 @@ public class AddressBox extends HBox {
 
      
 
-        TextField addressField = new TextField(addressInformation.getAddressString());
+        TextArea addressField = new TextArea(addressInformation.getAddressString());
         //  addressField.setMaxHeight(20);
         HBox.setHgrow(addressField, Priority.ALWAYS);
-        addressField.setAlignment(Pos.CENTER_LEFT);
-        addressField.setPadding(new Insets(1, 10, 1, 10));
+        VBox.setVgrow(addressField, Priority.ALWAYS);
+        addressField.setWrapText(true);
         addressField.setUserData(textFieldId);
-        
-        addressField.setPromptText("Enter Address");
-        addressField.setId("formField");
+        addressField.setPromptText("            Enter Address");
+        addressField.setId("textAreaInputEmpty");
         addressField.textProperty().addListener((obs,oldval,newval)->{
             String b58 = newval.replaceAll("[^A-HJ-NP-Za-km-z1-9]", "");
            
             if(newval.length() == 0){
-                addressField.setId("formField");
+                addressField.setId("textAreaInputEmpty");
             }else{
-                addressField.setId(null);
+                addressField.setId("textAreaInput");
             }
             addressField.setText(b58);
         });
 
-      
+        m_addressTextArea.textProperty().bind(addressField.textProperty());
 
         Button enterButton = new Button("[ ENTER ]");
         enterButton.setFont(App.txtFont);
         enterButton.setId("toolBtn");
-   
+        enterButton.setMinWidth(90);
+        enterButton.setPrefHeight(60);
+
+        HBox addressFieldBox = new HBox(addressField, enterButton);
+        HBox.setHgrow(addressFieldBox, Priority.ALWAYS);
+        addressFieldBox.setAlignment(Pos.CENTER_LEFT);
+       // addressFieldBox.setId("bodyBox");
 
        
         SimpleBooleanProperty isFieldFocused = new SimpleBooleanProperty(false);
         
         scene.focusOwnerProperty().addListener((obs, old, newPropertyValue) -> {
-            if (newPropertyValue != null && newPropertyValue instanceof TextField) {
-                TextField focusedField = (TextField) newPropertyValue;
+            if (newPropertyValue != null && newPropertyValue instanceof TextArea) {
+                TextArea focusedField = (TextArea) newPropertyValue;
                 Object userData = focusedField.getUserData();
                 if(userData != null && userData instanceof String){
                     String userDataString = (String) userData;
@@ -140,21 +200,21 @@ public class AddressBox extends HBox {
             }
         });
 
-        addressBtn.setOnAction(actionEvent -> {
-            if(getChildren().contains(addressBtn))
+        m_stackPane.addEventFilter(MouseEvent.MOUSE_CLICKED, actionEvent -> {
+            if(getChildren().contains(m_stackPane))
             {
-                getChildren().remove(addressBtn);
+                getChildren().remove(m_stackPane);
             } 
           
-            if(!(getChildren().contains(addressField))){
-                getChildren().addAll( addressField, enterButton);
+            if(!(getChildren().contains(addressFieldBox))){
+                getChildren().add( addressFieldBox);
             }
      
-                Platform.runLater(()-> {
-                    addressField.requestFocus();
+            Platform.runLater(()-> {
+                addressField.requestFocus();
 
-                });
-            
+            });
+        
         });
 
  
@@ -167,14 +227,14 @@ public class AddressBox extends HBox {
                 getChildren().remove(enterButton);
             }
 
-            if (getChildren().contains(addressField)) {
-                getChildren().remove(addressField);
+            if (getChildren().contains(addressFieldBox)) {
+                getChildren().remove(addressFieldBox);
 
             }
    
 
-            if (!(getChildren().contains(addressBtn))) {
-                getChildren().add(addressBtn);
+            if (!(getChildren().contains(m_stackPane))) {
+                getChildren().add(m_stackPane);
             }
 
             
@@ -187,25 +247,26 @@ public class AddressBox extends HBox {
             setNotFocused.run();
         });
 
-         addressField.setOnAction(e->{
-            enterButton.fire();
+        addressField.setOnKeyPressed(e->{
+            if(e.getCode() == KeyCode.ENTER){
+                enterButton.fire();
+            }
         });
+ 
 
-        ImageView addressImgView = new ImageView(); //addressBtn.setGraphic(IconButton.getIconView(newval, newval.getWidth()));
-        addressBtn.setGraphic(addressImgView);
-       
         m_addressInformation.addListener((obs,oldval, newval)->{
 
-            updateBufferedImage(addressImgView);
+            update();
      
             /*if(!newval.toString().equals(addressField.getText())){
                 addressField.setText(newval.toString());
             }*/
         });
       
-        updateBufferedImage(addressImgView);
+        update();
+
+
        
-        setId("hand");
     }
 
     public SimpleObjectProperty<AddressInformation> addressInformationProperty(){
@@ -217,86 +278,9 @@ public class AddressBox extends HBox {
         return m_addressInformation.get().toString();
     }
 
-    /*
-        TextField toTextField = new TextField();
-
-        toTextField.setMaxHeight(40);
-        toTextField.setId("formField");
-        toTextField.setPadding(new Insets(3, 10, 0, 0));
-        HBox.setHgrow(toTextField, Priority.ALWAYS);
-
-        toAddressBtn.setOnAction(e -> {
-
-            toAddressBox.getChildren().remove(toAddressBtn);
-            toAddressBox.getChildren().add(toTextField);
-
-            Platform.runLater(() -> toTextField.requestFocus());
-
-        });
-
-        Region toMinHeightRegion = new Region();
-        toMinHeightRegion.setMinHeight(40);
-
-
-        toAddressBox.getChildren().addAll(toMinHeightRegion, toText, toAddressBtn);
-
-        toTextField.textProperty().addListener((obs, old, newVal) -> {
-            String text = newVal.trim();
-            if (text.length() > 5) {
-                if (!toAddressBox.getChildren().contains(toEnterButton)) {
-                    toAddressBox.getChildren().add(toEnterButton);
-                }
-
-                toAddressBtn.setAddressByString(text, onVerified -> {
-
-                    Object object = onVerified.getSource().getValue();
-
-                    if (object != null && (Boolean) object) {
-
-                        toAddressBox.getChildren().remove(toTextField);
-                        if (toAddressBox.getChildren().contains(toEnterButton)) {
-                            toAddressBox.getChildren().remove(toEnterButton);
-                        }
-                        toAddressBox.getChildren().add(toAddressBtn);
-                    }
-                });
-            }
-
-        });
-
-        toTextField.setOnKeyPressed((keyEvent) -> {
-            KeyCode keyCode = keyEvent.getCode();
-            if (keyCode == KeyCode.ENTER) {
-              //  String text = toTextField.getText();
-
-                toAddressBox.getChildren().remove(toTextField);
-
-                if (toAddressBox.getChildren().contains(toEnterButton)) {
-                    toAddressBox.getChildren().remove(toEnterButton);
-                }
-                toAddressBox.getChildren().add(toAddressBtn);
-            }
-        });
-
-        toTextField.focusedProperty().addListener((obs, old, newPropertyValue) -> {
-
-            if (newPropertyValue) {
-
-            } else {
-
-                toAddressBox.getChildren().remove(toTextField);
-                if (toAddressBox.getChildren().contains(toEnterButton)) {
-                    toAddressBox.getChildren().remove(toEnterButton);
-                }
-                toAddressBox.getChildren().add(toAddressBtn);
-
-            }
-        });*/
-
-
-
-
-
+    public ArrayList<String> getInvalidAddressList(){
+        return m_invalidAddressList;
+    }
 
     public SimpleObjectProperty<LocalDateTime> getLastUpdatedObject() {
         return m_LastUpdated;
@@ -323,107 +307,57 @@ public class AddressBox extends HBox {
         return m_networkType;
     }
 
-    private BufferedImage m_img = null;
-    private WritableImage m_wImg = null;
-    private Graphics2D m_imgG2d = null;
+    public boolean isInvalidAddress(String address){
+        if(address != null){
+            if(m_invalidAddressList.contains(address)){
+                return true;
+            }else{
+                return false;
+            }
+        }
+        return true;
+    }
 
-    private BufferedImage m_txtImg = null;
-    private Graphics2D m_txtG2d = null;
-    private FontMetrics m_txtFm = null;
+    private SimpleBooleanProperty m_addressValid = new SimpleBooleanProperty(false);
 
-    private int m_imgHeight = 40;
+    public SimpleBooleanProperty isAddressValid(){
+        return m_addressValid;
+    }
 
-    private java.awt.Font m_font = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 14);
-    private BufferedImage m_unitImage = null;
+    public void update() {
 
-    public void updateBufferedImage(ImageView imgView) {
-
-        final int padding = 10;
-        final int bottomIndent = 15;
 
         AddressInformation adrInfo = m_addressInformation.get() != null ? m_addressInformation.get() : new AddressInformation("");
         Address adr = adrInfo.getAddress();
+
         NetworkType adrNetworkType = adrInfo.getNetworkType();
         String adrType = adrInfo.getAddressType();
         String adrString = adrInfo.getAddressString();
+
+        boolean isInvalidAddress = adr != null ? isInvalidAddress(adrString) : true;
     
-        final String promptString =(adr != null && adrNetworkType != null && adrNetworkType == m_networkType && adrType != null) ? adrType + " (" + adrNetworkType.toString() + ")" : "Enter address";
+        String promptString =(adr != null && adrNetworkType != null && adrNetworkType == m_networkType && adrType != null) ? adrType + " (" + adrNetworkType.toString() + ")" : EMPTY_TEXT;
        
         String textNetType = adrNetworkType == null ? " [Address Invalid]" : (adrNetworkType != m_networkType ? " [Invalid network type: "+ adrNetworkType.toString() + "]" : "");
-        String textAdrType = adrType == null || adr == null ? " [Address Invalid]" : "";
-        final String errortext = adrString.length() > 0 ? ((textAdrType.equals("") ? textNetType : textAdrType)) : "" ;
+        String textAdrType = adrType == null || adr == null ? " [Address Invalid]" : (isInvalidAddress ? " [Invalid Recipient]" : "");
+
+         
+
+        String errortext = adrString.length() > 0 ? ((textAdrType.equals("") ? textNetType : textAdrType)) : "" ;
 
        
-        m_txtImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-        m_txtG2d = m_txtImg.createGraphics();
-        m_txtG2d.setFont(m_font);
-        m_txtFm = m_txtG2d.getFontMetrics();    
+        m_backgroundImgView.setImage(adr != null ? getUnitImage(): getUnknownUnitImage());
         
-        int errorSize = errortext.length() > 0 ? m_txtFm.stringWidth(errortext) : 0;
-        int promptSize = m_txtFm.stringWidth(promptString);
-        int topTextSize = promptSize + 10 + errorSize;
-        int adrSize = 25 + adrString.length() > 0 ? m_txtFm.stringWidth(adrString) : 0;
-
-        int stringSize = topTextSize >  bottomIndent + adrSize ? padding + topTextSize : padding + bottomIndent + adrSize;
-        int width = stringSize + 40;
-       
-        m_unitImage = adr != null ? SwingFXUtils.fromFXImage(getUnitImage(), null) : SwingFXUtils.fromFXImage(getUnknownUnitImage(), null);
-        
-        if(adrInfo.getNetworkType() != null && adrInfo.getNetworkType() == NetworkType.TESTNET){
-            InvertEffect.invertRGB(m_unitImage, 1);
-        }
-        
-        Drawing.setImageAlpha(m_unitImage, 0x20);
-
-        m_img = new BufferedImage(width, m_imgHeight, BufferedImage.TYPE_INT_ARGB);
-        m_imgG2d = m_img.createGraphics();
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        m_imgG2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-
-        m_imgG2d.drawImage(m_unitImage, 75, (m_imgHeight / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
-
-        m_imgG2d.setFont(m_font);
-    
         
         if(errortext.length() > 0){
-            m_imgG2d.setColor(java.awt.Color.WHITE);
-            m_imgG2d.drawString(errortext, padding, m_txtFm.getHeight() + 2);
+            m_addressValid.set(false);
+            m_headingText.setText(errortext);
         }else{
-            m_imgG2d.setColor(new java.awt.Color(.8f, .8f, .8f, .7f));
-            m_imgG2d.drawString(promptString, padding, adrString.length() > 0 ? m_txtFm.getHeight() + 2 : ((m_imgHeight - m_txtFm.getHeight()) / 2) + m_txtFm.getAscent());
-        }
-        if(adrString.length() > 0){ 
-            m_imgG2d.setColor(new java.awt.Color(.8f, .8f, .8f, .8f));
-            m_imgG2d.drawString(adrString, padding + bottomIndent , m_imgHeight - 8);
+            m_addressValid.set(true);
+            m_headingText.setText(promptString);
         }
 
-
-        /*
-       try {
-            ImageIO.write(m_img, "png", new File("outputImage.png"));
-        } catch (IOException e) {
-
-        } */
-
-
-        imgView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
-        
-        m_txtG2d.dispose();
-        m_txtG2d = null;
-        m_txtImg = null;
-        m_txtFm = null;
-     
-        m_imgG2d.dispose();
-        m_imgG2d = null;
-        m_img = null;
-
-        m_unitImage = null;
+        setLastUpdatedNow();
     }
 
 

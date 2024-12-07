@@ -185,7 +185,7 @@
 
 #caretBtn{
     -fx-font-family: 'DejaVu Sans Mono, Book';
-    -fx-min-width: 25;
+    -fx-min-width: 30;
     -fx-background-color: transparent;
     -fx-opacity: .9;
     -fx-font-size: 16;
@@ -635,14 +635,19 @@
     -fx-background-color: transparent;
     -fx-text-fill: white;
 }
-
+#largeField {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-font-size: 23px;
+    -fx-font-family: 'OCR A Extended';
+    -fx-padding: 0 5 0 5;
+}
 #priceField {
     -fx-background-color: transparent;
     -fx-text-fill: white;
     -fx-opacity: .7;
     -fx-font-size: 25px;
     -fx-font-family: 'OCR A Extended';
-    -fx-padding: 0 5 0 5;
 }
 #priceField:hover{
     -fx-opacity: 1;
@@ -660,11 +665,30 @@
     -fx-text-alignment: center;
 }
 
+.label{
+    -fx-font-size:18;
+    -fx-font-family: "OCR A Extended";
+} 
 .text-field {
+    -fx-font-size: 18px;
     -fx-font-family: "OCR A Extended";
     -fx-padding: 0 5 0 10;
     -fx-background-insets: 0, 0, 0, 0 ;
 }
+
+#textAreaInput {
+    -fx-font-size: 18px;
+    -fx-font-family: "OCR A Extended";
+    -fx-text-fill: white;
+}
+
+#textAreaInputEmpty{
+    -fx-font-size: 18px;
+    -fx-font-family: "OCR A Extended";
+    -fx-text-fill: #777777;
+    -fx-prompt-text-fill: #77777780;
+}
+
 
 #amountField{
     -fx-background-color: transparent;
@@ -1145,7 +1169,7 @@
 }
 
 #minimizedMenuBtn {
-    -fx-background-color:radial-gradient(center 2% 50%, radius 100%, #ffffffAA 1%, #88888800 8%, transparent 100%);
+    -fx-background-color:radial-gradient(center 2% 50%, radius 100%, #ffffff 2%, #88888800 8%, transparent 100%);
     -fx-opacity: .8;
     -fx-min-height: 50;
     -fx-min-width: 50;
@@ -1158,7 +1182,7 @@
 }
 
 #activeMenuBtn {
-    -fx-background-color:linear-gradient(to right, #ffffffAA 0%, #11111140 4%, #111111 100%);
+    -fx-background-color:linear-gradient(to right, #ffffff 0%, #111111 4%, #111111 100%);
     -fx-opacity: .8;
     -fx-min-height: 50;
     -fx-min-width: 50;
@@ -1166,12 +1190,14 @@
     -fx-alignment: center;
 }
 #activeMenuBtn:hover {
-    -fx-background-color: linear-gradient(to right, #ffffffAA 0%, #EEEEEE40 4%, #FFFFFF40 100%);
+   
     -fx-opacity: 1;
 }
 
 
-
+#backgroundImage{
+    -fx-opacity: .2;
+}
 
 
 

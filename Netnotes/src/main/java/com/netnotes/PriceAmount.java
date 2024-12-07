@@ -8,10 +8,13 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 
 import org.ergoplatform.appkit.NetworkType;
+import org.ergoplatform.appkit.ErgoToken;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
+
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 
 public class PriceAmount  {
@@ -22,7 +25,7 @@ public class PriceAmount  {
     private final PriceCurrency m_currency;
     
     private long m_created = System.currentTimeMillis();
-    private long m_timeStamp = System.currentTimeMillis();
+    private SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(System.currentTimeMillis());
     private String m_marketId = null;
 
     public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency, SimpleObjectProperty<PriceQuote> priceQuoteProperty){
@@ -30,8 +33,6 @@ public class PriceAmount  {
         m_priceQuoteProperty = priceQuoteProperty;
         m_amount.set(amount);
     }
-
-
 
     public PriceAmount(long amount, PriceCurrency currency) {
         this(BigDecimal.ZERO, currency, new SimpleObjectProperty<>());
@@ -65,7 +66,7 @@ public class PriceAmount  {
         m_currency = currency;
         m_priceQuoteProperty = new SimpleObjectProperty<>(null);
         setLongAmount(amount);
-        m_timeStamp = timeStamp;
+        m_timeStampProperty.set(timeStamp);
  
     }
 
@@ -124,6 +125,10 @@ public class PriceAmount  {
         return json;
     }
 
+    public ErgoToken getErgoToken(){
+        return new ErgoToken(getTokenId(), getLongAmount());
+    }
+
     public static PriceAmount getByAmountObject(JsonObject json, NetworkType networkType){
 
         JsonElement decimalElement = json.get("decimalAmount");
@@ -155,19 +160,23 @@ public class PriceAmount  {
 
 
     public long getTimeStamp(){
-        return m_timeStamp;
+        return m_timeStampProperty.get();
     }
 
     public void setTimeStamp(long timestamp){
-        m_timeStamp = timestamp;
+        m_timeStampProperty.set(timestamp);
         
+    }
+
+    public SimpleLongProperty timeStampProperty(){
+        return m_timeStampProperty;
     }
     public boolean getAmountValid(){
         return getAmountValid(System.currentTimeMillis());
     }
     
     public boolean getAmountValid(long timestamp){
-        return  ((timestamp - m_timeStamp)) < m_timeout;
+        return  ((timestamp - getTimeStamp())) < m_timeout;
     }
     
     public SimpleObjectProperty<PriceQuote> priceQuoteProperty(){
@@ -178,21 +187,25 @@ public class PriceAmount  {
     public BigDecimal getBigDecimalAmount(){
         return m_amount.get();
     }
-    
 
     public void setBigDecimalAmount(BigDecimal amount) {
+
         m_amount.set(amount);
-        m_timeStamp = System.currentTimeMillis();
+        m_timeStampProperty.set(System.currentTimeMillis());
     }
 
     public void setBigDecimalAmount(BigDecimal amount, long timestamp) {
+
         m_amount.set(amount);
-        m_timeStamp = timestamp;
+        m_timeStampProperty.set(timestamp);
     }
 
     public void addBigDecimalAmount(BigDecimal amount){
         BigDecimal a = m_amount.get() != null ? m_amount.get() : BigDecimal.ZERO;
-        m_amount.set(a.add(amount));
+        BigDecimal newVal = a.add(amount);
+
+        m_amount.set(newVal);
+        
     }
 
     public String getTokenId(){
@@ -239,13 +252,16 @@ public class PriceAmount  {
         setLongAmount(amount,  System.currentTimeMillis());
     }
 
-    public void setLongAmount(long amount, long timeStamp) {
-        m_amount.set(calculateLongToBigDecimal(amount));
-        m_timeStamp = timeStamp;
+    public void setLongAmount(long longAmount, long timeStamp) {
+        BigDecimal amount = calculateLongToBigDecimal(longAmount);
+
+
+        m_amount.set(amount);
+        m_timeStampProperty.set(timeStamp);
     }
 
-    public void addLongAmount(long amount){
-        BigDecimal bigAmount = calculateLongToBigDecimal(amount);
+    public void addLongAmount(long longAmount){
+        BigDecimal bigAmount = calculateLongToBigDecimal(longAmount);
         addBigDecimalAmount(bigAmount);
     }
 
@@ -259,8 +275,9 @@ public class PriceAmount  {
         return m_amount.get().multiply(pow).longValue();
     }
 
-    public void setDoubleAmount(double amount) {
-        m_amount.set(BigDecimal.valueOf(amount));
+    public void setDoubleAmount(double doubleAmount) {
+        BigDecimal amount = BigDecimal.valueOf(doubleAmount);
+        m_amount.set(amount);
     }
 
     public PriceCurrency getCurrency() {

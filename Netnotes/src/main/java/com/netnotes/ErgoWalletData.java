@@ -3,6 +3,7 @@ package com.netnotes;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -18,14 +19,29 @@ import com.satergo.Wallet;
 import com.satergo.WalletKey.Failure;
 import com.utils.Utils;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
 public class ErgoWalletData extends Network implements NoteInterface {
 
@@ -221,19 +237,81 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
     }
 
-    private JsonObject getAccessId(JsonObject note){
-        JsonElement passwordElement = note.get("password");
-     
+    private void getAccessId(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        int lblCol = 180;
+        String authorizeString = "Authorize Wallet Access";
+        String title = getName() + " - " + authorizeString;
 
-        String pass = passwordElement != null && passwordElement.isJsonPrimitive() ? passwordElement.getAsString() : null;
+        Stage passwordStage = new Stage();
+        passwordStage.getIcons().add(App.logo);
+        passwordStage.initStyle(StageStyle.UNDECORATED);
+        passwordStage.setTitle(title);
 
-        if(passwordElement != null && passwordElement.isJsonPrimitive() && pass != null){
-              
-          
+        Button closeBtn = new Button();
+
+        HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
+
+        ImageView btnImageView = new ImageView(App.logo);
+        btnImageView.setPreserveRatio(true);
+        btnImageView.setFitHeight(75);
+
+        Label textField = new Label(authorizeString);
+        textField.setFont(App.mainFont);
+        textField.setPadding(new Insets(20,0,20,15));
+
+        VBox imageBox = new VBox(btnImageView, textField);
+        imageBox.setAlignment(Pos.CENTER);
+        imageBox.setPadding(new Insets(10,0,10,0));
+
+        JsonObject paramsObject = new JsonObject();
+        paramsObject.addProperty("location", locationString);
+        paramsObject.addProperty("wallet", getName());
+        paramsObject.addProperty("timeStamp", System.currentTimeMillis());
+        
+        JsonParametersBox walletInformationBox = new JsonParametersBox(paramsObject, lblCol);
+        HBox.setHgrow(walletInformationBox, Priority.ALWAYS);
+
+        Text passwordTxt = new Text("Enter password:");
+        passwordTxt.setFill(App.txtColor);
+        passwordTxt.setFont(App.txtFont);
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setFont(App.txtFont);
+        passwordField.setId("passField");
+        HBox.setHgrow(passwordField, Priority.ALWAYS);
+
+        HBox passwordBox = new HBox(passwordTxt, passwordField);
+        passwordBox.setAlignment(Pos.CENTER_LEFT);
+        passwordBox.setPadding(new Insets(10, 10, 10, 10));
+
+        VBox bodyBox = new VBox(walletInformationBox);
+        HBox.setHgrow(bodyBox,Priority.ALWAYS);
+        bodyBox.setPadding(new Insets(0,15, 0,0));
+
+        VBox layoutVBox = new VBox(titleBox, imageBox, bodyBox, passwordBox);
+        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+    
+
+        double defaultHeight = App.STAGE_HEIGHT + 60;
+        double defaultWidth = App.STAGE_WIDTH + 100;
+
+        Scene passwordScene = new Scene(layoutVBox, defaultWidth , defaultHeight);
+        passwordScene.setFill(null);
+        passwordScene.getStylesheets().add("/css/startWindow.css");
+        passwordStage.setScene(passwordScene);
+        
+   
+
+        passwordField.setOnAction(action -> {
+
+            String pass = passwordField.getText();    
+            passwordField.setText("");
+
             try {
+
                 Wallet wallet = Wallet.load(m_walletFile.toPath(), pass);
-                
-                    
+
                 if(m_addressesData == null){
                     ArrayList<AddressData> addressDataList = new ArrayList<>();
                     wallet.myAddresses.forEach((index, name) -> {
@@ -241,7 +319,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         try {
 
                             Address address = wallet.publicAddress(m_networkType, index);
-                            AddressData addressData = new AddressData(name, index, address.toString(), m_networkType, this);
+                            AddressData addressData = new AddressData(name, index, address.toString(), m_networkType, ErgoWalletData.this);
                             addressDataList.add(addressData);
                         } catch (Failure e) {
                             try {
@@ -250,33 +328,70 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
                             }
                         }
-                       
+                        
 
                     });
                     addressDataList.get(0).updateBalance();
-                    m_addressesData = new AddressesData(getNetworkId(), addressDataList, this, m_networkType);
+                    m_addressesData = new AddressesData(getNetworkId(), addressDataList, ErgoWalletData.this, m_networkType);
+                }
+
+                String id = FriendlyId.createFriendlyId();
+                m_authorizedIds.add(id);
                 
-                    String id = FriendlyId.createFriendlyId();
+                JsonObject json = new JsonObject();
+                json.addProperty("accessId", id);
+                json.addProperty("networkId", getNetworkId());
+            
+                
+                Utils.returnObject(json, getExecService(), onSucceeded, onFailed);
+                passwordStage.close();
 
-                    m_authorizedIds.add(id);
-                    
-                    JsonObject json = new JsonObject();
-                    json.addProperty("accessId", id);
-
-                    return json;
-                }  
             } catch (Exception e) {
                 
-                try {
-                    Files.writeString(App.logFile.toPath(), "\nerr" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
+                if(e instanceof NoSuchFileException){
 
+                    Alert noFileAlert = new Alert(AlertType.ERROR, "Wallet file does not exist, or has been moved.", ButtonType.OK);
+                    noFileAlert.setHeaderText("Error");
+                    noFileAlert.setTitle("Error: File not found");
+                    noFileAlert.show();
+
+                    Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
+                
+                    passwordStage.close();
+                 
                 }
+
             }
+        
+        });
 
-        }
+        
+        closeBtn.setOnAction(e -> {
+            
+            Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
+                
+            
+            passwordStage.close();
 
-        return null;
+        });
+
+        passwordStage.setOnCloseRequest(e->{
+        
+            Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
+
+            passwordStage.close();
+        });
+
+        passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
+            if (newVal != null && !(newVal instanceof PasswordField)) {
+                Platform.runLater(() -> passwordField.requestFocus());
+            }
+        });
+        passwordStage.show();
+
+        Platform.runLater(()->passwordField.requestFocus());
+        
+        ResizeHelper.addResizeListener(passwordStage, defaultWidth, defaultHeight, Double.MAX_VALUE, defaultHeight);
     }
 
 
@@ -315,31 +430,35 @@ public class ErgoWalletData extends Network implements NoteInterface {
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         // getAddresses
         JsonElement cmdElement = note.get(App.CMD);
-        JsonElement accessIdElement = note.get("accessId");
         JsonElement locationIdElement = note.get("locationId");
 
-        String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
-        String locationId = locationIdElement != null && !locationIdElement.isJsonNull() ? locationIdElement.getAsString() : null;
+       String locationId = locationIdElement != null && !locationIdElement.isJsonNull() ? locationIdElement.getAsString() : null;
         String cmd = cmdElement != null ? cmdElement.getAsString() : null;
         String locationString = getNetworksData().getLocationString(locationId);
 
 
-        if(cmd != null && locationString != null && m_authorizedLocations.contains(locationString) && accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
+        if(cmd != null && locationString != null && m_authorizedLocations.contains(locationString)){
                 
             switch(cmd){
-                case "sendAssets":
-                    m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                case "getAccessId":
+                    getAccessId(note, locationString, onSucceeded, onFailed);
                     return true;
-                    case "getConfigId":
+               
+                case "getConfigId":
                     return getConfigId(note, locationString, onSucceeded, onFailed);
                 
                 default:
-
-                    Object obj = sendNote(note);
-                    
-                    Utils.returnObject(obj, getExecService(), onSucceeded, onFailed);
-                    
-                    return obj != null;
+                    JsonElement accessIdElement = note.get("accessId");
+                    String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
+       
+                    if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
+                        switch(cmd){
+                            case "sendAssets":
+                                m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                            // m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
+                                return true;
+                        }       
+                    }
             }
 
         }
@@ -373,8 +492,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         return isOpen();
                     case "getWallet":
                         return getWallet();
-                    case "getAccessId":
-                        return getAccessId(note);
+         
                     case "updateFile":
                         return updateFile(note);  
                     case "updateName":

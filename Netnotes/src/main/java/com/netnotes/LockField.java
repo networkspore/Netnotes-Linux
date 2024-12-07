@@ -1,7 +1,8 @@
 package com.netnotes;
 
+import com.utils.Utils;
+
 import javafx.animation.PauseTransition;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
@@ -11,7 +12,6 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
@@ -19,32 +19,33 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 public class LockField extends HBox {
-    private final TextField m_textField;
-    private final PasswordField m_passField;
-    private final Text m_text;
+    private final Label m_nameLabel;
+    private final TextField m_addressField;
+    private final HBox m_addressFieldBox;
+    private final HBox m_addressBox;
+    private final Button m_unlockBtn;
     private String m_lockString;
-    private String m_unlockString;
-    private final HBox m_fieldBox;
-    private final Button m_enterBtn;
+    private final HBox m_unlockBtnBox;
     private SimpleStringProperty m_lockId = new SimpleStringProperty(null);
     private final Label m_openBtn;
     private  EventHandler<MouseEvent> m_onMouseClicked;
     private final BufferedButton m_copyBtn;
     private final BufferedButton m_sendBtn;
+    private final Button m_magnifyBtn;
     private final Label m_label;
     private String m_unlockLabelString;
     private String m_lockLabelString = "⚿ ";
     private final BufferedButton m_lockBtn;
 
-    public LockField(String lockString,String unlockLabelString, String unlockString, String prompt){
+    private final HBox m_topBox;
+
+    public LockField(String lockString,String unlockLabelString, String prompt){
         super();
         setAlignment(Pos.CENTER_LEFT);
         m_lockString = String.format("%-8s",lockString);
-        m_unlockString = String.format("%-8s",unlockString);
         m_label = new Label(m_lockLabelString);
         m_label.setId("logoBox");
         
@@ -57,54 +58,37 @@ public class LockField extends HBox {
         m_lockBtn.getBufferedImageView().setFitWidth(20);
         m_lockBtn.setPadding(new Insets(0, 1, 0, 1));
 
-        m_text = new Text(lockString);
-        m_text.setFont(App.txtFont);
-        m_text.setFill(App.txtColor);
 
-        m_enterBtn = new Button("[enter]"); 
-        m_enterBtn.setMinHeight(15);
-        m_enterBtn.setId("toolBtn");
-        m_enterBtn.setPadding(new Insets(0,5,0,5));
-       
-        m_textField = new TextField(lockString);
-    
-        m_textField.setPadding(new Insets(0,0,0,10));
-        HBox.setHgrow(m_textField, Priority.ALWAYS);
-   
-        m_passField = new PasswordField();
-        m_passField.setPromptText(prompt);
-        HBox.setHgrow(m_passField, Priority.ALWAYS);
-        m_passField.setPadding(new Insets(0,5,0,5));
+        m_nameLabel = new Label(lockString);
+        HBox.setHgrow(m_nameLabel, Priority.ALWAYS);
+        m_nameLabel.setMaxWidth(90);
 
+        m_unlockBtn = new Button(prompt);
+        m_unlockBtn.setPadding(new Insets(2,15,2,15));
 
-        HBox textBox = new HBox(m_text);
+        HBox textBox = new HBox(m_nameLabel);
         textBox.setAlignment(Pos.CENTER_LEFT);
         textBox.setPadding(new Insets(0,0,0,0));
 
-        m_fieldBox = new HBox(m_passField);
-        HBox.setHgrow(m_fieldBox, Priority.ALWAYS);
-        m_fieldBox.setAlignment(Pos.CENTER_LEFT);
-        m_fieldBox.setId("bodyBox");
-        m_fieldBox.setMinHeight(18);
-        getChildren().addAll(m_label, textBox, m_fieldBox);
+        m_unlockBtnBox = new HBox(m_unlockBtn);
+        HBox.setHgrow(m_unlockBtnBox, Priority.ALWAYS);
+        m_unlockBtnBox.setAlignment(Pos.CENTER_LEFT);
+      
 
-        m_passField.focusedProperty().addListener((obs,oldval,newval)->{
-            if(newval){
-                if(!m_fieldBox.getChildren().contains(m_enterBtn)){
-                    m_fieldBox.getChildren().add(m_enterBtn);
-                }
-            }else{
-                if(m_fieldBox.getChildren().contains(m_enterBtn)){
-                    m_fieldBox.getChildren().remove(m_enterBtn);
-                }
-            }
-        });
-
-        m_passField.setOnAction(e->m_enterBtn.fire());
    
         m_openBtn = new Label("⏷");
         m_openBtn.setId("lblBtn");
-      
+
+        Tooltip magnifyTip = new Tooltip("🔍 Magnify");
+        magnifyTip.setShowDelay(Duration.millis(100));
+
+        m_magnifyBtn =new Button("🔍");
+        m_magnifyBtn.setId("logoBtn");
+        m_magnifyBtn.setOnAction(e->{
+            String adrText = m_nameLabel.getText();
+            App.showMagnifyingStage("Address: " + adrText, adrText);
+        });
+        m_magnifyBtn.setTooltip(magnifyTip);
 
         Tooltip copiedTooltip = new Tooltip("copied");
 
@@ -124,7 +108,7 @@ public class LockField extends HBox {
             e.consume();
             Clipboard clipboard = Clipboard.getSystemClipboard();
             ClipboardContent content = new ClipboardContent();
-            content.putString(m_textField.getText());
+            content.putString(getAddress());
             clipboard.setContent(content);
 
             Point2D p = m_copyBtn.localToScene(0.0, 0.0);
@@ -141,12 +125,29 @@ public class LockField extends HBox {
             });
             pt.play();
         });
+
+        m_addressField = new TextField();
+        HBox.setHgrow(m_addressField, Priority.ALWAYS);
+
+        m_addressFieldBox = new HBox(m_addressField, m_openBtn, m_magnifyBtn, m_copyBtn, m_lockBtn);
+        HBox.setHgrow(m_addressFieldBox, Priority.ALWAYS);
+        m_addressFieldBox.setId("bodyBox");
+
+        m_addressBox = new HBox( m_addressFieldBox, m_sendBtn);
+        HBox.setHgrow(m_addressBox, Priority.ALWAYS);
+        m_addressBox.setPadding(new Insets(0,0,0,10));
+   
            
         m_lockBtn.setOnAction(e->{
             setLocked();
         });
        
-    
+        m_topBox = new HBox();
+        HBox.setHgrow(m_topBox, Priority.ALWAYS);
+ 
+        
+        getChildren().addAll(m_label, textBox, m_unlockBtnBox);
+
       /*  */
     }
 
@@ -154,14 +155,6 @@ public class LockField extends HBox {
         m_copyBtn.fire();
     }
 
-    @Override
-    public void requestFocus(){
-        if(!getUnLocked()){
-            m_passField.requestFocus();
-        }else{
-            super.requestFocus();
-        }
-    }
 
 
     public void setLocked(){
@@ -170,19 +163,19 @@ public class LockField extends HBox {
             m_label.setText(m_lockLabelString);
 
             removeEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
-            m_passField.setText("");
+ 
            
 
-            if(m_fieldBox.getChildren().contains(m_textField)){
-                m_fieldBox.getChildren().removeAll(m_textField, m_openBtn, m_copyBtn,m_sendBtn, m_lockBtn);
-                m_fieldBox.getChildren().addAll(m_passField);
+            if(!getChildren().contains(m_unlockBtnBox)){
+                getChildren().add(m_unlockBtnBox);
             }
 
-            m_text.setText(m_lockString);
-            m_textField.setText(m_lockString);
-          
+            if(getChildren().contains(m_addressBox)){
+                getChildren().remove(m_addressBox);
+            }
 
-            Platform.runLater(()->m_passField.requestFocus());
+            m_nameLabel.setText(m_lockString);
+            m_addressField.setText(m_lockString);
         }
     }
 
@@ -191,17 +184,13 @@ public class LockField extends HBox {
         if( m_lockId.get() == null ){
             m_label.setText(m_unlockLabelString);
           
-            m_text.setText(m_unlockString);
-            if(m_fieldBox.getChildren().contains(m_passField)){
-                m_fieldBox.getChildren().remove(m_passField);
-                m_fieldBox.getChildren().addAll(m_textField, m_openBtn, m_copyBtn,m_sendBtn, m_lockBtn);
-                m_passField.setText("");
+            if(getChildren().contains(m_unlockBtnBox)){
+                getChildren().remove(m_unlockBtnBox);
             }
             
-            if(m_fieldBox.getChildren().contains(m_enterBtn)){
-                m_fieldBox.getChildren().remove(m_enterBtn);
+            if(!getChildren().contains(m_addressBox)){
+                getChildren().add(m_addressBox);
             }
-            
             
             m_lockId.set(id);
         }
@@ -215,13 +204,14 @@ public class LockField extends HBox {
         m_sendBtn.setOnAction(onSend);
     }
 
-    public void setOnEnter( EventHandler<ActionEvent> onEnter){
-        m_enterBtn.setOnAction(onEnter);
+    public void setPasswordAction( EventHandler<ActionEvent> onAction){
+        m_unlockBtn.setOnAction(onAction);
     }
 
     public void setOnMenu(EventHandler<MouseEvent> onMouseClicked){
         m_onMouseClicked = onMouseClicked;
-        m_textField.addEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
+        m_nameLabel.addEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
+        m_addressField.addEventFilter(MouseEvent.MOUSE_CLICKED,onMouseClicked);
         m_openBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
     }
 
@@ -230,35 +220,28 @@ public class LockField extends HBox {
     }
 
     public StringProperty textProperty(){
-        return m_textField.textProperty();
+        return m_nameLabel.textProperty();
     }
 
-    public String getText(){
-        return m_textField.getText();
+    public String getAddress(){
+        return m_addressField.getText();
     }
 
-    public void setText(String text){
-        m_textField.setText(text);
+    public String getName(){
+        return m_nameLabel.getText();
     }
 
-    public boolean getUnLocked(){
+    public void setName(String name){
+
+        m_nameLabel.setText(name);
+    }
+
+    public void setAddress(String address){
+        m_addressField.setText(address);
+    }
+
+    public boolean isUnlocked(){
         return m_lockId.get() != null;
-    }
-
-    public String getPassString(){
-        return m_passField.getText();
-    }
-
-    public void resetPass(){
-        m_passField.setText("");
-    }
-
-    public void setPromptText(String prompt){
-        m_passField.setPromptText(prompt);
-    }
-
-    public String getPromptText(){
-        return m_passField.getPromptText();
     }
 
     public String getLockId(){

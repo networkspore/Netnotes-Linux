@@ -236,7 +236,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
             public ErgoNodeParmeters call() {
                 NamedNodeUrl namedNodeUrl = getNamedNodeUrl();
                 ErgoClient ergoClient = RestApiErgoClient.create(namedNodeUrl.getUrlString(), getNetworkType(),  namedNodeUrl.getApiKey(), networkUrl != null ? networkUrl.getUrlString() : null);
-      
+                
                 BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
                 BlockchainParameters parameters = dataSource != null ? dataSource.getParameters() : null;
 
@@ -268,6 +268,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     
         getExecutorService().submit(task);
     }
+
 
     public void getStatus(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
     
@@ -326,6 +327,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
                     case "getStatus":
                         getStatus(onSucceeded, onFailed);
                         return true;
+    
                     default:
                         Object obj = sendNote(note);
 

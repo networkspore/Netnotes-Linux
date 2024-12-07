@@ -239,7 +239,6 @@ public class SpectrumChartView {
         String poolId = m_marketData.getPoolId();
         long currentTime = Utils.getNowEpochMillis();
 
-     
 
         m_spectrumFinance.getPoolChart(poolId, currentTime, (onSucceeded)->{
             Object succededObject = onSucceeded.getSource().getValue();

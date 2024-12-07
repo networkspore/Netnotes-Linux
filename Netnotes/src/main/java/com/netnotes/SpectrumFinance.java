@@ -1,5 +1,6 @@
 package com.netnotes;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -75,8 +76,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
     public final static String SPF_ID = "9a06d9e545a41fd51eeffc5e20d818073bf820c635e2a9d922269913e0de369d";
     public final static String SIGUSD_ID = "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04";
 
-    public static long DATA_TIMEOUT_SPAN = (15*1000)-100;
-    public static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
+    public final static String ERG_SIGUSD_POOL_ID = "9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec";
+    public final static String ERG_SPF_POOL_ID = "f40afb6f877c40a30c8637dd5362227285738174151ce66d6684bc1b727ab6cf";
+
+    public final static String MINER_ADDRESS = "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe";
+
+    public final static long BLOCK_TIME_MILLIS = 2L * 60L * 1000L;
+    public final static long DATA_TIMEOUT_SPAN = (15*1000)-100;
+    public final static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
+    public final static long MIN_BOX_VALUE = 60000;
 
    // private File m_dataFile = null;
 
@@ -1147,7 +1155,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     if (sourceObject != null && sourceObject instanceof JsonArray) {
                         JsonArray marketJsonArray = (JsonArray) sourceObject;
                         /*try {
-                            Files.writeString( new File(getDataDir().getAbsolutePath() + "/markets.json").toPath(), marketJsonArray.toString());
+                            Files.writeString( new File(getNetworksData().getDataDir().getAbsolutePath() + "/markets.json").toPath(), marketJsonArray.toString());
                         } catch (IOException e) {
                  
                         }*/

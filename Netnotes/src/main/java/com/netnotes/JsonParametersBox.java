@@ -11,12 +11,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
@@ -105,8 +103,8 @@ public class JsonParametersBox extends AppBox{
         if(type > 0){
 
             
-            Label nameText = new Label();
-            nameText.setId("passField");
+            TextField nameText = new TextField();
+            nameText.setEditable(false);
             nameText.setMaxWidth(m_colWidth);
             nameText.setMinWidth(m_colWidth);
 

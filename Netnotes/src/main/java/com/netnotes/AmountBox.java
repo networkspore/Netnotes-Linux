@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import com.devskiller.friendly_id.FriendlyId;
 
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -30,7 +31,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
     private ChangeListener<PriceQuote> m_priceQuoteListener = null;
     private ChangeListener<BigDecimal> m_amountListener = null;
-
+    private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(180);
 
     public AmountBox(){
         super();
@@ -46,11 +47,15 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         m_id = FriendlyId.createFriendlyId();
         m_priceAmount = priceAmount;
+
+        Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷ " : "⏵ ");
+        toggleShowSubMenuBtn.setId("caretBtn");
+        toggleShowSubMenuBtn.setMinWidth(25);
         
         TextField currencyName = new TextField(priceAmount.getCurrency().getName());
         HBox.setHgrow(currencyName,Priority.ALWAYS);
-        currencyName.setMaxWidth(100);
-
+        currencyName.maxWidthProperty().bind(m_colWidth);
+        currencyName.setEditable(false);
 
         TextField amountField = new TextField();
         HBox.setHgrow(amountField, Priority.ALWAYS);
@@ -65,22 +70,29 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         currencyImageView.setImage(m_priceAmount.getCurrency().getIcon());
 
 
-        
-
         HBox balanceFieldBox = new HBox(amountField);
         HBox.setHgrow(balanceFieldBox,Priority.ALWAYS);
         balanceFieldBox.setId("bodyBox");
         balanceFieldBox.setAlignment(Pos.CENTER_LEFT);
         balanceFieldBox.setMaxHeight(18);
 
+        HBox topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, balanceFieldBox);
+        HBox.setHgrow(topBox, Priority.ALWAYS);
+        topBox.setAlignment(Pos.CENTER_LEFT);
+        topBox.setPadding(new Insets(0,10,1,0));
+
+
+        //////Body
+        /// 
         //tokenId
         Label tokenIdIcon = new Label("  ");
-        tokenIdIcon.setId("logoBtn");
+        tokenIdIcon.minWidth(40);
 
-        Label tokenIdText = new Label("Token Id"); 
+        Label tokenIdText = new Label("Token Id");
+        HBox.setHgrow(tokenIdText, Priority.ALWAYS);
         tokenIdText.setFont(App.txtFont);
         tokenIdText.setPadding(new Insets(0,5,0,5));
-        tokenIdText.setMinWidth(100);
+        tokenIdText.maxWidthProperty().bind(m_colWidth);
 
         TextField tokenIdField = new TextField( getTokenId());
         HBox.setHgrow(tokenIdField,Priority.ALWAYS);
@@ -99,12 +111,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         //Description
         Label descriptionIcon = new Label("  ");
-        descriptionIcon.setId("logoBtn");
+        descriptionIcon.minWidth(40);
 
-        Label descriptionText = new Label("Description"); 
+        Label descriptionText = new Label("Description");
+        HBox.setHgrow(descriptionText,Priority.ALWAYS);
         descriptionText.setFont(App.titleFont);
         descriptionText.setPadding(new Insets(0,5,0,5));
-        descriptionText.setMinWidth(100);
+        descriptionText.maxWidthProperty().bind(m_colWidth);
 
         TextField descriptionField = new TextField( );
         HBox.setHgrow(descriptionField,Priority.ALWAYS);
@@ -124,12 +137,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         //emissionAmount
 
         Label emissionAmountIcon = new Label("  ");
-        emissionAmountIcon.setId("logoBtn");
+        emissionAmountIcon.minWidth(40);
 
         Label emissionAmountText = new Label("Emission"); 
+        HBox.setHgrow(emissionAmountText,Priority.ALWAYS);
         emissionAmountText.setFont(App.txtFont);
         emissionAmountText.setPadding(new Insets(0,5,0,5));
-        emissionAmountText.setMinWidth(100);
+        emissionAmountText.maxWidthProperty().bind(m_colWidth);
 
         TextField emissionAmountField = new TextField();
         emissionAmountField.setEditable(false);
@@ -149,12 +163,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         //decimals
 
         Label decimalsIcon = new Label("  ");
-        decimalsIcon.setId("logoBtn");
+        decimalsIcon.minWidth(40);
 
         Label decimalsText = new Label("Decimals"); 
+        HBox.setHgrow(decimalsText,Priority.ALWAYS);
         decimalsText.setFont(App.txtFont);
         decimalsText.setPadding(new Insets(0,5,0,5));
-        decimalsText.setMinWidth(100);
+        decimalsText.maxWidthProperty().bind(m_colWidth);
 
         TextField decimalsField = new TextField(m_priceAmount.getCurrency().getDecimals() + "");
         decimalsField.setEditable(false);
@@ -174,12 +189,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         //Url
 
         Label urlIcon = new Label("  ");
-        urlIcon.setId("logoBtn");
+        urlIcon.minWidth(40);
 
-        Label urlText = new Label("Url"); 
+        Label urlText = new Label("Url");
+        HBox.setHgrow(urlText,Priority.ALWAYS);
         urlText.setFont(App.txtFont);
         urlText.setPadding(new Insets(0,5,0,5));
-        urlText.setMinWidth(100);
+        urlText.maxWidthProperty().bind(m_colWidth);
 
         TextField urlField = new TextField();
         HBox.setHgrow(urlField,Priority.ALWAYS);
@@ -201,12 +217,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         //Image
 
         Label imageIcon = new Label("  ");
-        imageIcon.setId("logoBtn");
+        imageIcon.minWidth(40);
 
         Label imageText = new Label("Image"); 
+        HBox.setHgrow(imageText,Priority.ALWAYS);
         imageText.setFont(App.txtFont);
         imageText.setPadding(new Insets(0,5,0,5));
-        imageText.setMinWidth(100);
+        imageText.maxWidthProperty().bind(m_colWidth);
 
         String defaultImgString = m_priceAmount.getCurrency().getImageString();
 
@@ -226,9 +243,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         imageBox.setAlignment(Pos.CENTER_LEFT);
         imageBox.setPadding(new Insets(0,0,rowPadding,0));
 
-        Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷ " : "⏵ ");
-        toggleShowSubMenuBtn.setId("caretBtn");
-        toggleShowSubMenuBtn.setMinWidth(25);
+   
 
         VBox bodyBox = new VBox( imageBox, tokenIdBox, urlBox, descriptionBox, emissionAmountBox, decimalsBox);
         HBox.setHgrow(bodyBox,Priority.ALWAYS);
@@ -239,10 +254,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         bodyBox.setAlignment(Pos.CENTER_LEFT);
         
 
-        HBox topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, balanceFieldBox);
-        HBox.setHgrow(topBox, Priority.ALWAYS);
-        topBox.setAlignment(Pos.CENTER_LEFT);
-        topBox.setPadding(new Insets(0,10,1,0));
+
 
         VBox layoutBox = new VBox(topBox, bodyPaddingBox);
         HBox.setHgrow(layoutBox, Priority.ALWAYS);

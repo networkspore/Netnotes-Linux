@@ -72,7 +72,8 @@ public class AddressData extends Network {
         JsonObject json = new JsonObject();
         json.addProperty("index", m_index);
         json.addProperty("address", m_addressString);
-
+        json.addProperty("name", getName());
+        json.addProperty("networkType", m_networkType.toString());
         return json;
     }
 

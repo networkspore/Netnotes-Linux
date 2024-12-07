@@ -3,14 +3,13 @@ import com.google.gson.JsonObject;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.collections.ObservableList;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.text.Text;
 
 import com.google.gson.JsonElement;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import org.ergoplatform.appkit.NetworkType;
 
@@ -21,6 +20,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
     private final NetworkType m_networkType;
     private SimpleObjectProperty<JsonObject> m_balanceObject;
     private ChangeListener<JsonObject> m_balanceChangeListener;
+
 
     public ErgoWalletAmountBoxes(boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
         super();
@@ -36,18 +36,10 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
 
         m_balanceObject.addListener(m_balanceChangeListener);
 
-       
-       
-    }
-
   
-    @Override
-    public void updateGrid(){
-        super.updateGrid();
-
-            
-        
     }
+
+
 
     
     public void update(JsonObject json){
@@ -127,28 +119,11 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
             }
      
              
-        } 
-
-       
-    }
-
-
-    public void updateToken(String id){
-        if(id != null){
-            ObservableList <AmountBoxInterface> list = amountsList();
-    
-            int size = list.size();
-        
-            for(int i = 0; i < size; i++){
-                AmountBoxInterface amountBox = list.get(i);
-
-                if(id.equals(amountBox.getTokenId())){
-                   
-                    break;
-                }
-            }
+        }else{
+            clear();
         }
-    
+
        
     }
+
 }

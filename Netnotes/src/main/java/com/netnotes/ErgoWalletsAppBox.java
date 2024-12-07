@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 
@@ -14,6 +13,7 @@ import org.ergoplatform.appkit.NetworkType;
 import org.ergoplatform.appkit.SecretString;
 import org.reactfx.util.FxTimer;
 
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -78,7 +78,7 @@ public class ErgoWalletsAppBox extends AppBox {
     private SimpleObjectProperty<ConfigBox> m_configBox = new SimpleObjectProperty<>(null);
     private VBox m_mainBox;
     private final String walletBtnDefaultString = "[select]";
-    private final String lockString = "Locked ";
+
 
     private String m_locationId;
 
@@ -105,6 +105,7 @@ public class ErgoWalletsAppBox extends AppBox {
     private Label m_disableWalletBtn;
     private VBox m_selectedAddressBox;
     private Label m_configBtn;
+
 
     private JsonParser m_jsonParser = new JsonParser();
 
@@ -249,7 +250,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         if (noteInterface == null) {
             m_walletField.setText(walletBtnDefaultString);
-
+  
             if (m_walletBodyBox.getChildren().contains(m_selectedAddressBox)) {
                 m_walletBodyBox.getChildren().remove(m_selectedAddressBox);
             }
@@ -262,6 +263,7 @@ public class ErgoWalletsAppBox extends AppBox {
             }
 
         } else {
+          
             m_walletField.setText(noteInterface.getName());
 
             if (!m_walletBodyBox.getChildren().contains(m_selectedAddressBox)) {
@@ -282,6 +284,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
     public ErgoWalletsAppBox(Stage appStage, String locationId, NoteInterface ergoNetwork) {
         super();
+
 
         m_walletField = new TextField();
         HBox.setHgrow(m_walletField, Priority.ALWAYS);
@@ -306,7 +309,7 @@ public class ErgoWalletsAppBox extends AppBox {
         walletIconView.setPreserveRatio(true);
         walletIconView.setFitWidth(18);
 
-        LockField lockBox = new LockField(lockString, "≬", "Address ", "Enter Password");
+        LockField lockBox = new LockField("Locked:", "≬", " Unlock ");
         lockBox.setPadding(new Insets(2, 5, 2, 0));
         lockBox.setAlignment(Pos.CENTER_LEFT);
         lockBox.setMaxHeight(15);
@@ -317,7 +320,6 @@ public class ErgoWalletsAppBox extends AppBox {
 
         Label toggleShowBalance = new Label(showBalance.get() ? "⏷ " : "⏵ ");
         toggleShowBalance.setId("caretBtn");
-        toggleShowBalance.setMinWidth(25);
         
 
         Region spacer = new Region();
@@ -330,7 +332,6 @@ public class ErgoWalletsAppBox extends AppBox {
 
         Label toggleShowWallets = new Label(showWallet.get()? "⏷ "  : "⏵ ");
         toggleShowWallets.setId("caretBtn");
-        toggleShowWallets.setMinWidth(25);
         ContextMenu walletMenu = new ContextMenu();
 
         Label openWalletBtn = new Label("⏷");
@@ -467,6 +468,8 @@ public class ErgoWalletsAppBox extends AppBox {
 
         HBox walletMenuBtnPadding = new HBox(walletMenuBtn);
         walletMenuBtnPadding.setPadding(new Insets(0, 0, 0, 5));
+
+        
 
         HBox walletBtnBox = new HBox(m_walletFieldBox, walletMenuBtnPadding);
         walletBtnBox.setPadding(new Insets(2, 2, 0, 5));
@@ -654,11 +657,13 @@ public class ErgoWalletsAppBox extends AppBox {
 
                             JsonObject jsonObj = element.getAsJsonObject();
                             String address = jsonObj.get("address").getAsString();
+                            String name = jsonObj.get("name").getAsString();
 
-                            MenuItem addressMenuItem = new MenuItem(address);
+                            MenuItem addressMenuItem = new MenuItem(name + ": " + address);
                             addressMenuItem.setOnAction(e1 -> {
                                 m_balanceObject.set(null);
-                                lockBox.setText(address);
+                                lockBox.setAddress(address);
+                                lockBox.setName(name);
                             });
 
                             addressesMenu.getItems().add(addressMenuItem);
@@ -715,7 +720,7 @@ public class ErgoWalletsAppBox extends AppBox {
         HBox.setHgrow(addressBtnsBox, Priority.ALWAYS);
 
         toggleShowBalance.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-            if (lockBox.getUnLocked()) {
+            if (lockBox.isUnlocked()) {
                 showBalance.set(!showBalance.get());
             } else {
                 lockBox.requestFocus();
@@ -759,14 +764,13 @@ public class ErgoWalletsAppBox extends AppBox {
         HBox.setHgrow(balancePaddingBox, Priority.ALWAYS);
         
         Runnable getBalance = ()->{
-            String adrText = lockBox.getText();
+
             NoteInterface walletInterface = m_selectedWallet.get();
 
-            if(adrText.equals(lockString)){
+            if(lockBox.isUnlocked()){
                 JsonObject note = Utils.getCmdObject("getBalance");
                 note.addProperty("locationId", locationId);
                 note.addProperty("accessId", lockBox.getLockId());
-                note.addProperty("address", locationId);
                 
                 Object obj = walletInterface.sendNote(note);
                 
@@ -808,9 +812,14 @@ public class ErgoWalletsAppBox extends AppBox {
                     if (jsonArray.size() > 0) {
                         JsonObject adr0 = jsonArray.get(0).getAsJsonObject();
                         JsonElement addressElement = adr0.get("address");
-                        String address = addressElement.getAsString();
+                        JsonElement nameElement = adr0.get("name");
 
-                        lockBox.setText(address);
+                        String address = addressElement.getAsString();
+                        String name = nameElement.getAsString();
+
+                        lockBox.setAddress(address);
+                        lockBox.setName(name);
+                        
                         getBalance.run();
                        
                     } else {
@@ -872,65 +881,68 @@ public class ErgoWalletsAppBox extends AppBox {
             m_currentBox.set(new SendAppBox(lockBox));
         });
 
-        lockBox.setOnEnter(e -> {
-
+        lockBox.setPasswordAction(e -> {
+            
             NoteInterface noteInterface = m_selectedWallet.get();
 
             JsonObject getWalletObject = Utils.getCmdObject("getAccessId");
-            getWalletObject.addProperty("networkId", m_locationId);
-            getWalletObject.addProperty("password", lockBox.getPassString());
+            getWalletObject.addProperty("locationId", m_locationId);
 
-            Object successObject = noteInterface.sendNote(getWalletObject);
+            noteInterface.sendNote(getWalletObject, onSucceeded->{
+                Object successObject = onSucceeded.getSource().getValue();
 
-            if (successObject != null) {
-                JsonObject json = (JsonObject) successObject;
-                // addressesDataObject.set(json);
-
-                String accessId = json.get("accessId").getAsString();
-
-                m_walletMsgInterface = new NoteMsgInterface() {
-                    private final String m_accessId = accessId;
-
-                    public String getId() {
-                        return m_accessId;
-                    }
-                    @Override
-                    public void sendMessage(int code, long timestamp,String networkId, Number num) {
-                    }
-
-                    public void sendMessage(int code, long timestamp,String networkId, String msg) {
+                if (successObject != null) {
+                    JsonObject json = (JsonObject) successObject;
+                    // addressesDataObject.set(json);
+                    JsonElement codeElement = json.get("code");
+                    JsonElement accessIdElement = json.get("accessId");
+                    if(accessIdElement != null && (codeElement == null || codeElement != null && codeElement.getAsString().equals(App.SUCCESS))){
                     
+                        String accessId = accessIdElement.getAsString();
 
-                        switch (code) {
-                            case App.UPDATED:
-                                if (networkId != null && networkId.equals(lockBox.getText())) {
-                                    JsonElement jsonElement = m_jsonParser.parse(msg);
+                        m_walletMsgInterface = new NoteMsgInterface() {
+                            private final String m_accessId = accessId;
 
-                                    if(jsonElement != null && jsonElement.isJsonObject()){
+                            public String getId() {
+                                return m_accessId;
+                            }
+                            @Override
+                            public void sendMessage(int code, long timestamp,String networkId, Number num) {
+                            }
 
-                                        m_balanceObject.set(jsonElement.getAsJsonObject());
-                                        
-                                    }
-                                }else{
-                                    m_balanceObject.set(null);
+                            public void sendMessage(int code, long timestamp,String networkId, String msg) {
+                            
+
+                                switch (code) {
+                                    case App.UPDATED:
+                                        if (networkId != null && networkId.equals(lockBox.getAddress())) {
+                                            JsonElement jsonElement = m_jsonParser.parse(msg);
+
+                                            if(jsonElement != null && jsonElement.isJsonObject()){
+
+                                                m_balanceObject.set(jsonElement.getAsJsonObject());
+                                                
+                                            }
+                                        }else{
+                                            m_balanceObject.set(null);
+                                        }
+                                        break;
+                            
                                 }
-                                break;
-                       
-                        }
+                            }
+                        };
+
+                        noteInterface.addMsgListener(m_walletMsgInterface);
+
+                        lockBox.setUnlocked(accessId);
+                        
+                        FxTimer.runLater(java.time.Duration.ofMillis(150), ()->{
+                            showBalance.set(true);
+                        });
                     }
-                };
-
-                noteInterface.addMsgListener(m_walletMsgInterface);
-
-                lockBox.setUnlocked(accessId);
-                
-                FxTimer.runLater(java.time.Duration.ofMillis(150), ()->{
-                    showBalance.set(true);
-                });
-
-            } else {
-                lockBox.resetPass();
-            }
+                } 
+            }, onFailed->{});
+            
 
         });
 
@@ -1420,7 +1432,7 @@ public class ErgoWalletsAppBox extends AppBox {
             super();
 
 
-            Label backButton = new Label("🠜");
+            Label backButton = new Label("🡄");
             backButton.setId("lblBtn");
 
             backButton.setOnMouseClicked(e -> {
@@ -1491,7 +1503,7 @@ public class ErgoWalletsAppBox extends AppBox {
             getChildren().add(layoutVBox);
 
 
-            Label backButton2 = new Label("🠜");
+            Label backButton2 = new Label("🡄");
             backButton2.setId("lblBtn");
 
             backButton2.setOnMouseClicked(e -> {
@@ -1752,7 +1764,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
 
 
-            Label backButton = new Label("🠜");
+            Label backButton = new Label("🡄");
             backButton.setId("lblBtn");
 
             backButton.setOnMouseClicked(e -> {
@@ -1786,7 +1798,7 @@ public class ErgoWalletsAppBox extends AppBox {
             listBox.setId("bodyBox");
 
             ScrollPane listScroll = new ScrollPane(listBox);
-            listScroll.setPrefViewportHeight(100);
+            listScroll.setPrefViewportHeight(120);
 
             HBox walletListBox = new HBox(listScroll);
             walletListBox.setPadding(new Insets(0,40,0, 40));
@@ -1919,15 +1931,15 @@ public class ErgoWalletsAppBox extends AppBox {
         
         private LockField m_sendLockBox;
         private ErgoWalletAmountSendBoxes m_amountBoxes;
-        private Button m_nextBtn = new Button("Send");
+        private Button m_sendBtn = new Button("Send");
         private Tooltip m_tooltip = new Tooltip();
-   
+      
    
         public SendAppBox(LockField lockBox){
             super();
             m_sendLockBox = lockBox;
 
-            Label backButton = new Label("🠜");
+            Label backButton = new Label("🡄");
             backButton.setId("lblBtn");
 
             backButton.setOnMouseClicked(e -> {
@@ -1945,8 +1957,6 @@ public class ErgoWalletsAppBox extends AppBox {
         
             VBox headerBox = new VBox(headingBox);
             headerBox.setPadding(new Insets(0, 5, 0, 0));
-
-            
 
             Region hBar = new Region();
             hBar.setPrefWidth(400);
@@ -1975,14 +1985,15 @@ public class ErgoWalletsAppBox extends AppBox {
 
             HBox addressGBox = new HBox(addressHBar);
             addressGBox.setAlignment(Pos.CENTER);
-            addressGBox.setPadding(new Insets(0,0,15,0));
+            addressGBox.setPadding(new Insets(0,0,0,0));
 
             AddressBox toAddress = new AddressBox(new AddressInformation(""), m_appStage.getScene(), m_networkType);
             HBox.setHgrow(toAddress, Priority.ALWAYS);
+            toAddress.getInvalidAddressList().add(m_sendLockBox.getAddress());
         
             HBox addressFieldBox = new HBox(toAddress);
             HBox.setHgrow(addressFieldBox, Priority.ALWAYS);
-            addressFieldBox.setId("bodyBox");
+           // addressFieldBox.setId("bodyBox ");
         
             
             
@@ -2019,8 +2030,11 @@ public class ErgoWalletsAppBox extends AppBox {
             feesLabel.setFont(App.txtFont);
             feesLabel.setMinWidth(50);
 
+            String feesFieldId = FriendlyId.createFriendlyId();
+
             TextField feesField = new TextField("0.001");
             feesField.setPrefWidth(100);
+            feesField.setUserData(feesFieldId);
             feesField.textProperty().addListener((obs,oldval,newval)->{
                 String number = newval.replaceAll("[^0-9.]", "");
       
@@ -2032,24 +2046,81 @@ public class ErgoWalletsAppBox extends AppBox {
                 feesField.setText(leftSide +  rightSide);
             });
       
-        
-            MenuButton feeTypeBtn = new MenuButton("ERG");
-            feeTypeBtn.setFont(App.txtFont);
-            feeTypeBtn.setUserData(new ErgoCurrency(m_networkType));
+            
 
-            MenuItem ergFeeTypeItem = new MenuItem("Ergo         (ERG)");
-        
+            MenuButton feeTypeBtn = new MenuButton();
+            feeTypeBtn.setFont(App.txtFont);
+
+            MenuItem ergFeeTypeItem = new MenuItem(String.format("%-20s", "Ergo")+ "(ERG)");
+            ergFeeTypeItem.setOnAction(e->{
+                PriceCurrency currency = new ErgoCurrency(m_networkType);
+                feeTypeBtn.setUserData(currency);
+                feeTypeBtn.setText(currency.getSymbol());
+            });
+
             feeTypeBtn.getItems().add(ergFeeTypeItem);
 
-            HBox feesFieldBox = new HBox(feesField, feeTypeBtn);
+            Runnable setFee = ()->{
+                String feesString = feesField.getText().length() == 0 ? "0" : feesField.getText();
+                BigDecimal fee = new BigDecimal(feesString);
+                
+                Object feeTypeUserData = feeTypeBtn.getUserData();
+                if(feeTypeUserData != null && feeTypeUserData instanceof PriceCurrency){
+                    PriceCurrency currency = (PriceCurrency) feeTypeUserData;
+                    m_amountBoxes.feeAmountProperty().set(new PriceAmount(fee, currency));
+                }
+            };
+
+            feeTypeBtn.textProperty().addListener((obs,oldval,newval)->{
+                setFee.run();
+            });
+         
+            SimpleBooleanProperty isFeesFocused = new SimpleBooleanProperty(false);
+
+            m_appStage.getScene().focusOwnerProperty().addListener((obs, old, newPropertyValue) -> {
+                if (newPropertyValue != null && newPropertyValue instanceof TextField) {
+                    TextField focusedField = (TextField) newPropertyValue;
+                    Object userData = focusedField.getUserData();
+                    if(userData != null && userData instanceof String){
+                        String userDataString = (String) userData;
+                        if(userDataString.equals(feesFieldId)){
+                            isFeesFocused.set(true);
+                        }else{
+                            if(isFeesFocused.get()){
+                                isFeesFocused.set(false);
+                                setFee.run();
+                            }
+                        }
+                    }else{
+                        if(isFeesFocused.get()){
+                            isFeesFocused.set(false);
+                            setFee.run();
+                        }
+                    }
+                }else{
+                    if(isFeesFocused.get()){
+                        isFeesFocused.set(false);
+                        setFee.run();
+                    }
+                }
+            });
+
+
+            ergFeeTypeItem.fire();
+            HBox feeEnterBtnBox = new HBox();
+            feeEnterBtnBox.setAlignment(Pos.CENTER_LEFT);
+
+            HBox feesFieldBox = new HBox(feesField, feeEnterBtnBox, feeTypeBtn);
             feesFieldBox.setId("bodyBox");
             feesFieldBox.setAlignment(Pos.CENTER_LEFT);
             feesFieldBox.setPadding(new Insets(2));
+
 
             HBox feesBox = new HBox(feesLabel, feesFieldBox);
             HBox.setHgrow(feesBox, Priority.ALWAYS);
             feesBox.setAlignment(Pos.CENTER_RIGHT);
             feesBox.setPadding(new Insets(0,10,20,0));
+
 
             Region sendHBar = new Region();
             sendHBar.setPrefWidth(400);
@@ -2066,9 +2137,8 @@ public class ErgoWalletsAppBox extends AppBox {
             amountPaddingBox.setPadding(new Insets(0,10,0,10));
 
 
-
-
-            HBox nextBox = new HBox(m_nextBtn);
+        
+            HBox nextBox = new HBox(m_sendBtn);
             nextBox.setAlignment(Pos.CENTER);
             nextBox.setPadding(new Insets(20, 0, 0, 0));
 
@@ -2097,7 +2167,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 bodyContentBox.getChildren().add(sendBodyBox);
             };
 
-            m_nextBtn.setOnAction(e->{
+            m_sendBtn.setOnAction(e->{
 
                 bodyContentBox.getChildren().clear();
 
@@ -2122,19 +2192,22 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 JsonObject sendObject = new JsonObject();
                
-         
-
-             
                 AddressInformation addressInformation = toAddress.addressInformationProperty().get();
 
-                if (addressInformation == null  || (addressInformation != null && addressInformation.getAddress() == null)) {
+                if (addressInformation == null  || (addressInformation != null && addressInformation.getAddress() == null))  {
                     
                     addSendBox.run();
                     showError("Error: Enter valid recipient address");
                     return;
                 }
 
-
+                if (!toAddress.isAddressValid().get())  {
+                    
+                    addSendBox.run();
+                    showError("Error: Address is an invalid recipient");
+                    return;
+                }
+               
                 JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
                 getDefaultExplorerNote.addProperty("networkId", App.EXPLORER_NETWORK);
                 getDefaultExplorerNote.addProperty("locationId", m_locationId);
@@ -2146,7 +2219,6 @@ public class ErgoWalletsAppBox extends AppBox {
                     showError("Error: No explorer selected");
                     return;
                 }
-
 
                 JsonObject explorerObject = (JsonObject) explorerObj;
                 JsonElement namedExplorerElement = explorerObject.get("ergoNetworkUrl");
@@ -2164,7 +2236,6 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
 
-
                 JsonObject getDefaultNodeNote = Utils.getCmdObject("getDefaultInterface");
                 getDefaultNodeNote.addProperty("networkId", App.NODE_NETWORK);
                 getDefaultNodeNote.addProperty("locationId", m_locationId);
@@ -2180,258 +2251,220 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
                 
-
-                
-                nodeInterface.sendNote(Utils.getCmdObject("getStatus"), (onStatus)->{
-
-                    Object statusSourceObj = onStatus.getSource().getValue();
-
-                    JsonObject statusJson = statusSourceObj != null && statusSourceObj instanceof JsonObject ? (JsonObject) statusSourceObj : null;
-                    
-                  
-                    if(statusJson == null){
-                        
-                        addSendBox.run();
-                        showError("Error: Node unavailable");
-                        return;
-                    }
-                    try {
-                        Files.writeString(App.logFile.toPath(), statusJson.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e1) {
-                     
-                    }
-
-
-                    JsonElement namedNodeElement = nodeInterface.getJsonObject().get("namedNode");
-
-                    if(namedNodeElement == null || (namedNodeElement != null && !namedNodeElement.isJsonObject())){
-                        
-                        addSendBox.run();
-                        showError("Error: Node information not found");
-                        return;
-                    }
-
-                    JsonElement syncedElement = statusJson.get("synced");
-
-                    if(syncedElement == null ||  (syncedElement != null && !syncedElement.getAsBoolean())){
-                       
-                        addSendBox.run();
-                        showError("Error: Node is not synced");
-                        return;
-                    }
-
-            
-                  
-
-                    JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
-                    JsonObject nodeJson = new JsonObject();
-
-                    try {
-                        NamedNodeUrl namedNode = new NamedNodeUrl(namedNodeJson);
-                        nodeJson.addProperty("name", nodeInterface.getName());
-                        nodeJson.addProperty("url", namedNode.getUrlString());
-                        nodeJson.addProperty("apiKey", namedNode.getApiKey());
-                    } catch (Exception e1) {
-                       
-                        addSendBox.run();
-                        showError("Error: " + e1.toString());
-                        return;
-                    }
-
-                    sendObject.add("node", nodeJson);
-                    sendObject.add("explorer", explorerJson);
-
-                    NoteInterface walletInterface = m_selectedWallet.get();
-
-                    if(walletInterface == null){
-                        
-                        addSendBox.run();
-                        showError("Error: No wallet selected");
-                        return;
-                    }
-
-                    JsonObject walletObject = new JsonObject();
-                    walletObject.addProperty("name", walletInterface.getName());
-                    walletObject.addProperty("address", m_sendLockBox.getText());
-
-                    sendObject.add("wallet", walletObject);
-
-
-                    JsonObject recipientObject = new JsonObject();
-                    recipientObject.addProperty("address", addressInformation.getAddress().toString());
-                    recipientObject.addProperty("addressType", addressInformation.getAddressType());
-                 
-                    sendObject.add("recipient", recipientObject);
-
-                   
-
-                    PriceCurrency feeCurrency = (PriceCurrency) feeTypeBtn.getUserData();
-                    
-                 //   AmountBoxInterface amountBoxInterface = m_amountBoxes.getAmountBox(feeCurrency.getTokenId());
-
-                  
-                 //   ErgoWalletAmountSendBox feeCurrencyBox = (ErgoWalletAmountSendBox) amountBoxInterface;
-                   
-        
-                   BigDecimal feeDecimal = feesField.getText().length() > 0 ? new BigDecimal(feesField.getText()) : null;
-
-                    BigDecimal minimumDecimal = BigDecimal.valueOf(0.001);
-
-                    if( feeDecimal != null && feeDecimal.compareTo(minimumDecimal) == -1){
-                        addSendBox.run();
-                        showError("Error: Minimum fee of " + minimumDecimal + " " +feeTypeBtn.getText() + " required");
-                        
-                        return;
-                    }
-                    
-                    PriceAmount feeAmount = new PriceAmount(feeDecimal, feeCurrency);
-            
-                    sendObject.add("fee", feeAmount.getAmountObject());                
     
-                    //sendObject.add("feeAmount", feeObject);
-                    JsonArray sendAssets = new JsonArray();
+                JsonElement namedNodeElement = nodeInterface.getJsonObject().get("namedNode");
 
+                if(namedNodeElement == null || (namedNodeElement != null && !namedNodeElement.isJsonObject())){
                     
-                    for(int i = 0; i < m_amountBoxes.getAmountBoxList().size();i++ ){
-                        AmountBoxInterface amountBox = m_amountBoxes.getAmountBoxList().get(i);
-                    
-                        ErgoWalletAmountSendBox sendBox = (ErgoWalletAmountSendBox) amountBox;
-                        
-                        PriceAmount sendAmount = sendBox.getSendAmount();
-                        if(sendAmount!= null){
-          
-                            sendAssets.add(sendAmount.getAmountObject());
-                        
-                        }
-                        
-                    }
-                
-                    if(sendObject.size() == 0){
-                        addSendBox.run();
-                        showError("Enter assets to send");
-                        return;
-                    }
-                
-                    sendObject.add("assets", sendAssets);
-
-                    sendObject.add("network", statusJson);
-
-                    JsonObject note = Utils.getCmdObject("sendAssets");
-                    note.addProperty("accessId", m_sendLockBox.getLockId());
-                    note.addProperty("locationId", m_locationId);
-                    note.add("data", sendObject);
-
-                   
-                    
-                    walletInterface.sendNote(note, (onComplete)->{
-                        Object sourceObject = onComplete.getSource().getValue();
-                        if(sourceObject != null && sourceObject instanceof JsonObject){
-
-                            JsonObject receiptJson = (JsonObject) sourceObject;
-                          
-                            JsonElement codeElement = receiptJson.get("code");
-                        
-                            int code = codeElement != null ? codeElement.getAsInt() : -1;
-
-                            receiptJson.addProperty("result", code == App.SUCCESS ? "Success" : "Failed");
-                            
-                            Label sendReceiptText = new Label("Send Receipt");
-                            sendReceiptText.setFont(App.txtFont);
-                            
-                            HBox sendReceiptTextBox = new HBox(sendReceiptText);
-                            sendReceiptTextBox.setAlignment(Pos.CENTER_LEFT);
-                            HBox.setHgrow(sendReceiptTextBox, Priority.ALWAYS);
-                            sendReceiptTextBox.setPadding(new Insets(10, 0,2,5));
-                
-                
-                            Region sendReceiptHBar = new Region();
-                            sendReceiptHBar.setPrefWidth(400);
-                            sendReceiptHBar.setPrefHeight(2);
-                            sendReceiptHBar.setMinHeight(2);
-                            sendReceiptHBar.setId("hGradient");
-                        
-                            HBox sendReceiptHBarGBox = new HBox(sendReceiptHBar);
-                            sendReceiptHBarGBox.setAlignment(Pos.CENTER);
-                            sendReceiptHBarGBox.setPadding(new Insets(0,0,10,0));
-
-                            JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 120);
-                            HBox.setHgrow(sendReceiptJsonBox, Priority.ALWAYS);
-                            sendReceiptJsonBox.setPadding(new Insets(2,10,0,10));
-                            sendReceiptJsonBox.updateParameters(receiptJson);
-
-
-
-                            Button exportBtn = new Button("🖫 Export JSON…");
-                            exportBtn.setOnAction(onSave->{
-                                ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
-                                FileChooser saveChooser = new FileChooser();
-                                saveChooser.setTitle("🖫 Export JSON…");
-                                saveChooser.getExtensionFilters().addAll(txtFilter);
-                                saveChooser.setSelectedExtensionFilter(txtFilter);
-                                File saveFile = saveChooser.showSaveDialog(m_appStage);
-                                if(saveFile != null){
-                                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                                    
-                                    try {
-                                        Files.writeString(saveFile.toPath(), gson.toJson(receiptJson));
-                                    } catch (IOException e1) {
-                                        Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
-                                        alert.setTitle("Error");
-                                        alert.setHeaderText("Error");
-                                        alert.initOwner(m_appStage);
-                                        alert.show();
-                                    }
-                                }
-                            });
-
-                            HBox exportBtnBox = new HBox(exportBtn);
-                            exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
-                            exportBtnBox.setPadding(new Insets(15,15,15,0));
-
-                            Region receiptBottomHBar = new Region();
-                            receiptBottomHBar.setPrefWidth(400);
-                            receiptBottomHBar.setPrefHeight(2);
-                            receiptBottomHBar.setMinHeight(2);
-                            receiptBottomHBar.setId("hGradient");
-                
-                            HBox receiptBottomGBox = new HBox(receiptBottomHBar);
-                            receiptBottomGBox.setAlignment(Pos.CENTER);
-                            receiptBottomGBox.setPadding(new Insets(10,0,0,0));
-
-
-                            Button receiptBottomOkBtn = new Button("Ok");
-                            receiptBottomOkBtn.setOnAction(onOk->{
-                                if(code == App.SUCCESS){
-                                    resetSend.run();
-                                }else{
-                                    addSendBox.run();
-                                }
-                            });
-
-
-                            HBox receiptBottomOkBox = new HBox(receiptBottomOkBtn);
-                            receiptBottomOkBox.setAlignment(Pos.CENTER);
-                            receiptBottomOkBox.setPadding(new Insets(20, 0, 0, 0));
-
-
-                            VBox receiptContentBox = new VBox(sendReceiptTextBox,sendReceiptHBarGBox, sendReceiptJsonBox, exportBtnBox, receiptBottomGBox, receiptBottomOkBox);
-
-                            bodyContentBox.getChildren().clear();
-                            bodyContentBox.getChildren().add(receiptContentBox);
-                            
-                        }
-
-                    }, (onError)->{
-                        addSendBox.run();
-                        showError("Error: " + onError.getSource().getException().toString());
-
-                    });
-                    
-                    
-                },(onStatusFailed)->{
                     addSendBox.run();
-                    showError("Error: " + onStatusFailed.getSource().getException().toString());
+                    showError("Error: Node information not found");
+                    return;
+                }
+
+                JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
+                JsonObject nodeJson = new JsonObject();
+
+                try {
+                    NamedNodeUrl namedNode = new NamedNodeUrl(namedNodeJson);
+                    nodeJson.addProperty("name", nodeInterface.getName());
+                    nodeJson.addProperty("url", namedNode.getUrlString());
+                    nodeJson.addProperty("apiKey", namedNode.getApiKey());
+                } catch (Exception e1) {
+                    
+                    addSendBox.run();
+                    showError("Error: " + e1.toString());
+                    return;
+                }
+
+                sendObject.add("node", nodeJson);
+                sendObject.add("explorer", explorerJson);
+
+                NoteInterface walletInterface = m_selectedWallet.get();
+
+                if(walletInterface == null){
+                    
+                    addSendBox.run();
+                    showError("Error: No wallet selected");
+                    return;
+                }
+
+                JsonObject walletObject = new JsonObject();
+                walletObject.addProperty("name", walletInterface.getName());
+                walletObject.addProperty("address", m_sendLockBox.getAddress());
+
+                sendObject.add("wallet", walletObject);
+
+
+                JsonObject recipientObject = new JsonObject();
+                recipientObject.addProperty("address", addressInformation.getAddress().toString());
+                recipientObject.addProperty("addressType", addressInformation.getAddressType());
+                
+                sendObject.add("recipient", recipientObject);
+
+                BigDecimal minimumDecimal = m_amountBoxes.minimumFeeProperty().get();
+                PriceAmount feePriceAmount = m_amountBoxes.feeAmountProperty().get();
+                if(minimumDecimal == null || (feePriceAmount == null || (feePriceAmount != null && feePriceAmount.amountProperty().get().compareTo(minimumDecimal) == -1))){
+                    addSendBox.run();
+                    showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
+                    return;
+                }
+        
+                sendObject.add("fee", feePriceAmount.getAmountObject());                
+
+                //sendObject.add("feeAmount", feeObject);
+                JsonArray sendAssets = new JsonArray();
+
+
+                AmountBoxInterface[] amountBoxAray =  m_amountBoxes.getAmountBoxArray();
+                
+                for(int i = 0; i < amountBoxAray.length ;i++ ){
+                    AmountBoxInterface amountBox =amountBoxAray[i];
+                
+                    ErgoWalletAmountSendBox sendBox = (ErgoWalletAmountSendBox) amountBox;
+                    
+                    PriceAmount sendAmount = sendBox.getSendAmount();
+                    if(sendAmount!= null){
+        
+                        sendAssets.add(sendAmount.getAmountObject());
+                    
+                    }
+                    
+                }
+            
+                if(sendObject.size() == 0){
+                    addSendBox.run();
+                    showError("Enter assets to send");
+                    return;
+                }
+            
+                sendObject.add("assets", sendAssets);
+
+                JsonObject networkJson = Utils.getJsonObject("networkType", m_networkType.toString());
+
+                sendObject.add("network", networkJson);
+
+                JsonObject note = Utils.getCmdObject("sendAssets");
+                note.addProperty("accessId", m_sendLockBox.getLockId());
+                note.addProperty("locationId", m_locationId);
+                note.add("data", sendObject);
+
+                
+                
+                walletInterface.sendNote(note, (onComplete)->{
+                    Object sourceObject = onComplete.getSource().getValue();
+                    if(sourceObject != null && sourceObject instanceof JsonObject){
+
+                        JsonObject receiptJson = (JsonObject) sourceObject;
+                        
+                        JsonElement codeElement = receiptJson.get("code");
+                        JsonElement txIdElement = receiptJson.get("txId");;
+                        JsonElement errTxIdElement = receiptJson.get("errTxId");
+                        JsonElement resultElement = receiptJson.get("result");
+                        int code = codeElement != null ? codeElement.getAsInt() : -1;
+
+                        String resultString = resultElement != null ? resultElement.getAsString() : "Failed";
+
+                        receiptJson.addProperty("result", resultString);
+                        
+                        Label sendReceiptText = new Label("Send Receipt");
+                        sendReceiptText.setFont(App.txtFont);
+                        
+                        HBox sendReceiptTextBox = new HBox(sendReceiptText);
+                        sendReceiptTextBox.setAlignment(Pos.CENTER_LEFT);
+                        HBox.setHgrow(sendReceiptTextBox, Priority.ALWAYS);
+                        sendReceiptTextBox.setPadding(new Insets(10, 0,2,5));
+            
+            
+                        Region sendReceiptHBar = new Region();
+                        sendReceiptHBar.setPrefWidth(400);
+                        sendReceiptHBar.setPrefHeight(2);
+                        sendReceiptHBar.setMinHeight(2);
+                        sendReceiptHBar.setId("hGradient");
+                    
+                        HBox sendReceiptHBarGBox = new HBox(sendReceiptHBar);
+                        sendReceiptHBarGBox.setAlignment(Pos.CENTER);
+                        sendReceiptHBarGBox.setPadding(new Insets(0,0,10,0));
+
+                        JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 120);
+                        HBox.setHgrow(sendReceiptJsonBox, Priority.ALWAYS);
+                        sendReceiptJsonBox.setPadding(new Insets(2,10,0,10));
+                        sendReceiptJsonBox.updateParameters(receiptJson);
+
+
+
+                        Button exportBtn = new Button("🖫 Export JSON…");
+                        exportBtn.setOnAction(onSave->{
+                            ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
+                            FileChooser saveChooser = new FileChooser();
+                            saveChooser.setTitle("🖫 Export JSON…");
+                            saveChooser.getExtensionFilters().addAll(txtFilter);
+                            saveChooser.setSelectedExtensionFilter(txtFilter);
+                           
+                            String id = txIdElement != null ? "tx_" + txIdElement.getAsString() : (errTxIdElement != null ? errTxIdElement.getAsString() : "TxErr");
+
+                            saveChooser.setInitialFileName(id + ".json");
+                            File saveFile = saveChooser.showSaveDialog(m_appStage);
+                            if(saveFile != null){
+                                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                                
+                                try {
+                                    Files.writeString(saveFile.toPath(), gson.toJson(receiptJson));
+                                } catch (IOException e1) {
+                                    Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
+                                    alert.setTitle("Error");
+                                    alert.setHeaderText("Error");
+                                    alert.initOwner(m_appStage);
+                                    alert.show();
+                                }
+                            }
+                        });
+
+                        HBox exportBtnBox = new HBox(exportBtn);
+                        exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
+                        exportBtnBox.setPadding(new Insets(15,15,15,0));
+
+                        Region receiptBottomHBar = new Region();
+                        receiptBottomHBar.setPrefWidth(400);
+                        receiptBottomHBar.setPrefHeight(2);
+                        receiptBottomHBar.setMinHeight(2);
+                        receiptBottomHBar.setId("hGradient");
+            
+                        HBox receiptBottomGBox = new HBox(receiptBottomHBar);
+                        receiptBottomGBox.setAlignment(Pos.CENTER);
+                        receiptBottomGBox.setPadding(new Insets(10,0,0,0));
+
+
+                        Button receiptBottomOkBtn = new Button("Ok");
+                        receiptBottomOkBtn.setOnAction(onOk->{
+                            if(code == App.SUCCESS){
+                                resetSend.run();
+                                m_currentBox.set(null);
+                            }else{
+                                addSendBox.run();
+                            }
+                        });
+
+
+                        HBox receiptBottomOkBox = new HBox(receiptBottomOkBtn);
+                        receiptBottomOkBox.setAlignment(Pos.CENTER);
+                        receiptBottomOkBox.setPadding(new Insets(20, 0, 0, 0));
+
+
+                        VBox receiptContentBox = new VBox(sendReceiptTextBox,sendReceiptHBarGBox, sendReceiptJsonBox, exportBtnBox, receiptBottomGBox, receiptBottomOkBox);
+
+                        bodyContentBox.getChildren().clear();
+                        bodyContentBox.getChildren().add(receiptContentBox);
+                        
+                    }
+
+                }, (onError)->{
+                    addSendBox.run();
+                    showError("Error: " + onError.getSource().getException().toString());
+
                 });
+                
+                
+                
                 
             });
     
@@ -2442,13 +2475,13 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 int stringWidth = Utils.getStringWidth(msg);
 
-                Point2D p = m_nextBtn.localToScene(0.0, 0.0);
+                Point2D p = m_sendBtn.localToScene(0.0, 0.0);
                 m_tooltip.setText(msg);
-                m_tooltip.show(m_nextBtn,
-                        p.getX() + m_nextBtn.getScene().getX()
-                                + m_nextBtn.getScene().getWindow().getX() - (stringWidth/2),
-                        (p.getY() + m_nextBtn.getScene().getY()
-                                + m_nextBtn.getScene().getWindow().getY()) - 40);
+                m_tooltip.show(m_sendBtn,
+                        p.getX() + m_sendBtn.getScene().getX()
+                                + m_sendBtn.getScene().getWindow().getX() - (stringWidth/2),
+                        (p.getY() + m_sendBtn.getScene().getY()
+                                + m_sendBtn.getScene().getWindow().getY()) - 40);
                 PauseTransition pt = new PauseTransition(Duration.millis(5000));
                 pt.setOnFinished(ptE -> {
                     m_tooltip.hide();

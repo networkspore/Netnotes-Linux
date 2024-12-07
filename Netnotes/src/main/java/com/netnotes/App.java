@@ -24,6 +24,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.Alert;
@@ -45,7 +46,8 @@ import javafx.geometry.Pos;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 
 
@@ -93,18 +95,24 @@ public class App extends Application {
     public final static File logFile = new File("netnotes-log.txt");
 
 
-    public static final int STOPPED = 0;
-    public static final int STARTING = 1;
-    public static final int STARTED = 2;
-    public static final int ERROR = 3;
-    public static final int UPDATED = 4;
-    public static final int SHUTDOWN = 5;
-    public static final int WARNING = 6;
-    public static final int STATUS = 7;
-    public static final int INFO = 8;
-    public static final int SUCCESS = 9;
-    public static final int STOPPING = 10;
-    public static final int UPDATING = 11;
+    
+    public static final int SUCCESS = 1;
+    public static final int ERROR = 2;
+
+    public static final int STARTING = 3;
+    public static final int STARTED = 4;
+
+    public static final int STOPPING = 5;
+    public static final int STOPPED = 6;
+    public static final int SHUTDOWN = 7;
+
+    public static final int WARNING = 8;
+    public static final int STATUS = 9;
+    public static final int UPDATING = 10;
+    public static final int UPDATED = 11;
+    public static final int INFO = 12;
+    public static final int CANCEL = 13;
+
     
     public static final int LIST_CHANGED = 20;
     public static final int LIST_CHECKED = 21;
@@ -200,8 +208,8 @@ public class App extends Application {
         Font.loadFont(App.class.getResource("/assets/DejaVuSansMono.ttf").toExternalForm(),20);
 
         mainFont =  Font.font("OCR A Extended", FontWeight.BOLD, 20);
-        txtFont = Font.font("OCR A Extended", 15);
-        titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 12);
+        txtFont = Font.font("OCR A Extended", 18);
+        titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 16);
   
         appStage.setResizable(false);
         appStage.initStyle(StageStyle.UNDECORATED);
@@ -395,7 +403,7 @@ public class App extends Application {
         Stage statusStage = new Stage();
         statusStage.setResizable(false);
         statusStage.initStyle(StageStyle.UNDECORATED);
-        statusStage.setTitle("Netnotes - Verifying");
+        
         statusStage.getIcons().add(logo);
 
         statusStage.setTitle(title);
@@ -1921,6 +1929,75 @@ public class App extends Application {
         // bodyTopRegion.minHeightProperty().bind(stage.heightProperty().subtract(30).divide(2).subtract(progressAlignmentBox.heightProperty()).subtract(fileNameProgressBox.heightProperty().divide(2)));
         bodyBox.prefHeightProperty().bind(stage.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(10));
         return scene;
+    }
+
+    public static void showMagnifyingStage(String title, String magnifyString) {
+        Stage magnifyingStage = new Stage();
+        magnifyingStage.setResizable(false);
+        magnifyingStage.initStyle(StageStyle.UNDECORATED);
+        magnifyingStage.setTitle(title);
+        magnifyingStage.getIcons().add(logo);
+
+        Label topLabel = new Label(title);
+        Button closeBtn = new Button();
+
+        HBox topBar = createTopBar(logo, topLabel, closeBtn, magnifyingStage);
+
+        TextArea largeField = new TextArea(magnifyString);
+        HBox.setHgrow(largeField, Priority.ALWAYS);
+        VBox.setVgrow(largeField, Priority.ALWAYS);
+        largeField.setId("largeField");
+        largeField.setWrapText(true);
+        largeField.setEditable(false);
+
+        VBox largeFieldBox = new VBox(largeField);
+        VBox.setVgrow(largeFieldBox, Priority.ALWAYS);
+        VBox.setMargin(largeFieldBox, new Insets(0, 10, 10, 10));
+        largeFieldBox.setAlignment(Pos.CENTER);
+      
+
+         Tooltip copiedTooltip = new Tooltip("Copied");
+        
+        Button copyBtn = new Button("⧉  Copy");
+
+        copyBtn.setOnAction(e->{
+            e.consume();
+            Clipboard clipboard = Clipboard.getSystemClipboard();
+            ClipboardContent content = new ClipboardContent();
+            content.putString(largeField.getText());
+            clipboard.setContent(content);
+
+            Point2D p = copyBtn.localToScene(0.0, 0.0);
+         
+
+            copiedTooltip.show(
+                copyBtn,  
+                p.getX() + copyBtn.getScene().getX() + copyBtn.getScene().getWindow().getX(), 
+                (p.getY()+ copyBtn.getScene().getY() + copyBtn.getScene().getWindow().getY())-copyBtn.getLayoutBounds().getHeight()
+            );
+            PauseTransition pt = new PauseTransition(javafx.util.Duration.millis(1600));
+            pt.setOnFinished(ptE->{
+                copiedTooltip.hide();
+            });
+            pt.play();
+        });
+
+        HBox copyBtnBox = new HBox(copyBtn);
+        HBox.setHgrow(copyBtnBox, Priority.ALWAYS);
+        copyBtnBox.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox layoutVBox = new VBox(topBar, largeFieldBox, copyBtnBox);
+        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+        
+        Scene statusScene = new Scene(layoutVBox, 800, 150);
+        statusScene.setFill(null);
+        statusScene.getStylesheets().add("/css/startWindow.css");
+        
+        magnifyingStage.setScene(statusScene);
+        magnifyingStage.show();
+        closeBtn.setOnAction(e->{
+            magnifyingStage.close();
+        });
     }
 
     public static String getShutdownCmdObject(String id) {
