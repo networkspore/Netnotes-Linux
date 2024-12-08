@@ -51,17 +51,6 @@ public class ErgoExplorersAppBox extends AppBox {
         explorerIconView.setPreserveRatio(true);
         explorerIconView.setFitHeight(18);
 
-        TextField explorerField = new TextField();
-        HBox.setHgrow(explorerField, Priority.ALWAYS);
-
-
-
-        explorerField.setAlignment(Pos.CENTER_LEFT);
-        explorerField.setText(selectString);
-
-        explorerField.setMinWidth(90);
-        explorerField.setEditable(false);
-        explorerField.setId("hand");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -76,10 +65,6 @@ public class ErgoExplorersAppBox extends AppBox {
         toggleShowExplorers.setMinWidth(25);
 
 
-        Label openExplorerBtn = new Label("⏷");
-        openExplorerBtn.setId("lblBtn");
-
-
         MenuButton explorerMenuBtn = new MenuButton("⋮");
 
 
@@ -88,16 +73,18 @@ public class ErgoExplorersAppBox extends AppBox {
         explorerTopLabel.setFill(App.txtColor);
 
 
-        Label openMenuBtn = new Label("⏷");
-        openMenuBtn.setId("lblBtn");
+        MenuButton openMenuBtn = new MenuButton("⏷");
+        openMenuBtn.setId("arrowMenuButton");
 
 
-        m_explorerFieldBox = new HBox(explorerField, openMenuBtn);
+        m_explorerFieldBox = new HBox(openMenuBtn);
         HBox.setHgrow(m_explorerFieldBox, Priority.ALWAYS);
         m_explorerFieldBox.setAlignment(Pos.CENTER_LEFT);
         m_explorerFieldBox.setId("bodyBox");
         m_explorerFieldBox.setPadding(new Insets(0, 1, 0, 0));
         m_explorerFieldBox.setMaxHeight(18);
+
+        openMenuBtn.prefWidthProperty().bind(m_explorerFieldBox.widthProperty().subtract(1));
 
         HBox explorerMenuBtnPadding = new HBox(explorerMenuBtn);
         explorerMenuBtnPadding.setPadding(new Insets(0, 0, 0, 5));
@@ -124,7 +111,7 @@ public class ErgoExplorersAppBox extends AppBox {
             return selectString;
         }, m_defaultExplorer);
 
-        explorerField.textProperty().bind(explorerNameBinding);
+        openMenuBtn.textProperty().bind(explorerNameBinding);
 
 
        

@@ -1,10 +1,10 @@
 package com.netnotes;
 
-import com.utils.Utils;
-
 import javafx.animation.PauseTransition;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -12,26 +12,25 @@ import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.util.Duration;
 
 public class LockField extends HBox {
     private final Label m_nameLabel;
-    private final TextField m_addressField;
+    private String m_walletName = "";
     private final HBox m_addressFieldBox;
     private final HBox m_addressBox;
     private final Button m_unlockBtn;
     private String m_lockString;
     private final HBox m_unlockBtnBox;
     private SimpleStringProperty m_lockId = new SimpleStringProperty(null);
-    private final Label m_openBtn;
-    private  EventHandler<MouseEvent> m_onMouseClicked;
+    private final MenuButton m_openBtn;
     private final BufferedButton m_copyBtn;
     private final BufferedButton m_sendBtn;
     private final Button m_magnifyBtn;
@@ -52,7 +51,6 @@ public class LockField extends HBox {
         m_unlockLabelString = unlockLabelString;
 
         m_lockBtn = new BufferedButton();
-
         m_lockBtn.setId("toolBtn");
         m_lockBtn.setImage(App.closeImg);
         m_lockBtn.getBufferedImageView().setFitWidth(20);
@@ -65,6 +63,7 @@ public class LockField extends HBox {
 
         m_unlockBtn = new Button(prompt);
         m_unlockBtn.setPadding(new Insets(2,15,2,15));
+        m_unlockBtn.setAlignment(Pos.CENTER_LEFT);
 
         HBox textBox = new HBox(m_nameLabel);
         textBox.setAlignment(Pos.CENTER_LEFT);
@@ -74,21 +73,22 @@ public class LockField extends HBox {
         HBox.setHgrow(m_unlockBtnBox, Priority.ALWAYS);
         m_unlockBtnBox.setAlignment(Pos.CENTER_LEFT);
       
+        m_unlockBtn.prefWidthProperty().bind(m_unlockBtnBox.widthProperty().subtract(1));
 
-   
-        m_openBtn = new Label("⏷");
-        m_openBtn.setId("lblBtn");
+        m_openBtn = new MenuButton();
+        m_openBtn.setId("arrowMenuButton");
 
         Tooltip magnifyTip = new Tooltip("🔍 Magnify");
         magnifyTip.setShowDelay(Duration.millis(100));
 
         m_magnifyBtn =new Button("🔍");
         m_magnifyBtn.setId("logoBtn");
-        m_magnifyBtn.setOnAction(e->{
-            String adrText = m_nameLabel.getText();
-            App.showMagnifyingStage("Address: " + adrText, adrText);
-        });
         m_magnifyBtn.setTooltip(magnifyTip);
+        m_magnifyBtn.setOnAction(e->{
+            String adrText = getAddress();
+            App.showMagnifyingStage("Wallet: " +m_walletName+" - Address: " + m_nameLabel.getText(), adrText);
+        });
+        
 
         Tooltip copiedTooltip = new Tooltip("copied");
 
@@ -126,12 +126,13 @@ public class LockField extends HBox {
             pt.play();
         });
 
-        m_addressField = new TextField();
-        HBox.setHgrow(m_addressField, Priority.ALWAYS);
 
-        m_addressFieldBox = new HBox(m_addressField, m_openBtn, m_magnifyBtn, m_copyBtn, m_lockBtn);
+
+        m_addressFieldBox = new HBox(m_openBtn, m_magnifyBtn, m_copyBtn, m_lockBtn);
         HBox.setHgrow(m_addressFieldBox, Priority.ALWAYS);
         m_addressFieldBox.setId("bodyBox");
+
+        m_openBtn.prefWidthProperty().bind(m_addressFieldBox.widthProperty().subtract(1).subtract(m_magnifyBtn.widthProperty()).subtract(m_copyBtn.widthProperty()).subtract(m_lockBtn.widthProperty()));
 
         m_addressBox = new HBox( m_addressFieldBox, m_sendBtn);
         HBox.setHgrow(m_addressBox, Priority.ALWAYS);
@@ -162,7 +163,6 @@ public class LockField extends HBox {
             m_lockId.set(null);
             m_label.setText(m_lockLabelString);
 
-            removeEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
  
            
 
@@ -175,7 +175,7 @@ public class LockField extends HBox {
             }
 
             m_nameLabel.setText(m_lockString);
-            m_addressField.setText(m_lockString);
+            m_openBtn.setText(m_lockString);
         }
     }
 
@@ -208,11 +208,14 @@ public class LockField extends HBox {
         m_unlockBtn.setOnAction(onAction);
     }
 
-    public void setOnMenu(EventHandler<MouseEvent> onMouseClicked){
-        m_onMouseClicked = onMouseClicked;
-        m_nameLabel.addEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
-        m_addressField.addEventFilter(MouseEvent.MOUSE_CLICKED,onMouseClicked);
-        m_openBtn.addEventFilter(MouseEvent.MOUSE_CLICKED, m_onMouseClicked);
+    public void setOnMenuShowing(ChangeListener<Boolean> onShowing){
+  
+        m_openBtn.showingProperty().addListener(onShowing);
+ 
+    }
+
+    public ObservableList<MenuItem> getItems(){
+        return m_openBtn.getItems();
     }
 
     public String getLockString(){
@@ -224,7 +227,7 @@ public class LockField extends HBox {
     }
 
     public String getAddress(){
-        return m_addressField.getText();
+        return m_openBtn.getText();
     }
 
     public String getName(){
@@ -237,7 +240,15 @@ public class LockField extends HBox {
     }
 
     public void setAddress(String address){
-        m_addressField.setText(address);
+        m_openBtn.setText(address);
+    }
+
+    public String getWalletName(){
+        return m_walletName;
+    }
+
+    public void setWalletName(String walletName){
+        m_walletName = walletName;
     }
 
     public boolean isUnlocked(){

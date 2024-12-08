@@ -111,16 +111,6 @@ public class ErgoNodesAppBox extends AppBox {
         nodeIconView.setPreserveRatio(true);
         nodeIconView.setFitHeight(18);
 
-        TextField nodeField = new TextField();
-        HBox.setHgrow(nodeField, Priority.ALWAYS);
-
-        nodeField.setAlignment(Pos.CENTER_LEFT);
-        nodeField.setText(selectString);
-
-        nodeField.setMinWidth(90);
-        nodeField.setEditable(false);
-        nodeField.setId("hand");
-
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -133,27 +123,17 @@ public class ErgoNodesAppBox extends AppBox {
         toggleShowNodes.setId("caretBtn");
         toggleShowNodes.setMinWidth(25);
 
-
-        Button openNodeBtn = new Button("⏷");
-        openNodeBtn.setId("caretBtn");
-
-  
-
         MenuButton nodeMenuBtn = new MenuButton("⋮");
-
-
-
 
         HBox nodeMenuBtnPadding = new HBox(nodeMenuBtn);
         nodeMenuBtnPadding.setPadding(new Insets(0, 0, 0, 5));
-
 
         Text nodeTopLabel = new Text(" Node ");
         nodeTopLabel.setFont(App.txtFont);
         nodeTopLabel.setFill(App.txtColor);
 
-        Button openMenuBtn = new Button("⏷");
-        openMenuBtn.setId("lblBtn");
+        MenuButton openMenuBtn = new MenuButton();
+        openMenuBtn.setId("arrowMenuButton");
 
         Button disableNodeBtn = new Button("☓");
         disableNodeBtn.setId("lblBtn");
@@ -165,14 +145,14 @@ public class ErgoNodesAppBox extends AppBox {
         });
 
 
-        HBox nodeFieldBox = new HBox(nodeField, openMenuBtn);
+        HBox nodeFieldBox = new HBox(openMenuBtn);
         HBox.setHgrow(nodeFieldBox, Priority.ALWAYS);
         nodeFieldBox.setAlignment(Pos.CENTER_LEFT);
         nodeFieldBox.setId("bodyBox");
         nodeFieldBox.setPadding(new Insets(0, 1, 0, 0));
         nodeFieldBox.setMaxHeight(App.MAX_ROW_HEIGHT);
 
-
+        openMenuBtn.prefWidthProperty().bind(nodeFieldBox.widthProperty().subtract(1));
 
 
         HBox nodeBtnBox = new HBox(nodeFieldBox, nodeMenuBtnPadding);
@@ -209,59 +189,59 @@ public class ErgoNodesAppBox extends AppBox {
             m_currentBox.set(new RemoveNodesBox());
         };
         
-        ContextMenu nodeMenu = new ContextMenu();
+        openMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
+            if(newval){
+                openMenuBtn.getItems().clear();
 
-        Runnable showNodeMenu = ()  -> {
-            nodeMenu.getItems().clear();
+                JsonObject note = Utils.getCmdObject("getNodes");
+                note.addProperty("networkId", App.NODE_NETWORK);
+                note.addProperty("locationId", m_locationId);
 
-            JsonObject note = Utils.getCmdObject("getNodes");
-            note.addProperty("networkId", App.NODE_NETWORK);
-            note.addProperty("locationId", m_locationId);
-
-            JsonArray nodesArray = (JsonArray) ergoNetworkInterface.sendNote(note);
+                JsonArray nodesArray = (JsonArray) ergoNetworkInterface.sendNote(note);
 
 
-            if (nodesArray != null && nodesArray.size() > 0) {
-               
-                for (JsonElement element : nodesArray) {
-                    if (element != null && element instanceof JsonObject) {
-                        JsonObject json = element.getAsJsonObject();
+                if (nodesArray != null && nodesArray.size() > 0) {
+                
+                    for (JsonElement element : nodesArray) {
+                        if (element != null && element instanceof JsonObject) {
+                            JsonObject json = element.getAsJsonObject();
 
-                        String name = json.get("name").getAsString();
-                        String id = json.get("id").getAsString();
-                        String clientType = json.get("clientType").getAsString();
-                        JsonElement namedNodeElement = json.get("namedNode");
-                        NamedNodeUrl namedNode = null;
-                        
-                        try {
-                            namedNode = namedNodeElement != null && namedNodeElement.isJsonObject() ? new NamedNodeUrl(namedNodeElement.getAsJsonObject()) : null;
-                        } catch (Exception e1) {
+                            String name = json.get("name").getAsString();
+                            String id = json.get("id").getAsString();
+                            String clientType = json.get("clientType").getAsString();
+                            JsonElement namedNodeElement = json.get("namedNode");
+                            NamedNodeUrl namedNode = null;
+                            
                             try {
-                                Files.writeString(App.logFile.toPath(), "\nNode App Box received null node.", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e2) {
-                      
+                                namedNode = namedNodeElement != null && namedNodeElement.isJsonObject() ? new NamedNodeUrl(namedNodeElement.getAsJsonObject()) : null;
+                            } catch (Exception e1) {
+                                try {
+                                    Files.writeString(App.logFile.toPath(), "\nNode App Box received null node.", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                } catch (IOException e2) {
+                        
+                                }
+                            }
+
+                            if(namedNode != null){
+
+                                MenuItem nodeItem = new MenuItem(String.format("%-50s", ErgoNodeData.getNodeTypeImg(clientType) + " " + name + " - " + namedNode.getUrlString()));
+
+                                nodeItem.setOnAction(action -> {
+
+                                    if(m_nodeInterface.get() == null || (m_nodeInterface.get() != null && !m_nodeInterface.get().getNetworkId().equals(id))){
+                                        setDefault(id);
+                                        m_showNodes.set(true);
+                                    }
+
+                                });
+
+                                openMenuBtn.getItems().add(nodeItem);
+
                             }
                         }
 
-                        if(namedNode != null){
-
-                            MenuItem nodeItem = new MenuItem(String.format("%-50s", ErgoNodeData.getNodeTypeImg(clientType) + " " + name + " - " + namedNode.getUrlString()));
-
-                            nodeItem.setOnAction(action -> {
-
-                                if(m_nodeInterface.get() == null || (m_nodeInterface.get() != null && !m_nodeInterface.get().getNetworkId().equals(id))){
-                                    setDefault(id);
-                                    m_showNodes.set(true);
-                                }
-
-                            });
-
-                            nodeMenu.getItems().add(nodeItem);
-
-                        }
+                    
                     }
-
-                
                 }
             }
 
@@ -291,56 +271,35 @@ public class ErgoNodesAppBox extends AppBox {
             }*/
 
 
-            nodeMenu.getItems().add(new SeparatorMenuItem());
+            openMenuBtn.getItems().add(new SeparatorMenuItem());
 
             MenuItem addRemoteItem = new MenuItem(String.format("%-20s", "[ Add remote… ]"));
             addRemoteItem.setOnAction(action -> {
-                nodeMenu.hide();
+                openMenuBtn.hide();
                 addUrl.run();
             });
             
             MenuItem intstallNodeItem = new MenuItem(String.format("%-20s", "[ Local Install… ]"));
             intstallNodeItem.setOnAction(action -> {
-                nodeMenu.hide();
+                openMenuBtn.hide();
                 installNode.run();
             });
 
             MenuItem openNodeMenuItem = new MenuItem("[ Import… ]");
             openNodeMenuItem.setOnAction(e->{
-                nodeMenu.hide();
+                openMenuBtn.hide();
                 importNode.run();
             });
 
             MenuItem removeNodeMenuItem = new MenuItem("[ Remove… ]");
             removeNodeMenuItem.setOnAction(e->{
-                nodeMenu.hide();
+                openMenuBtn.hide();
                 removeNodes.run();
             });
 
-            nodeMenu.getItems().addAll(addRemoteItem, intstallNodeItem, openNodeMenuItem, removeNodeMenuItem);
+            openMenuBtn.getItems().addAll(addRemoteItem, intstallNodeItem, openNodeMenuItem, removeNodeMenuItem);
 
-            
-            Point2D p = nodeBtnBox.localToScene(0.0, 0.0);
-            nodeMenu.setPrefWidth(nodeBtnBox.getLayoutBounds().getWidth());
-
-            nodeMenu.show(nodeBtnBox,
-                5 + p.getX() + nodeBtnBox.getScene().getX() + nodeBtnBox.getScene().getWindow().getX(),
-                (p.getY() + nodeBtnBox.getScene().getY() + nodeBtnBox.getScene().getWindow().getY())
-                    + nodeBtnBox.getLayoutBounds().getHeight() - 1);
-
-        };
-
-      
-
-        openMenuBtn.setOnAction(e->{
-            showNodeMenu.run();
         });
-
-        nodeField.addEventFilter(MouseEvent.MOUSE_CLICKED, (e)->{
-            showNodeMenu.run();
-        });
-
-
 
         MenuItem addUrlMenuItem = new MenuItem("➕    Add remote…");
         addUrlMenuItem.setOnAction(e->{
@@ -464,7 +423,6 @@ public class ErgoNodesAppBox extends AppBox {
         toggleShowNodes.setOnAction(e->{
             if(m_nodeInterface.get() == null){
                 m_showNodes.set(false);
-                showNodeMenu.run();
             }else{
                 m_showNodes.set(!m_showNodes.get());
             }
@@ -524,7 +482,7 @@ public class ErgoNodesAppBox extends AppBox {
                 }
             }
 
-            nodeField.setText(newval != null ? newval.getName() : selectString);
+            openMenuBtn.setText(newval != null ? newval.getName() : selectString);
         });
         
 
@@ -588,7 +546,7 @@ public class ErgoNodesAppBox extends AppBox {
    
             
             Tooltip errorTooltip = new Tooltip();
-            Button backButton = new Button("🡄");
+            Button backButton = new Button("🠜");
             backButton.setId("lblBtn");
 
             backButton.setOnAction(e -> {
@@ -992,7 +950,7 @@ public class ErgoNodesAppBox extends AppBox {
             m_appDirString = appDirResult != null ? appDirResult.get("appDir").getAsString() + "/" + DEFAULT_NODE_FOLDER_NAME : AppData.HOME_DIRECTORY.getAbsolutePath() + "/" + DEFAULT_NODE_FOLDER_NAME;
             
 
-            Button backButton = new Button("🡄");
+            Button backButton = new Button("🠜");
             backButton.setId("lblBtn");
 
             backButton.setOnAction(e -> {
@@ -1816,7 +1774,7 @@ public class ErgoNodesAppBox extends AppBox {
 
             this.removeIds = new JsonArray();
 
-            this.backButton = new Label("🡄");
+            this.backButton = new Label("🠜");
             this.backButton.setId("lblBtn");
 
             this.backButton.setOnMouseClicked(e -> {
@@ -2185,7 +2143,7 @@ public class ErgoNodesAppBox extends AppBox {
             m_configId = configId;
             
 
-            Label backButton = new Label("🡄");
+            Label backButton = new Label("🠜");
             backButton.setId("lblBtn");
 
             backButton.setOnMouseClicked(e -> {

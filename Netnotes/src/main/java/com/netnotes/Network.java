@@ -18,7 +18,7 @@ import javafx.stage.Stage;
 
 public class Network  {
 
-    private int m_connectionStatus = 0;
+    private int m_connectionStatus = App.STOPPED;
     private String m_networkId;
     private NetworksData m_networksData;
     private NoteInterface m_parentInterface = null;

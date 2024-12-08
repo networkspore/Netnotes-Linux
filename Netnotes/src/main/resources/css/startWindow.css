@@ -15,12 +15,15 @@
 
 .button {
     -fx-font-family: 'OCR A Extended';
+    -fx-font-size:16px;
     -fx-text-fill: white;
     -fx-background-color: #33333350;
     -fx-cursor: hand;
+    -fx-opacity: .8;
 }
 
 .button:hover {
+    -fx-opacity: 1;
     -fx-background-color: #77777750;
 }
 
@@ -1102,7 +1105,8 @@
     -fx-background-radius: 30px;
     -fx-font-family: 'OCR A Extended';
     -fx-font-size: 25;
-
+    -fx-opacity: 1;
+    -fx-cursor: default;
 }
 
 #mainImageBtn {
@@ -1260,13 +1264,34 @@
     -fx-padding: 0 0 0 10;
 }
 
+#arrowMenuButton{
+   -fx-padding: 0 5 0 10;
+
+}
+#arrowMenuButton .label{
+    -fx-font-family: 'OCR A Extended';
+    -fx-font-size: 18;
+    -fx-alignment:center-left;
+    -fx-padding: 0 1 0 1;
+}
+#arrowMenuButton>.arrow-button {
+    -fx-min-height:18;
+    -fx-min-width:25;
+
+}
+
+#arrowMenuButton>.arrow-button>.arrow {
+    -fx-padding: 0.25em;
+    -fx-background-color: white;
+}
+
 
 .menu-button {
 
     -fx-font-family: 'DejaVu Sans Mono, Book';
     
     -fx-background-color: transparent;
-    -fx-opacity: .7;
+    -fx-opacity: .8;
 
     -fx-min-width:20;
     -fx-alignment: center;
@@ -1280,7 +1305,7 @@
 .menu-button .label{
     -fx-text-fill: white;
     -fx-font-family: 'DejaVu Sans Mono, Book';
-    -fx-font-size: 14;
+    -fx-font-size: 16;
     -fx-padding: 0;
     
     -fx-alignment: center;

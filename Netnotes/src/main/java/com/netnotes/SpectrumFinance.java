@@ -1,6 +1,6 @@
 package com.netnotes;
 
-import java.io.File;
+
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -846,7 +846,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
     private void getMarketUpdate(JsonArray jsonArray){
-        
+
         ArrayList<SpectrumMarketData> tmpMarketsList = new ArrayList<>();
         long timeStamp = System.currentTimeMillis();
 
@@ -881,7 +881,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     
                 }catch(Exception e){
                     try {
-                        Files.writeString(App.logFile.toPath(), "\nSpectrumFinance(updateMarkets): " + e.toString() + " " + marketDataJson.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(App.logFile.toPath(), "SpectrumFinance(updateMarkets): " + e.toString() + " " + marketDataJson.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e1) {
                     
                     }
@@ -894,6 +894,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         
         if(tmpMarketsList.size() != 0){
             getTickers((onTickerArray)->{
+
                 Object tickerSourceObject = onTickerArray.getSource().getValue();
                 if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
                     JsonArray tickerArray = (JsonArray) tickerSourceObject;
@@ -938,7 +939,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 }
             }, (onTickersFailed)->{
                 try {
-                    Files.writeString(App.logFile.toPath(), "\nSpectrumFinance (onTickersFailed): " + onTickersFailed.getSource().getException().toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(App.logFile.toPath(), "SpectrumFinance (onTickersFailed): " + onTickersFailed.getSource().getException().toString() +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
                    
                 }
@@ -1138,7 +1139,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     //private static volatile int m_counter = 0;
     @Override
     public void start(){
-        
+      
         if(getConnectionStatus() == App.STOPPED){
 
             setConnectionStatus(App.STARTING);
@@ -1147,9 +1148,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
             
             Runnable exec = ()->{
                 //FreeMemory freeMem = Utils.getFreeMemory();
-                
+            
                 getMarkets(success -> {
-
 
                     Object sourceObject = success.getSource().getValue();
                     if (sourceObject != null && sourceObject instanceof JsonArray) {
