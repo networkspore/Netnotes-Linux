@@ -790,7 +790,6 @@ public class ErgoWalletsAppBox extends AppBox {
             if (newval != null && noteInterface != null) {
                 JsonObject json = Utils.getCmdObject("getAddresses");
                 json.addProperty("accessId", newval);
-                json.addProperty("networkId", m_locationId);
 
                 Object successObject = noteInterface.sendNote(json);
 

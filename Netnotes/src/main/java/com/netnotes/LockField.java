@@ -1,6 +1,14 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+
+import com.utils.Utils;
+
 import javafx.animation.PauseTransition;
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -38,6 +46,7 @@ public class LockField extends HBox {
     private String m_unlockLabelString;
     private String m_lockLabelString = "⚿ ";
     private final BufferedButton m_lockBtn;
+    private SimpleStringProperty m_addressProperty = new SimpleStringProperty("");
 
     private final HBox m_topBox;
 
@@ -77,6 +86,38 @@ public class LockField extends HBox {
 
         m_openBtn = new MenuButton();
         m_openBtn.setId("arrowMenuButton");
+
+        int fontSize = 16;
+        int w = Utils.getCharacterSize(fontSize);
+
+        Binding<String> addressStringBinding = Bindings.createObjectBinding(()->{
+            String addressString = m_addressProperty.get();
+            if(addressString != null && !addressString.equals(m_lockString)){
+                double btnWidth = m_openBtn.widthProperty().get() - 30;
+                int elipsisSize = 3;
+                int adrStrLen = addressString.length();
+
+                if(adrStrLen > 5){
+                    int characters = ((int) (btnWidth / w)) -elipsisSize;
+                    if(characters > 6 && characters < adrStrLen){
+                        
+                        int len = (int) (characters / 2);         
+                        String returnString = addressString.substring(0, len ) + "…" + addressString.substring(adrStrLen- len, adrStrLen) ;
+                    
+                        return returnString;
+                    }else{
+                        return addressString;
+                    }
+                }else{
+                    return addressString;
+                }
+            }else{
+                return addressString;
+            }
+        }
+        , m_addressProperty, m_openBtn.widthProperty());
+
+        m_openBtn.textProperty().bind(addressStringBinding);
 
         Tooltip magnifyTip = new Tooltip("🔍 Magnify");
         magnifyTip.setShowDelay(Duration.millis(100));
@@ -175,7 +216,7 @@ public class LockField extends HBox {
             }
 
             m_nameLabel.setText(m_lockString);
-            m_openBtn.setText(m_lockString);
+            setAddress(m_lockString);
         }
     }
 
@@ -226,9 +267,7 @@ public class LockField extends HBox {
         return m_nameLabel.textProperty();
     }
 
-    public String getAddress(){
-        return m_openBtn.getText();
-    }
+ 
 
     public String getName(){
         return m_nameLabel.getText();
@@ -240,7 +279,13 @@ public class LockField extends HBox {
     }
 
     public void setAddress(String address){
-        m_openBtn.setText(address);
+
+        m_addressProperty.set(address);
+     
+    }
+
+    public String getAddress(){
+        return m_addressProperty.get();
     }
 
     public String getWalletName(){

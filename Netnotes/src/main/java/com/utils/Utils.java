@@ -549,6 +549,26 @@ public class Utils {
         return getStringWidth(str, 14);
     }
 
+    public static int getCharacterSize(int fontSize){
+        m_tmpImg = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        m_tmpG2d = m_tmpImg.createGraphics();
+        m_tmpFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, fontSize);
+        m_tmpG2d.setFont(m_tmpFont);
+        m_tmpFm = m_tmpG2d.getFontMetrics();
+        
+        int width = m_tmpFm.charWidth(' ');
+
+        m_tmpFm = null;
+        m_tmpG2d.dispose();
+        m_tmpG2d = null;
+        m_tmpFont = null;
+
+        m_tmpImg = null;
+
+
+        return width;
+    }
+
     public static int getStringWidth(String str, int fontSize){
         return getStringWidth(str, fontSize, "OCR A Extended", java.awt.Font.PLAIN);
     }
