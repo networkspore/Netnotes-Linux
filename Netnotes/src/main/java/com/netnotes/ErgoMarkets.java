@@ -14,16 +14,18 @@ import com.google.gson.JsonArray;
 public class ErgoMarkets extends Network implements NoteInterface {
     public static final String NAME = "Ergo Markets";
     public static final String DESCRIPTION = "A collection of markets for Ergo";
-
+    public static final int MARKET_LIST_DEFAULT_CHANGED = 25;
+    public static final int TOKEN_LIST_DEFAULT_CHANGED = 26;
   
     private ErgoNetworkData m_ergNetData = null;
 
     private String m_defaultMarketId = SpectrumFinance.NETWORK_ID;
     private String m_defaultTokenMarketId = SpectrumFinance.NETWORK_ID;
 
+    
 
     public ErgoMarkets(ErgoNetworkData ergNetData, ErgoNetwork ergoNetwork){
-        super(new Image(getAppIconString()), NAME, App.MARKET_NETWORK, ergoNetwork);
+        super(new Image(getAppIconString()), NAME, ErgoNetwork.MARKET_NETWORK, ergoNetwork);
         m_ergNetData = ergNetData;
         getData();
     }
@@ -54,18 +56,28 @@ public class ErgoMarkets extends Network implements NoteInterface {
             JsonElement cmdElement = note.get(App.CMD);
 
             switch (cmdElement.getAsString()) {
-                case "getMarkets":
-                    return getMarkets();
                 case "getMarketById":
                     return getMarketById(note);
                 case "getMarketByName":
                     return getMarketByName(note);
-                case "getDefaultInterface":
-                    return getDefaultInterface(note);
-                case "setDefault":
-                    return setDefault(note);
-                case "clearDefault":
-                    return clearDefault();
+                //Market
+                case "getMarkets":
+                    return getMarkets();
+                case "getDefaultMarketInterface":
+                    return getDefaultMarketInterface(note);
+                case "setDefaultMarket":
+                    return setDefaultMarket(note);
+                case "clearDefaultMarket":
+                    return clearDefaultMarket();
+                //Tokens
+                case "getTokenMarkets":
+                    return getTokenMarkets();
+                case "setDefaultTokenMarket":
+                    return setDefaultTokenMarket(note);
+                case "getDefaultTokenInterface":
+                    return getDefaultTokenInterface(note);
+                case "clearDefaultTokenMarket":
+                    return clearDefaultTokenMarket();
             }
         
             
@@ -74,16 +86,28 @@ public class ErgoMarkets extends Network implements NoteInterface {
         return null;
     }
 
-    public Boolean clearDefault(){
+    public boolean clearDefaultMarket(){
 
         m_defaultMarketId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.MARKET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(MARKET_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, (String) null);
         save();
 
         return true;
     }
+
+    public Boolean clearDefaultTokenMarket(){
+
+        m_defaultMarketId = null;
+        long timeStamp = System.currentTimeMillis();
+        
+        getErgoNetwork().sendMessage(TOKEN_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, (String) null);
+        save();
+
+        return true;
+    }
+
 
     public ErgoNetwork getErgoNetwork(){
         return m_ergNetData.getErgoNetwork();
@@ -104,12 +128,42 @@ public class ErgoMarkets extends Network implements NoteInterface {
             save();
             long timeStamp = System.currentTimeMillis();
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.MARKET_NETWORK, defaultMarketId);
+            getErgoNetwork().sendMessage(MARKET_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, defaultMarketId);
         }
     }
 
+    public void setDefaulTokenMarketId(String defaultTokenMarketId, boolean isSave) {
+        this.m_defaultTokenMarketId = defaultTokenMarketId;
+        
+        if(isSave){
+          
+            save();
+            long timeStamp = System.currentTimeMillis();
+            
+            getErgoNetwork().sendMessage(TOKEN_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, defaultTokenMarketId);
+        }
+    }
+
+    public boolean setDefaultTokenMarket(JsonObject note){
+        JsonElement idElement = note != null ? note.get("id") : null;
+  
+        if(idElement != null){
+            String defaultId = !idElement.isJsonNull() ? idElement.getAsString() : null;
+            if(defaultId != null){
+                NoteInterface noteInterface = getMarket(defaultId);
+
+                if(noteInterface != null){
+                    setDefaulTokenMarketId(defaultId, true);
+                    return true;
+                }
+            }else{
+                clearDefaultTokenMarket();
+            }
+        }
+        return false;
+    }
     
-    public boolean setDefault(JsonObject note){
+    public boolean setDefaultMarket(JsonObject note){
         JsonElement idElement = note != null ? note.get("id") : null;
   
         if(idElement != null){
@@ -122,7 +176,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
                     return true;
                 }
             }else{
-                clearDefault();
+                clearDefaultMarket();
             }
         }
         return false;
@@ -166,7 +220,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
         return null;
     }
 
-    public NoteInterface getDefaultInterface(JsonObject note){
+    public NoteInterface getDefaultMarketInterface(JsonObject note){
         return getMarket(m_defaultMarketId);
     }
 
@@ -229,8 +283,24 @@ public class ErgoMarkets extends Network implements NoteInterface {
         return jsonArray;
     }
 
+    private JsonArray getTokenMarkets(){
+    
+        List<NoteInterface> list = getNetworksData().getAppsContainsAllKeyWords("ergo tokens", "exchange", "usd");
+            
+        JsonArray jsonArray = new JsonArray();
+
+         for ( NoteInterface data : list) {
+
+            JsonObject result =  data.getJsonObject();
+            jsonArray.add(result);
+
+        }
+    
+        return jsonArray;
+    }
+
     private void getData(){
-        JsonObject json = getNetworksData().getData("data", ".", App.MARKET_NETWORK, ErgoNetwork.NETWORK_ID);
+        JsonObject json = getNetworksData().getData("data", ".", ErgoNetwork.MARKET_NETWORK, ErgoNetwork.NETWORK_ID);
 
         if(json != null){
             
@@ -241,7 +311,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
 
     public void save() {
        
-        getNetworksData().save("data", ".", App.MARKET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
+        getNetworksData().save("data", ".", ErgoNetwork.MARKET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
         
     }
 

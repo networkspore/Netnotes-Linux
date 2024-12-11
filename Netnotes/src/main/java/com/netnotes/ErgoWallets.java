@@ -28,7 +28,7 @@ public class ErgoWallets extends Network implements NoteInterface {
 
 
     public ErgoWallets( ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, App.WALLET_NETWORK, ergoNetwork);
+        super(new Image(getAppIconString()), NAME, ErgoNetwork.WALLET_NETWORK, ergoNetwork);
         m_ergNetData = ergoNetworkData;
         m_ergoWalletDataList = new ErgoWalletDataList(this);
 
@@ -122,7 +122,7 @@ public class ErgoWallets extends Network implements NoteInterface {
 
   
     public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(App.WALLET_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+        return new NetworkInformation(ErgoNetwork.WALLET_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
     }
 
 }

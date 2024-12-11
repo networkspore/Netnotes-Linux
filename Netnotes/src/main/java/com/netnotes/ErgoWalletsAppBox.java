@@ -114,7 +114,7 @@ public class ErgoWalletsAppBox extends AppBox {
         m_balanceObject.set(null);
         JsonObject getWalletObject = Utils.getCmdObject(  walletId != null ?"setDefault" : "clearDefault");
         getWalletObject.addProperty("locationId", m_locationId);
-        getWalletObject.addProperty("networkId", App.WALLET_NETWORK);
+        getWalletObject.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
         
         if(walletId != null){
             getWalletObject.addProperty("id", walletId);
@@ -127,7 +127,7 @@ public class ErgoWalletsAppBox extends AppBox {
     public void clearDefault(){
         m_balanceObject.set(null);
         JsonObject setDefaultObject = Utils.getCmdObject("clearDefault");
-        setDefaultObject.addProperty("networkId", App.WALLET_NETWORK);
+        setDefaultObject.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
         setDefaultObject.addProperty("locationId", m_locationId);
         m_ergoNetworkInterface.sendNote(setDefaultObject);
     }
@@ -135,7 +135,7 @@ public class ErgoWalletsAppBox extends AppBox {
     public void getDefaultWallet(){
         m_balanceObject.set(null);
         JsonObject note = Utils.getCmdObject("getDefaultInterface");
-        note.addProperty("networkId", App.WALLET_NETWORK);
+        note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
         note.addProperty("locationId", m_locationId);
         NoteInterface noteInterface = (NoteInterface) m_ergoNetworkInterface.sendNote(note);
       
@@ -146,7 +146,7 @@ public class ErgoWalletsAppBox extends AppBox {
     public void getDefaultMarket(){
         
         JsonObject note = Utils.getCmdObject("getDefaultInterface");
-        note.addProperty("networkId", App.MARKET_NETWORK);
+        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
         NoteInterface noteInterface = (NoteInterface) m_ergoNetworkInterface.sendNote(note);
       
@@ -157,14 +157,14 @@ public class ErgoWalletsAppBox extends AppBox {
     public void clearDefaultMarket(){
 
         JsonObject setDefaultObject = Utils.getCmdObject("clearDefault");
-        setDefaultObject.addProperty("networkId", App.MARKET_NETWORK);
+        setDefaultObject.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         setDefaultObject.addProperty("locationId", m_locationId);
         m_ergoNetworkInterface.sendNote(setDefaultObject);
     }
 
     @Override
     public void sendMessage(int code, long timeStamp,String networkId, String msg){
-        if(networkId != null && networkId.equals(App.WALLET_NETWORK)){
+        if(networkId != null && networkId.equals(ErgoNetwork.WALLET_NETWORK)){
             
             switch(code){
                 case App.LIST_DEFAULT_CHANGED:
@@ -414,7 +414,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 fileName = fileName.endsWith(".erg") ? fileName.substring(0, fileName.length() - 4) : fileName;
 
                 JsonObject note = Utils.getCmdObject("openWallet");
-                note.addProperty("networkId", App.WALLET_NETWORK);
+                note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
                 note.addProperty("locationId", m_locationId);
 
                 JsonObject walletData = new JsonObject();
@@ -506,7 +506,7 @@ public class ErgoWalletsAppBox extends AppBox {
         m_openWalletBtn.showingProperty().addListener((obs,oldval,newval)->{
             if(newval){
                 JsonObject note = Utils.getCmdObject("getWallets");
-                note.addProperty("networkId", App.WALLET_NETWORK);
+                note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
                 note.addProperty("locationId", m_locationId);
 
                 JsonArray walletIds = (JsonArray) m_ergoNetworkInterface.sendNote(note);
@@ -526,7 +526,7 @@ public class ErgoWalletsAppBox extends AppBox {
                             walletItem.setOnAction(action -> {
                                 m_balanceObject.set(null);
                                 JsonObject getWalletObject = Utils.getCmdObject("setDefault");
-                                getWalletObject.addProperty("networkId", App.WALLET_NETWORK);
+                                getWalletObject.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
                                 getWalletObject.addProperty("locationId", m_locationId);
 
                                 getWalletObject.addProperty("id", id);
@@ -574,7 +574,7 @@ public class ErgoWalletsAppBox extends AppBox {
             lockBox.setLocked();
             m_balanceObject.set(null);
             JsonObject note = Utils.getCmdObject("clearDefault");
-            note.addProperty("networkId", App.WALLET_NETWORK);
+            note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
             note.addProperty("locationId", m_locationId);
 
             
@@ -1594,7 +1594,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
                         if (walletFile.isFile()) {
                             JsonObject note = Utils.getCmdObject("openWallet");
-                            note.addProperty("networkId", App.WALLET_NETWORK);
+                            note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
                             note.addProperty("locationId", m_locationId);
 
                             JsonObject walletData = new JsonObject();
@@ -1721,7 +1721,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         private void updateWalletList(){
             JsonObject note = Utils.getCmdObject("getWallets");
-            note.addProperty("networkId", App.WALLET_NETWORK);
+            note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
             note.addProperty("locationId", m_locationId);
 
             Object result =  m_ergoNetworkInterface.sendNote(note);
@@ -1886,7 +1886,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 }else{
                     JsonObject note = Utils.getCmdObject("removeWallet");
                     note.addProperty("locationId", m_locationId);
-                    note.addProperty("networkId", App.WALLET_NETWORK);
+                    note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
                     note.add("ids", removeIds);
                     
                     m_ergoNetworkInterface.sendNote(note);
@@ -2183,7 +2183,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 }
                
                 JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
-                getDefaultExplorerNote.addProperty("networkId", App.EXPLORER_NETWORK);
+                getDefaultExplorerNote.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
                 getDefaultExplorerNote.addProperty("locationId", m_locationId);
                 Object explorerObj = m_ergoNetworkInterface.sendNote(getDefaultExplorerNote);
 
@@ -2211,7 +2211,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 }
 
                 JsonObject getDefaultNodeNote = Utils.getCmdObject("getDefaultInterface");
-                getDefaultNodeNote.addProperty("networkId", App.NODE_NETWORK);
+                getDefaultNodeNote.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
                 getDefaultNodeNote.addProperty("locationId", m_locationId);
                
                 Object nodeObj = m_ergoNetworkInterface.sendNote(getDefaultNodeNote);

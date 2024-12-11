@@ -26,7 +26,7 @@ public class ErgoNodes extends Network implements NoteInterface {
     private ErgoNetwork m_ergoNetwork;
 
     public ErgoNodes(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, App.NODE_NETWORK, ergoNetwork);
+        super(new Image(getAppIconString()), NAME, ErgoNetwork.NODE_NETWORK, ergoNetwork);
 
         
         m_ergoNetwork = ergoNetwork;
@@ -321,6 +321,6 @@ public class ErgoNodes extends Network implements NoteInterface {
     }
 
     public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(App.NODE_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+        return new NetworkInformation(ErgoNetwork.NODE_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
     }
 }

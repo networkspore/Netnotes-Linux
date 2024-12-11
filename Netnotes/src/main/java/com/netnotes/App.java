@@ -122,17 +122,7 @@ public class App extends Application {
     public static final int LIST_ITEM_REMOVED = 24;
     public static final int LIST_DEFAULT_CHANGED= 25;
 
-
-
     public static final String STATIC_TYPE = "STATIC";
-
-
-    public static final String WALLET_NETWORK = "WALLET_NETWORK";
-    public static final String NODE_NETWORK = "NODE_NETWORK";
-    public static final String TOKEN_NETWORK = "TOKENS_NETWORK";
-    public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
-    public static final String MARKET_NETWORK = "MARKET_NETWORK";
-
     public static final String STATUS_MINIMIZED = "Minimized";
     public static final String STATUS_STOPPED = "Stopped";
     public static final String STATUS_STARTED = "Started";

@@ -286,7 +286,7 @@ public class ErgoExplorersAppBox extends AppBox {
 
     public void setDefaultExplorer(String id){
         JsonObject note = Utils.getCmdObject("setDefault");
-        note.addProperty("networkId", App.EXPLORER_NETWORK);
+        note.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
         note.addProperty("locationId", m_locationId);
         note.addProperty("id", id);
         
@@ -295,7 +295,7 @@ public class ErgoExplorersAppBox extends AppBox {
 
     public void getDefaultExplorer(){
         JsonObject getDefaultObject = Utils.getCmdObject("getDefault");
-        getDefaultObject.addProperty("networkId", App.EXPLORER_NETWORK);
+        getDefaultObject.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
         getDefaultObject.addProperty("locationId", m_locationId);
         JsonObject obj = (JsonObject) m_ergoNetworkInterface.sendNote(getDefaultObject);
        
@@ -308,7 +308,7 @@ public class ErgoExplorersAppBox extends AppBox {
     public void updateExplorerMenu(){
        
         JsonObject note = Utils.getCmdObject("getExplorers");
-        note.addProperty("networkId", App.EXPLORER_NETWORK);
+        note.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
         note.addProperty("locationId", m_locationId);
 
         Object objResult = m_ergoNetworkInterface.sendNote(note);
@@ -353,7 +353,7 @@ public class ErgoExplorersAppBox extends AppBox {
     @Override
     public void sendMessage(int code, long timestamp,String networkId, String msg){
         
-        if(networkId != null && networkId.equals(App.EXPLORER_NETWORK)){
+        if(networkId != null && networkId.equals(ErgoNetwork.EXPLORER_NETWORK)){
 
             switch(code){
                 

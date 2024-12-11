@@ -47,7 +47,7 @@ public class ErgoExplorerList {
              long timeStamp = System.currentTimeMillis();
             save();
            
-            JsonObject note = Utils.getJsonObject("networkId", App.EXPLORER_NETWORK);
+            JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.EXPLORER_NETWORK);
             if(id != null){
                 ErgoExplorerData explorerData = getErgoExplorerData(id);
                 note.addProperty("id",  id);
@@ -56,7 +56,7 @@ public class ErgoExplorerList {
             note.addProperty("code", App.LIST_DEFAULT_CHANGED);
             note.addProperty("timeStamp", timeStamp);
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.EXPLORER_NETWORK, note.toString());
+            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.EXPLORER_NETWORK, note.toString());
         }
         
     }
@@ -66,10 +66,10 @@ public class ErgoExplorerList {
         m_defaultExplorerId = null;
         long timeStamp = System.currentTimeMillis();
         
-        JsonObject msg = Utils.getJsonObject("networkId", App.EXPLORER_NETWORK);
+        JsonObject msg = Utils.getJsonObject("networkId", ErgoNetwork.EXPLORER_NETWORK);
         msg.addProperty("code", App.LIST_DEFAULT_CHANGED);
         msg.addProperty("timeStamp", timeStamp);
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.EXPLORER_NETWORK, msg.toString());
+        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.EXPLORER_NETWORK, msg.toString());
         
 
         return true;
@@ -130,7 +130,7 @@ public class ErgoExplorerList {
 
 
     private void getData(){
-        JsonObject json = m_ergoExplorer.getNetworksData().getData("data", ".", App.EXPLORER_NETWORK, ErgoNetwork.NETWORK_ID);
+        JsonObject json = m_ergoExplorer.getNetworksData().getData("data", ".", ErgoNetwork.EXPLORER_NETWORK, ErgoNetwork.NETWORK_ID);
       
         if(json != null){
             
@@ -225,13 +225,13 @@ public class ErgoExplorerList {
             if (doSave) {
                 long timeStamp = System.currentTimeMillis();
                 save();
-                JsonObject note = Utils.getJsonObject("networkId", App.EXPLORER_NETWORK);
+                JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.EXPLORER_NETWORK);
                 note.addProperty("id",  ergoExplorerData.getId());
                 note.addProperty("name", ergoExplorerData.getName());
                 note.addProperty("code", App.LIST_ITEM_ADDED);
                 note.addProperty("timeStamp", timeStamp);
                 
-                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, App.EXPLORER_NETWORK, note.toString());
+                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, ErgoNetwork.EXPLORER_NETWORK, note.toString());
             }
         }
     }
@@ -249,14 +249,14 @@ public class ErgoExplorerList {
                     explorerData.removeUpdateListener();
                     save();
 
-                    JsonObject note = Utils.getJsonObject("networkId", App.EXPLORER_NETWORK);
+                    JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.EXPLORER_NETWORK);
                     note.addProperty("id",  explorerData.getId());
                     note.addProperty("code", App.LIST_ITEM_REMOVED);
                             
                     long timeStamp = System.currentTimeMillis();
                     note.addProperty("timeStamp", timeStamp);
                     
-                    getErgoNetwork().sendMessage(App.LIST_ITEM_REMOVED, timeStamp, App.EXPLORER_NETWORK, note.toString());
+                    getErgoNetwork().sendMessage(App.LIST_ITEM_REMOVED, timeStamp, ErgoNetwork.EXPLORER_NETWORK, note.toString());
                 }
                 return true;
             }

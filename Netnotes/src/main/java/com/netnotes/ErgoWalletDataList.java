@@ -78,7 +78,7 @@ public class ErgoWalletDataList {
 
     private void getData(){
         
-        openJson(m_ergoWallets.getNetworksData().getData("data", ".", App.WALLET_NETWORK, ErgoNetwork.NETWORK_ID));
+        openJson(m_ergoWallets.getNetworksData().getData("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID));
     }
 
     public void openJson(JsonObject json) {
@@ -139,7 +139,7 @@ public class ErgoWalletDataList {
     }
 
     public void save(){
-        m_ergoWallets.getNetworksData().save("data", ".", App.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
+        m_ergoWallets.getNetworksData().save("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
     }
 
     public void setDefaultWalletId(String id){
@@ -154,7 +154,7 @@ public class ErgoWalletDataList {
             save();
             long timeStamp = System.currentTimeMillis();
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.WALLET_NETWORK, id);
+            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.WALLET_NETWORK, id);
         }
     
     }
@@ -178,7 +178,7 @@ public class ErgoWalletDataList {
         m_defaultWalletId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.WALLET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.WALLET_NETWORK, (String) null);
         save();
 
         return true;
@@ -198,7 +198,7 @@ public class ErgoWalletDataList {
 
             long timeStamp = System.currentTimeMillis();
 
-            getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, App.WALLET_NETWORK, walletData.getNetworkId());
+            getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, ErgoNetwork.WALLET_NETWORK, walletData.getNetworkId());
         
             save();
         }); 
@@ -210,7 +210,7 @@ public class ErgoWalletDataList {
             
             long timeStamp = System.currentTimeMillis();
 
-            getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, App.WALLET_NETWORK, walletData.getNetworkId());
+            getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, ErgoNetwork.WALLET_NETWORK, walletData.getNetworkId());
         }
     }
     
@@ -236,7 +236,7 @@ public class ErgoWalletDataList {
 
                         long timeStamp = System.currentTimeMillis();
                         
-                        getErgoNetwork().sendMessage(App.LIST_ITEM_REMOVED, timeStamp, App.WALLET_NETWORK,  walletData.getNetworkId());
+                        getErgoNetwork().sendMessage(App.LIST_ITEM_REMOVED, timeStamp, ErgoNetwork.WALLET_NETWORK,  walletData.getNetworkId());
                     
                     }
                     return true;
@@ -284,12 +284,12 @@ public class ErgoWalletDataList {
                     }
                 }
 
-                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, App.WALLET_NETWORK);
+                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.WALLET_NETWORK);
                 json.add("ids", jsonArray);
 
                 save();
 
-                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, App.WALLET_NETWORK, json.toString());
+                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.WALLET_NETWORK, json.toString());
 
                 if(jsonArray.size() > 0){
                     return true;

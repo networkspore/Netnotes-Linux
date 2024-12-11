@@ -273,7 +273,7 @@ public class SpectrumMarketItem {
 
         
             m_tmpObj = Utils.getCmdObject("getAddToken");
-            m_tmpObj.addProperty("networkId", App.TOKEN_NETWORK);
+            m_tmpObj.addProperty("networkId", ErgoNetwork.TOKEN_NETWORK);
 
             m_tmpDataObj = new JsonObject();
             m_tmpDataObj.addProperty("tokenId", baseTokenId);
@@ -297,7 +297,7 @@ public class SpectrumMarketItem {
             int quoteDecimals = m_marketData.getQuoteDecimals();
 
             m_tmpObj = Utils.getCmdObject("getAddToken");
-            m_tmpObj.addProperty("networkId", App.TOKEN_NETWORK);
+            m_tmpObj.addProperty("networkId", ErgoNetwork.TOKEN_NETWORK);
             m_tmpDataObj = new JsonObject();
             m_tmpObj.addProperty("tokenId", quoteTokenId);
             m_tmpObj.addProperty("name", quoteTokenName);

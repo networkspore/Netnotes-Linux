@@ -229,6 +229,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         HashData appHashData = m_appFileHashData;
         HashData configHashData = m_nodeConfigData.getConfigFileHashData();
 
+
         JsonObject json = new JsonObject();
         if(m_appDir != null){
    
@@ -252,7 +253,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             
         }
         
-        JsonObject msgObject = Utils.getMsgObject(code, timeStamp, App.NODE_NETWORK);
+        JsonObject msgObject = Utils.getMsgObject(code, timeStamp, ErgoNetwork.NODE_NETWORK);
   
         msgObject.add("data", json);
 
@@ -1132,7 +1133,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         m_updateProgressIndicator = new ProgressIndicator();
 
                         m_updateProgressIndicator.progressProperty().addListener((obs,oldval,newval)->{
-                            sendMessage(INSTALL_PROGRESS, System.currentTimeMillis(), App.NODE_NETWORK, newval);
+                            sendMessage(INSTALL_PROGRESS, System.currentTimeMillis(), ErgoNetwork.NODE_NETWORK, newval);
                         });
             
         

@@ -26,7 +26,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     private ErgoNetwork m_ergoNetwork;
 
     public ErgoExplorers(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME,App.EXPLORER_NETWORK, ergoNetwork);
+        super(new Image(getAppIconString()), NAME,ErgoNetwork.EXPLORER_NETWORK, ergoNetwork);
         m_ergoNetwork = ergoNetwork;
         m_ergNetData = ergoNetworkData;
         
@@ -118,7 +118,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
 
 
     public void getData(String subId, String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, App.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
+        JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
 
         if(existingData != null){
 
@@ -130,7 +130,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
                 if(sourceObject != null && sourceObject instanceof JsonObject){
                     
                         JsonObject json = (JsonObject) sourceObject;
-                        getNetworksData().save(subId, id, App.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, json);
+                        getNetworksData().save(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, json);
                         Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
                  
                 }else{

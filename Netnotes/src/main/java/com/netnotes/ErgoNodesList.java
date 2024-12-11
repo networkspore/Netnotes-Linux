@@ -43,7 +43,7 @@ public class ErgoNodesList {
     private void getData() {
         
    
-        JsonObject json = m_ergoNodes.getNetworksData().getData("data",".", App.NODE_NETWORK, ErgoNetwork.NETWORK_ID);
+        JsonObject json = m_ergoNodes.getNetworksData().getData("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID);
         
 
         openJson(json);
@@ -217,14 +217,14 @@ public class ErgoNodesList {
     private void addNode(ErgoNodeData nodeData, boolean isSave){
         if(nodeData != null && nodeData.getId() != null){
             nodeData.addUpdateListener((obs,oldval,newval)->{
-                JsonObject note = Utils.getJsonObject("networkId", App.WALLET_NETWORK);
+                JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.WALLET_NETWORK);
                 note.addProperty("id", nodeData.getId());
                 note.addProperty("code", App.UPDATED);
 
                 long timeStamp = System.currentTimeMillis();
                 note.addProperty("timeStamp", timeStamp);
 
-                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, App.WALLET_NETWORK, note.toString());
+                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, ErgoNetwork.WALLET_NETWORK, note.toString());
                 
                 save();
             });
@@ -234,14 +234,14 @@ public class ErgoNodesList {
           
 
             if(isSave){
-                JsonObject note = Utils.getJsonObject("networkId", App.WALLET_NETWORK);
+                JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.WALLET_NETWORK);
                 note.addProperty("id", id);
                 note.addProperty("code", App.UPDATED);
 
                 long timeStamp = System.currentTimeMillis();
                 note.addProperty("timeStamp", timeStamp);
 
-                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, App.WALLET_NETWORK, note.toString());
+                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, ErgoNetwork.WALLET_NETWORK, note.toString());
 
                
             }
@@ -527,7 +527,7 @@ public class ErgoNodesList {
 
     public void save() {
         JsonObject saveJson = getDataJson();
-        m_ergoNodes.getNetworksData().save("data",".", App.NODE_NETWORK, ErgoNetwork.NETWORK_ID, saveJson);
+        m_ergoNodes.getNetworksData().save("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID, saveJson);
         
  
     }

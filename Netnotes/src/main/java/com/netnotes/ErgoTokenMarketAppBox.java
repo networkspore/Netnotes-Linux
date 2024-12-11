@@ -21,8 +21,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
-public class ErgoMarketsAppBox extends AppBox {
-    private final String selectString = "[select]";
+public class ErgoTokenMarketAppBox extends AppBox {
+    private final String selectString = "[disabled]";
 
     private Stage m_appStage;
     private SimpleObjectProperty<AppBox> m_currentBox = new SimpleObjectProperty<>(null);
@@ -34,11 +34,11 @@ public class ErgoMarketsAppBox extends AppBox {
 
     private String m_locationId = null;
 
-    private HBox m_ergoMarketsFieldBox;
-    private MenuButton m_ergoMarketsMenuBtn;
+    private HBox m_tokenMarketsFieldBox;
+    private MenuButton m_tokenMarketsMenuBtn;
     private Button m_disableBtn;
 
-    public ErgoMarketsAppBox(Stage appStage, String locationId, NoteInterface ergoNetworkInterface){
+    public ErgoTokenMarketAppBox(Stage appStage, String locationId, NoteInterface ergoNetworkInterface){
         super();
         m_ergoNetworkInterface = ergoNetworkInterface;
         m_appStage = appStage;
@@ -71,36 +71,36 @@ public class ErgoMarketsAppBox extends AppBox {
         MenuButton marketMenuBtn = new MenuButton("⋮");
 
 
-        Text topLogoText = new Text(String.format("%-13s", "Ergo Markets"));
+        Text topLogoText = new Text(String.format("%-13s", "Token Market"));
         topLogoText.setFont(App.txtFont);
         topLogoText.setFill(App.txtColor);
 
 
-        m_ergoMarketsMenuBtn = new MenuButton();
-        m_ergoMarketsMenuBtn.setId("arrowMenuButton");
-        m_ergoMarketsMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
+        m_tokenMarketsMenuBtn = new MenuButton();
+        m_tokenMarketsMenuBtn.setId("arrowMenuButton");
+        m_tokenMarketsMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
             if(newval){
                 updateMarkets();
             }
         });
 
-        m_ergoMarketsFieldBox = new HBox(m_ergoMarketsMenuBtn);
-        HBox.setHgrow(m_ergoMarketsFieldBox, Priority.ALWAYS);
-        m_ergoMarketsFieldBox.setAlignment(Pos.CENTER_LEFT);
-        m_ergoMarketsFieldBox.setId("bodyBox");
-        m_ergoMarketsFieldBox.setPadding(new Insets(0, 1, 0, 0));
-        m_ergoMarketsFieldBox.setMaxHeight(18);
+        m_tokenMarketsFieldBox = new HBox(m_tokenMarketsMenuBtn);
+        HBox.setHgrow(m_tokenMarketsFieldBox, Priority.ALWAYS);
+        m_tokenMarketsFieldBox.setAlignment(Pos.CENTER_LEFT);
+        m_tokenMarketsFieldBox.setId("bodyBox");
+        m_tokenMarketsFieldBox.setPadding(new Insets(0, 1, 0, 0));
+        m_tokenMarketsFieldBox.setMaxHeight(18);
 
-        m_ergoMarketsMenuBtn.prefWidthProperty().bind(m_ergoMarketsFieldBox.widthProperty().subtract(1));
+        m_tokenMarketsMenuBtn.prefWidthProperty().bind(m_tokenMarketsFieldBox.widthProperty().subtract(1));
 
         HBox marketMenuBtnPadding = new HBox(marketMenuBtn);
         marketMenuBtnPadding.setPadding(new Insets(0, 0, 0, 5));
 
 
 
-        HBox ergoMarketsBtnBox = new HBox(m_ergoMarketsFieldBox, marketMenuBtnPadding);
-        ergoMarketsBtnBox.setPadding(new Insets(2, 2, 0, 5));
-        HBox.setHgrow(ergoMarketsBtnBox, Priority.ALWAYS);
+        HBox tokenMarketsBtnBox = new HBox(m_tokenMarketsFieldBox, marketMenuBtnPadding);
+        tokenMarketsBtnBox.setPadding(new Insets(2, 2, 0, 5));
+        HBox.setHgrow(tokenMarketsBtnBox, Priority.ALWAYS);
 
         VBox marketsBodyPaddingBox = new VBox();
         HBox.setHgrow(marketsBodyPaddingBox, Priority.ALWAYS);
@@ -110,7 +110,7 @@ public class ErgoMarketsAppBox extends AppBox {
 
 
 
-        HBox topBar = new HBox(toggleShowOptions, topIconBox, topLogoText, ergoMarketsBtnBox);
+        HBox topBar = new HBox(toggleShowOptions, topIconBox, topLogoText, tokenMarketsBtnBox);
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setPadding(new Insets(2));
 
@@ -130,16 +130,16 @@ public class ErgoMarketsAppBox extends AppBox {
                 marketJson.remove("name");
                 marketJson.remove("networkId");
                 marketInfoBox.updateParameters(  marketJson);
-                if (!m_ergoMarketsFieldBox.getChildren().contains(m_disableBtn)) {
-                    m_ergoMarketsFieldBox.getChildren().add(m_disableBtn);
+                if (!m_tokenMarketsFieldBox.getChildren().contains(m_disableBtn)) {
+                    m_tokenMarketsFieldBox.getChildren().add(m_disableBtn);
                 }
             }else{
                 marketInfoBox.updateParameters(Utils.getJsonObject("marketInformation", "disabled"));
-                if (m_ergoMarketsFieldBox.getChildren().contains(m_disableBtn)) {
-                    m_ergoMarketsFieldBox.getChildren().remove(m_disableBtn);
+                if (m_tokenMarketsFieldBox.getChildren().contains(m_disableBtn)) {
+                    m_tokenMarketsFieldBox.getChildren().remove(m_disableBtn);
                 }
             }
-            m_ergoMarketsMenuBtn.setText(marketInterface != null ?marketInterface.getName() : selectString);
+            m_tokenMarketsMenuBtn.setText(marketInterface != null ?marketInterface.getName() : selectString);
         };
         setMarketInfo.run();
       
@@ -186,7 +186,7 @@ public class ErgoMarketsAppBox extends AppBox {
 
         });
 
-        getDefaultMarket();
+        getDefaultTokenMarket();
 
 
         getChildren().addAll(m_mainBox);
@@ -194,8 +194,8 @@ public class ErgoMarketsAppBox extends AppBox {
     }
 
     public void setDefaultMarket(String id){
-        JsonObject note = Utils.getCmdObject("setDefault");
-        note.addProperty("networkId", App.MARKET_NETWORK);
+        JsonObject note = Utils.getCmdObject("setDefaultTokenMarket");
+        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
         note.addProperty("id", id);
         
@@ -203,16 +203,16 @@ public class ErgoMarketsAppBox extends AppBox {
     }
 
     public void clearDefault(){
-        JsonObject note = Utils.getCmdObject("clearDefault");
-        note.addProperty("networkId", App.MARKET_NETWORK);
+        JsonObject note = Utils.getCmdObject("clearDefaultTokenMarket");
+        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
         m_ergoNetworkInterface.sendNote(note);
     }
 
-    public void getDefaultMarket(){
+    public void getDefaultTokenMarket(){
         
-        JsonObject note = Utils.getCmdObject("getDefaultInterface");
-        note.addProperty("networkId", App.MARKET_NETWORK);
+        JsonObject note = Utils.getCmdObject("getDefaultTokenInterface");
+        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
         Object obj = m_ergoNetworkInterface.sendNote(note);;
         NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
@@ -223,13 +223,13 @@ public class ErgoMarketsAppBox extends AppBox {
 
     public void updateMarkets(){
        
-        JsonObject note = Utils.getCmdObject("getMarkets");
-        note.addProperty("networkId", App.MARKET_NETWORK);
+        JsonObject note = Utils.getCmdObject("getTokenMarkets");
+        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
 
         Object objResult = m_ergoNetworkInterface.sendNote(note);
 
-        m_ergoMarketsMenuBtn.getItems().clear();
+        m_tokenMarketsMenuBtn.getItems().clear();
 
         if (objResult != null && objResult instanceof JsonArray) {
 
@@ -244,17 +244,17 @@ public class ErgoMarketsAppBox extends AppBox {
 
                 MenuItem menuItems = new MenuItem(String.format("%-20s", " " + name));
                 menuItems.setOnAction(action -> {
-                    m_ergoMarketsMenuBtn.hide();
+                    m_tokenMarketsMenuBtn.hide();
                     setDefaultMarket(id);
                 });
-                m_ergoMarketsMenuBtn.getItems().add(menuItems);
+                m_tokenMarketsMenuBtn.getItems().add(menuItems);
                 
             }
        
        
         }else{
             MenuItem explorerItem = new MenuItem(String.format("%-50s", " Unable to find available markets."));
-            m_ergoMarketsMenuBtn.getItems().add(explorerItem);
+            m_tokenMarketsMenuBtn.getItems().add(explorerItem);
         }
 
     }
@@ -262,12 +262,12 @@ public class ErgoMarketsAppBox extends AppBox {
     @Override
     public void sendMessage(int code, long timestamp,String networkId, String msg){
         
-        if(networkId != null && networkId.equals(App.MARKET_NETWORK)){
+        if(networkId != null && networkId.equals(ErgoNetwork.MARKET_NETWORK)){
 
             switch(code){
                 
-                case App.LIST_DEFAULT_CHANGED:
-                    getDefaultMarket(); 
+                case ErgoMarkets.TOKEN_LIST_DEFAULT_CHANGED:
+                    getDefaultTokenMarket(); 
                 break;
               
             }

@@ -75,7 +75,7 @@ public class ErgoNodesAppBox extends AppBox {
     private String m_nodeListenerId = null;
 
     public void sendMessage(int code, long timestamp, String networkId, String msg){
-        if(networkId != null && networkId.equals(App.NODE_NETWORK)){
+        if(networkId != null && networkId.equals(ErgoNetwork.NODE_NETWORK)){
 
             switch(code){
      
@@ -205,7 +205,7 @@ public class ErgoNodesAppBox extends AppBox {
                 openMenuBtn.getItems().clear();
 
                 JsonObject note = Utils.getCmdObject("getNodes");
-                note.addProperty("networkId", App.NODE_NETWORK);
+                note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
                 note.addProperty("locationId", m_locationId);
 
                 JsonArray nodesArray = (JsonArray) ergoNetworkInterface.sendNote(note);
@@ -514,7 +514,7 @@ public class ErgoNodesAppBox extends AppBox {
 
     public void clearDefault(){
         JsonObject setDefaultObject = Utils.getCmdObject("clearDefault");
-        setDefaultObject.addProperty("networkId", App.NODE_NETWORK);
+        setDefaultObject.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
         setDefaultObject.addProperty("locationId", m_locationId);
         m_ergoNetworkInterface.sendNote(setDefaultObject);
       
@@ -523,7 +523,7 @@ public class ErgoNodesAppBox extends AppBox {
     public void setDefault(String id){
 
         JsonObject setDefaultObject = Utils.getCmdObject("setDefault");
-        setDefaultObject.addProperty("networkId", App.NODE_NETWORK);
+        setDefaultObject.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
         setDefaultObject.addProperty("locationId", m_locationId);
         setDefaultObject.addProperty("id", id);
         m_ergoNetworkInterface.sendNote(setDefaultObject);
@@ -533,7 +533,7 @@ public class ErgoNodesAppBox extends AppBox {
     public void updateDefaultNoteInterface(){
         
         JsonObject note = Utils.getCmdObject("getDefaultInterface");
-        note.addProperty("networkId", App.NODE_NETWORK);
+        note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
         note.addProperty("locationId", m_locationId);
         NoteInterface noteInterface = (NoteInterface) m_ergoNetworkInterface.sendNote(note);
       
@@ -886,7 +886,7 @@ public class ErgoNodesAppBox extends AppBox {
                                 NamedNodeUrl namedNodeUrl = new NamedNodeUrl(nodeId, nameString, hostString, portNumber, apiKeyString, networkType);
 
                                 JsonObject note = Utils.getCmdObject("addRemoteNode");
-                                note.addProperty("networkId", App.NODE_NETWORK);
+                                note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
                                 note.addProperty("locationId", m_locationId);
 
                                 note.add("data", namedNodeUrl.getJsonObject());
@@ -1723,7 +1723,7 @@ public class ErgoNodesAppBox extends AppBox {
     private JsonObject addLocalNode(File dir, NamedNodeUrl namedNode, boolean isAppFile, File appFile, String configFileName, String configString){
         
         JsonObject note = Utils.getCmdObject("addLocalNode");
-        note.addProperty("networkId", App.NODE_NETWORK);
+        note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
         note.addProperty("locationId", m_locationId);
 
         JsonObject json = new JsonObject();
@@ -1878,7 +1878,7 @@ public class ErgoNodesAppBox extends AppBox {
 
                     JsonObject note = Utils.getCmdObject("removeNodes");
                     note.addProperty("locationId", m_locationId);
-                    note.addProperty("networkId", App.NODE_NETWORK);
+                    note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
                     note.add("ids", removeIds);
                     
                     Object sourceObject = m_ergoNetworkInterface.sendNote(note);
@@ -1937,7 +1937,7 @@ public class ErgoNodesAppBox extends AppBox {
         public void sendMessage(int code, long timestamp,String networkId, String msg){
             
 
-            if(networkId != null && networkId.equals(App.NODE_NETWORK)){
+            if(networkId != null && networkId.equals(ErgoNetwork.NODE_NETWORK)){
                 update();
             }
         }
@@ -1945,7 +1945,7 @@ public class ErgoNodesAppBox extends AppBox {
         public void update(){
 
             JsonObject note = Utils.getCmdObject("getNodes");
-            note.addProperty("networkId", App.NODE_NETWORK);
+            note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
             note.addProperty("locationId", m_locationId);
 
             this.nodeArray = (JsonArray) m_ergoNetworkInterface.sendNote(note);
@@ -2132,7 +2132,7 @@ public class ErgoNodesAppBox extends AppBox {
             NoteInterface noteInterface = m_nodeInterface.get();
             
             JsonObject json = Utils.getCmdObject("updateConfigData");
-            json.addProperty("networkId", App.NODE_NETWORK);
+            json.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
             json.addProperty("configId", m_configId);
             json.addProperty("id", m_nodeInterface.get().getNetworkId());
             json.add("data", data);
