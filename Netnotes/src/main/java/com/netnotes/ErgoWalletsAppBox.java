@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 
@@ -26,8 +25,6 @@ import com.utils.Utils;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -35,11 +32,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
-import javafx.geometry.Side;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -89,6 +84,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
     private SimpleObjectProperty<NoteInterface> m_selectedWallet = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<NoteInterface> m_selectedMarket = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<NoteInterface> m_selectedTokenMarket = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<NoteInterface> m_selectedTokensMarket = new SimpleObjectProperty<>(null);
 
 
@@ -96,7 +92,7 @@ public class ErgoWalletsAppBox extends AppBox {
     private NoteMsgInterface m_walletMsgInterface = null;
 
 
-    private SimpleObjectProperty<PriceQuote> m_ergoPriceQuoteProperty = new SimpleObjectProperty<>();
+
     private SimpleObjectProperty<JsonObject> m_balanceObject = new SimpleObjectProperty<>();
 
     private String m_currentQuoteMarketId = null;
@@ -104,7 +100,7 @@ public class ErgoWalletsAppBox extends AppBox {
     //private TextField m_walletField;    
     private HBox m_walletFieldBox;
     private VBox m_walletBodyBox;
-    private Label m_disableWalletBtn;
+    private Button m_disableWalletBtn;
     private VBox m_selectedAddressBox;
     private Label m_configBtn;
     private MenuButton m_openWalletBtn;
@@ -136,7 +132,7 @@ public class ErgoWalletsAppBox extends AppBox {
         m_ergoNetworkInterface.sendNote(setDefaultObject);
     }
 
-    public void getDefaultInteface(){
+    public void getDefaultWallet(){
         m_balanceObject.set(null);
         JsonObject note = Utils.getCmdObject("getDefaultInterface");
         note.addProperty("networkId", App.WALLET_NETWORK);
@@ -147,28 +143,23 @@ public class ErgoWalletsAppBox extends AppBox {
         
     }
 
-
-
-
-    public void getErgoQuote(){
-        NoteInterface ergoMarketInterface = m_selectedMarket.get();
+    public void getDefaultMarket(){
         
-        if(ergoMarketInterface != null){
-            
-            if(m_ergoPriceQuoteProperty.get() == null || m_currentQuoteMarketId == null || (m_currentQuoteMarketId != null && !m_currentQuoteMarketId.equals(ergoMarketInterface.getNetworkId()))){
-                
-                Object succededObject = ergoMarketInterface.sendNote(getErgoQuoteWithSymbol(m_stableSymbol));
+        JsonObject note = Utils.getCmdObject("getDefaultInterface");
+        note.addProperty("networkId", App.MARKET_NETWORK);
+        note.addProperty("locationId", m_locationId);
+        NoteInterface noteInterface = (NoteInterface) m_ergoNetworkInterface.sendNote(note);
+      
+        m_selectedMarket.set(noteInterface);
+        
+    }
 
-                if(succededObject != null && succededObject instanceof PriceQuote){
-                    PriceQuote newQuote = (PriceQuote) succededObject;
-                    m_currentQuoteMarketId = ergoMarketInterface.getNetworkId();
+    public void clearDefaultMarket(){
 
-                    m_ergoPriceQuoteProperty.set(newQuote);
-                }
-                
-            }
-        }
-
+        JsonObject setDefaultObject = Utils.getCmdObject("clearDefault");
+        setDefaultObject.addProperty("networkId", App.MARKET_NETWORK);
+        setDefaultObject.addProperty("locationId", m_locationId);
+        m_ergoNetworkInterface.sendNote(setDefaultObject);
     }
 
     @Override
@@ -177,7 +168,7 @@ public class ErgoWalletsAppBox extends AppBox {
             
             switch(code){
                 case App.LIST_DEFAULT_CHANGED:
-                    getDefaultInteface();
+                    getDefaultWallet();
                 break;
             }
 
@@ -191,9 +182,6 @@ public class ErgoWalletsAppBox extends AppBox {
         }
     }
 
-
-
-    
     public static JsonObject getTokenQuoteJson(String tokenId){
         JsonObject json = Utils.getCmdObject("getQuote");
         json.addProperty("baseType", "id");
@@ -311,6 +299,11 @@ public class ErgoWalletsAppBox extends AppBox {
         walletIconView.setPreserveRatio(true);
         walletIconView.setFitWidth(18);
 
+        HBox topIconBox = new HBox(walletIconView);
+        topIconBox.setAlignment(Pos.CENTER_LEFT);
+        topIconBox.setMinWidth(30);
+
+
         LockField lockBox = new LockField("Address", "≬", "[Unlock]");
         lockBox.setPadding(new Insets(2, 5, 2, 0));
         lockBox.setAlignment(Pos.CENTER_LEFT);
@@ -320,21 +313,29 @@ public class ErgoWalletsAppBox extends AppBox {
         
        
 
-        Label toggleShowBalance = new Label(showBalance.get() ? "⏷ " : "⏵ ");
+        Button toggleShowBalance = new Button(showBalance.get() ? "⏷" : "⏵");
         toggleShowBalance.setId("caretBtn");
-        
+        toggleShowBalance.setOnAction(e -> {
+            if (lockBox.isUnlocked()) {
+                showBalance.set(!showBalance.get());
+            } else {
+                lockBox.requestFocus();
+            }
+        });
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        ImageView closeImage = App.highlightedImageView(App.closeImg);
-        closeImage.setFitHeight(20);
-        closeImage.setFitWidth(20);
-        closeImage.setPreserveRatio(true);
 
-        Label toggleShowWallets = new Label(showWallet.get()? "⏷ "  : "⏵ ");
+        Button toggleShowWallets = new Button(showWallet.get()? "⏷"  : "⏵");
         toggleShowWallets.setId("caretBtn");
-     
+        toggleShowWallets.setOnAction( e -> {
+            if (m_selectedWallet.get() != null) {
+                showWallet.set(!showWallet.get());
+            } else {
+                m_openWalletBtn.show();
+            }
+        });
     
     
         m_openWalletBtn = new MenuButton();
@@ -344,7 +345,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         MenuButton walletMenuBtn = new MenuButton("⋮");
 
-        Text walletTopLabel = new Text(" Wallet");
+        Text walletTopLabel = new Text("Wallet");
         walletTopLabel.setFont(App.txtFont);
         walletTopLabel.setFill(App.txtColor);
 
@@ -548,7 +549,7 @@ public class ErgoWalletsAppBox extends AppBox {
         walletLabelBox.setPadding(new Insets(0, 5, 0, 5));
         walletLabelBox.setAlignment(Pos.CENTER_LEFT);
 
-        HBox walletsTopBar = new HBox(toggleShowWallets, walletIconView, walletLabelBox, walletBtnBox);
+        HBox walletsTopBar = new HBox(toggleShowWallets, topIconBox, walletLabelBox, walletBtnBox);
         walletsTopBar.setAlignment(Pos.CENTER_LEFT);
         walletsTopBar.setPadding(new Insets(2));
 
@@ -565,7 +566,7 @@ public class ErgoWalletsAppBox extends AppBox {
         m_mainBox = new VBox(walletLayoutBox);
         m_mainBox.setPadding(new Insets(0));
 
-        m_disableWalletBtn = new Label("☓");
+        m_disableWalletBtn = new Button("☓");
         m_disableWalletBtn.setId("lblBtn");
 
         m_disableWalletBtn.setOnMouseClicked(e -> {
@@ -598,7 +599,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         Runnable updateShowWallets = () -> {
             boolean isShowWallet = showWallet.get();
-            toggleShowWallets.setText(isShowWallet ? "⏷ " : "⏵ ");
+            toggleShowWallets.setText(isShowWallet ? "⏷" : "⏵");
 
             if (isShowWallet) {
                 if (!walletBodyPaddingBox.getChildren().contains(m_walletBodyBox)) {
@@ -614,18 +615,10 @@ public class ErgoWalletsAppBox extends AppBox {
 
         showWallet.addListener((obs, oldval, newval) -> updateShowWallets.run());
         
-   
-        ImageView addressIconView = new ImageView(new Image(ErgoWallets.getSmallAppIconString()));
-        addressIconView.setFitWidth(20);
-        addressIconView.setPreserveRatio(true);
 
-        toggleShowWallets.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-            if (m_selectedWallet.get() != null) {
-                showWallet.set(!showWallet.get());
-            } else {
-                m_openWalletBtn.show();
-            }
-        });
+
+
+       
 
         lockBox.setOnMenuShowing((obs,oldval,newval) -> {
             if(newval){
@@ -669,7 +662,7 @@ public class ErgoWalletsAppBox extends AppBox {
         });
 
         showBalance.addListener((obs, oldval, newval) -> {
-            toggleShowBalance.setText(newval ? "⏷ " : "⏵ ");
+            toggleShowBalance.setText(newval ? "⏷" : "⏵");
         });
 
 
@@ -707,13 +700,7 @@ public class ErgoWalletsAppBox extends AppBox {
         addressBtnsBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(addressBtnsBox, Priority.ALWAYS);
 
-        toggleShowBalance.addEventFilter(MouseEvent.MOUSE_CLICKED, e -> {
-            if (lockBox.isUnlocked()) {
-                showBalance.set(!showBalance.get());
-            } else {
-                lockBox.requestFocus();
-            }
-        });
+  
 
         VBox walletBalanceBox = new VBox();
         walletBalanceBox.setPadding(new Insets(2, 0, 2, 5));
@@ -746,7 +733,7 @@ public class ErgoWalletsAppBox extends AppBox {
         HBox.setHgrow(m_selectedAddressBox, Priority.ALWAYS);
         m_selectedAddressBox.setAlignment(Pos.TOP_LEFT);
 
-        ErgoWalletAmountBoxes amountBoxes = new ErgoWalletAmountBoxes(true, m_networkType, m_balanceObject);
+        ErgoWalletAmountBoxes amountBoxes = new ErgoWalletAmountBoxes(true, m_networkType, m_balanceObject, m_selectedMarket);
         VBox balancePaddingBox = new VBox(amountBoxes);
         balancePaddingBox.setPadding(new Insets(0, 0, 0, 0));
         HBox.setHgrow(balancePaddingBox, Priority.ALWAYS);
@@ -933,7 +920,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         });
 
-        getDefaultInteface();
+        getDefaultWallet();
 
 
 

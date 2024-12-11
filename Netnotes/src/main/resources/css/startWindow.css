@@ -188,13 +188,14 @@
 
 #caretBtn{
     -fx-font-family: 'DejaVu Sans Mono, Book';
-    -fx-min-width: 30;
+    -fx-min-width: 25;
     -fx-background-color: transparent;
     -fx-opacity: .9;
     -fx-font-size: 16;
     -fx-cursor:hand;
     -fx-padding: 0 5 0 5;
     -fx-text-fill: #cdd4da;
+    -fx-alignment: center-left;
 }
 
 #caretBtn:hover {

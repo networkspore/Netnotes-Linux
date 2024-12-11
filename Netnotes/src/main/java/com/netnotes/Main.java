@@ -11,6 +11,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import javafx.application.Application;
 
+
 public class Main {
 
     public static String NOTES_ID = "main";
@@ -47,6 +48,7 @@ public class Main {
                 //Files.readString()
             }
         });
+        
         Application.launch(App.class, args);
 
     }

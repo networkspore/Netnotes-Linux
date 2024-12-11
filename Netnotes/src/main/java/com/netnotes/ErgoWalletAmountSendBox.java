@@ -212,7 +212,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         imageFieldBox.setAlignment(Pos.CENTER_LEFT);
         imageFieldBox.setMaxHeight(18);
 
-        Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷ " : "⏵ ");
+        Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷" : "⏵");
         toggleShowSubMenuBtn.setId("caretBtn");
         toggleShowSubMenuBtn.setMinWidth(25);
 
@@ -316,7 +316,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         });
 
         m_showSubMenuProperty.addListener((obs, oldval, newval) -> {
-            toggleShowSubMenuBtn.setText(newval ? "⏷ " : "⏵ ");
+            toggleShowSubMenuBtn.setText(newval ? "⏷" : "⏵");
             if (newval) {
                 if (!bodyPaddingBox.getChildren().contains(bodyBox)) {
                     bodyPaddingBox.getChildren().add(bodyBox);

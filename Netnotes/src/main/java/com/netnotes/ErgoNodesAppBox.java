@@ -111,6 +111,11 @@ public class ErgoNodesAppBox extends AppBox {
         nodeIconView.setPreserveRatio(true);
         nodeIconView.setFitHeight(18);
 
+        HBox topIconBox = new HBox(nodeIconView);
+        topIconBox.setAlignment(Pos.CENTER_LEFT);
+        topIconBox.setMinWidth(30);
+
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -119,16 +124,22 @@ public class ErgoNodesAppBox extends AppBox {
         closeImage.setFitWidth(20);
         closeImage.setPreserveRatio(true);
 
-        Button toggleShowNodes = new Button(m_showNodes.get() ? "⏷ " : "⏵ ");
+        Button toggleShowNodes = new Button(m_showNodes.get() ? "⏷" : "⏵");
         toggleShowNodes.setId("caretBtn");
-        toggleShowNodes.setMinWidth(25);
-
+        toggleShowNodes.setOnAction(e->{
+            if(m_nodeInterface.get() == null){
+                m_showNodes.set(false);
+            }else{
+                m_showNodes.set(!m_showNodes.get());
+            }
+          
+        });
         MenuButton nodeMenuBtn = new MenuButton("⋮");
 
         HBox nodeMenuBtnPadding = new HBox(nodeMenuBtn);
         nodeMenuBtnPadding.setPadding(new Insets(0, 0, 0, 5));
 
-        Text nodeTopLabel = new Text(" Node ");
+        Text nodeTopLabel = new Text(String.format("%-13s","Node"));
         nodeTopLabel.setFont(App.txtFont);
         nodeTopLabel.setFill(App.txtColor);
 
@@ -333,7 +344,7 @@ public class ErgoNodesAppBox extends AppBox {
 
 
 
-        HBox nodesTopBar = new HBox(toggleShowNodes, nodeIconView, nodeTopLabel, nodeBtnBox);
+        HBox nodesTopBar = new HBox(toggleShowNodes, topIconBox, nodeTopLabel, nodeBtnBox);
         nodesTopBar.setAlignment(Pos.CENTER_LEFT);
         nodesTopBar.setPadding(new Insets(2));
 
@@ -349,7 +360,7 @@ public class ErgoNodesAppBox extends AppBox {
         Runnable updateShowNodes = ()->{
             boolean isShow = m_showNodes.get();
 
-            toggleShowNodes.setText(isShow ? "⏷ " : "⏵ ");
+            toggleShowNodes.setText(isShow ? "⏷" : "⏵");
 
             if (isShow) {
                 if (m_nodeControlBox == null && m_nodeInterface.get() != null) {
@@ -420,14 +431,7 @@ public class ErgoNodesAppBox extends AppBox {
         });
 
                
-        toggleShowNodes.setOnAction(e->{
-            if(m_nodeInterface.get() == null){
-                m_showNodes.set(false);
-            }else{
-                m_showNodes.set(!m_showNodes.get());
-            }
-          
-        });
+        
         
         m_nodeInterface.addListener((obs,oldval,newval)->{
             

@@ -23,7 +23,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -259,6 +258,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
         private ChangeListener<Bounds> m_boundsChange;
 
         private ErgoWalletsAppBox m_ergoWalletsAppBox = null;
+        private ErgoMarketsAppBox m_ergoMarketsAppBox = null;
         private ErgoExplorersAppBox m_ergoExplorerAppBox = null;
         private ErgoNodesAppBox m_ergoNodesAppBox = null;
 
@@ -288,26 +288,51 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
 
             m_ergoWalletsAppBox = new ErgoWalletsAppBox(appStage, locationId, getNoteInterface());
-
             m_ergoExplorerAppBox = new ErgoExplorersAppBox(appStage, locationId, getNoteInterface());
-
             m_ergoNodesAppBox = new ErgoNodesAppBox(appStage,  locationId, getNoteInterface());
+            m_ergoMarketsAppBox = new ErgoMarketsAppBox(appStage, locationId, getNoteInterface());
               
             m_ergoNetworkMsgInterface = new NoteMsgInterface() {
                 public String getId(){
                     return m_ergNetData.getId();
                 }
                 public void sendMessage(int code, long timestamp, String networkId, Number num){
+                    switch(networkId){
+                        case App.WALLET_NETWORK:
+                            m_ergoWalletsAppBox.sendMessage(code, timestamp,networkId, num);
+                        break;
+                        case App.NODE_NETWORK:
+                            m_ergoNodesAppBox.sendMessage(code, timestamp, networkId, num);
+                        break;
+                        case App.EXPLORER_NETWORK:
+                            m_ergoExplorerAppBox.sendMessage(code, timestamp, networkId, num);
+                        break;
+                        case App.MARKET_NETWORK:
+                            m_ergoMarketsAppBox.sendMessage(code, timestamp, networkId, num);
+                        break;
+                    }
                 }
 
                 public void sendMessage(int code, long timestamp, String networkId, String msg){
-                   
-                    m_ergoWalletsAppBox.sendMessage(code, timestamp,networkId, msg);
+                    switch(networkId){
+                        case App.WALLET_NETWORK:
+                            m_ergoWalletsAppBox.sendMessage(code, timestamp,networkId, msg);
+                        break;
+                        case App.NODE_NETWORK:
+                            m_ergoNodesAppBox.sendMessage(code, timestamp, networkId, msg);
+                        break;
+                        case App.EXPLORER_NETWORK:
+                            m_ergoExplorerAppBox.sendMessage(code, timestamp, networkId, msg);
+                        break;
+                        case App.MARKET_NETWORK:
+                            try {
+                                Files.writeString(App.logFile.toPath(), msg + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e) {
 
-                    m_ergoNodesAppBox.sendMessage(code, timestamp, networkId, msg);
-                    
-                    m_ergoExplorerAppBox.sendMessage(code, timestamp, networkId, msg);
-                    
+                            }
+                            m_ergoMarketsAppBox.sendMessage(code, timestamp, networkId, msg);
+                        break;
+                    }
                 }
             };
             
@@ -356,7 +381,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
             VBox.setVgrow(appBoxSpacer, Priority.ALWAYS);
         
 
-            getChildren().addAll(m_ergoWalletsAppBox, appBoxSpacer,gBox, m_ergoNodesAppBox, gBox1,  m_ergoExplorerAppBox);
+            getChildren().addAll(m_ergoWalletsAppBox, appBoxSpacer,gBox,m_ergoMarketsAppBox, gBox1, m_ergoNodesAppBox, gBox2, m_ergoExplorerAppBox);
       
          
         }

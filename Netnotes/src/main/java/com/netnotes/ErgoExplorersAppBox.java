@@ -12,6 +12,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -51,6 +52,9 @@ public class ErgoExplorersAppBox extends AppBox {
         explorerIconView.setPreserveRatio(true);
         explorerIconView.setFitHeight(18);
 
+        HBox topIconBox = new HBox(explorerIconView);
+        topIconBox.setAlignment(Pos.CENTER_LEFT);
+        topIconBox.setMinWidth(30);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -60,15 +64,16 @@ public class ErgoExplorersAppBox extends AppBox {
         closeImage.setFitWidth(20);
         closeImage.setPreserveRatio(true);
 
-        Label toggleShowExplorers = new Label(m_showExplorers.get() ? "⏷ " : "⏵ ");
+        Button toggleShowExplorers = new Button(m_showExplorers.get() ? "⏷" : "⏵");
         toggleShowExplorers.setId("caretBtn");
-        toggleShowExplorers.setMinWidth(25);
-
+        toggleShowExplorers.setOnAction(e->{
+            m_showExplorers.set(!m_showExplorers.get());
+        });
 
         MenuButton explorerMenuBtn = new MenuButton("⋮");
 
 
-        Text explorerTopLabel = new Text(String.format("%-8s"," Explorer"));
+        Text explorerTopLabel = new Text(String.format("%-13s","Explorer "));
         explorerTopLabel.setFont(App.txtFont);
         explorerTopLabel.setFill(App.txtColor);
 
@@ -189,11 +194,10 @@ public class ErgoExplorersAppBox extends AppBox {
         explorerWebsiteBox.setPadding(new Insets(2,0,0,0));
 
         HBox explorerLabelBox = new HBox(explorerTopLabel);
-        explorerLabelBox.setPadding(new Insets(0, 5, 0, 5));
         explorerLabelBox.setAlignment(Pos.CENTER_LEFT);
 
 
-        HBox explorersTopBar = new HBox(toggleShowExplorers, explorerIconView, explorerLabelBox, explorerBtnBox);
+        HBox explorersTopBar = new HBox(toggleShowExplorers, topIconBox, explorerLabelBox, explorerBtnBox);
         explorersTopBar.setAlignment(Pos.CENTER_LEFT);
         explorersTopBar.setPadding(new Insets(2));
 
@@ -236,14 +240,11 @@ public class ErgoExplorersAppBox extends AppBox {
 
         VBox explorerBodyBox = new VBox(explorerNameBox,  explorerUrlBox, explorerWebsiteBox);
 
-        
-        toggleShowExplorers.setOnMouseClicked(e->{
-            m_showExplorers.set(!m_showExplorers.get());
-        });
+   
         
         m_showExplorers.addListener((obs, oldval, newval) -> {
 
-            toggleShowExplorers.setText(newval ? "⏷ " : "⏵ ");
+            toggleShowExplorers.setText(newval ? "⏷" : "⏵");
 
             if (newval) {
                 if (!explorerBodyPaddingBox.getChildren().contains(explorerBodyBox)) {

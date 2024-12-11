@@ -51,11 +51,13 @@ import javafx.stage.Stage;
 
 public class SpectrumFinance extends Network implements NoteInterface {
 
-    public static String DESCRIPTION = "Spectrum Finance is a cross-chain decentralized exchange (DEX).";
-    public static String SUMMARY = "";
-    public static String NAME = "Spectrum Finance";
+    public final static String DESCRIPTION = "Decentralized exchange for Ergo and Ergo Tokens";
+    public final static String SUMMARY = "";
+    public final static String NAME = "Spectrum Finance";
+    public final static String WEB_URL = "https://spectrum.fi/";
     public final static String NETWORK_ID = "SPECTRUM_FINANCE";
-
+    public final static String API_URL = "https://api.spectrum.fi";
+    
     private final static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
         ErgoNetwork.getNetworkInformation()
     };
@@ -63,7 +65,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private String m_currentNetworkId = ErgoNetwork.NETWORK_ID;
     
 
-    public static String API_URL = "https://api.spectrum.fi";
+    
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
@@ -222,6 +224,93 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
    
 
+    
+    public NoteInterface getNoteInterface(){
+       
+        return new NoteInterface() {
+            
+            public String getName(){
+                return NAME;
+            }
+
+            public String getNetworkId(){
+                return NETWORK_ID;
+            }
+
+            public Image getAppIcon(){
+                return SpectrumFinance.this.getAppIcon();
+            }
+
+
+            public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
+                return getLastUpdated();
+            }
+
+            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+                return SpectrumFinance.this.sendNote(note, onSucceeded, onFailed);
+            }
+
+            public Object sendNote(JsonObject note){
+                return SpectrumFinance.this.sendNote(note);
+            }
+
+            public JsonObject getJsonObject(){
+                JsonObject spectrumObject = SpectrumFinance.this.getJsonObject();
+                spectrumObject.addProperty("websiteUrl", WEB_URL);
+                spectrumObject.addProperty("description", DESCRIPTION);
+                return spectrumObject;
+            }
+
+            public TabInterface getTab(Stage appStage,String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+                return SpectrumFinance.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            }
+
+            public NetworksData getNetworksData(){
+                return SpectrumFinance.this.getNetworksData();
+            }
+
+            public NoteInterface getParentInterface(){
+                return getParentInterface();
+            }
+
+            public void addUpdateListener(ChangeListener<LocalDateTime> changeListener){
+                SpectrumFinance.this.addUpdateListener(changeListener);
+            }
+
+            public void removeUpdateListener(){
+                SpectrumFinance.this.removeUpdateListener();
+            }
+
+            public void shutdown(){}
+
+            public SimpleObjectProperty<LocalDateTime> shutdownNowProperty(){
+                return null;
+            }
+
+            public void addMsgListener(NoteMsgInterface listener){
+                if(listener != null && listener.getId() != null){
+                    SpectrumFinance.this.addMsgListener(listener);
+                }
+            }
+            public boolean removeMsgListener(NoteMsgInterface listener){
+                
+                return SpectrumFinance.this.removeMsgListener(listener);
+            }
+
+            public int getConnectionStatus(){
+                return SpectrumFinance.this.getConnectionStatus();
+            }
+
+            public void setConnectionStatus(int status){
+
+            }
+
+
+            public String getDescription(){
+                return SpectrumFinance.this.getDescription();
+            }
+        };
+    }
 
 
     

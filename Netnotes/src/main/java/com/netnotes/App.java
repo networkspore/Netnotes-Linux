@@ -74,6 +74,7 @@ import com.utils.Utils;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 
+
 public class App extends Application {
 
     public static final String CURRENT_VERSION = "v0.4.0-beta";

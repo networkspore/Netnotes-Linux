@@ -3,10 +3,6 @@ import com.google.gson.JsonObject;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.text.Text;
 
 import com.google.gson.JsonElement;
 
@@ -20,15 +16,15 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
     private final NetworkType m_networkType;
     private SimpleObjectProperty<JsonObject> m_balanceObject;
     private ChangeListener<JsonObject> m_balanceChangeListener;
+    private SimpleObjectProperty<NoteInterface> m_selectedMarket;
 
-
-    public ErgoWalletAmountBoxes(boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
+    public ErgoWalletAmountBoxes(boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject, SimpleObjectProperty<NoteInterface> selectedMarket){
         super();
         m_isConfirmed = isConfirmed;
         m_networkType = networktype;
       
         m_balanceObject = balanceObject;
-        
+        m_selectedMarket = selectedMarket;
         
         m_balanceChangeListener = (obs,oldval, newval) ->{
             update(newval);
@@ -64,7 +60,10 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                 box.setTimeStamp(timeStamp);
                 add(box);
             }else{
-                ergoAmountBox.getPriceAmount().setLongAmount(nanoErg);
+                if(ergoAmountBox.getPriceAmount().getLongAmount() != nanoErg){
+                    ergoAmountBox.getPriceAmount().setLongAmount(nanoErg);
+                  
+                }
                 ergoAmountBox.setTimeStamp(timeStamp);
             }
           
@@ -104,8 +103,9 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                           
                     
                     }else{
-
-                        amountBox.getPriceAmount().setLongAmount(amount);
+                        if(amountBox.getPriceAmount().getLongAmount() != amount){
+                            amountBox.getPriceAmount().setLongAmount(amount);
+                        }
                         amountBox.setTimeStamp(timeStamp);
                     }
                     

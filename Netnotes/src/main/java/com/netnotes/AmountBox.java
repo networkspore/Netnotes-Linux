@@ -26,7 +26,6 @@ public class AmountBox extends HBox implements AmountBoxInterface {
     private String m_id = null;
 
     private int m_minImgWidth = 250;
-    private long m_timestamp = 0;
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
 
     private ChangeListener<PriceQuote> m_priceQuoteListener = null;
@@ -48,7 +47,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         m_id = FriendlyId.createFriendlyId();
         m_priceAmount = priceAmount;
 
-        Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷ " : "⏵ ");
+        Label toggleShowSubMenuBtn = new Label(m_showSubMenuProperty.get() ? "⏷" : "⏵");
         toggleShowSubMenuBtn.setId("caretBtn");
         toggleShowSubMenuBtn.setMinWidth(25);
         
@@ -263,10 +262,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
  
         
-      
-        Runnable quoteUpdate = () ->{
-           // updateBufferedImage(amountImageView);
-        };
+
         
 
         toggleShowSubMenuBtn.setOnMouseClicked(e->{
@@ -274,7 +270,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         });
 
         m_showSubMenuProperty.addListener((obs,oldval,newval)->{
-            toggleShowSubMenuBtn.setText(newval ? "⏷ " : "⏵ ");
+            toggleShowSubMenuBtn.setText(newval ? "⏷" : "⏵");
             if(newval){
                 if(!bodyPaddingBox.getChildren().contains(bodyBox)){
                     bodyPaddingBox.getChildren().add(bodyBox);
@@ -291,14 +287,15 @@ public class AmountBox extends HBox implements AmountBoxInterface {
             PriceAmount currentAmount = m_priceAmount;
 
             m_amountListener = (obs,oldval,newval)->{
-                if(!amountField.getText().equals(newval + "")){
-                    amountField.setText(newval + "");
+                String amountString = newval + "";
+                if(!amountField.getText().equals(amountString)){
+                    amountField.setText(amountString);
                 }
                 
             };
 
    
-            m_priceQuoteListener = (obs, oldval, newval)-> quoteUpdate.run();
+            m_priceQuoteListener = (obs, oldval, newval)-> {};
            
             currentAmount.amountProperty().addListener(m_amountListener);
            
@@ -319,11 +316,11 @@ public class AmountBox extends HBox implements AmountBoxInterface {
    
 
     public long getTimeStamp(){
-        return m_timestamp;
+        return m_priceAmount.getTimeStamp();
     }
 
     public void setTimeStamp(long timeStamp){
-        m_timestamp = timeStamp;
+        m_priceAmount.setTimeStamp(timeStamp);;
     }
 
 

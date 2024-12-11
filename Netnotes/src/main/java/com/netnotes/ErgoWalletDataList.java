@@ -179,7 +179,7 @@ public class ErgoWalletDataList {
         long timeStamp = System.currentTimeMillis();
         
         getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, App.WALLET_NETWORK, (String) null);
-        
+        save();
 
         return true;
     }

@@ -97,14 +97,12 @@ public class ErgoWallets extends Network implements NoteInterface {
 
     @Override
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonElement subjecElement = note.get(App.CMD);
-      
-    
-        
-        if (subjecElement != null) {
-            String subject  = subjecElement.getAsString();
-            switch(subject){
-                
+        JsonElement cmdElement = note.get(App.CMD);
+
+        if (cmdElement != null) {
+            String cmd  = cmdElement.getAsString();
+            switch(cmd){
+                default:
             }
             
         }

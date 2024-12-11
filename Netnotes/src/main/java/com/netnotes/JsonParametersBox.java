@@ -126,7 +126,7 @@ public class JsonParametersBox extends AppBox{
            
             switch(type){
                 case 1:
-                    Label logoBtnLbl = new Label("⏵ ");
+                    Label logoBtnLbl = new Label("⏵");
                     logoBtnLbl.setId("caretBtn");
 
                     nodeNameBox.getChildren().add(0, logoBtnLbl);
@@ -145,7 +145,7 @@ public class JsonParametersBox extends AppBox{
                                 rowBox.getChildren().add(jsonBox);
                             }
                         }else{
-                            logoBtnLbl.setText("⏵ ");
+                            logoBtnLbl.setText("⏵");
                             if(rowBox.getChildren().contains(jsonBox)){
                                 rowBox.getChildren().remove(jsonBox);
                             }
@@ -153,7 +153,7 @@ public class JsonParametersBox extends AppBox{
                     });
                 break;
                 case 2:
-                    Label logoBtnLbl2 = new Label("⏵ ");
+                    Label logoBtnLbl2 = new Label("⏵");
                     logoBtnLbl2.setId("caretBtn");
 
                     nodeNameBox.getChildren().add(0, logoBtnLbl2);
@@ -172,7 +172,7 @@ public class JsonParametersBox extends AppBox{
                                 rowBox.getChildren().add(jsonArrayBox);
                             }
                         }else{
-                            logoBtnLbl2.setText("⏵ ");
+                            logoBtnLbl2.setText("⏵");
                             if(rowBox.getChildren().contains(jsonArrayBox)){
                                 rowBox.getChildren().remove(jsonArrayBox);
                             }
@@ -284,6 +284,7 @@ public class JsonParametersBox extends AppBox{
                      
                         return true;
                     }
+                    String fieldString = "";
                     switch(keyString){
                         case "timeStamp":
                         case "timestamp":
@@ -292,7 +293,10 @@ public class JsonParametersBox extends AppBox{
                             textField.setText(Utils.formatDateTimeString(Utils.milliToLocalTime(jsonElement.getAsLong())));
                         break;
                         default:
-                            textField.setText(jsonElement.getAsString());
+                            fieldString = jsonElement.getAsString();
+                            if(!textField.getText().equals(fieldString)){
+                                textField.setText(fieldString);
+                            }
                     }
                 break;
             }

@@ -30,7 +30,7 @@ public class ErgoNodeClientControl extends AppBox{
     private Label m_nodeControlIndicator = new Label("⬤");
     private Text m_nodeControlClientTypeText = new Text("");
     private TextField m_nodeControlLabelField = new TextField();
-    private Label m_nodeControlShowBtn = new Label("⏵ ");
+    private Label m_nodeControlShowBtn = new Label("⏵");
     private SimpleBooleanProperty m_showSubControl = new SimpleBooleanProperty(false);
     private JsonParametersBox m_paramsBox = null;
     private Label m_connectBtn = new Label("🗘");
@@ -276,7 +276,7 @@ public class ErgoNodeClientControl extends AppBox{
 
 
         m_showSubControl.addListener((obs,oldval,newval)->{
-            m_nodeControlShowBtn.setText(newval ? "⏷ " : "⏵ ");
+            m_nodeControlShowBtn.setText(newval ? "⏷" : "⏵");
             
             if (newval) {
                 if(m_paramsBox == null){
