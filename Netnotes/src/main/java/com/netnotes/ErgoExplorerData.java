@@ -253,7 +253,7 @@ public class ErgoExplorerData {
 
                
 
-               public TabInterface getTab(Stage appStage,String locationString, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+               public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
                     return null;
                }
                public String getType(){

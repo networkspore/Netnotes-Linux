@@ -178,7 +178,7 @@ public class AmountBoxes extends VBox {
         return null;
     }
 
-    public int getAmountListSize(){
+    public int size(){
         return m_amountsList.size();
     }
 

@@ -151,14 +151,14 @@ public class NetworksData {
     private SimpleDoubleProperty m_widthObject = new SimpleDoubleProperty(App.DEFAULT_STATIC_WIDTH);
     private SimpleDoubleProperty m_heightObject = new SimpleDoubleProperty(200);
 
-    private String m_localId;
+   // private String m_localId;
 
     public NetworksData(AppData appData) {
        
         m_appData = appData;
-        m_localId = FriendlyId.createFriendlyId();
+      //  m_localId = FriendlyId.createFriendlyId();
 
-        m_locationsIds.put(m_localId, App.LOCAL);
+     //   m_locationsIds.put(m_localId, App.LOCAL);
 
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
@@ -396,7 +396,9 @@ public class NetworksData {
                     return new KucoinExchange(this), false);
                  */
                 case SpectrumFinance.NETWORK_ID:
-                    return new SpectrumFinance(this);
+                    String locationId = FriendlyId.createFriendlyId();
+                    m_locationsIds.put(locationId, SpectrumFinance.NAME);
+                    return new SpectrumFinance(this, locationId);
 
                 
             }
@@ -410,7 +412,9 @@ public class NetworksData {
             switch (networkId) {
                         
                 case ErgoNetwork.NETWORK_ID:
-                    return new ErgoNetwork(this);                         
+                    String ergoNetworkLocation = FriendlyId.createFriendlyId();
+                    m_locationsIds.put(ergoNetworkLocation, ErgoNetwork.NAME);
+                    return new ErgoNetwork(this, ergoNetworkLocation);                         
 
             }
         }
@@ -573,7 +577,8 @@ public class NetworksData {
    
     
     public String getLocationString(String locationId){
-        String locationString = m_locationsIds.get(locationId);
+        
+        String locationString = locationId != null ? m_locationsIds.get(locationId) : null;
         return  locationString != null ?  locationString : "Unknown";
     }
 
@@ -583,7 +588,10 @@ public class NetworksData {
         if(networkId != null) {
             
             NoteInterface noteInterface = m_networks.remove(networkId);
-            
+            String key = getLocationKey(networkId);
+            if(key != null){
+                m_locationsIds.remove(key);
+            }
             if (noteInterface != null) {
                
                 if(m_currentNetworkId.get() != null && m_currentNetworkId.get().equals(networkId)){
@@ -800,11 +808,28 @@ public class NetworksData {
         return removeApp(networkId, true);
     }
 
+    private String getLocationKey(String networkId){
+        if(networkId != null){
+            for (Map.Entry<String, String> entry : m_locationsIds.entrySet()) {
+                String value = entry.getValue();
+                if(value.equals(networkId)){
+                    return entry.getKey();
+                }
+            }
+        }
+        return null;
+    }
+
+
+
     private boolean removeApp(String networkId, boolean isSave) {
         boolean success = false;
 
         NoteInterface noteInterface = m_apps.remove(networkId);
-        
+        String key = getLocationKey(networkId);
+        if(key != null){
+            m_locationsIds.remove(key);
+        }
         if(noteInterface != null){
             noteInterface.shutdown();
 
@@ -875,7 +900,7 @@ public class NetworksData {
         return null;
     }
 
-    public TabInterface getNetworkTab(String networkId, String locationId){
+    public TabInterface getNetworkTab(String networkId){
        
 
        
@@ -883,7 +908,7 @@ public class NetworksData {
         NoteInterface noteInterface = getNetwork(networkId);
       
         if(noteInterface != null){
-            return noteInterface.getTab(m_appStage, locationId, m_heightObject, m_widthObject, m_networkBtn);
+            return noteInterface.getTab(m_appStage, m_heightObject, m_widthObject, m_networkBtn);
         }else{
 
         }
@@ -992,7 +1017,7 @@ public class NetworksData {
             }
          
 
-            TabInterface tab = noteInterface != null ? noteInterface.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, m_networkBtn) : null;
+            TabInterface tab = noteInterface != null ? noteInterface.getTab(m_appStage, m_heightObject, m_widthObject, m_networkBtn) : null;
     
             
             m_currentMenuTab.set(tab);
@@ -1023,7 +1048,7 @@ public class NetworksData {
                 currentTab.setStatus(App.STATUS_MINIMIZED);
             }
 
-            TabInterface tab = appNetwork.getTab(m_appStage, m_localId, m_heightObject, m_widthObject, appNetwork.getButton(BTN_IMG_SIZE));
+            TabInterface tab = appNetwork.getTab(m_appStage, m_heightObject, m_widthObject, appNetwork.getButton(BTN_IMG_SIZE));
             
             m_currentMenuTab.set( tab);
             tab.setStatus(App.STATUS_STARTED);

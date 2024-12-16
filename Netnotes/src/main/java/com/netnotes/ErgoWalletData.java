@@ -49,7 +49,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
     private File m_walletFile = null;
       
     private ArrayList<String>  m_authorizedIds = new ArrayList<>();
-    private ArrayList<String> m_authorizedLocations = new ArrayList<>();
 
     private AddressesData m_addressesData = null;
 
@@ -66,7 +65,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
         m_walletFile = walletFile;
         m_networkType = networkType;
         m_ergoWalletsDataList = ergoWalletDataList;
-        m_authorizedLocations.add(App.LOCAL);
         m_configId = configId;
     }   
 
@@ -323,7 +321,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                             addressDataList.add(addressData);
                         } catch (Failure e) {
                             try {
-                                Files.writeString(App.logFile.toPath(), "\nAddressesData - address failure: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                Files.writeString(App.logFile.toPath(), "AddressesData - address failure: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             } catch (IOException e1) {
 
                             }
@@ -331,7 +329,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         
 
                     });
-                    addressDataList.get(0).updateBalance();
+                 
                     m_addressesData = new AddressesData(getNetworkId(), addressDataList, ErgoWalletData.this, m_networkType);
                 }
 
@@ -423,7 +421,9 @@ public class ErgoWalletData extends Network implements NoteInterface {
   
 
 
-
+    public boolean isLocationAuthorized(String locationString){
+        return m_ergoWalletsDataList.getErgoWallets().getErgoNetworkData().isLocationAuthorized(locationString);
+    }
 
     
     @Override
@@ -437,7 +437,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         String locationString = getNetworksData().getLocationString(locationId);
 
 
-        if(cmd != null && locationString != null && m_authorizedLocations.contains(locationString)){
+        if(cmd != null && isLocationAuthorized(locationString)){
                 
             switch(cmd){
                 case "getAccessId":
@@ -467,39 +467,49 @@ public class ErgoWalletData extends Network implements NoteInterface {
     }
 
 
+    public ErgoNetworkData getErgoNetworkData(){
+        return m_ergoWalletsDataList.getErgoWallets().getErgoNetworkData();
+    }
+
     @Override
     public Object sendNote(JsonObject note){
 
-        JsonElement subjectElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(App.CMD);
         JsonElement accessIdElement = note.get("accessId");
-
-        if (subjectElement != null && subjectElement.isJsonPrimitive()) {
-
-            String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
-            String subject = subjectElement.getAsString();
-
-            if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
-                switch(subject){
-                    case "getAddresses":
-                        return m_addressesData.getAddressesJson();
-                    case "getBalance":
-                        return getBalance(note);
+        JsonElement locationIdElement = note.get("locationId");
+        String cmd = cmdElement != null && !cmdElement.isJsonNull() && cmdElement.isJsonPrimitive() ? cmdElement.getAsString() : null;
+        String locationId = locationIdElement != null && !locationIdElement.isJsonNull() && locationIdElement.isJsonPrimitive() ? locationIdElement.getAsString() : null;
      
-                }
-            }else{
-                switch (subject) {
-                    case "isOpen":
-                        return isOpen();
-                    case "getWallet":
-                        return getWallet();
-         
-                    case "updateFile":
-                        return updateFile(note);  
-                    case "updateName":
-                        return updateName(note);
-                    case "getFileData":
-                        return getFileData(note);
-                    
+
+        if (cmd != null && locationId != null) {
+            String locationString = getNetworksData().getLocationString(locationId);
+
+            if(isLocationAuthorized(locationString)){
+                String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
+
+                if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
+                    switch(cmd){
+                        case "getAddresses":
+                            return m_addressesData.getAddressesJson();
+                        case "getBalance":
+                            return getBalance(note);
+        
+                    }
+                }else{
+                    switch (cmd) {
+                        case "isOpen":
+                            return isOpen();
+                        case "getWallet":
+                            return getWallet();
+            
+                        case "updateFile":
+                            return updateFile(note);  
+                        case "updateName":
+                            return updateName(note);
+                        case "getFileData":
+                            return getFileData(note);
+                        
+                    }
                 }
             }
         }
@@ -543,8 +553,8 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 return getWallet();
             }
 
-            public TabInterface getTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
-                return ErgoWalletData.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+                return ErgoWalletData.this.getTab(appStage, heightObject, widthObject, networkBtn);
             }
 
 

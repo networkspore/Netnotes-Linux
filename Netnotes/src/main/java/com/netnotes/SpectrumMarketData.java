@@ -2,10 +2,15 @@ package com.netnotes;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.utils.Utils;
 
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
+
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
 
@@ -28,7 +33,6 @@ public class SpectrumMarketData extends PriceQuote {
 
     private BigDecimal m_liquidityUSD = BigDecimal.ZERO;
 
-    private boolean m_defaultInvert = false;
 
     private SimpleObjectProperty<PoolStats> m_poolStats = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<BigDecimal> m_poolSlippage = new SimpleObjectProperty<>(null);
@@ -83,7 +87,7 @@ public class SpectrumMarketData extends PriceQuote {
             String quoteSymbol = quoteSymbolElement.getAsString();
             String baseSymbol = baseSymbolElement.getAsString();
             
-            m_defaultInvert = !quoteSymbol.equals("SigUSD");
+            setDefaultInvert(!quoteSymbol.equals("SigUSD"));
 
             m_quoteVolume = quoteVolumeBigDecimal; 
             m_baseVolume = baseVolumeBigDecimal;
@@ -141,10 +145,7 @@ public class SpectrumMarketData extends PriceQuote {
     public int getQuoteDecimals(){
         return m_quoteDecimals;
     }
-    
-    public boolean getDefaultInvert(){
-        return m_defaultInvert;
-    }
+
     public BigDecimal calculateLongToBigDecimal(long amount, int decimals){
 
         BigDecimal bigAmount = BigDecimal.valueOf(amount);
@@ -379,8 +380,9 @@ public class SpectrumMarketData extends PriceQuote {
             m_chartViewProperty.get().update();
         }
 
-       getLastUpdated().set(LocalDateTime.now());
-    
+        LocalDateTime now = LocalDateTime.now();
+        getLastUpdated().set(now);
+ 
     }
 
 

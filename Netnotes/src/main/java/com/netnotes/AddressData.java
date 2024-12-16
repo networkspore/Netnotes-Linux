@@ -3,56 +3,35 @@ package com.netnotes;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
-import java.util.ArrayList;
-import java.util.Collections;
-
 import org.ergoplatform.appkit.NetworkType;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.netnotes.ErgoTransaction.TransactionType;
 import com.utils.Utils;
-
-import javafx.beans.property.SimpleBooleanProperty;
 import java.io.IOException;
 
 
 public class AddressData extends Network {  
     
-   // public final static int UPDATE_LIMIT = 10;
-
     private int m_index;
-    //private String m_addressString;
 
     //private final ArrayList<ErgoTransaction> m_watchedTransactions = new ArrayList<>();
 
     private JsonObject m_balanceJson = null;
    
-  /*  private final ErgoAmount m_ergoAmount;
-    private final PriceAmount m_unconfirmedAmount;
-
-    private final ObservableList<PriceAmount> m_confirmedTokensList = FXCollections.observableArrayList();
-
-    
+  /* 
     private final SimpleObjectProperty<ErgoTransaction> m_selectedTransaction = new SimpleObjectProperty<>(null);
     
-    private ArrayList<PriceAmount> m_unconfirmedTokensList = new ArrayList<>(); */
+ */
     private ErgoWalletData m_walletData;
     private int m_apiIndex = 0;
     
-   // private SimpleObjectProperty<WritableImage> m_imgBuffer = new SimpleObjectProperty<WritableImage>(null);
     private final String m_addressString;
     private final NetworkType m_networkType;
-  //  private Wallet m_wallet = null;
-
-  // private BufferedImage m_img = null;
-   // private Graphics2D m_g2d = null;
-
-   // private java.awt.Font m_imgFont = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 30);
- //   private java.awt.Font m_imgSmallFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 12);
-    
- //   private BufferedImage m_unitImage = null;
+    private AddressesData m_addressesData = null;
 
    
     
@@ -70,27 +49,18 @@ public class AddressData extends Network {
 
     public JsonObject getAddressJson(){
         JsonObject json = new JsonObject();
-        json.addProperty("index", m_index);
         json.addProperty("address", m_addressString);
         json.addProperty("name", getName());
         json.addProperty("networkType", m_networkType.toString());
+        if(m_balanceJson != null){
+            json.add("balance", m_balanceJson);
+        }
         return json;
     }
 
-
-    /*public void getAddressInfo(){
-        
-        
-            
-        JsonObject json = getNetworksData().getData(m_addressString, m_addressesData.getWalletData().getNetworkId(), ErgoWallets.NETWORK_ID, ErgoNetwork.NETWORK_ID);
-        
-        if(json != null){
-            
-            openAddressJson(json);
-            
-        }
-        
-    }*/
+    public void setAddressesData(AddressesData addressesData){
+        m_addressesData = addressesData;
+    }
 
     public void updateBalance() {
        
@@ -102,14 +72,14 @@ public class AddressData extends Network {
 
             if (sourceObject != null) {
                 JsonObject jsonObject = (JsonObject) sourceObject;
-
+                
                 setBalance(jsonObject); 
                 
             }},
         failed -> {
 
             try {
-                Files.writeString(App.logFile.toPath(), "\nAddressData, Explorer failed update: " + failed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(App.logFile.toPath(), "AddressData, Explorer failed update: " + failed.getSource().getException().toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e) {
                 
                 
@@ -388,104 +358,20 @@ public class AddressData extends Network {
         return (show * 2) > len ? adr : adr.substring(0, show) + "..." + adr.substring(len - show, len);
     }
 
-    /*public BigDecimal getConfirmedAmount() {
-        return ErgoInterface.toFullErg(getConfirmedNanoErgs());
-    }*/
+
 
     public NetworkType getNetworkType() {
         return m_networkType;
     }
 
 
-    
-    /*public BigDecimal getTotalTokenErgBigDecimal(){
-        int tokenListSize = m_confirmedTokensList.size();
-       
-        SimpleObjectProperty<BigDecimal> total = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
-        PriceAmount[] tokenAmounts = new PriceAmount[tokenListSize];
-        tokenAmounts = m_confirmedTokensList.toArray(tokenAmounts);
-
-        for(int i = 0; i < tokenListSize ; i++){
-            PriceAmount priceAmount = tokenAmounts[i];
-          
-            PriceQuote priceQuote =  priceAmount.priceQuoteProperty().get();
-            
-            BigDecimal priceBigDecimal = priceQuote != null ? priceQuote.getInvertedAmount() : null;
-
-            BigDecimal amountBigDecimal = priceQuote != null ? priceAmount.amountProperty().get() : null;
-            BigDecimal tokenErgs = priceBigDecimal != null && amountBigDecimal != null ? priceBigDecimal.multiply(amountBigDecimal) : BigDecimal.ZERO;
-        
-        
-            total.set(total.get().add(tokenErgs));
-            
-        }
- 
-        return total.get();
-    }*/
     
     /*
-    public ArrayList<PriceAmount> getUnconfirmedTokenList() {
-        return m_unconfirmedTokensList;
-    }
-
-  
-
-    public BigDecimal getFullAmountUnconfirmed() {
-        return m_unconfirmedAmount.amountProperty().get();
-    }
-
-    
-
-    public BigDecimal getTotalAmountPrice() {
-        return getErgoAmount().amountProperty().get().multiply( m_addressesData.getPrice());
-    }
 
 
 
-   
 
-    public BigInteger getAmountInt() {
-        return  getErgoAmount().amountProperty().get().toBigInteger();
-    }
-
-    public BigDecimal getAmountDecimalPosition() {
-        return getErgoAmount().amountProperty().get().subtract(new BigDecimal(getAmountInt()));
-    }
-
-    public Image getUnitImage() {
-   
-        if (m_ergoAmount == null) {
-            return new Image("/assets/unknown-unit.png");
-        } else {
-            return m_ergoAmount.getCurrency().getIcon();
-        }
-    }
- 
- 
-
-   
-
-    public SimpleObjectProperty<WritableImage> getImage() {
-        return m_imgBuffer;
-    }*?
-
-
-    public PriceAmount getConfirmedTokenAmount(String tokenId){
-        
-        for(int i = 0; i < m_confirmedTokensList.size(); i++)
-        {
-            PriceAmount priceAmount = m_confirmedTokensList.get(i);
-
-            if(priceAmount.getTokenId().equals(tokenId)){
-                return priceAmount;
-            }
-        }
-        return null;
-    }
-
-
-    /*
     public void updateTransactions(ErgoExplorerData explorerData){
         
         try {
@@ -528,13 +414,16 @@ public class AddressData extends Network {
     private void setBalance(JsonObject jsonObject){
         long timeStamp = System.currentTimeMillis();
         m_balanceJson = jsonObject;
-    
+        JsonObject ergoQuoteJson = m_addressesData != null ? m_addressesData.getErgoQuoteJson() : null;
+        if(ergoQuoteJson != null){
+            m_balanceJson.add("ergoQuote", ergoQuoteJson);
+        }
         m_balanceJson.addProperty("networkId", m_addressString);
         m_balanceJson.addProperty("timeStamp", timeStamp);
 
         String balanceString = m_balanceJson.toString();
     
-
+        
         m_walletData.sendMessage(App.UPDATED,timeStamp ,m_addressString, balanceString); 
 
 
@@ -587,19 +476,7 @@ public class AddressData extends Network {
         }
     }*/
 
-    /* Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                String prettyString = gson.toJson(json); */
-
-    /*public void saveAddresInfo(){
-       
-
-        JsonObject json = getJsonObject();    
-        
-        getNetworksData().save(m_addressString, m_addressesData.getWalletData().getNetworkId(), ErgoWallets.NETWORK_ID, ErgoNetwork.NETWORK_ID, json);
-        
-        
-    }*/
-     
+    
 
     public int getApiIndex() {
         return m_apiIndex;
@@ -619,148 +496,3 @@ public class AddressData extends Network {
         super.shutdown();
     }
 }
-
-/*
-    public void update(){
-      //  updateBufferedImage();
-      
-    }
-    
-    
-
-     public void updateBufferedImage() {
-        
-        long timeStamp = System.currentTimeMillis();
-
-        ErgoAmount priceAmount = getErgoAmount();
-        boolean quantityValid = priceAmount.amountProperty().get() != null &&  priceAmount.getTimeStamp() > 0 && (timeStamp - priceAmount.getTimeStamp()) < AddressesData.QUOTE_TIMEOUT; 
-        double priceAmountDouble = quantityValid ? priceAmount.amountProperty().get().doubleValue() : 0;
-
-        PriceQuote priceQuote = quantityValid ? priceAmount.priceQuoteProperty().get() : null;
-        boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() > 0 && (timeStamp - priceQuote.getTimeStamp()) <  AddressesData.QUOTE_TIMEOUT;
-        double priceQuoteDouble = priceValid  && priceQuote != null ? priceQuote.getDoubleAmount() : 0;
-        
-        String totalPrice = priceValid && priceQuote != null ? Utils.formatCryptoString( priceQuoteDouble * priceAmountDouble, priceQuote.getQuoteCurrency(), priceQuote.getFractionalPrecision(),  quantityValid && priceValid) : " -.--";
-        int integers = priceAmount != null ? (int) priceAmount.getDoubleAmount() : 0;
-        double decimals = priceAmount != null ? priceAmount.getDoubleAmount() - integers : 0;
-        
-        PriceCurrency priceCurrency = priceAmount.getCurrency();
-
-        int decimalPlaces = priceAmount != null ? priceCurrency.getFractionalPrecision() : 0;
-        String cryptoName = priceAmount != null ? priceCurrency.getSymbol() : "UKNOWN";
-        int space = cryptoName.indexOf(" ");
-        cryptoName = space != -1 ? cryptoName.substring(0, space) : cryptoName;
-
-        String currencyPrice = priceValid && priceQuote != null ? priceQuote.toString() : "-.--";
-
-        
-
-        //   Image ergoBlack25 = new Image("/assets/ergo-black-25.png");
-        //   SwingFXUtils.fromFXImage(ergoBlack25, null);
-        
-        String amountString = quantityValid ? String.format("%d", integers) : " -";
-        String decs = String.format("%." + decimalPlaces + "f", decimals);
-
-        decs = quantityValid ? decs.substring(1, decs.length()) : "";
-        totalPrice = totalPrice + "   ";
-        currencyPrice = "(" + currencyPrice + ")   ";
-    
-       
-        
-        
-        
-        m_unitImage = SwingFXUtils.fromFXImage(priceAmount != null ? priceCurrency.getIcon() : new Image("/assets/unknown-unit.png"), m_unitImage);
-        Drawing.setImageAlpha(m_unitImage, 0x40);
-        //  adrBuchImg.getScaledInstance(width, height, java.awt.Image.SCALE_AREA_AVERAGING);
-       // int width = Math.max( 200 ,(int) m_addressesData.widthProperty().get() - 150);
-
-        if(m_img == null){
-            m_img = new BufferedImage(AddressesData.ADDRESS_IMG_WIDTH, AddressesData.ADDRESS_IMG_HEIGHT, BufferedImage.TYPE_INT_ARGB);
-            m_g2d = m_img.createGraphics();
-            m_g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-            m_g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            m_g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-            m_g2d.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_ENABLE);
-            m_g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-            m_g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            m_g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            m_g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        }else{
-            Drawing.fillArea(m_img, App.DEFAULT_RGBA, 0, 0, m_img.getWidth(), m_img.getHeight(), false);
-        }
-        
-        m_g2d.setFont(m_imgFont);
-        FontMetrics fm = m_g2d.getFontMetrics();
-        int padding = 5;
-        int stringWidth = fm.stringWidth(amountString);
-       
-        int height = fm.getHeight() + 10;
-
-        m_g2d.setFont(m_imgSmallFont);
-
-        fm = m_g2d.getFontMetrics();
-        
-        int priceWidth = fm.stringWidth(totalPrice);
-        int currencyWidth = fm.stringWidth(currencyPrice);
-        //int decsWidth = fm.stringWidth(decs);
-
-
-        int priceLength = (priceWidth > currencyWidth ? priceWidth : currencyWidth);
-        
-        //  int priceAscent = fm.getAscent();
-        int integersX = priceLength + 10;
-        integersX = integersX < 130 ? 130 : integersX;
-        int decimalsX = integersX + stringWidth ;
-
-       // int cryptoNameStringWidth = fm.stringWidth(cryptoName);
-       
-
-        //int width = decimalsX + decsWidth + (padding * 2);
-   
-        //width = width < m_minImgWidth ? m_minImgWidth : width;
-
-        int cryptoNameStringX = decimalsX + 2;
-
-        //   g2d.setComposite(AlphaComposite.Clear);
-
-
-        m_g2d.drawImage(m_unitImage,75, (height / 2) - (m_unitImage.getHeight() / 2), m_unitImage.getWidth(), m_unitImage.getHeight(), null);
-
-       
-
-
-
-        m_g2d.setFont(m_imgFont);
-        fm = m_g2d.getFontMetrics();
-        m_g2d.setColor(java.awt.Color.WHITE);
-
-        
-
-        m_g2d.drawString(amountString, integersX, fm.getAscent() + 5);
-
-        m_g2d.setFont(m_imgSmallFont);
-        fm = m_g2d.getFontMetrics();
-        m_g2d.setColor(new java.awt.Color(.9f, .9f, .9f, .9f));
-
-       
-        if(decimalPlaces > 0){
-            //decimalsX = widthIncrease > 0 ? decimalsX + widthIncrease : decimalsX;
-            m_g2d.drawString(decs, decimalsX, fm.getHeight() + 4);
-        }
-
-        
-        m_g2d.drawString(cryptoName, cryptoNameStringX, height - 10);
-
-        m_g2d.setFont(m_imgSmallFont);
-        m_g2d.setColor(java.awt.Color.WHITE);
-        fm = m_g2d.getFontMetrics();
-        m_g2d.drawString(totalPrice, padding, fm.getHeight() + 2);
-
-        m_g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
-        m_g2d.drawString(currencyPrice, padding, height - 10);
-
-     
-        getImage().set(SwingFXUtils.toFXImage(m_img, getImage().get()));
-
-  
-    }*/

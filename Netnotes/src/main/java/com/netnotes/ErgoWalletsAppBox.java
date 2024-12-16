@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 
@@ -91,12 +92,11 @@ public class ErgoWalletsAppBox extends AppBox {
 
     private NoteMsgInterface m_walletMsgInterface = null;
 
-
+    private ErgoWalletAmountBoxes m_amountBoxes = null;
 
     private SimpleObjectProperty<JsonObject> m_balanceObject = new SimpleObjectProperty<>();
 
-    private String m_currentQuoteMarketId = null;
-    private String m_stableSymbol = "USD";
+
     //private TextField m_walletField;    
     private HBox m_walletFieldBox;
     private VBox m_walletBodyBox;
@@ -145,25 +145,29 @@ public class ErgoWalletsAppBox extends AppBox {
 
     public void getDefaultMarket(){
         
-        JsonObject note = Utils.getCmdObject("getDefaultInterface");
+        JsonObject note = Utils.getCmdObject("getDefaultMarketInterface");
         note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
-        NoteInterface noteInterface = (NoteInterface) m_ergoNetworkInterface.sendNote(note);
-      
+        Object obj = m_ergoNetworkInterface.sendNote(note);
+        NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
         m_selectedMarket.set(noteInterface);
-        
+     
     }
 
-    public void clearDefaultMarket(){
-
-        JsonObject setDefaultObject = Utils.getCmdObject("clearDefault");
-        setDefaultObject.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
-        setDefaultObject.addProperty("locationId", m_locationId);
-        m_ergoNetworkInterface.sendNote(setDefaultObject);
-    }
-
+    
     @Override
     public void sendMessage(int code, long timeStamp,String networkId, String msg){
+        if(networkId != null && networkId.equals(ErgoNetwork.MARKET_NETWORK)){
+
+            switch(code){
+                
+                case ErgoMarkets.MARKET_LIST_DEFAULT_CHANGED:
+                    getDefaultMarket(); 
+                break;
+              
+            }
+        }
+
         if(networkId != null && networkId.equals(ErgoNetwork.WALLET_NETWORK)){
             
             switch(code){
@@ -182,56 +186,7 @@ public class ErgoWalletsAppBox extends AppBox {
         }
     }
 
-    public static JsonObject getTokenQuoteJson(String tokenId){
-        JsonObject json = Utils.getCmdObject("getQuote");
-        json.addProperty("baseType", "id");
-        json.addProperty("base", ErgoCurrency.TOKEN_ID);
-        json.addProperty("quoteType","firstId");
-        json.addProperty("quote", tokenId);
 
-        return json;
-    }
-
-    public static JsonObject getErgoQuoteWithSymbol(String firstQuoteSymbolContains){
-        JsonObject json = Utils.getCmdObject("getQuote");
-        json.addProperty("baseType", "symbol");
-        json.addProperty("base", ErgoCurrency.SYMBOL);
-        json.addProperty("quoteType", "firstSymbolContains");
-        json.addProperty("quote", firstQuoteSymbolContains);
-
-        return json;
-    }
-
-    
-    public void updateTokenQuote(PriceAmount tokenAmount, String marketInterfaceId){
-        
-
-        NoteInterface tokenMarketInterface = m_selectedTokensMarket.get();
-        
-        if(tokenMarketInterface != null){
-            
-            String currentQuoteMarketId = tokenAmount.getMarketId();
-     
-
-            if(tokenAmount.priceQuoteProperty().get() == null || currentQuoteMarketId == null || (currentQuoteMarketId != null && !currentQuoteMarketId.equals(marketInterfaceId))){
-                String tokenId = tokenAmount.getTokenId();
-              
-                
-                Object succededObject = tokenMarketInterface.sendNote(getTokenQuoteJson(tokenId));
-                  
-                if(succededObject != null && succededObject instanceof PriceQuote){
-                    PriceQuote newQuote = (PriceQuote) succededObject;
-                    tokenAmount.setMarketId(marketInterfaceId);
-
-                    tokenAmount.priceQuoteProperty().set(newQuote);
-                    
-                }
-                
-            }
-        }else{
-
-        }
-    }
 
 
     private void updateWallet(){
@@ -628,7 +583,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 if (selectedWallet != null && lockBox.getLockId() != null) {
                     JsonObject json = Utils.getCmdObject("getAddresses");
                     json.addProperty("accessId", lockBox.getLockId());
-                    json.addProperty("networkId", m_locationId);
+                    json.addProperty("locationId", m_locationId);
 
                     Object successObject = selectedWallet.sendNote(json);
 
@@ -678,7 +633,7 @@ public class ErgoWalletsAppBox extends AppBox {
             if (m_configBox.get() == null && noteInterface != null) {
 
                 JsonObject note = Utils.getCmdObject("getConfigId");
-                note.addProperty("networkId", m_locationId);
+                note.addProperty("locationId", m_locationId);
 
                 noteInterface.sendNote(note, (onSuccess) -> {
                     Object obj = onSuccess.getSource().getValue();
@@ -733,8 +688,8 @@ public class ErgoWalletsAppBox extends AppBox {
         HBox.setHgrow(m_selectedAddressBox, Priority.ALWAYS);
         m_selectedAddressBox.setAlignment(Pos.TOP_LEFT);
 
-        ErgoWalletAmountBoxes amountBoxes = new ErgoWalletAmountBoxes(true, m_networkType, m_balanceObject, m_selectedMarket);
-        VBox balancePaddingBox = new VBox(amountBoxes);
+        m_amountBoxes = new ErgoWalletAmountBoxes(true, m_networkType, m_balanceObject);
+        VBox balancePaddingBox = new VBox(m_amountBoxes);
         balancePaddingBox.setPadding(new Insets(0, 0, 0, 0));
         HBox.setHgrow(balancePaddingBox, Priority.ALWAYS);
         
@@ -744,7 +699,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
             if(lockBox.isUnlocked()){
                 JsonObject note = Utils.getCmdObject("getBalance");
-                note.addProperty("locationId", locationId);
+                note.addProperty("locationId", m_locationId);
                 note.addProperty("accessId", lockBox.getLockId());
                 
                 Object obj = walletInterface.sendNote(note);
@@ -765,6 +720,8 @@ public class ErgoWalletsAppBox extends AppBox {
             }
         };
 
+
+
         ChangeListener<String> lockListener = (obs, oldval, newval) -> {
             NoteInterface noteInterface = m_selectedWallet.get();
 
@@ -777,6 +734,7 @@ public class ErgoWalletsAppBox extends AppBox {
             if (newval != null && noteInterface != null) {
                 JsonObject json = Utils.getCmdObject("getAddresses");
                 json.addProperty("accessId", newval);
+                json.addProperty("locationId", m_locationId);
 
                 Object successObject = noteInterface.sendNote(json);
 
@@ -824,13 +782,16 @@ public class ErgoWalletsAppBox extends AppBox {
                 m_walletMsgInterface = null;
             }
         
-
+            if(newVal != null && m_amountBoxes != null){
+                m_amountBoxes.shutdown();
+            }
+    
             lockBox.setLocked();
             m_configBox.set(null);
             updateWallet();
         });
 
-      
+ 
 
         showBalance.addListener((obs, oldval, newval) -> {
             if (newval) {
@@ -844,11 +805,6 @@ public class ErgoWalletsAppBox extends AppBox {
                 }
             }
         });
-
-        
-      
-
-
 
         lockBox.setOnSend(e->{
             hideMenus.run();
@@ -870,10 +826,12 @@ public class ErgoWalletsAppBox extends AppBox {
                     // addressesDataObject.set(json);
                     JsonElement codeElement = json.get("code");
                     JsonElement accessIdElement = json.get("accessId");
-                    if(accessIdElement != null && (codeElement == null || codeElement != null && codeElement.getAsString().equals(App.SUCCESS))){
+
+
+                    if(accessIdElement != null && codeElement == null){
                     
                         String accessId = accessIdElement.getAsString();
-
+                        
                         m_walletMsgInterface = new NoteMsgInterface() {
                             private final String m_accessId = accessId;
 
@@ -893,7 +851,7 @@ public class ErgoWalletsAppBox extends AppBox {
                                             JsonElement jsonElement = m_jsonParser.parse(msg);
 
                                             if(jsonElement != null && jsonElement.isJsonObject()){
-
+                                                
                                                 m_balanceObject.set(jsonElement.getAsJsonObject());
                                                 
                                             }
@@ -920,11 +878,11 @@ public class ErgoWalletsAppBox extends AppBox {
 
         });
 
+        if(m_openWalletBtn.getText().equals("")){
+            updateWallet();
+        }
+        getDefaultMarket();
         getDefaultWallet();
-
-
-
-
         getChildren().add(m_mainBox);
     }
 
@@ -947,7 +905,10 @@ public class ErgoWalletsAppBox extends AppBox {
                 noteInterface.removeMsgListener(m_walletMsgInterface);
             }
             m_selectedWallet.set(null);
-        }  
+        }
+        if(m_amountBoxes != null){
+            m_amountBoxes.shutdown();
+        }
     }
 
     public void setCurrent(boolean value) {
@@ -989,7 +950,7 @@ public class ErgoWalletsAppBox extends AppBox {
             NoteInterface noteInterface = m_selectedWallet.get();
 
             JsonObject note = Utils.getCmdObject("getFileData");
-            note.addProperty("networkId", m_locationId);
+            note.addProperty("locationId", m_locationId);
             note.addProperty("configId", m_configId);
 
             Object obj = noteInterface.sendNote(note);
@@ -1090,7 +1051,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 if (noteInterface != null) {
                     JsonObject note = Utils.getCmdObject("getFileData");
                     note.addProperty("configId", m_configId);
-                    note.addProperty("networkId", m_locationId);
+                    note.addProperty("locationId", m_locationId);
 
                     Object obj = noteInterface.sendNote(note);
 
@@ -1114,7 +1075,7 @@ public class ErgoWalletsAppBox extends AppBox {
                     if (walletFile != null) {
                         JsonObject updateFileObject = Utils.getCmdObject("updateFile");
                         updateFileObject.addProperty("file", walletFile.getAbsolutePath());
-                        updateFileObject.addProperty("networkId", m_locationId);
+                        updateFileObject.addProperty("locationId", m_locationId);
                         updateFileObject.addProperty("configId", m_configId);
                         noteInterface.sendNote(updateFileObject);
                     }
@@ -1147,7 +1108,7 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
                 JsonObject note = Utils.getCmdObject("getFileData");
-                note.addProperty("networkId", m_locationId);
+                note.addProperty("locationId", m_locationId);
                 note.addProperty("configId", m_configId);
 
                 Object obj = noteInterface.sendNote(note);
@@ -1239,7 +1200,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 JsonObject json = Utils.getCmdObject("updateName");
                 json.addProperty("name", name);
-                json.addProperty("networkId", m_locationId);
+                json.addProperty("locationId", m_locationId);
                 json.addProperty("configId", m_configId);
                 JsonObject updatedObj = (JsonObject) noteInterface.sendNote(json);
                 if (updatedObj != null) {
@@ -1295,7 +1256,7 @@ public class ErgoWalletsAppBox extends AppBox {
                         walletFileField.setEditable(true);
                         JsonObject note = Utils.getCmdObject("getFileData");
                         note.addProperty("configId", m_configId);
-                        note.addProperty("networkId", m_locationId);
+                        note.addProperty("locationId", m_locationId);
 
                         Object obj = noteInterface.sendNote(note);
                         if (obj != null && obj instanceof JsonObject) {
@@ -1328,7 +1289,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
                     JsonObject note = Utils.getCmdObject("updateFile");
                     note.addProperty("file", fileString);
-                    note.addProperty("networkId", m_locationId);
+                    note.addProperty("locationId", m_locationId);
                     note.addProperty("configId", m_configId);
                     Object obj = noteInterface.sendNote(note);
                     if (obj != null && obj instanceof JsonObject) {
@@ -2114,7 +2075,7 @@ public class ErgoWalletsAppBox extends AppBox {
         
             HBox nextBox = new HBox(m_sendBtn);
             nextBox.setAlignment(Pos.CENTER);
-            nextBox.setPadding(new Insets(20, 0, 0, 0));
+            nextBox.setPadding(new Insets(20, 0, 5, 0));
 
 
             VBox sendBodyBox = new VBox(addressPaddingBox, amountPaddingBox, nextBox);
@@ -2468,717 +2429,3 @@ public class ErgoWalletsAppBox extends AppBox {
        
 
 }
-
- /*
-    public void showSendStage(){
-        //String titleString = getName() + " - " + m_address.toString() + " - (" + getNetworkType().toString() + ")";
-        Stage sendStage = new Stage();
-        sendStage.getIcons().add(m_addressesData.getWalletData().getErgoWallets().getAppIcon());
-        sendStage.setResizable(false);
-        sendStage.initStyle(StageStyle.UNDECORATED);
-        
-
-        Button closeBtn = new Button();
-
-        addShutdownListener((obs, oldVal, newVal) -> {
-            closeBtn.fire();
-        });
-
-        VBox layoutBox = new VBox();
-
-        Scene sendScene = new Scene(layoutBox, Network.DEFAULT_STAGE_WIDTH, Network.DEFAULT_STAGE_HEIGHT); 
-        sendScene.setFill(null);
-        sendScene.getStylesheets().add("/css/startWindow.css");
-        
-    
-        SimpleStringProperty babbleTokenId = new SimpleStringProperty(null);
-
-
-        String stageName = "Send - " + m_addressString + " - (" + m_address.getNetworkType().toString() + ")";
-        sendStage.setTitle(stageName);
-
-      
-
-        Button maximizeBtn = new Button();
-
-        HBox titleBox = App.createTopBar(m_addressesData.getWalletData().getSmallAppIcon(), stageName, maximizeBtn, closeBtn, sendStage);
-        maximizeBtn.setOnAction(e -> {
-            sendStage.setMaximized(!sendStage.isMaximized());
-        });
-        Tooltip backTip = new Tooltip("Back");
-        backTip.setShowDelay(new javafx.util.Duration(100));
-        backTip.setFont(App.txtFont);
-
-
-        double imageWidth = App.MENU_BAR_IMAGE_WIDTH;
-
-        Tooltip nodesTip = new Tooltip("Select node");
-        nodesTip.setShowDelay(new javafx.util.Duration(50));
-        nodesTip.setFont(App.txtFont);
-
-        BufferedMenuButton nodesBtn = new BufferedMenuButton("/assets/ergoNodes-30.png", imageWidth);
-        nodesBtn.setPadding(new Insets(2, 0, 0, 0));
-        nodesBtn.setTooltip(nodesTip);
-
-        Tooltip explorerTip = new Tooltip("Select explorer");
-        explorerTip.setShowDelay(new javafx.util.Duration(50));
-        explorerTip.setFont(App.txtFont);
-
-        BufferedMenuButton explorerBtn = new BufferedMenuButton("/assets/ergo-explorer-30.png", imageWidth);
-        explorerBtn.setPadding(new Insets(2, 0, 0, 2));
-        explorerBtn.setTooltip(explorerTip);
-
-        SimpleObjectProperty<ErgoExplorerData> selectedExplorer = new SimpleObjectProperty<>(getErgoNetworkData().selectedExplorerData().get());
-
-        Runnable updateExplorerBtn = () -> {
-            ErgoExplorers ergoExplorers = getErgoNetworkData().getErgoExplorers();
-
-            ErgoExplorerData explorerData = selectedExplorer.get();
-
-            if (explorerData != null && ergoExplorers != null) {
-
-                explorerTip.setText("Ergo Explorer: " + explorerData.getName());
-
-            } else {
-
-                if (ergoExplorers == null) {
-                    explorerTip.setText("(install 'Ergo Explorer')");
-                } else {
-                    explorerTip.setText("Select Explorer...");
-                }
-            }
-
-        };
-        Button shutdownExplorerBtn = new Button();
-
-   
-
-        selectedExplorer.addListener((obs, oldval, newval) -> {
-            updateExplorerBtn.run();
-        });
-
-        Tooltip marketsTip = new Tooltip("Select market");
-        marketsTip.setShowDelay(new javafx.util.Duration(50));
-        marketsTip.setFont(App.txtFont);
-
-        BufferedMenuButton marketsBtn = new BufferedMenuButton("/assets/ergoChart-30.png", imageWidth);
-        marketsBtn.setPadding(new Insets(2, 0, 0, 0));
-        marketsBtn.setTooltip(marketsTip);
-
-       
-
-        Tooltip tokensTip = new Tooltip("Ergo Tokens");
-        tokensTip.setShowDelay(new javafx.util.Duration(50));
-        tokensTip.setFont(App.mainFont);
-
-        BufferedMenuButton tokensBtn = new BufferedMenuButton(ErgoTokens.getSmallAppIconString(), imageWidth);
-        tokensBtn.setPadding(new Insets(2, 0, 0, 0));
-        
-
-        Runnable updateTokensMenu = () -> {
-            tokensBtn.getItems().clear();
-   
-            tokensBtn.setId("menuBtn");
-            MenuItem tokensEnabledItem = new MenuItem("Enabled");
-            tokensEnabledItem.setOnAction(e -> {
-               // m_addressesData.ergoTokensProperty().set(ergoTokens);
-            });
-
-            MenuItem tokensDisabledItem = new MenuItem("Disabled");
-            tokensDisabledItem.setOnAction(e -> {
-              //  m_addressesData.ergoTokensProperty().set(null);
-            });
-
-        
-         
-            tokensBtn.getItems().addAll(tokensEnabledItem, tokensDisabledItem);
-        
-
-        };
-
-       // m_addressesData.ergoTokensProperty().addListener((obs, oldval, newval) -> {
-            //m_walletData.setIsErgoTokens(newval);
-        //    updateTokensMenu.run();
-       // });
-
-        Region seperator1 = new Region();
-        seperator1.setMinWidth(1);
-        seperator1.setId("vSeperatorGradient");
-        VBox.setVgrow(seperator1, Priority.ALWAYS);
-
-        Region seperator2 = new Region();
-        seperator2.setMinWidth(1);
-        seperator2.setId("vSeperatorGradient");
-        VBox.setVgrow(seperator2, Priority.ALWAYS);
-
-        Region seperator3 = new Region();
-        seperator3.setMinWidth(1);
-        seperator3.setId("vSeperatorGradient");
-        VBox.setVgrow(seperator3, Priority.ALWAYS);
-
-        HBox rightSideMenu = new HBox(nodesBtn, seperator1, explorerBtn, seperator2, marketsBtn, seperator3, tokensBtn);
-        rightSideMenu.setId("rightSideMenuBar");
-        rightSideMenu.setPadding(new Insets(0, 0, 0, 0));
-        rightSideMenu.setAlignment(Pos.CENTER_RIGHT);
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        HBox menuBar = new HBox(spacer, rightSideMenu);
-        HBox.setHgrow(menuBar, Priority.ALWAYS);
-        menuBar.setAlignment(Pos.CENTER_LEFT);
-        menuBar.setId("menuBar");
-        menuBar.setPadding(new Insets(1, 0, 1, 5));
-
-        Text headingText = new Text("Send");
-        headingText.setFont(App.txtFont);
-        headingText.setFill(Color.WHITE);
-
-        HBox headingBox = new HBox(headingText);
-        headingBox.prefHeight(40);
-        headingBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(headingBox, Priority.ALWAYS);
-        headingBox.setPadding(new Insets(10, 15, 10, 15));
-        headingBox.setId("headingBox");
-
-
-        Text fromText = new Text("From   ");
-        fromText.setFont(App.txtFont);
-        fromText.setFill(App.txtColor);
-
-      
-
-        MenuButton fromAddressBtn = new MenuButton();
-        fromAddressBtn.setMaxHeight(40);
-        fromAddressBtn.setContentDisplay(ContentDisplay.LEFT);
-        fromAddressBtn.setAlignment(Pos.CENTER_LEFT);
-        fromAddressBtn.setText(getButtonText());
-
-        ImageView fromAdrImgView = new ImageView();
-        fromAddressBtn.setGraphic(fromAdrImgView);
-
-        Runnable updateImage = ()->{
-            WritableImage img = getImage().get();
-            if(img != null){
-                fromAdrImgView.setImage(img);
-            }
-        };
-        getImage().addListener((obs, oldval, newval) -> updateImage.run());
-        updateImage.run();
-
-        Text toText = new Text("To     ");
-        toText.setFont(App.txtFont);
-        toText.setFill(App.txtColor);
-
-        AddressBox toAddressEnterBox = new AddressBox(new AddressInformation(""), sendScene, m_address.getNetworkType());
-        toAddressEnterBox.setId("bodyRowBox");
-        toAddressEnterBox.setMinHeight(50);
-
-        HBox.setHgrow(toAddressEnterBox, Priority.ALWAYS);
-
-        HBox toAddressBox = new HBox(toText, toAddressEnterBox);
-        toAddressBox.setPadding(new Insets(0, 15, 10, 30));
-        toAddressBox.setAlignment(Pos.CENTER_LEFT);
-
-        HBox fromRowBox = new HBox(fromAddressBtn);
-        HBox.setHgrow(fromRowBox, Priority.ALWAYS);
-        fromRowBox.setAlignment(Pos.CENTER_LEFT);
-        fromRowBox.setId("bodyRowBox");
-        fromRowBox.setPadding(new Insets(0));
-
-        HBox fromAddressBox = new HBox(fromText, fromRowBox);
-        fromAddressBox.setPadding(new Insets(3, 15, 8, 30));
-
-        HBox.setHgrow(fromAddressBox, Priority.ALWAYS);
-        fromAddressBox.setAlignment(Pos.CENTER_LEFT);
-
-        Button statusBoxBtn = new Button();
-        statusBoxBtn.setId("bodyRowBox");
-        statusBoxBtn.setPrefHeight(50);
-        statusBoxBtn.setFont(App.txtFont);
-        statusBoxBtn.setAlignment(Pos.CENTER_LEFT);
-        statusBoxBtn.setPadding(new Insets(0));
-       
-
-        HBox nodeStatusBox = new HBox();
-        nodeStatusBox.setId("bodyRowBox");
-        nodeStatusBox.setPadding(new Insets(0, 0, 0, 0));
-        nodeStatusBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(nodeStatusBox, Priority.ALWAYS);
-     
-
-        SimpleObjectProperty<ErgoNodeData> selectedNode = new SimpleObjectProperty<>(null); // m_addressesData.selectedNodeData().get());
-   
-        Runnable updateNodeBtn = () -> {
-            ErgoNodes ergoNodes =  getErgoNetworkData().getErgoNodes();
-            ErgoNodeData nodeData = selectedNode.get();
-
-            nodeStatusBox.getChildren().clear();
-
-            if (nodeData != null && ergoNodes != null) {
-                nodesTip.setText(nodeData.getName());
-                HBox statusBox = nodeData.getStatusBox();
-
-                nodeStatusBox.getChildren().add(statusBox);
-
-                nodeStatusBox.setId("tokenBtn");
-            } else {
-                nodeStatusBox.setId(null);
-                nodeStatusBox.getChildren().add(statusBoxBtn);
-                statusBoxBtn.prefWidthProperty().bind(fromAddressBtn.widthProperty());
-                if (ergoNodes == null) {
-                    String statusBtnText = "Install Ergo Nodes";
-                    nodesTip.setText(statusBtnText);
-                    statusBoxBtn.setGraphic(IconButton.getIconView(new Image("/assets/selectNode.png"), 164));
-                } else {
-                    String statusBtnText = "Select node";
-                    nodesTip.setText(statusBtnText);
-                    statusBoxBtn.setGraphic(IconButton.getIconView(new Image("/assets/selectNode.png"), 164));
-                }
-            }
-
-        };
-
-        Runnable getAvailableNodeMenu = () -> {
-            ErgoNodes ergoNodes =  getErgoNetworkData().getErgoNodes();
-            if (ergoNodes != null) {
-                ergoNodes.getErgoNodesList().getMenu(nodesBtn, selectedNode);
-                nodesBtn.setId("menuBtn");
-            } else {
-                nodesBtn.getItems().clear();
-                nodesBtn.setId("menuBtnDisabled");
-
-            }
-            updateNodeBtn.run();
-        };
-
-        selectedNode.addListener((obs, oldval, newval) -> {
-            updateNodeBtn.run();
-           // m_addressesData.getWalletData().setNodesId(newval == null ? null : newval.getId());
-        });
-
-    
-
-   
-        getAvailableNodeMenu.run();
-     //  getAvailableMarketsMenu.run();
-        updateTokensMenu.run();
-
-        Text nodeText = new Text("Node   ");
-        nodeText.setFont(App.txtFont);
-        nodeText.setFill(App.txtColor);
-
-        HBox nodeRowBox = new HBox(nodeText, nodeStatusBox);
-        nodeRowBox.setPadding(new Insets(0, 15, 10, 30));
-        nodeRowBox.setMinHeight(60);
-        nodeRowBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(nodeRowBox, Priority.ALWAYS);
-
-        Text amountText = new Text("Amount ");
-        amountText.setFont(App.txtFont);
-        amountText.setFill(App.txtColor);
-
-        //   BufferedButton addTokenBtn = new BufferedButton("/assets/add-outline-white-40.png", 15);
-        Tooltip addTokenBtnTip = new Tooltip("Add Token");
-        addTokenBtnTip.setShowDelay(new Duration(100));
-
-        BufferedMenuButton addTokenBtn = new BufferedMenuButton("/assets/add-30.png", 20);
-        addTokenBtn.setTooltip(addTokenBtnTip);
-
-        Tooltip addAllTokenBtnTip = new Tooltip("Add All Tokens");
-        addAllTokenBtnTip.setShowDelay(new Duration(100));
-
-        BufferedButton addAllTokenBtn = new BufferedButton("/assets/add-all-30.png", 20);
-        addAllTokenBtn.setTooltip(addAllTokenBtnTip);
-
-        Tooltip removeTokenBtnTip = new Tooltip("Remove Token");
-        removeTokenBtnTip.setShowDelay(new Duration(100));
-        
-        BufferedMenuButton removeTokenBtn = new BufferedMenuButton("/assets/remove-30.png", 20);
-        removeTokenBtn.setTooltip(removeTokenBtnTip);
-
-        Tooltip removeAllTokenBtnTip = new Tooltip("Remove All Tokens");
-        removeAllTokenBtnTip.setShowDelay(new Duration(100));
-
-        BufferedButton removeAllTokenBtn = new BufferedButton("/assets/remove-all-30.png", 20);
-        removeAllTokenBtn.setTooltip(removeAllTokenBtnTip);
-
-        HBox amountBoxesButtons = new HBox(addTokenBtn, addAllTokenBtn, removeTokenBtn, removeAllTokenBtn);
-        amountBoxesButtons.setId("bodyBoxMenu");
-        amountBoxesButtons.setPadding(new Insets(0, 5, 0, 5));
-        amountBoxesButtons.setAlignment(Pos.BOTTOM_CENTER);
-
-        VBox amountRightSideBox = new VBox(amountBoxesButtons);
-        amountRightSideBox.setPadding(new Insets(0, 3, 0, 0));
-        amountRightSideBox.setAlignment(Pos.BOTTOM_RIGHT);
-        VBox.setVgrow(amountRightSideBox, Priority.ALWAYS);
-
-        //    HBox.setHgrow(amountRightSideBox,Priority.ALWAYS);
-        HBox amountTextBox = new HBox(amountText);
-        amountTextBox.setAlignment(Pos.CENTER_LEFT);
-        amountTextBox.setMinHeight(40);
-        HBox.setHgrow(amountTextBox, Priority.ALWAYS);
-
-        HBox amountBoxRow = new HBox(amountTextBox, amountRightSideBox);
-        amountBoxRow.setPadding(new Insets(10, 20, 0, 30));
-
-        amountBoxRow.setAlignment(Pos.BOTTOM_LEFT);
-        HBox.setHgrow(amountBoxRow, Priority.ALWAYS);
-
-        AmountSendBox ergoAmountBox = new AmountSendBox(m_ergoAmount,0, sendScene, true);
-        ergoAmountBox.isFeeProperty().set(true);
-        
-
-        HBox.setHgrow(ergoAmountBox, Priority.ALWAYS);
-
-        // addTokenBtn.setOnAction(e->addTokenBtn.show());
-        AmountBoxes amountBoxes = new AmountBoxes();
-        amountBoxes.setPadding(new Insets(10, 10, 10, 0));
-
-        amountBoxes.setAlignment(Pos.TOP_LEFT);
-        //   amountBoxes.setLastRowItem(addTokenBtn, AmountBoxes.ADD_AS_LAST_ROW);
-        amountBoxes.setId("bodyBox");
-        //  addTokenBtn.setAmountBoxes(amountBoxes);
-
-        Runnable removeTokenMenuItems = ()->{
-            addTokenBtn.getItems().forEach(item->((AmountMenuItem)item).shutdown());
-            addTokenBtn.getItems().clear();
-        };
-
-  
-
-        addTokenBtn.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
-            removeTokenMenuItems.run();
-           
-            long balanceTimestamp = System.currentTimeMillis();
-            int size = getConfirmedTokenList().size();
-            PriceAmount[] tokenArray = size > 0 ? new PriceAmount[size] : null;
-            tokenArray = tokenArray != null ? getConfirmedTokenList().toArray(tokenArray) : null;
-            if (tokenArray != null) {
-                for (int i = 0; i < size; i++) {
-                    PriceAmount tokenAmount = tokenArray[i];
-                    String tokenId = tokenAmount.getTokenId();
-
-                    if (tokenId != null) {
-                        AmountBox isBox = (AmountBox) amountBoxes.getAmountBox(tokenId);
-
-                        if (isBox == null) {
-                            AmountMenuItem menuItem = new AmountMenuItem(tokenAmount);
-                            addTokenBtn.getItems().add(menuItem);
-                            menuItem.setOnAction(e1 -> {
-                                PriceAmount menuItemPriceAmount = menuItem.getPriceAmount();
-                           
-                                AmountSendBox newAmountSendBox = new AmountSendBox(menuItemPriceAmount, balanceTimestamp, sendScene, true);
-                                
-                                amountBoxes.add(newAmountSendBox);
-                            });
-                        }
-
-                    }
-                }
-            }
-            
-            if (addTokenBtn.getItems().size() == 0) {
-                addTokenBtn.getItems().add(new MenuItem("No tokens to add"));
-            }
-
-        });
-
-        addAllTokenBtn.setOnAction(e -> {
-            
-            List<PriceAmount> tokenList = getConfirmedTokenList();
-            long timeStamp = System.currentTimeMillis();
-
-            for (int i = 0; i < tokenList.size(); i++) {
-                PriceAmount tokenAmount = tokenList.get(i);
-                String tokenId = tokenAmount.getTokenId();
-                AmountSendBox existingTokenBox = (AmountSendBox) amountBoxes.getAmountBox(tokenId);
-                if (existingTokenBox == null) {
-                   
-                    AmountSendBox tokenAmountBox = new AmountSendBox(tokenAmount,timeStamp, sendScene, true);
-              
-                   
-                    amountBoxes.add(tokenAmountBox);
-                } else {
-                    existingTokenBox.setTimeStamp(timeStamp);
-                    
-                }
-            }
-            
-        });
-
-        removeTokenBtn.addEventFilter(MouseEvent.MOUSE_PRESSED, e -> {
-
-            removeTokenBtn.getItems().clear();
-            int size = amountBoxes.amountsList().size();
-            if (size > 0) {
-                AmountBox[] boxArray = new AmountBox[size];
-                boxArray = amountBoxes.amountsList().toArray(boxArray);
-
-                for (int i = 0; i < size; i++) {
-                    AmountBox tokenBox = boxArray[i];
-                    PriceAmount tokenAmount = tokenBox.getPriceAmount();
-                    AmountMenuItem removeAmountItem = new AmountMenuItem(tokenAmount);
-                    removeAmountItem.setOnAction(e1 -> {
-                        String tokenId = removeAmountItem.getTokenId();
-                        amountBoxes.removeAmountBox(tokenId);
-                    });
-                    removeTokenBtn.getItems().add(removeAmountItem);
-                }
-            }
-            if (removeTokenBtn.getItems().size() == 0) {
-                removeTokenBtn.getItems().add(new MenuItem("No tokens to remove"));
-            }
-        });
-
-        removeAllTokenBtn.setOnAction(e -> {
-            amountBoxes.clear();
-        });
-
-        Runnable updateBabbleFees = () -> {
-            String babbleId = babbleTokenId.get();
-
-            if (babbleId == null) {
-                ergoAmountBox.isFeeProperty().set(true);
-            }
-        };
-
-        updateBabbleFees.run();
-
-        babbleTokenId.addListener((obs, oldval, newval) -> updateBabbleFees.run());
-
-
-        //  addTokenBtn.prefWidthProperty().bind(amountBoxes.widthProperty());
-        Region sendBoxSpacer = new Region();
-        HBox.setHgrow(sendBoxSpacer, Priority.ALWAYS);
-
-        Runnable checkAndSend = () -> {
-
-            if (ergoAmountBox.isNotAvailable()) {
-                String insufficentErrorString = "Balance: " + m_ergoAmount.toString() + "\nAmount: " + ergoAmountBox.getSendAmount() + (ergoAmountBox.isFeeProperty().get() ? ("\nSend fee: " + ergoAmountBox.feeAmountProperty().get().toString()) : "");
-                String insufficentTitleString = "Insuficient " + m_ergoAmount.getCurrency().getDefaultName();
-                Alert a = new Alert(AlertType.NONE, insufficentErrorString, ButtonType.CANCEL);
-                a.setTitle(insufficentTitleString);
-                a.initOwner(sendStage);
-                a.setHeaderText(insufficentTitleString);
-                a.show();
-                return;
-            }
-
-            AddressInformation addressInformation = toAddressEnterBox.addressInformationProperty().get();
-
-            if (addressInformation != null && addressInformation.getAddress() != null) {
-                ErgoNodeData ergoNodeData = selectedNode.get();
-                
-                ErgoExplorerData ergoExplorerData = null;//m_addressesData.selectedExplorerData().get();
-                AmountBoxInterface[] amountBoxArray = amountBoxes.getAmountBoxArray();
-
-                int amountOfTokens = amountBoxArray != null && amountBoxArray.length > 0 ? amountBoxArray.length : 0;
-
-                AmountSendBox[] tokenArray = amountOfTokens > 0 ? new AmountSendBox[amountOfTokens] : null;
-
-                if (amountOfTokens > 0 && amountBoxArray != null && tokenArray != null) {
-                    for (int i = 0; i < amountOfTokens; i++) {
-                        AmountBoxInterface box = amountBoxArray[i];
-                        if (box != null && box instanceof AmountSendBox) {
-                            AmountSendBox sendBox = (AmountSendBox) box;
-                            if (sendBox.isNotAvailable()) {
-
-                                BigDecimal sendAmount = sendBox.getSendAmount();
-                                PriceAmount balance = sendBox.getBalanceAmount();
-
-                                String insufficentErrorString = "Balance: " + sendAmount.toString() + "\nAmount: " + sendAmount + (sendBox.isFeeProperty().get() ? ("\nSend fee: " + sendBox.feeAmountProperty().get().toString()) : "");
-                                String insufficentTitleString = "Insuficient " + balance.getCurrency().getDefaultName();
-               
-                                Alert a = new Alert(AlertType.NONE, insufficentErrorString, ButtonType.CANCEL);
-                                a.setTitle(insufficentTitleString);
-                                a.initOwner(sendStage);
-                                a.setHeaderText(insufficentTitleString);
-                                a.show();
-                                return;
-                            } else {
-
-                                tokenArray[i] = sendBox;
-                                 
-                            }
-                        }
-                    }
-               
-
-                }
-               
-                
-                BigDecimal feeAmount = ergoAmountBox.feeAmountProperty().get();
-               
-                showTxConfirmScene(this, addressInformation, ergoNodeData, ergoExplorerData,ergoAmountBox, tokenArray,feeAmount,sendScene, sendStage, () -> closeBtn.fire(), () -> closeBtn.fire());
-
-            } else {
-
-                Alert a = new Alert(AlertType.NONE, "Enter a valid address.", ButtonType.CANCEL);
-                a.setTitle("Invalid Receiver Address");
-                a.initOwner(sendStage);
-                a.setHeaderText("Invalid Receiver Address");
-                a.show();
-
-                return;
-
-            }
-
-        };
-
-        BufferedButton sendBtn = new BufferedButton("Send", "/assets/arrow-send-white-30.png", 30);
-        sendBtn.setFont(App.txtFont);
-        sendBtn.setId("toolBtn");
-        sendBtn.setUserData("sendButton");
-        sendBtn.setContentDisplay(ContentDisplay.LEFT);
-        sendBtn.setPadding(new Insets(5, 10, 3, 5));
-        sendBtn.setOnAction(e -> {
-           
-            
-        });
-
-        HBox sendBox = new HBox(sendBtn);
-        VBox.setVgrow(sendBox, Priority.ALWAYS);
-        sendBox.setPadding(new Insets(0, 0, 8, 15));
-        sendBox.setAlignment(Pos.CENTER_RIGHT);
-
-        HBox ergoAmountPaddingBox = new HBox(ergoAmountBox);
-        ergoAmountPaddingBox.setId("bodyBox");
-        ergoAmountPaddingBox.setPadding(new Insets(10, 10, 0, 10));
-
-        VBox scrollPaneContentVBox = new VBox(ergoAmountPaddingBox, amountBoxes);
-
-        ScrollPane scrollPane = new ScrollPane(scrollPaneContentVBox);
-        scrollPane.setPadding(new Insets(0, 0, 0, 20));
-
-        VBox scrollPaddingBox = new VBox(scrollPane);
-        HBox.setHgrow(scrollPaddingBox, Priority.ALWAYS);
-        scrollPaddingBox.setPadding(new Insets(0, 5, 0, 5));
-
-        VBox bodyBox = new VBox(fromAddressBox, toAddressBox, nodeRowBox, amountBoxRow, scrollPaddingBox);
-        VBox.setVgrow(bodyBox, Priority.ALWAYS);
-        bodyBox.setId("bodyBox");
-        bodyBox.setPadding(new Insets(15, 0, 0, 0));
-
-        VBox bodyLayoutBox = new VBox(headingBox, bodyBox);
-        VBox.setVgrow(bodyLayoutBox, Priority.ALWAYS);
-        bodyLayoutBox.setPadding(new Insets(0, 4, 4, 4));
-
-        HBox footerBox = new HBox(sendBox);
-        HBox.setHgrow(footerBox, Priority.ALWAYS);
-        footerBox.setPadding(new Insets(5, 30, 0, 5));
-        footerBox.setAlignment(Pos.CENTER_RIGHT);
-
-        HBox paddingBox = new HBox(menuBar);
-        HBox.setHgrow(paddingBox, Priority.ALWAYS);
-        paddingBox.setPadding(new Insets(0, 4, 4, 4));
-
-        layoutBox.getChildren().addAll(titleBox, paddingBox, bodyLayoutBox, footerBox);
-        VBox.setVgrow(layoutBox, Priority.ALWAYS);
-        layoutBox.setAlignment(Pos.TOP_LEFT);
-
-        fromAddressBtn.prefWidthProperty().bind(fromAddressBox.widthProperty().subtract(fromText.layoutBoundsProperty().getValue().getWidth()).subtract(30));
-
-        scrollPane.prefViewportHeightProperty().bind(layoutBox.heightProperty().subtract(20).subtract(titleBox.heightProperty()).subtract(paddingBox.heightProperty()).subtract(headingBox.heightProperty()).subtract(fromAddressBox.heightProperty()).subtract(toAddressBox.heightProperty()).subtract(nodeRowBox.heightProperty()).subtract(amountBoxRow.heightProperty()).subtract(footerBox.heightProperty()).subtract(15));
-        amountBoxes.minHeightProperty().bind(scrollPane.prefViewportHeightProperty().subtract(20).subtract(ergoAmountPaddingBox.heightProperty()));
-        scrollPane.prefViewportWidthProperty().bind(sendScene.widthProperty().subtract(60));
-        amountBoxes.prefWidthProperty().bind(sendScene.widthProperty().subtract(60));
-        ergoAmountPaddingBox.prefWidthProperty().bind(sendScene.widthProperty().subtract(60));
-
-        sendStage.setScene(sendScene);
-        sendStage.show();
-
-        closeBtn.setOnAction(e->{
-            ergoAmountBox.shutdown();
-            amountBoxes.shutdown();
-            scrollPane.prefHeightProperty().unbind();
-            scrollPane.prefWidthProperty().unbind();
-            amountBoxes.minHeightProperty().unbind();
-            ergoAmountPaddingBox.prefWidthProperty().unbind();
-            shutdownExplorerBtn.fire();
-            sendStage.close();
-           
-        });
-
-        maximizeBtn.setOnAction(e->{
-            sendStage.setMaximized(!sendStage.isMaximized());
-        });
-
-
-        ResizeHelper.addResizeListener(sendStage, 200, 250, Double.MAX_VALUE, Double.MAX_VALUE);
-
-    }*/
-
-/*
- * //New
- * // Scene mnemonicScene = createMnemonicScene(friendlyId,
- * walletNameField.getText(), nodeId, explorerId,
- * marketsId,tokenMarketIdProperty.get(), tokensEnabled, networkType, stage);
- * 
- * //Restore
- * 
- * restoreWalletBtn.setOnAction(clickEvent -> {
- * String seedPhrase = restoreMnemonicStage();
- * if (!seedPhrase.equals("")) {
- * Button passBtn = new Button();
- * Stage passwordStage = App.createPassword(m_ergoWallet.getName() +
- * " - Restore wallet: Password", m_ergoWallet.getIcon(),
- * m_ergoWallet.getAppIcon(), passBtn,
- * m_ergoWallet.getNetworksData().getExecService(), onSuccess -> {
- * Object sourceObject = onSuccess.getSource().getValue();
- * 
- * if (sourceObject != null && sourceObject instanceof String) {
- * 
- * String passwordString = (String) sourceObject;
- * if (!passwordString.equals("")) {
- * Mnemonic mnemonic = Mnemonic.create(SecretString.create(seedPhrase),
- * SecretString.create(passwordString));
- * 
- * FileChooser saveFileChooser = new FileChooser();
- * // saveFileChooser.setInitialDirectory(getWalletsDirectory());
- * saveFileChooser.setTitle("Save: Wallet file");
- * saveFileChooser.getExtensionFilters().add(ErgoWallets.ergExt);
- * saveFileChooser.setSelectedExtensionFilter(ErgoWallets.ergExt);
- * 
- * File walletFile = saveFileChooser.showSaveDialog(appStage);
- * 
- * if (walletFile != null) {
- * 
- * try {
- * 
- * 
- * Wallet.create(walletFile.toPath(), mnemonic, seedPhrase,
- * passwordString.toCharArray());
- * 
- * NetworkType networkType = selectedNetworkType.get();
- * String nodeId = selectedNodeData.get() == null ? null :
- * selectedNodeData.get().getId();
- * String explorerId = selectedExplorerData.get() == null ? null :
- * selectedExplorerData.get().getId();
- * String marketsId = marketIdProperty.get();
- * boolean tokensEnabled =ergoTokensEnabledProperty.get();
- * 
- * ErgoWalletData walletData = new ErgoWalletData(friendlyId,
- * walletNameField.getText(), walletFile, networkType, m_ergoWallet);
- * add(walletData);
- * 
- * 
- * 
- * } catch (Exception e1) {
- * Alert a = new Alert(AlertType.NONE, "Wallet creation: Cannot be saved.\n\n" +
- * e1.toString(), ButtonType.OK);
- * a.initOwner(appStage);
- * a.show();
- * }
- * }
- * 
- * }
- * 
- * passBtn.fire();
- * }
- * });
- * passwordStage.show();
- * }
- * 
- * });
- */

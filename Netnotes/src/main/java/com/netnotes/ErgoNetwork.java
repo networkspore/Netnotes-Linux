@@ -50,7 +50,6 @@ public class ErgoNetwork extends Network implements NoteInterface {
    // private File logFile = new File("netnotes-log.txt");
     private ErgoNetworkData m_ergNetData = null;
 
-    
   //  private Image m_balanceImage = new Image("/assets/balance-list-30.png");
  //   private Image m_txImage = new Image("/assets/transaction-list-30.png");
 //    private Image m_sendImage = new Image("/assets/arrow-send-white-30.png");
@@ -58,13 +57,13 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
 
     //private SimpleBooleanProperty m_shuttingdown = new SimpleBooleanProperty(false);
-    public ErgoNetwork(NetworksData networksData) {
+    public ErgoNetwork(NetworksData networksData, String locationId) {
         super(new Image("/assets/ergo-network-30.png"), NAME, NETWORK_ID, networksData);
         
 
         setKeyWords(new String[]{"blockchain","smart contracts", "programmable", "dApp", "wallet"});
 
-        m_ergNetData = new ErgoNetworkData(this);
+        m_ergNetData = new ErgoNetworkData(this, locationId);
 
     }
   
@@ -146,12 +145,9 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
    
 
-    private ArrayList<String> m_authorizedLocations = new ArrayList<>();
 
-    private boolean isLocationAuthorized(String locationString){
-        
-        return locationString.equals(App.LOCAL) || m_authorizedLocations.contains(locationString);
-    }
+
+
 
 
 
@@ -165,12 +161,12 @@ public class ErgoNetwork extends Network implements NoteInterface {
         JsonElement cmdElement = note.get(App.CMD);
         JsonElement networkIdElement = note.get("networkId");
         JsonElement locationIdElement = note.get("locationId");
-
+      
     
         if (cmdElement != null  && networkIdElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && locationIdElement != null && locationIdElement.isJsonPrimitive()) {
             String locationId = locationIdElement.getAsString();
             String locationString = getNetworksData().getLocationString(locationId);
-            if(isLocationAuthorized(locationString)){
+            if(m_ergNetData.isLocationAuthorized(locationString)){
                 
                 note.remove("locationString");
                 note.addProperty("locationString", locationString);
@@ -209,7 +205,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
         if (cmdElement != null  && networkIdElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && locationIdElement != null && locationIdElement.isJsonPrimitive()) {
             String locationId = locationIdElement.getAsString();
             String locationString = getNetworksData().getLocationString(locationId);
-            if(isLocationAuthorized(locationString)){
+            if(m_ergNetData.isLocationAuthorized(locationString)){
                 
                 note.remove("locationString");
                 note.addProperty("locationString", locationString);
@@ -246,11 +242,11 @@ public class ErgoNetwork extends Network implements NoteInterface {
     private TabInterface m_ergoNetworkTab = null;
 
     @Override
-    public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
+    public TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
         if(m_ergoNetworkTab != null){
             return m_ergoNetworkTab;
         }else{
-            m_ergoNetworkTab = new ErgoNetworkTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            m_ergoNetworkTab = new ErgoNetworkTab(appStage, heightObject, widthObject, networkBtn);
             return m_ergoNetworkTab;
         }
     }
@@ -282,7 +278,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
         
 
-        public ErgoNetworkTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
+        public ErgoNetworkTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
             super(NETWORK_ID);
             m_menuBtn = networkBtn;
      
@@ -292,11 +288,11 @@ public class ErgoNetwork extends Network implements NoteInterface {
             prefHeightProperty().bind(heightObject);
 
 
-            m_ergoWalletsAppBox = new ErgoWalletsAppBox(appStage, locationId, getNoteInterface());
-            m_ergoExplorerAppBox = new ErgoExplorersAppBox(appStage, locationId, getNoteInterface());
-            m_ergoNodesAppBox = new ErgoNodesAppBox(appStage,  locationId, getNoteInterface());
-            m_ergoMarketsAppBox = new ErgoMarketAppBox(appStage, locationId, getNoteInterface());
-            m_ergoTokenMarketAppBox = new ErgoTokenMarketAppBox(appStage, locationId, getNoteInterface());
+            m_ergoWalletsAppBox = new ErgoWalletsAppBox(appStage, m_ergNetData.getLocationId(), getNoteInterface());
+            m_ergoExplorerAppBox = new ErgoExplorersAppBox(appStage, m_ergNetData.getLocationId(), getNoteInterface());
+            m_ergoNodesAppBox = new ErgoNodesAppBox(appStage,  m_ergNetData.getLocationId(), getNoteInterface());
+            m_ergoMarketsAppBox = new ErgoMarketAppBox(appStage, m_ergNetData.getLocationId(), getNoteInterface());
+            m_ergoTokenMarketAppBox = new ErgoTokenMarketAppBox(appStage, m_ergNetData.getLocationId(), getNoteInterface());
               
             m_ergoNetworkMsgInterface = new NoteMsgInterface() {
                 public String getId(){

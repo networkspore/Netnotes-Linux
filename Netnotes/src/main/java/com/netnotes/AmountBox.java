@@ -1,12 +1,16 @@
 package com.netnotes;
 
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 import com.devskiller.friendly_id.FriendlyId;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -28,9 +32,11 @@ public class AmountBox extends HBox implements AmountBoxInterface {
     private int m_minImgWidth = 250;
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
 
-    private ChangeListener<PriceQuote> m_priceQuoteListener = null;
     private ChangeListener<BigDecimal> m_amountListener = null;
+    private ChangeListener<PriceQuote> m_quoteListener = null;
     private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(180);
+
+    private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
 
     public AmountBox(){
         super();
@@ -281,30 +287,33 @@ public class AmountBox extends HBox implements AmountBoxInterface {
                 }
             }
         });
+
+
        
-        
-        Runnable addCurrentAmountListeners = ()->{
-            PriceAmount currentAmount = m_priceAmount;
 
-            m_amountListener = (obs,oldval,newval)->{
-                String amountString = newval + "";
-                if(!amountField.getText().equals(amountString)){
-                    amountField.setText(amountString);
-                }
-                
-            };
+          
 
-   
-            m_priceQuoteListener = (obs, oldval, newval)-> {};
-           
-            currentAmount.amountProperty().addListener(m_amountListener);
-           
-            currentAmount.priceQuoteProperty().addListener(m_priceQuoteListener);
-
+        m_amountListener = (obs,oldval,newval)->{
+            String amountString = newval + "";
+            if(!amountField.getText().equals(amountString)){
+                amountField.setText(amountString);
+            }
+            
         };
 
-        addCurrentAmountListeners.run();
+        m_quoteListener = (obs, oldval, newval)->{
+            try {
+                Files.writeString(App.logFile.toPath(), "quoteChanged\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
+
+            }
+        };
+
         
+        m_priceAmount.amountProperty().addListener(m_amountListener);
+    
+        m_priceQuote.addListener(m_quoteListener);
+
     
 
         getChildren().add(layoutBox);
@@ -362,18 +371,16 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         return m_priceAmount;
     }
 
-    public void shutdown(){
-    
+    public PriceQuote getPriceQuote() {
+        return m_priceQuote.get();
+    }
 
-        if(m_amountListener != null){
-            m_priceAmount.amountProperty().removeListener(m_amountListener);
-            m_amountListener = null;
-        }
-       
-        if(m_priceQuoteListener != null){
-            m_priceAmount.priceQuoteProperty().removeListener(m_priceQuoteListener);
-            m_priceQuoteListener = null;
-        }
+    public void setPriceQuote(PriceQuote priceQuote) {
+        m_priceQuote.set(priceQuote);
+    }
+
+
+    public void shutdown(){
         
     }
 

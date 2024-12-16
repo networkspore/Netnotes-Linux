@@ -39,6 +39,7 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
 
     private ChangeListener<BigDecimal> m_currentBalanceListener = null;
 
+    private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
 
     private int m_minImgWidth = 250;
     
@@ -519,11 +520,10 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
    
  
     public void updateBufferedImage(ImageView imageView) {
-        BigDecimal sendAmount = m_sendAmount;
+   /*     BigDecimal sendAmount = m_sendAmount;
         
         PriceCurrency currency = m_balanceAmount.getCurrency();
 
-        PriceQuote priceQuote = m_balanceAmount.priceQuoteProperty().get();
         boolean priceValid = priceQuote != null && priceQuote.getTimeStamp() != 0 && priceQuote.howOldMillis() < AddressesData.QUOTE_TIMEOUT;
         BigDecimal priceQuoteBigDecimal = priceValid  && priceQuote != null ? priceQuote.getBigDecimalAmount() : BigDecimal.valueOf(0);
         
@@ -638,30 +638,25 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
         m_g2d.setColor(new java.awt.Color(.6f, .6f, .6f, .9f));
         m_g2d.drawString(currencyPrice, padding, height - 10);
 
-        /*try {
-            Files.writeString(logFile.toPath(), amountString + decs);
-        } catch (IOException e) {
-
-        }*/
+    
         m_g2d.dispose();
 
-       /* try {
-            ImageIO.write(img, "png", new File("outputImage.png"));
-        } catch (IOException e) {
 
-        }*/
 
         imageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
 
         m_g2d = null;
         m_img = null;
-        
+       */ 
     }
+
 
     public void updateToken(){
         
     }
-
+    public PriceAmount getPriceAmount(){
+        return m_balanceAmount;
+    }
     public PriceAmount getBalanceAmount(){
         return m_balanceAmount;
     }
@@ -673,6 +668,14 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
             }
            
         }
+    }
+
+    public PriceQuote getPriceQuote() {
+        return m_priceQuote.get();
+    }
+
+    public void setPriceQuote(PriceQuote priceQuote) {
+        m_priceQuote.set(priceQuote);
     }
 
     public void shutdown(){

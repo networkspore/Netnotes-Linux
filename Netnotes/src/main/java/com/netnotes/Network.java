@@ -144,8 +144,8 @@ public class Network  {
                 return Network.this.getJsonObject();
             }
 
-            public TabInterface getTab(Stage appStage,String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
-                return Network.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+                return Network.this.getTab(appStage, heightObject, widthObject, networkBtn);
             }
 
 
@@ -203,7 +203,7 @@ public class Network  {
     }
 
 
-    public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
+    public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
         return null;
     }
 

@@ -12,14 +12,14 @@ import javafx.beans.property.SimpleObjectProperty;
 
 public class PriceQuote {
 
-    private BigDecimal m_amount = BigDecimal.ZERO;
+    private SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>( BigDecimal.ZERO);
     private String m_transactionCurrencyId = "";
     private String m_transactionCurrency;
     private String m_quoteCurrency;
     private long m_timestamp = 0;
     private String m_quoteCurrencyId = "";
-
-
+    private String m_exchangeId = "";
+    private boolean m_defaultInvert = false;
 
     public PriceQuote(){
         m_timestamp = System.currentTimeMillis();
@@ -40,7 +40,7 @@ public class PriceQuote {
     private void setPrices(String amountString, String transactionCurrency, String quoteCurrency){
         setStringAmount(amountString);
         m_timestamp = System.currentTimeMillis();
-        m_amount = new BigDecimal(amountString);
+        setAmountString(amountString);
         m_transactionCurrency = transactionCurrency;
         m_quoteCurrency = quoteCurrency;
         m_transactionCurrencyId = null;
@@ -50,7 +50,8 @@ public class PriceQuote {
     public void setPrices(BigDecimal amount, String transactionCurrency, String quoteCurrency, String txId, String quoteId){
        
         m_timestamp = System.currentTimeMillis();
-        m_amount = amount != null ? amount : BigDecimal.ZERO;
+        BigDecimal amt = amount != null ? amount : BigDecimal.ZERO;
+        setAmount(amt);
         m_transactionCurrency = transactionCurrency;
         m_quoteCurrency = quoteCurrency;
         m_transactionCurrencyId = txId;
@@ -58,20 +59,34 @@ public class PriceQuote {
 
     }
 
+    public void setExchangeId(String id){
+        m_exchangeId = id;
+    }
+
+    public String getExchangeId(){
+        return m_exchangeId;
+    }
+
     public void setStringAmount(String amountString) {
-        m_amount = new BigDecimal(amountString);
+        setAmount(new BigDecimal(amountString));
 
     }
 
     public void setDoubleAmount(double amount) {
-        m_amount = new BigDecimal(amount);
+        setAmount( new BigDecimal(amount));
 
     }
 
     public void setAmount(BigDecimal amount){
-        m_amount = amount;
+        m_amount.set(amount);
+    }
 
-        
+    protected void setDefaultInvert(boolean invert){
+        m_defaultInvert = invert;
+    }
+
+    public boolean getDefaultInvert(){
+        return m_defaultInvert;
     }
 
     public String getTransactionCurrencyId(){
@@ -83,14 +98,18 @@ public class PriceQuote {
     }
 
     public double getDoubleAmount() {
-        return m_amount.doubleValue();
+        return getAmount().doubleValue();
     }
 
     public BigDecimal getBigDecimalAmount(){
-        return m_amount;
+        return getAmount();
     }
 
     public BigDecimal getAmount(){
+        return m_amount.get();
+    }
+
+    public SimpleObjectProperty<BigDecimal> amountProperty(){
         return m_amount;
     }
 
@@ -114,7 +133,7 @@ public class PriceQuote {
     }
 
     public int getFractionalPrecision(){
-        return m_amount.scale();
+        return getAmount().scale();
     }
 
 
@@ -157,7 +176,7 @@ public class PriceQuote {
         JsonObject priceQuoteObject = new JsonObject();
         priceQuoteObject.addProperty("transactionCurrency", m_transactionCurrency);
         priceQuoteObject.addProperty("quoteCurrency", m_quoteCurrency);
-        priceQuoteObject.addProperty("amount", m_amount);
+        priceQuoteObject.addProperty("amount", m_amount.get());
         priceQuoteObject.addProperty("timeStamp", m_timestamp);
 
         return priceQuoteObject;

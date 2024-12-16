@@ -134,17 +134,17 @@ public class ErgoNodesAppBox extends AppBox {
             }
           
         });
-        MenuButton nodeMenuBtn = new MenuButton("⋮");
+        MenuButton nodeOptionsBtn = new MenuButton("⋮");
 
-        HBox nodeMenuBtnPadding = new HBox(nodeMenuBtn);
+        HBox nodeMenuBtnPadding = new HBox(nodeOptionsBtn);
         nodeMenuBtnPadding.setPadding(new Insets(0, 0, 0, 5));
 
         Text nodeTopLabel = new Text(String.format("%-13s","Node"));
         nodeTopLabel.setFont(App.txtFont);
         nodeTopLabel.setFill(App.txtColor);
 
-        MenuButton openMenuBtn = new MenuButton();
-        openMenuBtn.setId("arrowMenuButton");
+        MenuButton nodeMenuBtn = new MenuButton(selectString);
+        nodeMenuBtn.setId("arrowMenuButton");
 
         Button disableNodeBtn = new Button("☓");
         disableNodeBtn.setId("lblBtn");
@@ -156,14 +156,14 @@ public class ErgoNodesAppBox extends AppBox {
         });
 
 
-        HBox nodeFieldBox = new HBox(openMenuBtn);
+        HBox nodeFieldBox = new HBox(nodeMenuBtn);
         HBox.setHgrow(nodeFieldBox, Priority.ALWAYS);
         nodeFieldBox.setAlignment(Pos.CENTER_LEFT);
         nodeFieldBox.setId("bodyBox");
         nodeFieldBox.setPadding(new Insets(0, 1, 0, 0));
         nodeFieldBox.setMaxHeight(App.MAX_ROW_HEIGHT);
 
-        openMenuBtn.prefWidthProperty().bind(nodeFieldBox.widthProperty().subtract(1));
+        nodeMenuBtn.prefWidthProperty().bind(nodeFieldBox.widthProperty().subtract(1));
 
 
         HBox nodeBtnBox = new HBox(nodeFieldBox, nodeMenuBtnPadding);
@@ -196,13 +196,13 @@ public class ErgoNodesAppBox extends AppBox {
 
 
         Runnable removeNodes = ()->{
-            nodeMenuBtn.hide();
+            nodeOptionsBtn.hide();
             m_currentBox.set(new RemoveNodesBox());
         };
         
-        openMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
+        nodeMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
             if(newval){
-                openMenuBtn.getItems().clear();
+                nodeMenuBtn.getItems().clear();
 
                 JsonObject note = Utils.getCmdObject("getNodes");
                 note.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
@@ -246,7 +246,7 @@ public class ErgoNodesAppBox extends AppBox {
 
                                 });
 
-                                openMenuBtn.getItems().add(nodeItem);
+                                nodeMenuBtn.getItems().add(nodeItem);
 
                             }
                         }
@@ -282,61 +282,61 @@ public class ErgoNodesAppBox extends AppBox {
             }*/
 
 
-            openMenuBtn.getItems().add(new SeparatorMenuItem());
+            nodeMenuBtn.getItems().add(new SeparatorMenuItem());
 
             MenuItem addRemoteItem = new MenuItem(String.format("%-20s", "[ Add remote… ]"));
             addRemoteItem.setOnAction(action -> {
-                openMenuBtn.hide();
+                nodeMenuBtn.hide();
                 addUrl.run();
             });
             
             MenuItem intstallNodeItem = new MenuItem(String.format("%-20s", "[ Local Install… ]"));
             intstallNodeItem.setOnAction(action -> {
-                openMenuBtn.hide();
+                nodeMenuBtn.hide();
                 installNode.run();
             });
 
             MenuItem openNodeMenuItem = new MenuItem("[ Import… ]");
             openNodeMenuItem.setOnAction(e->{
-                openMenuBtn.hide();
+                nodeMenuBtn.hide();
                 importNode.run();
             });
 
             MenuItem removeNodeMenuItem = new MenuItem("[ Remove… ]");
             removeNodeMenuItem.setOnAction(e->{
-                openMenuBtn.hide();
+                nodeMenuBtn.hide();
                 removeNodes.run();
             });
 
-            openMenuBtn.getItems().addAll(addRemoteItem, intstallNodeItem, openNodeMenuItem, removeNodeMenuItem);
+            nodeMenuBtn.getItems().addAll(addRemoteItem, intstallNodeItem, openNodeMenuItem, removeNodeMenuItem);
 
         });
 
         MenuItem addUrlMenuItem = new MenuItem("➕    Add remote…");
         addUrlMenuItem.setOnAction(e->{
-            nodeMenuBtn.hide();
+            nodeOptionsBtn.hide();
             addUrl.run();
         });
 
         MenuItem installMenuItem = new MenuItem("🖳   Local Install…");
         installMenuItem.setOnAction(e->{
-            nodeMenuBtn.hide();
+            nodeOptionsBtn.hide();
             installNode.run();
         });
 
         MenuItem importMenuItem = new MenuItem("⇲    Import local…    ");
         importMenuItem.setOnAction(e->{
-            nodeMenuBtn.hide();
+            nodeOptionsBtn.hide();
             importNode.run();
         });
 
         MenuItem removeMenuItem = new MenuItem("🗑    Remove…");
         removeMenuItem.setOnAction(e->{
-            nodeMenuBtn.hide();
+            nodeOptionsBtn.hide();
             removeNodes.run();
         });
 
-        nodeMenuBtn.getItems().addAll(installMenuItem, addUrlMenuItem, importMenuItem, removeMenuItem);
+        nodeOptionsBtn.getItems().addAll(installMenuItem, addUrlMenuItem, importMenuItem, removeMenuItem);
         
     
 
@@ -486,7 +486,7 @@ public class ErgoNodesAppBox extends AppBox {
                 }
             }
 
-            openMenuBtn.setText(newval != null ? newval.getName() : selectString);
+            nodeMenuBtn.setText(newval != null ? newval.getName() : selectString);
         });
         
 

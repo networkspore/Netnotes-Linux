@@ -1,17 +1,28 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+
+import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -29,7 +40,7 @@ public class ErgoMarketAppBox extends AppBox {
     private NoteInterface m_ergoNetworkInterface;
     private VBox m_mainBox;
     
-    private SimpleBooleanProperty m_showInformation = new SimpleBooleanProperty(false);
+    private SimpleBooleanProperty m_showBody = new SimpleBooleanProperty(false);
     private SimpleObjectProperty<NoteInterface> m_selectedMarket = new SimpleObjectProperty<>(null);
 
     private String m_locationId = null;
@@ -37,6 +48,15 @@ public class ErgoMarketAppBox extends AppBox {
     private HBox m_ergoMarketsFieldBox;
     private MenuButton m_ergoMarketsMenuBtn;
     private Button m_disableBtn;
+
+    private TextField m_marketPriceField;
+    private Label m_marketPriceCurrency;
+
+    private NoteMsgInterface m_marketMsgInterface;
+    private SimpleObjectProperty<PriceQuote> m_tickerPriceQuote = new SimpleObjectProperty<>(null);
+    private SimpleIntegerProperty m_exchangeStatus = new SimpleIntegerProperty(App.STOPPED);
+    private String m_statusMsg = "Unavailable";
+    private SimpleBooleanProperty m_showTickerBody = new SimpleBooleanProperty(false);
 
     public ErgoMarketAppBox(Stage appStage, String locationId, NoteInterface ergoNetworkInterface){
         super();
@@ -62,10 +82,10 @@ public class ErgoMarketAppBox extends AppBox {
         closeImage.setFitWidth(20);
         closeImage.setPreserveRatio(true);
       
-        Button toggleShowOptions = new Button(m_showInformation.get() ? "⏷" : "⏵");
+        Button toggleShowOptions = new Button(m_showBody.get() ? "⏷" : "⏵");
         toggleShowOptions.setId("caretBtn");
         toggleShowOptions.setOnAction(e->{
-            m_showInformation.set(!m_showInformation.get());
+            m_showBody.set(!m_showBody.get());
         });
 
         MenuButton marketMenuBtn = new MenuButton("⋮");
@@ -117,10 +137,181 @@ public class ErgoMarketAppBox extends AppBox {
         VBox layoutBox = new VBox(topBar, marketsBodyPaddingBox);
         HBox.setHgrow(layoutBox, Priority.ALWAYS);
 
-        
+       
 
-        JsonParametersBox marketInfoBox = new JsonParametersBox(Utils.getJsonObject("marketInformation", "disabled"), 160);
-        marketInfoBox.setPadding(new Insets(2,0,2,30));
+        Button toggleShowTickerInfo = new Button(m_showTickerBody.get() ? "⏷" : "⏵");
+        toggleShowTickerInfo.setId("caretBtn");
+        toggleShowTickerInfo.setOnAction(e->{
+            if(m_tickerPriceQuote.get() != null){
+                m_showTickerBody.set(!m_showTickerBody.get());
+            }else{
+                if(m_showTickerBody.get() == true){
+                    m_showTickerBody.set(!m_showTickerBody.get());
+                }
+            }
+            
+        });
+
+ 
+
+        Label logoLbl = new Label("📟");
+        logoLbl.setId("logoBtn");
+
+        Label marketPriceText = new Label("Ticker");
+        marketPriceText.setMinWidth(145);
+
+        m_marketPriceField = new TextField();
+        HBox.setHgrow(m_marketPriceField, Priority.ALWAYS);
+        m_marketPriceField.setEditable(false);
+        m_marketPriceField.setAlignment(Pos.CENTER);
+
+        SimpleObjectProperty<LocalDateTime> quoteUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
+
+        JsonParametersBox priceParametersBox = new JsonParametersBox((JsonObject) null,150);
+        priceParametersBox.setPadding(new Insets(5, 10,2,10));
+
+ 
+
+        Binding<String> quoteStringBinding = Bindings.createObjectBinding(()->{
+            PriceQuote quote = m_tickerPriceQuote.get();
+            int code = m_exchangeStatus.get();
+           
+            switch(code){
+                case App.ERROR:
+                    return m_statusMsg;
+                case App.LIST_CHANGED:
+                case App.LIST_UPDATED:
+                    if(quote != null){
+                        
+                        return quote.getDefaultInvert() ? quote.getInvertedAmount().toString() : quote.getAmount().toString();
+                    }
+                break;
+                case App.STARTING:
+                    return "Connecting...";
+                case App.STARTED:
+                    return "Requesting quote...";
+            }
+            return "-";
+        }, m_tickerPriceQuote, m_exchangeStatus, quoteUpdated);
+
+        m_tickerPriceQuote.addListener((obs,oldval,newval)->{
+            if(oldval != null){
+                quoteUpdated.unbind();
+            }
+
+            if(newval != null){
+                quoteUpdated.bind(newval.getLastUpdated());
+            }
+        });
+
+        m_marketPriceField.textProperty().bind(quoteStringBinding);
+
+        m_marketPriceCurrency = new Label("");
+
+        Binding<String> quoteCurrencyBinding = Bindings.createObjectBinding(()->{
+            PriceQuote quote = m_tickerPriceQuote.get();
+            int code = m_exchangeStatus.get();
+            switch(code){
+                case App.LIST_CHANGED:
+                case App.LIST_UPDATED:
+                    if(quote != null){
+                        return quote.getDefaultInvert() ? (" " + quote.getQuoteCurrency() + "/" + quote.getTransactionCurrency()) : (" " + quote.getTransactionCurrency() + "/" + quote.getQuoteCurrency());
+                    }
+                break;
+            }
+            return "";
+        }, m_tickerPriceQuote, m_exchangeStatus);
+
+
+        m_marketPriceCurrency.textProperty().bind(quoteCurrencyBinding);
+
+        HBox marketPriceFieldBox = new HBox(m_marketPriceField);
+        HBox.setHgrow(marketPriceFieldBox, Priority.ALWAYS);
+        marketPriceFieldBox.setAlignment(Pos.CENTER_LEFT);
+        marketPriceFieldBox.setId("bodyBox");
+
+        HBox marketPriceCurrencyBox = new HBox(m_marketPriceCurrency);
+        marketPriceCurrencyBox.setAlignment(Pos.CENTER_LEFT);
+
+        HBox marketPriceBox = new HBox(toggleShowTickerInfo, logoLbl, marketPriceText, marketPriceFieldBox, marketPriceCurrencyBox);
+        marketPriceBox.setAlignment(Pos.CENTER_LEFT);
+        marketPriceBox.setPadding(new Insets(5,0,2,0));
+
+        VBox marketPriceBodyBox = new VBox(marketPriceBox);
+        marketPriceBodyBox.setPadding(new Insets(2,0,2,5));
+
+
+        m_showTickerBody.addListener((obs,oldval,newval)->{
+           
+            toggleShowTickerInfo.setText(newval ? "⏷" : "⏵");
+            if(newval){
+                if(!marketPriceBodyBox.getChildren().contains(priceParametersBox)){
+                    marketPriceBodyBox.getChildren().add(priceParametersBox);
+                }
+            }else{
+                if(marketPriceBodyBox.getChildren().contains(priceParametersBox)){
+                    marketPriceBodyBox.getChildren().remove(priceParametersBox);
+                }
+            }
+        });
+
+
+        quoteUpdated.addListener((obs,oldval,newval)->{
+            PriceQuote priceQuote = m_tickerPriceQuote.get();
+            if(priceQuote != null && newval != null){
+                JsonObject json = new JsonObject();
+                json.addProperty("base", priceQuote.getTransactionCurrency());
+                json.addProperty("quote", priceQuote.getQuoteCurrency());
+                json.addProperty("timeStamp", priceQuote.getTimeStamp());
+
+                priceParametersBox.updateParameters((JsonObject) json);
+            }else{
+                priceParametersBox.updateParameters((JsonObject) null);
+            }
+        });
+
+        SimpleBooleanProperty showMarketInfo = new SimpleBooleanProperty(false);
+
+        JsonParametersBox marketInfoParamBox = new JsonParametersBox(Utils.getJsonObject("marketInformation", "disabled"), 160);
+        marketInfoParamBox.setPadding(new Insets(2,0,2,15));
+
+        Button toggleShowMarketInfo = new Button(showMarketInfo.get() ? "⏷" : "⏵");
+        toggleShowMarketInfo.setId("caretBtn");
+        toggleShowMarketInfo.setOnAction(e -> showMarketInfo.set(!showMarketInfo.get()));
+      
+        Label infoLbl = new Label("🛈");
+        infoLbl.setId("logoBtn");
+
+        Text marketInfoText = new Text("Info");
+        marketInfoText.setFont(App.txtFont);
+        marketInfoText.setFill(App.txtColor);
+
+        HBox toggleMarketInfoBox = new HBox(toggleShowMarketInfo, infoLbl, marketInfoText);
+        HBox.setHgrow(toggleMarketInfoBox, Priority.ALWAYS);
+        toggleMarketInfoBox.setAlignment(Pos.CENTER_LEFT);
+        toggleMarketInfoBox.setPadding(new Insets(2,0,2,0));
+
+        VBox marketInfoVBox = new VBox(toggleMarketInfoBox);
+        marketInfoVBox.setPadding(new Insets(2));
+
+
+
+        showMarketInfo.addListener((obs,oldval,newval)->{
+            toggleShowMarketInfo.setText(newval ? "⏷" : "⏵");
+            if(newval){
+                if( !marketInfoVBox.getChildren().contains(marketInfoParamBox)){
+                    marketInfoVBox.getChildren().addAll(marketInfoParamBox);
+                }
+              
+            }else{
+                if(marketInfoVBox.getChildren().contains(marketInfoParamBox)){
+                    marketInfoVBox.getChildren().remove(marketInfoParamBox);
+                }
+            }
+        });
+
+        VBox bodyBox = new VBox(marketPriceBodyBox, marketInfoVBox);
+        marketInfoVBox.setPadding(new Insets(5,0,0,5));
 
         Runnable setMarketInfo = ()->{
             NoteInterface marketInterface = m_selectedMarket.get();
@@ -129,12 +320,12 @@ public class ErgoMarketAppBox extends AppBox {
             if(marketJson != null){
                 marketJson.remove("name");
                 marketJson.remove("networkId");
-                marketInfoBox.updateParameters(  marketJson);
+                marketInfoParamBox.updateParameters(  marketJson);
                 if (!m_ergoMarketsFieldBox.getChildren().contains(m_disableBtn)) {
                     m_ergoMarketsFieldBox.getChildren().add(m_disableBtn);
                 }
             }else{
-                marketInfoBox.updateParameters(Utils.getJsonObject("marketInformation", "disabled"));
+                marketInfoParamBox.updateParameters(Utils.getJsonObject("marketInformation", "disabled"));
                 if (m_ergoMarketsFieldBox.getChildren().contains(m_disableBtn)) {
                     m_ergoMarketsFieldBox.getChildren().remove(m_disableBtn);
                 }
@@ -144,23 +335,33 @@ public class ErgoMarketAppBox extends AppBox {
         setMarketInfo.run();
       
         
-        m_showInformation.addListener((obs, oldval, newval) -> {
+        m_showBody.addListener((obs, oldval, newval) -> {
 
             toggleShowOptions.setText(newval ? "⏷" : "⏵");
 
             if (newval) {
-                if (!marketsBodyPaddingBox.getChildren().contains(marketInfoBox)) {
-                    marketsBodyPaddingBox.getChildren().add(marketInfoBox);
+                if (!marketsBodyPaddingBox.getChildren().contains(bodyBox)) {
+                    marketsBodyPaddingBox.getChildren().add(bodyBox);
                 }
+               
             } else {
-                if (marketsBodyPaddingBox.getChildren().contains(marketInfoBox)) {
-                    marketsBodyPaddingBox.getChildren().remove(marketInfoBox);
+                if (marketsBodyPaddingBox.getChildren().contains(bodyBox)) {
+                    marketsBodyPaddingBox.getChildren().remove(bodyBox);
                 }
             }
+            connectToExchange(newval, m_selectedMarket.get());
         });
 
         m_selectedMarket.addListener((obs,oldval,newval)->{
             setMarketInfo.run();
+            if(oldval != null){
+         
+                connectToExchange(false, oldval);
+              
+            }
+            if(newval != null){
+                connectToExchange(m_showBody.get(), newval);
+            }
         });
 
 
@@ -168,7 +369,7 @@ public class ErgoMarketAppBox extends AppBox {
         m_disableBtn.setId("lblBtn");
 
         m_disableBtn.setOnMouseClicked(e -> {
-            m_showInformation.set(false);
+            m_showBody.set(false);
             clearDefault();
         });
 
@@ -282,6 +483,99 @@ public class ErgoMarketAppBox extends AppBox {
         }
     
     }
+    private String m_msgId;
 
+    public void connectToExchange(boolean connect, NoteInterface exchangeInterface){
+     
+        if(connect && exchangeInterface != null){
+            m_msgId = FriendlyId.createFriendlyId();
+            m_marketMsgInterface = new NoteMsgInterface() {
+               
+                public String getId(){
+                    return m_msgId;
+                }
 
+                public void sendMessage(int code, long timeStamp, String poolId, Number num){
+                    PriceQuote tickerQuote = m_tickerPriceQuote.get();
+                    switch(code){
+                        case App.LIST_CHANGED:
+                        case App.LIST_UPDATED:
+                            //updated
+                            if(tickerQuote == null || (tickerQuote != null && !tickerQuote.getExchangeId().equals(exchangeInterface.getNetworkId()))){
+                                getQuote();
+                            }
+                            m_exchangeStatus.set(code);
+                            break;
+                        case App.STOPPED:
+                            m_exchangeStatus.set(code);
+                        break;
+                        case App.STARTED:
+                            m_exchangeStatus.set(code);
+                        break;
+                        case App.STARTING:
+                            m_exchangeStatus.set(code);
+                        break;
+                        case App.ERROR:
+                        
+                        break;
+                    } 
+                    
+                }
+            
+                public void sendMessage(int code, long timestamp, String networkId, String msg){
+                    if(code == App.ERROR){
+                
+                        m_statusMsg = msg;
+                        m_exchangeStatus.set(code);
+                    }
+                }
+
+        
+
+            };
+    
+            if(exchangeInterface.getConnectionStatus() == App.STARTED){
+                getQuote();
+            }
+
+            exchangeInterface.addMsgListener(m_marketMsgInterface);
+
+            
+
+        }else{
+            if(m_marketMsgInterface != null && exchangeInterface != null){
+                exchangeInterface.removeMsgListener(m_marketMsgInterface);  
+            }
+            m_marketMsgInterface = null;
+            m_tickerPriceQuote.set(null);
+        }
+    }
+
+    public void getQuote(){
+        NoteInterface exchangeInterface = m_selectedMarket.get();
+     
+        if(exchangeInterface != null){
+            JsonObject note = Utils.getCmdObject("getQuote");
+            note.addProperty("locationId", m_locationId);
+            note.addProperty("baseType", "symbol");
+            note.addProperty("quoteType", "firstSymbolContains");
+            note.addProperty("base", "ERG");
+            note.addProperty("quote", "USD");
+
+            Object result =  exchangeInterface.sendNote(note);
+            if(result != null && result instanceof PriceQuote){
+                PriceQuote priceQuote = (PriceQuote) result;
+                priceQuote.setExchangeId(exchangeInterface.getNetworkId());
+                m_tickerPriceQuote.set(priceQuote);
+            }
+        }
+    }
+
+    @Override
+    public void shutdown(){
+        NoteInterface selectedMarket = m_selectedMarket.get();
+        if(selectedMarket != null){
+            connectToExchange(false, selectedMarket);
+        }
+    }
 }

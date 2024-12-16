@@ -10,6 +10,7 @@ import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,7 +32,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
     private int m_minImgWidth = 250;
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
-
+    private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
     private ChangeListener<PriceQuote> m_priceQuoteListener = null;
     private ChangeListener<BigDecimal> m_amountListener = null;
 
@@ -338,11 +339,10 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
             };
 
-            m_priceQuoteListener = (obs, oldval, newval) -> quoteUpdate.run();
+         
 
             currentAmount.amountProperty().addListener(m_amountListener);
 
-            currentAmount.priceQuoteProperty().addListener(m_priceQuoteListener);
 
         };
 
@@ -463,6 +463,14 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         return m_balanceAmount;
     }
 
+    public PriceQuote getPriceQuote() {
+        return m_priceQuote.get();
+    }
+
+    public void setPriceQuote(PriceQuote priceQuote) {
+        m_priceQuote.set(priceQuote);
+    }
+
     public void shutdown() {
 
         if (m_amountListener != null) {
@@ -470,10 +478,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             m_amountListener = null;
         }
 
-        if (m_priceQuoteListener != null) {
-            m_balanceAmount.priceQuoteProperty().removeListener(m_priceQuoteListener);
-            m_priceQuoteListener = null;
-        }
+        
 
     }
 

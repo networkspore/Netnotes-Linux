@@ -6,9 +6,11 @@ import javafx.beans.value.ChangeListener;
 
 import com.google.gson.JsonElement;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 import org.ergoplatform.appkit.NetworkType;
-
 import com.google.gson.JsonArray;
 
 public class ErgoWalletAmountBoxes extends AmountBoxes {
@@ -16,28 +18,25 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
     private final NetworkType m_networkType;
     private SimpleObjectProperty<JsonObject> m_balanceObject;
     private ChangeListener<JsonObject> m_balanceChangeListener;
-    private SimpleObjectProperty<NoteInterface> m_selectedMarket;
+    
+    
 
-    public ErgoWalletAmountBoxes(boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject, SimpleObjectProperty<NoteInterface> selectedMarket){
+    public ErgoWalletAmountBoxes( boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
         super();
         m_isConfirmed = isConfirmed;
         m_networkType = networktype;
-      
         m_balanceObject = balanceObject;
-        m_selectedMarket = selectedMarket;
-        
+
         m_balanceChangeListener = (obs,oldval, newval) ->{
             update(newval);
         };
 
         m_balanceObject.addListener(m_balanceChangeListener);
 
-  
     }
 
 
 
-    
     public void update(JsonObject json){
 
    
@@ -53,7 +52,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
             
             long nanoErg = nanoErgElement != null && nanoErgElement.isJsonPrimitive() ? nanoErgElement.getAsLong() : 0;
 
-            AmountBox ergoAmountBox = (AmountBox) getAmountBox(ErgoCurrency.TOKEN_ID);
+            AmountBoxInterface ergoAmountBox =  getAmountBox(ErgoCurrency.TOKEN_ID);
             if(ergoAmountBox == null){
                 ErgoAmount ergoAmount = new ErgoAmount(nanoErg, m_networkType);
                 AmountBox box = new AmountBox(ergoAmount, getScene());
@@ -95,18 +94,18 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                     
                     PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(tokenId, name, decimals, tokenType, m_networkType.toString()));    
               
-                    AmountBox amountBox = (AmountBox) getAmountBox(tokenId);
-                    if(amountBox == null){
+                    AmountBoxInterface amountBoxInterface = getAmountBox(tokenId);
+                    if(amountBoxInterface == null){
                         AmountBox box = new AmountBox(tokenAmount, getScene());
                         box.setTimeStamp(timeStamp);
                         add(box);
                           
                     
                     }else{
-                        if(amountBox.getPriceAmount().getLongAmount() != amount){
-                            amountBox.getPriceAmount().setLongAmount(amount);
+                        if(amountBoxInterface.getPriceAmount().getLongAmount() != amount){
+                            amountBoxInterface.getPriceAmount().setLongAmount(amount);
                         }
-                        amountBox.setTimeStamp(timeStamp);
+                        amountBoxInterface.setTimeStamp(timeStamp);
                     }
                     
                 }
@@ -122,8 +121,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
         }else{
             clear();
         }
-
-       
     }
+
 
 }

@@ -6,7 +6,9 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -22,7 +24,7 @@ import com.google.gson.JsonArray;
 
 public class JsonParametersBox extends AppBox{
 
-    private HashMap<String, TextField> m_rows = new HashMap<>();
+    private HashMap<String, TextInputControl> m_rows = new HashMap<>();
     private HashMap<String, JsonParametersBox> m_paramBoxes = new HashMap<>();
     private Pattern m_regexPattern = Pattern.compile("(?<=.)(?=(\\p{Upper}))");
     private int m_rowHeight = 27;
@@ -52,7 +54,7 @@ public class JsonParametersBox extends AppBox{
         return m_isOpen;
     }
 
-    public HashMap<String, TextField> getRows(){
+    public HashMap<String, TextInputControl> getRows(){
         return m_rows;
     }
 
@@ -119,14 +121,14 @@ public class JsonParametersBox extends AppBox{
             }
 
             HBox nodeNameBox = new HBox(nameText);
-            nodeNameBox.setAlignment(Pos.CENTER_LEFT);
+            nodeNameBox.setAlignment(Pos.TOP_LEFT);
             nodeNameBox.setMinHeight(m_rowHeight);
 
             VBox rowBox = new VBox(nodeNameBox);
            
             switch(type){
                 case 1:
-                    Label logoBtnLbl = new Label("⏵");
+                    Label logoBtnLbl = new Label("⏵ ");
                     logoBtnLbl.setId("caretBtn");
 
                     nodeNameBox.getChildren().add(0, logoBtnLbl);
@@ -145,7 +147,7 @@ public class JsonParametersBox extends AppBox{
                                 rowBox.getChildren().add(jsonBox);
                             }
                         }else{
-                            logoBtnLbl.setText("⏵");
+                            logoBtnLbl.setText("⏵ ");
                             if(rowBox.getChildren().contains(jsonBox)){
                                 rowBox.getChildren().remove(jsonBox);
                             }
@@ -153,7 +155,7 @@ public class JsonParametersBox extends AppBox{
                     });
                 break;
                 case 2:
-                    Label logoBtnLbl2 = new Label("⏵");
+                    Label logoBtnLbl2 = new Label("⏵ ");
                     logoBtnLbl2.setId("caretBtn");
 
                     nodeNameBox.getChildren().add(0, logoBtnLbl2);
@@ -172,7 +174,7 @@ public class JsonParametersBox extends AppBox{
                                 rowBox.getChildren().add(jsonArrayBox);
                             }
                         }else{
-                            logoBtnLbl2.setText("⏵");
+                            logoBtnLbl2.setText("⏵ ");
                             if(rowBox.getChildren().contains(jsonArrayBox)){
                                 rowBox.getChildren().remove(jsonArrayBox);
                             }
@@ -180,31 +182,48 @@ public class JsonParametersBox extends AppBox{
                     });
                 break;
                 case 3:
-
-                    TextField textField = new TextField();
-                    textField.setEditable(false);
-                    textField.setId(m_fieldId);
-                    HBox.setHgrow(textField, Priority.ALWAYS);
+                    String textString = "";
 
                     switch(keyString){
                         case "timestamp":
                         case "timeStamp":
                            
-                            textField.setText(Utils.formatDateTimeString(Utils.milliToLocalTime(jsonElement.getAsLong())));
+                            textString = Utils.formatDateTimeString(Utils.milliToLocalTime(jsonElement.getAsLong()));
                         break;
                         default:
                            
-                            textField.setText(jsonElement.getAsString());
+                           textString = jsonElement.getAsString();
                             
                     }
-                 
-                    m_rows.put(keyString, textField);
-                    
-                    HBox fieldBox = new HBox(textField);
+                    HBox fieldBox = new HBox();
                     HBox.setHgrow(fieldBox, Priority.ALWAYS);
                     fieldBox.setId("bodyBox");
                     fieldBox.setAlignment(Pos.CENTER_LEFT);
                     fieldBox.setMaxHeight(m_maxRowHeight);
+
+                    switch(keyString){
+                        case "description":
+                      
+                            TextArea textArea = new TextArea(textString);
+                            textArea.setEditable(false);
+                            textArea.setId("textAreaInput");
+                            textArea.setWrapText(true);
+                            textArea.setMinHeight(70);
+                            HBox.setHgrow(textArea, Priority.ALWAYS);
+                        
+                            m_rows.put(keyString, textArea);
+                            fieldBox.getChildren().add(textArea);
+                        break;
+                        default:
+                            TextField textField = new TextField(textString);
+                            textField.setEditable(false);
+                            HBox.setHgrow(textField, Priority.ALWAYS);
+                        
+                            m_rows.put(keyString, textField);
+                            fieldBox.getChildren().add(textField);
+                    }
+                    
+     
 
                     nodeNameBox.getChildren().add(fieldBox);
                     rowBox.setPadding(new Insets(0,0, 0,5));
@@ -234,7 +253,7 @@ public class JsonParametersBox extends AppBox{
 
 
     public boolean parse(JsonObject json){
-        for(Map.Entry<String, TextField> entry : m_rows.entrySet()){
+        for(Map.Entry<String, TextInputControl> entry : m_rows.entrySet()){
             String key = entry.getKey();
             if(json.get(key) == null){
                 return true;
@@ -279,24 +298,20 @@ public class JsonParametersBox extends AppBox{
                     }
                 break;
                 case 3:
-                    TextField textField = m_rows.get(keyString);
-                    if(textField == null){
+                    TextInputControl inputControl = m_rows.get(keyString);
+                    if(inputControl == null){
                      
                         return true;
                     }
-                    String fieldString = "";
                     switch(keyString){
                         case "timeStamp":
                         case "timestamp":
                         case "currentTime":
                         case "launchTime":
-                            textField.setText(Utils.formatDateTimeString(Utils.milliToLocalTime(jsonElement.getAsLong())));
+                            inputControl.setText(Utils.formatDateTimeString(Utils.milliToLocalTime(jsonElement.getAsLong())));
                         break;
                         default:
-                            fieldString = jsonElement.getAsString();
-                            if(!textField.getText().equals(fieldString)){
-                                textField.setText(fieldString);
-                            }
+                            inputControl.setText(jsonElement.getAsString());
                     }
                 break;
             }
@@ -344,7 +359,7 @@ public class JsonParametersBox extends AppBox{
                     }
                 break;
                 case 3:
-                    TextField textField = m_rows.get(keyString);
+                    TextInputControl textField = m_rows.get(keyString);
                     if(textField == null){
                      
                         return true;

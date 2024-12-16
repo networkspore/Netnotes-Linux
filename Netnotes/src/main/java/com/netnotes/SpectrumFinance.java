@@ -51,22 +51,19 @@ import javafx.stage.Stage;
 
 public class SpectrumFinance extends Network implements NoteInterface {
 
-    public final static String DESCRIPTION = "Decentralized exchange for Ergo and Ergo Tokens";
-    public final static String SUMMARY = "";
+    public final static String DESCRIPTION = "Spectrum Finance is an open source cross-chain decentralized exchange (DEX) for fast, trustless cross-chain swaps, liquidity provision & liquidity mining.";
+
     public final static String NAME = "Spectrum Finance";
     public final static String WEB_URL = "https://spectrum.fi/";
     public final static String NETWORK_ID = "SPECTRUM_FINANCE";
     public final static String API_URL = "https://api.spectrum.fi";
-    
+
     private final static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
         ErgoNetwork.getNetworkInformation()
     };
 
     private String m_currentNetworkId = ErgoNetwork.NETWORK_ID;
     
-
-    
-
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
 
@@ -106,12 +103,12 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private ScheduledFuture<?> m_scheduledFuture = null;
 
 
-  
+    private String m_locationId;
 
-    public SpectrumFinance(NetworksData networksData) {
+    public SpectrumFinance(NetworksData networksData, String locationId) {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
-
+        m_locationId = locationId;
     }
 
  
@@ -256,13 +253,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             public JsonObject getJsonObject(){
                 JsonObject spectrumObject = SpectrumFinance.this.getJsonObject();
-                spectrumObject.addProperty("websiteUrl", WEB_URL);
+                spectrumObject.addProperty("apiUrl", API_URL);
+                spectrumObject.addProperty("website", WEB_URL);
                 spectrumObject.addProperty("description", DESCRIPTION);
                 return spectrumObject;
             }
 
-            public TabInterface getTab(Stage appStage,String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
-                return SpectrumFinance.this.getTab(appStage, locationId, heightObject, widthObject, networkBtn);
+            public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
+                return SpectrumFinance.this.getTab(appStage, heightObject, widthObject, networkBtn);
             }
 
             public NetworksData getNetworksData(){
@@ -318,11 +316,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private SpectrumFinanceTab m_spectrumFinanceTab = null;;
 
     @Override
-    public TabInterface getTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
+    public TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
         if(m_spectrumFinanceTab != null){
             return m_spectrumFinanceTab;
         }else{
-            m_spectrumFinanceTab = new SpectrumFinanceTab(appStage, locationId, heightObject, widthObject, menuBtn);
+            m_spectrumFinanceTab = new SpectrumFinanceTab(appStage,  heightObject, widthObject, menuBtn);
             return m_spectrumFinanceTab;
         }
     }
@@ -338,7 +336,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
 
-        public SpectrumFinanceTab(Stage appStage, String locationId,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
+        public SpectrumFinanceTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
             super(getNetworkId());
             addListeners();
             getData();
@@ -895,16 +893,85 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     @Override
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        JsonElement subjectElement = note.get(App.CMD);
+        JsonElement locationIdElement = note.get("locationId");
+      
+        String cmd = subjectElement != null && subjectElement.isJsonPrimitive() ? subjectElement.getAsString() : null;
+        
+        if(cmd != null && locationIdElement != null && locationIdElement.isJsonPrimitive()){
+            String locationId = locationIdElement.getAsString();
+            String locationString = getNetworksData().getLocationString(locationId);
+            if(isLocationAuthorized(locationString)){
+              
+                note.remove("locationString");
+                note.addProperty("locationString", locationString);
+               
+                switch(cmd){
+                    case "getPoolSlippage":
+                        return getPoolSlippage(note, onSucceeded, onFailed);
+                    
+                    case "getPoolStats":
+                        return getPoolStats(note, onSucceeded, onFailed);
+                    
+                    case "getPlatformStats":
+                        getPlatformStats(onSucceeded, onFailed);
+                    return true;
+                    case "getLiquidityPoolStats":
+                        getLiquidityPoolStats(onSucceeded, onFailed);
+                    return true;
+                    case "getMarkets":
+                        getMarkets(onSucceeded, onFailed);
+                    return true;
+                    case "getTickers":
+                        getTickers(onSucceeded, onFailed);
+                    case "getPoolsSummary":
+                        getPoolsSummary(onSucceeded, onFailed);
+                }
+            }
+        }
+        return false;
 
-    
-        return true;
     }
 
   
+    public boolean getPoolSlippage(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        JsonElement poolIdElement = note != null ? note.get("poolId") : null;
+        String poolId = poolIdElement != null && !poolIdElement.isJsonNull() ? poolIdElement.getAsString() : null;
+        if(poolId != null){
+            getPoolSlippage(poolId, getExecService(), onSucceeded, onFailed);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean getPoolStats(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        JsonElement poolIdElement = note != null ? note.get("poolId") : null;
+        String poolId = poolIdElement != null && !poolIdElement.isJsonNull() ? poolIdElement.getAsString() : null;
+        
+        if(poolId != null){
+            getPoolStats(poolId, getExecService(), onSucceeded, onFailed);
+
+            return true;
+        }
+
+        return false;
+    }   
+
+   
 
   
     public ExecutorService getExecService(){
         return getNetworksData().getExecService();
+    }
+    // /v1/amm/pools/summary/all
+
+    private void getPoolsSummary(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        String urlString = API_URL + "/v1/amm/pools/summary/all";
+
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+                        
     }
 
     private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -919,6 +986,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
         String urlString = API_URL + "/v1/price-tracking/cg/tickers";
 
         Utils.getUrlJsonArray(urlString, getNetworksData().getExecService(), onSucceeded, onFailed, null);                
+
+    }
+
+    public void getPlatformStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        String urlString = API_URL + "/v1/amm/platform/stats";
+
+        Utils.getUrlJson(urlString, getNetworksData().getExecService(), onSucceeded, onFailed);                
 
     }
 
@@ -988,6 +1062,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
                     JsonArray tickerArray = (JsonArray) tickerSourceObject;
 
+
                     for (int j = 0; j < tickerArray.size(); j++) {
                 
                         JsonElement tickerObjectElement = tickerArray.get(j);
@@ -1052,8 +1127,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     }
                 }
                 data.clear();
-          
-            sendMessage(App.LIST_CHANGED, timeStamp,MARKETS_LIST, m_marketsList.size());
+                
+            sendMessage(App.LIST_CHANGED, timeStamp,NETWORK_ID, m_marketsList.size());
         }else{
             SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
             for(int i = 0; i < size; i++){
@@ -1070,9 +1145,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
             data.clear();
             if(changed.get()){
-                sendMessage(App.LIST_CHANGED, timeStamp,MARKETS_LIST,  m_marketsList.size());
+                sendMessage(App.LIST_CHANGED, timeStamp,NETWORK_ID,  m_marketsList.size());
             }else{
-                sendMessage(App.LIST_UPDATED, timeStamp,MARKETS_LIST,  m_marketsList.size());
+                sendMessage(App.LIST_UPDATED, timeStamp,NETWORK_ID,  m_marketsList.size());
             }
             
         }
@@ -1183,7 +1258,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         "compoundedReward": 75,
         "yearProfit": 3700
     */
-    public void getPoolStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public void getLiquidityPoolStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
             String urlString = API_URL + "/v1/lm/pools/stats";
        
             
@@ -1232,7 +1307,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         if(getConnectionStatus() == App.STOPPED){
 
             setConnectionStatus(App.STARTING);
-                    
+            sendMessage(App.STARTING, System.currentTimeMillis(), NETWORK_ID, App.STARTING);
             ExecutorService executor = getNetworksData().getExecService();
             
             Runnable exec = ()->{
@@ -1248,8 +1323,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
                         } catch (IOException e) {
                  
                         }*/
-                        setConnectionStatus(App.STARTED);
-                        sendMessage(App.STARTED, System.currentTimeMillis(), NETWORK_ID, App.STARTED);
+                        if(getConnectionStatus() != App.STARTED){
+                            setConnectionStatus(App.STARTED);
+                            sendMessage(App.STARTED, System.currentTimeMillis(), NETWORK_ID, App.STARTED);
+                        }
                         getMarketUpdate(marketJsonArray);
                     } 
                 }, (onfailed)->{
@@ -1276,26 +1353,39 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }
     }
 
+    private ArrayList<String> m_authorizedLocations = new ArrayList<>();
+
+    private boolean isLocationAuthorized(String locationString){
+        
+        return locationString.equals(ErgoNetwork.NAME) || m_authorizedLocations.contains(locationString);
+    }
     
   
     @Override
-    public Object sendNote(JsonObject json){
+    public Object sendNote(JsonObject note){
     
-        JsonElement subjectElement = json.get(App.CMD);
+        JsonElement subjectElement = note.get(App.CMD);
+        JsonElement locationIdElement = note.get("locationId");
 
-        JsonElement timeStampElement = json.get("timeStamp");
-        
+        String cmd = subjectElement != null && subjectElement.isJsonPrimitive() ? subjectElement.getAsString() : null;
+        String locationId = locationIdElement != null && !locationIdElement.isJsonNull() && locationIdElement.isJsonPrimitive() ? locationIdElement.getAsString() : null;
 
-        String subject = subjectElement != null && subjectElement.isJsonPrimitive() ? subjectElement.getAsString() : null;
-        long timeStamp = timeStampElement != null && timeStampElement.isJsonPrimitive() ? timeStampElement.getAsLong() : 0;
-        
-        switch(subject){
-            case "getQuote":
+        if(cmd != null && locationId != null){
             
-                return getQuote(json, timeStamp);
+            String locationString = getNetworksData().getLocationString(locationId);
             
-                
+            if(isLocationAuthorized(locationString)){
+            
+                note.remove("locationString");
+                note.addProperty("locationString", locationString);
+                switch(cmd){
+                    case "getQuote":
+                        return getQuote(note);
+                }
+            }
         }
+        
+    
         return null;
     }
 
@@ -1303,7 +1393,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private List<SpectrumMarketData> m_searchList ;
     private Optional<SpectrumMarketData> m_quoteOptional;
 
-    private Object getQuote(JsonObject json, long timestamp){
+
+
+    private Object getQuote(JsonObject json){
         JsonElement baseTypeElement = json.get("baseType");
         JsonElement quoteTypeElement = json.get("quoteType");
         JsonElement baseElement = json.get("base");
@@ -1317,8 +1409,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
         m_searchList = null;
         if(baseType != null && base != null){
             switch(baseType){
+         
                 case "symbol":
-                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().equals(base)).collect(Collectors.toList());
+                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().toLowerCase().equals(base.toLowerCase())).collect(Collectors.toList());
                 break;
                 case "id":
                     m_searchList = m_marketsList.stream().filter(item -> item.getBaseId().equals(base)).collect(Collectors.toList());
@@ -1327,6 +1420,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     break;
             }
         }
+
 
         m_searchList = m_searchList != null ? m_searchList : m_marketsList;
 

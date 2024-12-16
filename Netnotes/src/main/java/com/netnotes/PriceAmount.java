@@ -20,7 +20,7 @@ import javafx.beans.property.SimpleObjectProperty;
 public class PriceAmount  {
     private long m_timeout = AddressesData.QUOTE_TIMEOUT;
 
-    private final SimpleObjectProperty<PriceQuote> m_priceQuoteProperty;
+
     private final SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>();
     private final PriceCurrency m_currency;
     
@@ -28,24 +28,18 @@ public class PriceAmount  {
     private SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(System.currentTimeMillis());
     private String m_marketId = null;
 
-    public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency, SimpleObjectProperty<PriceQuote> priceQuoteProperty){
+    public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency){
         m_currency = priceCurrency;
-        m_priceQuoteProperty = priceQuoteProperty;
+
         m_amount.set(amount);
     }
 
     public PriceAmount(long amount, PriceCurrency currency) {
-        this(BigDecimal.ZERO, currency, new SimpleObjectProperty<>());
+        this(BigDecimal.ZERO, currency);
 
         setLongAmount(amount);
     }
 
-    public PriceAmount(BigDecimal amount, PriceCurrency currency){
-        m_currency = currency;
-        m_priceQuoteProperty = new SimpleObjectProperty<>(null);
-        setBigDecimalAmount(amount);
-       
-    }
 
     public String getMarketId(){
         return m_marketId;
@@ -57,14 +51,12 @@ public class PriceAmount  {
 
     public PriceAmount(double amount, PriceCurrency currency) {
         m_currency = currency;
-        m_priceQuoteProperty = new SimpleObjectProperty<>(null);
         setDoubleAmount(amount);
       
     }
 
     public PriceAmount(long amount, PriceCurrency currency, long timeStamp){
         m_currency = currency;
-        m_priceQuoteProperty = new SimpleObjectProperty<>(null);
         setLongAmount(amount);
         m_timeStampProperty.set(timeStamp);
  
@@ -72,7 +64,6 @@ public class PriceAmount  {
 
     public PriceAmount(ErgoTokens ergoTokens, JsonObject json) throws Exception{
         
-        m_priceQuoteProperty = new SimpleObjectProperty<>(null);
         
         JsonElement amountElement = json.get("amount");
         JsonElement timeStampElement = json.get("timeStamp");
@@ -178,11 +169,7 @@ public class PriceAmount  {
     public boolean getAmountValid(long timestamp){
         return  ((timestamp - getTimeStamp())) < m_timeout;
     }
-    
-    public SimpleObjectProperty<PriceQuote> priceQuoteProperty(){
-        return m_priceQuoteProperty;
-    }
-      
+
 
     public BigDecimal getBigDecimalAmount(){
         return m_amount.get();

@@ -87,7 +87,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
         AmountBoxInterface ergoAmountBoxInterface = getAmountBox(ErgoCurrency.TOKEN_ID);
         ErgoWalletAmountSendBox ergoAmountSendBox = ergoAmountBoxInterface != null && ergoAmountBoxInterface instanceof ErgoWalletAmountSendBox ? (ErgoWalletAmountSendBox) ergoAmountBoxInterface : null;
     
-        int boxesSize = getAmountListSize();
+        int boxesSize = size();
 
         if(ergoAmountSendBox != null && boxesSize > 1){
             BigDecimal minFee = m_minimumFee.get();

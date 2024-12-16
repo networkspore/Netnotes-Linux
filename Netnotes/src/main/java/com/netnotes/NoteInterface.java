@@ -32,7 +32,7 @@ public interface NoteInterface {
 
     
 
-    TabInterface getTab(Stage appStage, String locationId, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn);
+    TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn);
 
 
 

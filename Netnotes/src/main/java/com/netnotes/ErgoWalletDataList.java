@@ -264,7 +264,7 @@ public class ErgoWalletDataList {
         String locationString = getNetworksData().getLocationString(locationId);
 
 
-        if(idsElement != null && idsElement.isJsonArray() && locationString.equals(App.LOCAL)){
+        if(idsElement != null && idsElement.isJsonArray() && m_ergoWallets.getErgoNetworkData().isLocationAuthorized(locationString)){
        
 
             JsonArray idsArray = idsElement.getAsJsonArray();

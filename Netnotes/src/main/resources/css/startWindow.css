@@ -58,7 +58,7 @@
     -fx-background-color: transparent;
     -fx-opacity: 1;
     -fx-font-size: 16;
-    -fx-min-width:25;
+    -fx-min-width:30;
     -fx-alignment: center-left;
     -fx-padding: 0 3 0 3;
     -fx-text-fill: white;
@@ -500,6 +500,7 @@
     -fx-opacity: 1;
 }
 
+
 #swapBtnAvailable {
     -fx-text-fill: #cdd4da;
     -fx-font-size: 20px;
@@ -683,7 +684,7 @@
 #textAreaInput {
     -fx-font-size: 18px;
     -fx-font-family: "OCR A Extended";
-    -fx-text-fill: white;
+    -fx-text-fill: #cdd4da;
 }
 
 #textAreaInputEmpty{

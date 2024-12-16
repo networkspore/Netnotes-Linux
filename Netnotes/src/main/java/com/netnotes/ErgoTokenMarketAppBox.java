@@ -10,6 +10,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
@@ -117,10 +118,37 @@ public class ErgoTokenMarketAppBox extends AppBox {
         VBox layoutBox = new VBox(topBar, marketsBodyPaddingBox);
         HBox.setHgrow(layoutBox, Priority.ALWAYS);
 
-        
+         SimpleBooleanProperty showMarketInfo = new SimpleBooleanProperty(false);
 
-        JsonParametersBox marketInfoBox = new JsonParametersBox(Utils.getJsonObject("marketInformation", "disabled"), 160);
-        marketInfoBox.setPadding(new Insets(2,0,2,30));
+        JsonParametersBox marketInfoParamBox = new JsonParametersBox(Utils.getJsonObject("marketInformation", "disabled"), 150);
+        marketInfoParamBox.setPadding(new Insets(2,0,0,5));
+
+        Button toggleShowMarketInfo = new Button(showMarketInfo.get() ? "⏷" : "⏵");
+        toggleShowMarketInfo.setId("caretBtn");
+        toggleShowMarketInfo.setOnAction(e -> showMarketInfo.set(!showMarketInfo.get()));
+      
+        Label infoLbl = new Label("🛈");
+        infoLbl.setId("logoBtn");
+
+        Text marketInfoText = new Text("Market Information");
+        marketInfoText.setFont(App.txtFont);
+        marketInfoText.setFill(App.txtColor);
+
+        HBox toggleMarketInfoBox = new HBox(toggleShowMarketInfo, infoLbl, marketInfoText);
+        HBox.setHgrow(toggleMarketInfoBox, Priority.ALWAYS);
+        toggleMarketInfoBox.setAlignment(Pos.CENTER_LEFT);
+        toggleMarketInfoBox.setPadding(new Insets(0,0,2,0));
+
+        VBox marketInfoVBox = new VBox(toggleMarketInfoBox);
+        marketInfoVBox.setPadding(new Insets(2));
+
+        showMarketInfo.addListener((obs,oldval,newval)->{
+            toggleShowMarketInfo.setText(newval ? "⏷" : "⏵");
+            marketInfoVBox.getChildren().add(marketInfoParamBox);
+        });
+
+        VBox bodyBox = new VBox(marketInfoVBox);
+        marketInfoVBox.setPadding(new Insets(5,0,0,5));
 
         Runnable setMarketInfo = ()->{
             NoteInterface marketInterface = m_selectedMarket.get();
@@ -129,12 +157,12 @@ public class ErgoTokenMarketAppBox extends AppBox {
             if(marketJson != null){
                 marketJson.remove("name");
                 marketJson.remove("networkId");
-                marketInfoBox.updateParameters(  marketJson);
+                marketInfoParamBox.updateParameters(  marketJson);
                 if (!m_tokenMarketsFieldBox.getChildren().contains(m_disableBtn)) {
                     m_tokenMarketsFieldBox.getChildren().add(m_disableBtn);
                 }
             }else{
-                marketInfoBox.updateParameters(Utils.getJsonObject("marketInformation", "disabled"));
+                marketInfoParamBox.updateParameters(Utils.getJsonObject("marketInformation", "disabled"));
                 if (m_tokenMarketsFieldBox.getChildren().contains(m_disableBtn)) {
                     m_tokenMarketsFieldBox.getChildren().remove(m_disableBtn);
                 }
@@ -149,12 +177,12 @@ public class ErgoTokenMarketAppBox extends AppBox {
             toggleShowOptions.setText(newval ? "⏷" : "⏵");
 
             if (newval) {
-                if (!marketsBodyPaddingBox.getChildren().contains(marketInfoBox)) {
-                    marketsBodyPaddingBox.getChildren().add(marketInfoBox);
+                if (!marketsBodyPaddingBox.getChildren().contains(bodyBox)) {
+                    marketsBodyPaddingBox.getChildren().add(bodyBox);
                 }
             } else {
-                if (marketsBodyPaddingBox.getChildren().contains(marketInfoBox)) {
-                    marketsBodyPaddingBox.getChildren().remove(marketInfoBox);
+                if (marketsBodyPaddingBox.getChildren().contains(bodyBox)) {
+                    marketsBodyPaddingBox.getChildren().remove(bodyBox);
                 }
             }
         });

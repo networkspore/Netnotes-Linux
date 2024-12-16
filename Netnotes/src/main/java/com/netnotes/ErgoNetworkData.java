@@ -1,5 +1,7 @@
 package com.netnotes;
 
+import java.util.ArrayList;
+
 import org.ergoplatform.appkit.NetworkType;
 
 import com.devskiller.friendly_id.FriendlyId;
@@ -22,15 +24,15 @@ public class ErgoNetworkData {
     private ErgoExplorers m_ergoExplorers = null;
     private ErgoMarkets m_ergoMarkets = null;
            
+    private ArrayList<String> m_authorizedLocations = new ArrayList<>();
 
-
- 
+    private String m_locationId;
     private String m_id;
 
-    public ErgoNetworkData(ErgoNetwork ergoNetwork) {
+    public ErgoNetworkData(ErgoNetwork ergoNetwork, String locationId) {
         m_id = FriendlyId.createFriendlyId();
         m_ergoNetwork = ergoNetwork;
-
+        m_locationId = locationId;
 
         installNetworks();
         
@@ -42,9 +44,17 @@ public class ErgoNetworkData {
     }
 
 
-    
+    public String getLocationId(){
+        return m_locationId;
+    }
 
-
+    public boolean isLocationAuthorized(String locationString){
+        if(locationString != null){
+            return locationString.equals(ErgoNetwork.NAME) || m_authorizedLocations.contains(locationString);
+        }else{
+            return false;
+        }
+    }
 
     public SimpleLongProperty updatedProperty(){
         return m_updated;
