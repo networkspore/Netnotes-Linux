@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.devskiller.friendly_id.FriendlyId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -146,38 +148,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
 
-    public SpectrumMarketData getMarketDataBySymbols(String baseSymbol, String quoteSymbol) {
-        
-        if (m_marketsList.size() > 0 && baseSymbol != null && quoteSymbol != null) {
-            SpectrumMarketData[] dataArray = getMarketDataArray();
 
-            for (SpectrumMarketData data : dataArray) {
-           
-                if (data.getBaseSymbol().equals(baseSymbol) && data.getQuoteSymbol().equals(quoteSymbol) ) {
-                    return data;
-                }
-            }
-            
-        }
-        return null;
-    }
 
-    public PriceQuote getPriceQuoteById(String baseId, String quoteId){
-        if (m_marketsList.size() > 0 && baseId != null && quoteId != null) {
-            SpectrumMarketData[] dataArray = getMarketDataArray();
-            
-            for (int i = 0; i < dataArray.length ; i++) {
-                SpectrumMarketData data = m_marketsList.get(i);
-
-                if (data.getBaseId().equals(baseId) && data.getQuoteId().equals(quoteId)) {
-                    
-                    return data;
-                }
-            }
-            
-        }
-        return null;
-    }
     public static SpectrumMarketData getMarketDataById(ArrayList<SpectrumMarketData> dataList, String id) {
         if (id != null) {
             for (SpectrumMarketData data : dataList) {
@@ -1381,6 +1353,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 switch(cmd){
                     case "getQuote":
                         return getQuote(note);
+                    case "getTokenQuoteInErg":
+                        return getTokenQuoteInErg(note);
+                    case "getErgoUSDQuote":
+                        return getErgoUSDQuote();
+                    case "getQuoteById":
+                        return getQuoteById(note);
+                    case "getQuoteBySymbol":
+                        return getQuoteBySymbol(note);
                 }
             }
         }
@@ -1394,6 +1374,33 @@ public class SpectrumFinance extends Network implements NoteInterface {
     private Optional<SpectrumMarketData> m_quoteOptional;
 
 
+    private SpectrumMarketData findMarketDataById(String baseId, String quoteId){
+        if(m_marketsList != null && baseId != null && quoteId != null){
+            int size = m_marketsList.size();
+            for(int i = 0; i < size ; i++){
+                SpectrumMarketData data = m_marketsList.get(i);
+                if(data.getBaseId().equals(baseId) && data.getQuoteId().equals(quoteId)){
+                    data.setExchangeId(NETWORK_ID);
+                    return data;
+                }
+            }
+        }
+        return null;
+    }
+
+    private SpectrumMarketData findMarketDataBySymbol(String baseSymbol, String quoteSymbol){
+        if(m_marketsList != null && baseSymbol != null && quoteSymbol != null){
+            int size = m_marketsList.size();
+            for(int i = 0; i < size ; i++){
+                SpectrumMarketData data = m_marketsList.get(i);
+                if(data.getBaseSymbol().equals(baseSymbol) && data.getQuoteSymbol().equals(quoteSymbol)){
+                    data.setExchangeId(NETWORK_ID);
+                    return data;
+                }
+            }
+        }
+        return null;
+    }
 
     private Object getQuote(JsonObject json){
         JsonElement baseTypeElement = json.get("baseType");
@@ -1438,8 +1445,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     
                     if(m_quoteOptional.isPresent()){
                      
-                        
-                        return m_quoteOptional.get();
+                        SpectrumMarketData data = m_quoteOptional.get();
+                        data.setExchangeId(NETWORK_ID);
+                        return data;
                     }
                 break;
             }
@@ -1447,17 +1455,56 @@ public class SpectrumFinance extends Network implements NoteInterface {
         m_searchList = null;
         return null;
     }
-    
-  
-    public void uninstall(){
-        
-        
-         
+
+    private Object getErgoUSDQuote(){
+        return findMarketDataById(ErgoCurrency.TOKEN_ID, SIGUSD_ID);
     }
+
+    private Object getTokenQuoteInErg(JsonObject note){
+       
+        
+        JsonElement idElement = note != null ? note.get("tokenId") : null;
+        String tokenId = idElement != null && !idElement.isJsonNull() && idElement.isJsonPrimitive() ? idElement.getAsString() : null;
+        if(tokenId != null){
+            SpectrumMarketData data = findMarketDataById(ERG_ID, tokenId);
+            if(data != null){
+                SpectrumMarketData invertedQuote = data.clone(true);
+                invertedQuote.setExchangeId(NETWORK_ID);
+                return invertedQuote;
+            }
+        }
+        return null;
+    }
+    
+    private Object getQuoteById(JsonObject note){
+        JsonElement baseIdElement = note != null ? note.get("baseId") : null;
+        JsonElement quoteIdElement = note != null ? note.get("quoteId") : null;
+
+        String baseId = baseIdElement != null && !baseIdElement.isJsonNull() && baseIdElement.isJsonPrimitive() ? baseIdElement.getAsString() : null;
+        String quoteId = quoteIdElement != null && !quoteIdElement.isJsonNull() && quoteIdElement.isJsonPrimitive() ? quoteIdElement.getAsString() : null;
+
+        if(baseId != null && quoteId != null){
+            return findMarketDataById(baseId, quoteId);
+        }
+        return null;
+    }
+
+    private Object getQuoteBySymbol(JsonObject note){
+        JsonElement baseSymbolElement = note != null ? note.get("baseSymbol") : null;
+        JsonElement quoteSymbolElement = note != null ? note.get("quoteSymbol") : null;
+
+        String baseSymbol = baseSymbolElement != null && !baseSymbolElement.isJsonNull() && baseSymbolElement.isJsonPrimitive() ? baseSymbolElement.getAsString() : null;
+        String quoteSymbol = quoteSymbolElement != null && !quoteSymbolElement.isJsonNull() && quoteSymbolElement.isJsonPrimitive() ? quoteSymbolElement.getAsString() : null;
+
+        if(baseSymbol != null && quoteSymbol != null){
+            return findMarketDataBySymbol(baseSymbol, quoteSymbol);
+        }
+        return null;
+    }
+  
 
     @Override
     public void shutdown(){
-        uninstall();
         super.shutdown();
     }
  

@@ -40,7 +40,16 @@ public class SpectrumMarketData extends PriceQuote {
 
     private SimpleObjectProperty<SpectrumChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
 
-   
+    public SpectrumMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, long timeStamp){
+        setAmount(amount);
+        setTransactionCurrency(baseSymbol);
+        setQuoteCurrency(quoteSymbol);
+        setBaseId(baseId);
+        setQuoteId(quoteId);
+        setTimeStamp(timeStamp);
+        m_id = id;
+        m_poolId = poolId;
+    }
 
     public SpectrumMarketData(JsonObject json, long timeStamp) throws Exception{
         super(json.get("lastPrice").getAsString(), json.get("baseSymbol").getAsString(), json.get("quoteSymbol").getAsString(), timeStamp);
@@ -158,10 +167,16 @@ public class SpectrumMarketData extends PriceQuote {
         }
     }
 
-    public PriceQuote getPriceQuote(boolean invert){
+    public SpectrumMarketData clone(boolean invert){
 
-        String price = invert ? getInvertedLastPrice().toString() : lastPriceString();
-        return new PriceQuote(price, invert ? getQuoteSymbol() : getBaseSymbol(), invert ? getBaseSymbol() : getQuoteSymbol());
+        BigDecimal price = invert ? getInvertedAmount(): getAmount();
+        
+        String quoteSymbol = invert ?  getBaseSymbol() : getQuoteSymbol();
+        String baseSymbol  = invert ? getQuoteSymbol() : getBaseSymbol();
+        String quoteId = invert ? getBaseId() : getQuoteId();
+        String baseId  = invert ? getQuoteId() : getBaseId();
+        return new SpectrumMarketData(price,baseSymbol,quoteSymbol,baseId,quoteId, m_id, m_poolId, getTimeStamp());
+
     }
     
 
@@ -238,6 +253,19 @@ public class SpectrumMarketData extends PriceQuote {
         json.addProperty("last_price", getAmount());
         json.addProperty("base_volume", getBaseVolume());
         json.addProperty("quote_volume", getQuoteVolume());
+        return json;
+    }
+
+    public JsonObject getInvertedJsonObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("id", m_id);
+        json.addProperty("base_id",  getQuoteId());
+        json.addProperty("base_symbol", getQuoteSymbol() );
+        json.addProperty("quote_id",getBaseId());
+        json.addProperty("quote_symbol",getBaseSymbol());
+        json.addProperty("last_price", getInvertedAmount());
+        json.addProperty("base_volume",  getQuoteVolume());
+        json.addProperty("quote_volume",getBaseVolume());
         return json;
     }
 

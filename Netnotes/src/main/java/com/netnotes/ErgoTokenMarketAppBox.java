@@ -31,7 +31,7 @@ public class ErgoTokenMarketAppBox extends AppBox {
     private VBox m_mainBox;
     
     private SimpleBooleanProperty m_showInformation = new SimpleBooleanProperty(false);
-    private SimpleObjectProperty<NoteInterface> m_selectedMarket = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<NoteInterface> m_selectedTokenMarket = new SimpleObjectProperty<>(null);
 
     private String m_locationId = null;
 
@@ -151,8 +151,8 @@ public class ErgoTokenMarketAppBox extends AppBox {
         marketInfoVBox.setPadding(new Insets(5,0,0,5));
 
         Runnable setMarketInfo = ()->{
-            NoteInterface marketInterface = m_selectedMarket.get();
-            JsonObject marketJson = m_selectedMarket.get() != null ? marketInterface.getJsonObject() : null;
+            NoteInterface marketInterface = m_selectedTokenMarket.get();
+            JsonObject marketJson = m_selectedTokenMarket.get() != null ? marketInterface.getJsonObject() : null;
             
             if(marketJson != null){
                 marketJson.remove("name");
@@ -187,7 +187,7 @@ public class ErgoTokenMarketAppBox extends AppBox {
             }
         });
 
-        m_selectedMarket.addListener((obs,oldval,newval)->{
+        m_selectedTokenMarket.addListener((obs,oldval,newval)->{
             setMarketInfo.run();
         });
 
@@ -244,7 +244,7 @@ public class ErgoTokenMarketAppBox extends AppBox {
         note.addProperty("locationId", m_locationId);
         Object obj = m_ergoNetworkInterface.sendNote(note);;
         NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
-        m_selectedMarket.set(noteInterface);
+        m_selectedTokenMarket.set(noteInterface);
         
     }
 

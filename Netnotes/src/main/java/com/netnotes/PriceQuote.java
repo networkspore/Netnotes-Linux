@@ -13,11 +13,11 @@ import javafx.beans.property.SimpleObjectProperty;
 public class PriceQuote {
 
     private SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>( BigDecimal.ZERO);
-    private String m_transactionCurrencyId = "";
+    private String m_baseId = "";
     private String m_transactionCurrency;
     private String m_quoteCurrency;
     private long m_timestamp = 0;
-    private String m_quoteCurrencyId = "";
+    private String m_quoteId = "";
     private String m_exchangeId = "";
     private boolean m_defaultInvert = false;
 
@@ -43,19 +43,19 @@ public class PriceQuote {
         setAmountString(amountString);
         m_transactionCurrency = transactionCurrency;
         m_quoteCurrency = quoteCurrency;
-        m_transactionCurrencyId = null;
-        m_quoteCurrencyId = null;
+        m_baseId = null;
+        m_quoteId = null;
     }
     
-    public void setPrices(BigDecimal amount, String transactionCurrency, String quoteCurrency, String txId, String quoteId){
+    public void setPrices(BigDecimal amount, String transactionCurrency, String quoteCurrency, String baseId, String quoteId){
        
         m_timestamp = System.currentTimeMillis();
         BigDecimal amt = amount != null ? amount : BigDecimal.ZERO;
         setAmount(amt);
         m_transactionCurrency = transactionCurrency;
         m_quoteCurrency = quoteCurrency;
-        m_transactionCurrencyId = txId;
-        m_quoteCurrencyId = quoteId;
+        m_baseId = baseId;
+        m_quoteId = quoteId;
 
     }
 
@@ -90,11 +90,22 @@ public class PriceQuote {
     }
 
     public String getTransactionCurrencyId(){
-        return m_transactionCurrencyId;
+        return m_baseId;
     }
 
+    public void setBaseId(String baseId){
+        m_baseId = baseId;
+    }
+
+    public String getBaseId(){
+        return m_baseId;
+    }
     public String getQuoteCurrencyId(){
-        return m_quoteCurrencyId;
+        return m_quoteId;
+    }
+
+    public void setQuoteId(String quoteId){
+        m_quoteId = quoteId;
     }
 
     public double getDoubleAmount() {

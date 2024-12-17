@@ -91,9 +91,12 @@ public class AddressesData {
     private SimpleObjectProperty<NoteInterface> m_selectedTokenMarket = new SimpleObjectProperty<>(null);
 
     private ChangeListener<NoteInterface> m_selectedMarketChanged = null;
+    private ChangeListener<NoteInterface> m_selectedTokenMarketChanged = null;
     
     private SimpleIntegerProperty m_ergoExchangeStatus = new SimpleIntegerProperty(App.STOPPED);
+    private SimpleIntegerProperty m_tokenExchangeStatus = new SimpleIntegerProperty(App.STOPPED);
     private String m_statusMsg = "";
+    private String m_tokenStatusMsg = "";
 
     private String m_ergoBaseQuery = "ERG";
     private String m_ergoBaseType = "symbol";
@@ -101,9 +104,9 @@ public class AddressesData {
     private String m_ergoQuoteType = "firstSymbolContains"; 
     private String m_ergoQuoteQuery = "USD";
 
-    private JsonObject m_ergoQuoteJson = null;
 
-    private PriceQuote m_ergoQuote = null;
+
+
 
 
    // private SimpleObjectProperty<PriceQuote> m_currentQuote = new SimpleObjectProperty<>(null);
@@ -121,8 +124,11 @@ public class AddressesData {
     private ScheduledFuture<?> m_scheduledFuture = null;
 
     private NoteMsgInterface m_ergoNetworkMsgInterface;
-    private NoteMsgInterface m_marketMsgInterface = null;
 
+    private NoteMsgInterface m_marketMsgInterface = null;
+    private NoteMsgInterface m_tokenMarketMsgInterface = null;
+
+    private ChangeListener<BigDecimal> m_priceQuoteAmountChanged = null;
     private long m_balanceTimestamp = 0;
 
     public AddressesData(String id,  ArrayList<AddressData> addressDataList, ErgoWalletData walletData, NetworkType networkType) {
@@ -1216,6 +1222,7 @@ public class AddressesData {
         if(m_schedualedExecutor == null){
             m_schedualedExecutor = Executors.newSingleThreadScheduledExecutor();
             
+            //Ergo
             m_ergoNetworkMsgInterface = new NoteMsgInterface() {
                 private String m_msgId = FriendlyId.createFriendlyId();
                 @Override
@@ -1232,7 +1239,9 @@ public class AddressesData {
                             case ErgoMarkets.MARKET_LIST_DEFAULT_CHANGED:
                                 getDefaultMarket(); 
                             break;
-                          
+                            case ErgoMarkets.TOKEN_LIST_DEFAULT_CHANGED:
+                                getDefaultTokenMarket();
+                            break;
                         }
                     }
                 }
@@ -1243,9 +1252,6 @@ public class AddressesData {
                 }
                 
             };
-
-            getErgoNetwork().addMsgListener(m_ergoNetworkMsgInterface);
-
           
             m_selectedMarketChanged = (obs,oldval,newval)->{
                 if(oldval != null){
@@ -1258,10 +1264,26 @@ public class AddressesData {
             };
 
             m_selectedMarket.addListener(m_selectedMarketChanged);
-
-        
             
             getDefaultMarket();
+
+
+            m_selectedTokenMarketChanged = (obs,oldval,newval)->{
+                if(oldval != null){
+                    connectToTokenExchange(false, newval);
+                }
+                
+                if(newval != null){
+                    connectToTokenExchange(true, newval);
+                }
+            };
+
+            m_selectedTokenMarket.addListener(m_selectedTokenMarketChanged);
+            
+            getDefaultTokenMarket();
+
+
+            getErgoNetwork().addMsgListener(m_ergoNetworkMsgInterface);
 
             m_scheduledFuture = m_schedualedExecutor.scheduleAtFixedRate(()->{
                 update();
@@ -1305,7 +1327,14 @@ public class AddressesData {
             m_selectedMarket.removeListener(m_selectedMarketChanged);
             m_selectedMarketChanged = null;
         }
+
+        if(m_selectedMarketChanged != null){
+            m_selectedTokenMarket.set(null);
+            m_selectedTokenMarket.removeListener(m_selectedTokenMarketChanged);
+            m_selectedTokenMarketChanged = null;
+        }
     }
+    
 
     public SimpleObjectProperty<LocalDateTime> balanceUpdatedProperty(){
         return m_lastUpdated;
@@ -1439,8 +1468,6 @@ public class AddressesData {
                         case App.LIST_CHANGED:
                         case App.LIST_UPDATED:
                             //updated
-                        
-                            updateErgoQuote();
                             
                             m_ergoExchangeStatus.set(code);
                             break;
@@ -1468,24 +1495,78 @@ public class AddressesData {
                     }
                 }
 
-        
-
             };
     
-            if(exchangeInterface.getConnectionStatus() == App.STARTED){
-                updateErgoQuote();
-            }
-            
             exchangeInterface.addMsgListener(m_marketMsgInterface);
             
-            
-
         }else{
-            setErgoQuote(null);
+
             if(m_marketMsgInterface != null && exchangeInterface != null){
                 exchangeInterface.removeMsgListener(m_marketMsgInterface);  
             }
             m_marketMsgInterface = null;
+        }
+    }
+
+    public void connectToTokenExchange(boolean connect, NoteInterface tokenExchangeInterface ){
+     
+        if(connect && tokenExchangeInterface != null){
+
+          
+            m_tokenMarketMsgInterface = new NoteMsgInterface() {
+                private String m_msgId = FriendlyId.createFriendlyId();
+
+                public String getId(){
+                    return m_msgId;
+                }
+
+                public void sendMessage(int code, long timeStamp, String poolId, Number num){
+                   
+                    switch(code){
+                        case App.LIST_CHANGED:
+                        case App.LIST_UPDATED:
+                            //updated
+                        
+                            m_tokenExchangeStatus.set(App.LIST_UPDATED);
+                            break;
+                        case App.STOPPED:
+                        m_tokenExchangeStatus.set(code);
+                        break;
+                        case App.STARTED:
+                        m_tokenExchangeStatus.set(code);
+                        break;
+                        case App.STARTING:
+                        m_tokenExchangeStatus.set(code);
+                        break;
+                        case App.ERROR:
+                        
+                        break;
+                    } 
+                    
+                }
+            
+                public void sendMessage(int code, long timestamp, String networkId, String msg){
+                    if(code == App.ERROR){
+                
+                        m_tokenStatusMsg = msg;
+                        m_tokenExchangeStatus.set(code);
+                    }
+                }
+
+        
+
+            };
+    
+            tokenExchangeInterface.addMsgListener(m_tokenMarketMsgInterface);
+            
+            
+
+        }else{
+
+            if(m_tokenMarketMsgInterface != null && tokenExchangeInterface != null){
+                tokenExchangeInterface.removeMsgListener(m_tokenMarketMsgInterface);  
+            }
+            m_tokenMarketMsgInterface = null;
         }
     }
 
@@ -1518,83 +1599,61 @@ public class AddressesData {
         
     }
 
-    private ChangeListener<BigDecimal> m_priceQuoteAmountChanged = null;
-
-    public JsonObject getErgoQuoteJson(){
-        return m_ergoQuoteJson;
-    }
-
-    private void setErgoQuote(PriceQuote priceQuote){
-        if(m_ergoQuote != null && m_priceQuoteAmountChanged != null){
-            m_ergoQuote.amountProperty().removeListener(m_priceQuoteAmountChanged);
-            m_priceQuoteAmountChanged = null;
-            m_ergoQuoteJson = null;
-        }
-
-        m_ergoQuote = priceQuote;
-
-        if(priceQuote != null){
-            m_priceQuoteAmountChanged = (obs,oldval,newval)->{
-                m_ergoQuoteJson = priceQuote.getJsonObject(); 
-            };
-
-            m_ergoQuoteJson = priceQuote.getJsonObject();
-
-            m_ergoQuote.amountProperty().addListener(m_priceQuoteAmountChanged);
-        }
+    public void getDefaultTokenMarket(){
+        
+        JsonObject note = Utils.getCmdObject("getDefaultTokenInterface");
+        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
+        note.addProperty("locationId", getLocationId());
+        Object obj = getErgoNetwork().sendNote(note);;
+        NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
+        m_selectedTokenMarket.set(noteInterface);
+        
     }
 
 
+    public boolean isTokenMarket(){
+        NoteInterface noteInterface = m_selectedTokenMarket.get();
+        return noteInterface != null && noteInterface.getConnectionStatus() == App.STARTED;
+    }
 
-    public void updateErgoQuote(){
+    public boolean isErgoMarket(){
+        NoteInterface noteInterface = m_selectedMarket.get();
+        return noteInterface != null && noteInterface.getConnectionStatus() == App.STARTED;
+    }
+
+    public PriceQuote getErgoQuote(){
         NoteInterface exchangeInterface = m_selectedMarket.get();
-        
-        if(exchangeInterface != null){
-            String exchangeId = exchangeInterface.getNetworkId();
-            if( (m_ergoQuote == null || (m_ergoQuote != null && m_ergoQuote.getExchangeId() == null) || (m_ergoQuote != null && !m_ergoQuote.getExchangeId().equals(exchangeId)))){
+        if(exchangeInterface != null && exchangeInterface.getConnectionStatus() == App.STARTED){
+          
+            JsonObject note = Utils.getCmdObject("getErgoUSDQuote");
+            note.addProperty("locationId", getLocationId());
 
-                JsonObject note = Utils.getCmdObject("getQuote");
-                note.addProperty("locationId", getLocationId());
-                note.addProperty("baseType", m_ergoBaseType);
-                note.addProperty("quoteType", m_ergoQuoteType);
-                note.addProperty("base", m_ergoBaseQuery);
-                note.addProperty("quote", m_ergoQuoteQuery);
-
-                Object result =  exchangeInterface.sendNote(note);
-                if(result != null && result instanceof PriceQuote){
-                    PriceQuote ergoQuote = (PriceQuote) result;
-                    ergoQuote.setExchangeId(exchangeId);
-                    setErgoQuote(ergoQuote);
-                }else{
-                    setErgoQuote(null);
-                }
+            Object result =  exchangeInterface.sendNote(note);
+            if(result != null && result instanceof PriceQuote){
+                PriceQuote ergoQuote = (PriceQuote) result;
+                return ergoQuote;
             }
-
-        }else{
-            setErgoQuote(null);
         }
-        
+        return null;
     }
 
-    public void getTokenQuotes(){
+    public PriceQuote getTokenQuoteInErg(String tokenId){
         NoteInterface exchangeTokenInterface = m_selectedTokenMarket.get();
 
+        if(exchangeTokenInterface != null && exchangeTokenInterface.getConnectionStatus() == App.STARTED){
 
-        if(exchangeTokenInterface != null ){
+            JsonObject note = Utils.getCmdObject("getTokenQuoteInErg");
 
-            JsonObject note = Utils.getCmdObject("getTokenQuotes");
             note.addProperty("locationId", getLocationId());
-            
-
+            note.addProperty("tokenId",tokenId);
             Object result =  exchangeTokenInterface.sendNote(note);
             
-            if(result != null && result instanceof PriceQuote[]){
-                PriceQuote[] priceQuotes = (PriceQuote[]) result;
-
-            }else{
- 
+            if(result != null && result instanceof PriceQuote){
+                PriceQuote priceQuote = (PriceQuote) result;
+                return priceQuote;
             }
         }
+        return null;
     }
 
 }

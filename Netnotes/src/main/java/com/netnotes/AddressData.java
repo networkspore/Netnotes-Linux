@@ -10,8 +10,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.utils.Utils;
 import java.io.IOException;
+import java.math.BigDecimal;
 
 
 public class AddressData extends Network {  
@@ -62,6 +64,14 @@ public class AddressData extends Network {
         m_addressesData = addressesData;
     }
 
+    public BigDecimal totalQuote(){
+        return m_totalQuote;
+    }
+
+    public BigDecimal totalErg(){
+        return m_totalErg;
+    }
+
     public void updateBalance() {
        
         JsonObject note = Utils.getCmdObject("getBalance");
@@ -73,7 +83,9 @@ public class AddressData extends Network {
             if (sourceObject != null) {
                 JsonObject jsonObject = (JsonObject) sourceObject;
                 
-                setBalance(jsonObject); 
+              
+                setBalance(parseBalance(jsonObject));
+              
                 
             }},
         failed -> {
@@ -123,9 +135,6 @@ public class AddressData extends Network {
         return new ErgoTransaction[0];
     }
 
-    public void getErgoQuote(String interfaceId){
-        
-    }
 
   
     /*public void openAddressJson(JsonObject json){
@@ -410,21 +419,126 @@ public class AddressData extends Network {
         
     }*/
 
+    private BigDecimal m_totalQuote = BigDecimal.ZERO;
+    private BigDecimal m_totalErg = BigDecimal.ZERO;
 
-    private void setBalance(JsonObject jsonObject){
-        long timeStamp = System.currentTimeMillis();
-        m_balanceJson = jsonObject;
-        JsonObject ergoQuoteJson = m_addressesData != null ? m_addressesData.getErgoQuoteJson() : null;
-        if(ergoQuoteJson != null){
-            m_balanceJson.add("ergoQuote", ergoQuoteJson);
-        }
-        m_balanceJson.addProperty("networkId", m_addressString);
-        m_balanceJson.addProperty("timeStamp", timeStamp);
+    private JsonObject parseBalance(JsonObject balanceJson ){
+        m_totalQuote = BigDecimal.ZERO;
+        m_totalErg = BigDecimal.ZERO;
+        if(m_addressesData != null && balanceJson != null){
+            JsonElement confirmedElement = balanceJson.get("confirmed");
+            
+            boolean isErgoMarket = m_addressesData.isErgoMarket();
+            boolean isTokenMarket = m_addressesData.isTokenMarket();
 
-        String balanceString = m_balanceJson.toString();
+            if(confirmedElement != null && (isErgoMarket || isTokenMarket)){
+            
+
+                JsonObject confirmedObject = confirmedElement != null && confirmedElement.isJsonObject() ? confirmedElement.getAsJsonObject() : null;
+                
+                if(confirmedObject != null){
+                    balanceJson.remove("confirmed");
+
+                    PriceQuote ergoQuote = isErgoMarket ? m_addressesData.getErgoQuote() : null;
+                    if(ergoQuote != null){
+                        confirmedObject.add("ergoQuote", ergoQuote.getJsonObject());
+                        
+                        JsonElement nanoErgElement = confirmedObject.get("nanoErgs");
+                        long nanoErg = nanoErgElement != null && nanoErgElement.isJsonPrimitive() ? nanoErgElement.getAsLong() : 0;
+                        ErgoAmount ergoAmount =  nanoErg > 0 ? new ErgoAmount(nanoErg, m_networkType) : null;
+                    
+                        BigDecimal ergoQuoteAmount = ergoQuote.getAmount().multiply(ergoAmount.getBigDecimalAmount());    
+                        
+                        confirmedObject.addProperty("ergoQuoteAmount", ergoQuoteAmount);
+                        m_totalErg = m_totalErg.add(ergoAmount.getBigDecimalAmount());    
+                        m_totalQuote = m_totalQuote.add(ergoQuoteAmount);
+                        
+                    }
+
+
+                    JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
+
+                    JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;
+                    int tokenSize = confirmedTokenArray.size();
+                    if(confirmedTokenArray != null && tokenSize > 0 && isTokenMarket){
+                        confirmedObject.remove("tokens");
+                        
+                        JsonArray udpatedTokenArray = new JsonArray();
+
+                        for (int i = 0; i < tokenSize ; i++) {
+                            JsonElement tokenElement = confirmedTokenArray.get(i);
+
+                            JsonObject tokenObject = tokenElement.getAsJsonObject();
+
+                            JsonElement tokenIdElement = tokenObject.get("tokenId");
+                            JsonElement amountElement = tokenObject.get("amount");
+                            JsonElement decimalsElement = tokenObject.get("decimals");
+                            JsonElement nameElement = tokenObject.get("name");
+                            JsonElement tokenTypeElement = tokenObject.get("tokenType");
+
+                            String tokenId = tokenIdElement.getAsString();
+                            long amount = amountElement.getAsLong();
+                            int decimals = decimalsElement.getAsInt();
+                            String name = nameElement.getAsString();
+                            String tokenType = tokenTypeElement.getAsString();
+                            
+                            PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(tokenId, name, decimals, tokenType, m_networkType.toString()));
+                            PriceQuote tokenQuote = m_addressesData.getTokenQuoteInErg(tokenId);
+                            
+                            if(tokenQuote != null){
+                                
+                                tokenObject.add("tokenQuote", tokenQuote.getJsonObject());
+                                BigDecimal tokenQuoteErgAmount =  tokenQuote.getAmount().multiply(tokenAmount.getBigDecimalAmount());
+
+                                m_totalErg = m_totalErg.add(tokenQuoteErgAmount);    
+                                tokenObject.addProperty("tokenQuoteErgAmount", tokenQuoteErgAmount);
+                            
+                                if(ergoQuote != null){
+                                    
+                                    BigDecimal tokenQuoteAmount = ergoQuote.getAmount().multiply(tokenQuoteErgAmount);
+                                    m_totalQuote = m_totalQuote.add(tokenQuoteAmount);
+
+                                    tokenObject.addProperty("tokenQuoteAmount", tokenQuoteAmount);
+                                    
+                                }
+
+                            }
+
+                            udpatedTokenArray.add(tokenObject);
+
+                        }
+
+                        confirmedObject.add("tokens", udpatedTokenArray);
     
+                    }
+                    confirmedObject.addProperty("totalQuote", m_totalQuote);
+                    confirmedObject.addProperty("totalErg", m_totalErg);
+
+                    balanceJson.add("confirmed", confirmedObject);
+                }
+                
+            }     
+        }   
+        return balanceJson;
+    }
+
+
+    private void setBalance(JsonObject balanceJson){
+        long timeStamp = System.currentTimeMillis();
         
-        m_walletData.sendMessage(App.UPDATED,timeStamp ,m_addressString, balanceString); 
+        balanceJson.addProperty("address", m_addressString);
+        balanceJson.addProperty("timeStamp", timeStamp);
+        String balanceString = balanceJson.toString();
+        
+        m_balanceJson = balanceJson;
+        try {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            Files.writeString(App.logFile.toPath(), gson.toJson(balanceJson) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+
+        }
+        
+        m_walletData.sendMessage(App.UPDATED,System.currentTimeMillis() ,m_addressString, balanceString); 
 
 
     }
