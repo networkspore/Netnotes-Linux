@@ -531,12 +531,12 @@ public class AddressData extends Network {
         String balanceString = balanceJson.toString();
         
         m_balanceJson = balanceJson;
-        try {
+        /*try {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             Files.writeString(App.logFile.toPath(), gson.toJson(balanceJson) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
 
-        }
+        }*/
         
         m_walletData.sendMessage(App.UPDATED,System.currentTimeMillis() ,m_addressString, balanceString); 
 

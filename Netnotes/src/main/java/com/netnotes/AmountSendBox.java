@@ -40,7 +40,7 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
     private ChangeListener<BigDecimal> m_currentBalanceListener = null;
 
     private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
-
+    private SimpleObjectProperty<BigDecimal> m_quoteAmount = new SimpleObjectProperty<>(null);
     private int m_minImgWidth = 250;
     
     private String m_boxId;
@@ -676,6 +676,14 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
 
     public void setPriceQuote(PriceQuote priceQuote) {
         m_priceQuote.set(priceQuote);
+    }
+
+    public void setQuoteAmount(BigDecimal amount){
+        m_quoteAmount.set(amount);
+    }
+
+    public BigDecimal getQuoteAmount(){
+        return m_quoteAmount.get();
     }
 
     public void shutdown(){

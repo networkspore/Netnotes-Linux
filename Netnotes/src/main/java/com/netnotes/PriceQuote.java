@@ -6,6 +6,8 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
+
 import com.utils.Utils;
 
 import javafx.beans.property.SimpleObjectProperty;
@@ -14,17 +16,41 @@ public class PriceQuote {
 
     private SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>( BigDecimal.ZERO);
     private String m_baseId = "";
-    private String m_transactionCurrency;
-    private String m_quoteCurrency;
+    private String m_baseSymbol;
+    private String m_quoteSymbol;
     private long m_timestamp = 0;
     private String m_quoteId = "";
     private String m_exchangeId = "";
     private boolean m_defaultInvert = false;
+    private String m_id = "";
+
 
     public PriceQuote(){
         m_timestamp = System.currentTimeMillis();
-
     }
+
+    public PriceQuote(JsonObject json){
+        JsonElement idElement = json.get("id");
+        JsonElement baseIdElement =json.get("baseId");
+        JsonElement baseSymbolElement = json.get("baseSymbol");
+        JsonElement quoteIdElement = json.get("quoteId");
+        JsonElement quoteSymbolElement = json.get("quoteSymbol");
+        JsonElement amountElement = json.get("amount");
+        JsonElement timeStampElement = json.get("timeStamp");
+
+        m_timestamp = timeStampElement != null && !timeStampElement.isJsonNull() ? timeStampElement.getAsLong() : System.currentTimeMillis();
+
+        m_baseSymbol = baseSymbolElement != null && !baseSymbolElement.isJsonNull() ? baseSymbolElement.getAsString() : "null";
+        m_quoteSymbol = quoteSymbolElement != null && !quoteSymbolElement.isJsonNull() ? quoteSymbolElement.getAsString() : "null";
+        m_baseId = baseIdElement != null && !baseIdElement.isJsonNull() ? baseIdElement.getAsString() : m_baseSymbol;
+        m_quoteId = quoteIdElement != null && !quoteIdElement.isJsonNull() ? quoteIdElement.getAsString() : m_quoteSymbol;
+        m_id = idElement != null && !idElement.isJsonNull() ? idElement.getAsString() : m_baseId + "_" + m_quoteId;  
+        BigDecimal amount = amountElement != null && !amountElement.isJsonNull() ? amountElement.getAsBigDecimal() : BigDecimal.ZERO;
+
+        m_amount.set(amount);
+    }
+
+
 
     public PriceQuote(String amountString, String transactionCurrency, String quoteCurrency) {
 
@@ -37,14 +63,20 @@ public class PriceQuote {
         setPrices(amountString, transactionCurrency, quoteCurrency);
     }
 
+    public PriceQuote(BigDecimal amount, String transactionCurrency, String quoteCurrency,String baseId, String quoteId, long timestamp) {
+        m_timestamp = timestamp;
+        
+        setPrices(amount, transactionCurrency, quoteCurrency, baseId, quoteId);
+    }
+
     private void setPrices(String amountString, String transactionCurrency, String quoteCurrency){
         setStringAmount(amountString);
         m_timestamp = System.currentTimeMillis();
         setAmountString(amountString);
-        m_transactionCurrency = transactionCurrency;
-        m_quoteCurrency = quoteCurrency;
-        m_baseId = null;
-        m_quoteId = null;
+        m_baseSymbol = transactionCurrency;
+        m_quoteSymbol = quoteCurrency;
+        m_baseId = m_baseSymbol;
+        m_quoteId = m_quoteSymbol;
     }
     
     public void setPrices(BigDecimal amount, String transactionCurrency, String quoteCurrency, String baseId, String quoteId){
@@ -52,11 +84,15 @@ public class PriceQuote {
         m_timestamp = System.currentTimeMillis();
         BigDecimal amt = amount != null ? amount : BigDecimal.ZERO;
         setAmount(amt);
-        m_transactionCurrency = transactionCurrency;
-        m_quoteCurrency = quoteCurrency;
+        m_baseSymbol = transactionCurrency;
+        m_quoteSymbol = quoteCurrency;
         m_baseId = baseId;
         m_quoteId = quoteId;
 
+    }
+
+    public String getSymbol(){
+        return getBaseSymbol() + "-" + getQuoteSymbol();
     }
 
     public void setExchangeId(String id){
@@ -104,6 +140,10 @@ public class PriceQuote {
         return m_quoteId;
     }
 
+    public String getQuoteId(){
+        return m_quoteId;
+    }
+
     public void setQuoteId(String quoteId){
         m_quoteId = quoteId;
     }
@@ -125,7 +165,7 @@ public class PriceQuote {
     }
 
     public BigDecimal getInvertedAmount(){
-        BigDecimal amount = getBigDecimalAmount();
+        BigDecimal amount = m_amount.get();
         
         if(amount.equals(BigDecimal.ZERO)){
             return amount;
@@ -136,7 +176,7 @@ public class PriceQuote {
             return BigDecimal.ONE.divide(amount, amount.precision(), RoundingMode.HALF_UP);
         
         }catch(ArithmeticException ex){
-            String msg = ex.toString();
+            //String msg = ex.toString();
             
         }
         
@@ -157,19 +197,23 @@ public class PriceQuote {
     }
 
     public String getTransactionCurrency() {
-        return m_transactionCurrency;
+        return m_baseSymbol;
+    }
+
+    public String getBaseCurrency(){
+        return m_baseSymbol;
     }
 
     public void setTransactionCurrency(String transactionCurrency){
-        m_transactionCurrency = transactionCurrency;
+        m_baseSymbol = transactionCurrency;
     }
 
     public String getQuoteCurrency() {
-        return m_quoteCurrency;
+        return m_quoteSymbol;
     }
 
     public void setQuoteCurrency(String quoteCurrency){
-        m_quoteCurrency = quoteCurrency;
+        m_quoteSymbol = quoteCurrency;
     }
 
     public long howOldMillis() {
@@ -182,25 +226,66 @@ public class PriceQuote {
     public long getTimeStamp() {
         return m_timestamp;
     }
-
-    public JsonObject getJsonObject() {
-        JsonObject priceQuoteObject = new JsonObject();
-        priceQuoteObject.addProperty("transactionCurrency", m_transactionCurrency);
-        priceQuoteObject.addProperty("quoteCurrency", m_quoteCurrency);
-        priceQuoteObject.addProperty("amount", m_amount.get());
-        priceQuoteObject.addProperty("timeStamp", m_timestamp);
-
-        return priceQuoteObject;
+    
+    public String getId(){
+        return m_id;
     }
+
+    public void setId(String id){
+        m_id = id;
+    }
+
+    public String getBaseSymbol(){
+        return m_baseSymbol;
+    }
+
+    public String getQuoteSymbol(){
+        return m_quoteSymbol;
+    }
+
+ 
+    public void setBaseSymbol(String symbol){
+        m_baseSymbol = symbol;
+    }
+
+    public void setQuoteSymbol(String symbol){
+        m_quoteSymbol = symbol;
+    }
+
+    
+    public JsonObject getJsonObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("id", getId());
+        json.addProperty("baseId", getBaseId());
+        json.addProperty("baseSymbol", getBaseSymbol());
+        json.addProperty("quoteId", getQuoteId());
+        json.addProperty("quoteSymbol", getQuoteSymbol());
+        json.addProperty("amount", getAmount());
+        json.addProperty("timeStamp", getTimeStamp());
+        return json;
+    }
+
+    public JsonObject getInvertedJsonObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("id", getId());
+        json.addProperty("baseId",  getQuoteId());
+        json.addProperty("baseSymbol", getQuoteSymbol() );
+        json.addProperty("quoteId",getBaseId());
+        json.addProperty("quoteSymbol",getBaseSymbol());
+        json.addProperty("amount", getInvertedAmount());
+        json.addProperty("timeStamp", getTimeStamp());
+        return json;
+    }
+
  
     public String toString(boolean invert) {
-        return invert ? (getInvertedAmount() + " " +  m_quoteCurrency + "/" +m_transactionCurrency ) : toString();
+        return invert ? (getInvertedAmount() + " " +  m_quoteSymbol + "/" +m_baseSymbol ) : toString();
     }
 
 
     @Override
     public String toString() {
-        return m_amount + " " + m_transactionCurrency + "/" + m_quoteCurrency;
+        return m_amount + " " + m_baseSymbol + "/" + m_quoteSymbol;
     }
 
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());

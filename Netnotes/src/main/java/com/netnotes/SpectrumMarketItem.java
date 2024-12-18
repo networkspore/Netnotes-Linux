@@ -4,16 +4,10 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.time.LocalDateTime;
-
-import org.reactfx.util.FxTimer;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonObject;
@@ -158,7 +152,7 @@ public class SpectrumMarketItem {
 
         String friendlyId = FriendlyId.createFriendlyId();
         double regularHeight = 50;
-        double focusedHeight = 150;
+        double focusedHeight = 152;
         int  chartWidthOffset = 200;
 
         SimpleDoubleProperty chartHeightObject = new SimpleDoubleProperty(regularHeight);
@@ -228,10 +222,11 @@ public class SpectrumMarketItem {
         
         HBox openChartBtnBox = new HBox(openChartBtn);
         openChartBtnBox.setPadding(new Insets(5, 0,0,10));
+
         HBox priceHBox = new HBox(priceText, openChartBtnBox);
         HBox.setHgrow(priceHBox, Priority.ALWAYS);
         priceHBox.setAlignment(Pos.TOP_RIGHT);
-        priceHBox.setPadding(new Insets(5,0,5,0));
+        priceHBox.setPadding(new Insets(5,10,5,0));
  
         priceHBox.setMinWidth(90);
 
@@ -242,7 +237,8 @@ public class SpectrumMarketItem {
 
         HBox symbolTextPaddingBox = new HBox(symbolText, priceHBox);
         VBox.setVgrow(symbolTextPaddingBox, Priority.ALWAYS);
-        symbolTextPaddingBox.prefWidthProperty().bind(m_dataList.gridWidthProperty());
+        HBox.setHgrow(symbolTextPaddingBox,Priority.ALWAYS);
+        //symbolTextPaddingBox.setPrefWidth(App.DEFAULT_STATIC_WIDTH);
         symbolTextPaddingBox.setAlignment(Pos.TOP_LEFT);
 
   
@@ -320,8 +316,9 @@ public class SpectrumMarketItem {
        
         
         StackPane rowImgBox = new StackPane(chartBox, imagesBox, symbolTextPaddingBox);
+       
         HBox.setHgrow(rowImgBox,Priority.ALWAYS);
-        rowImgBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
+        rowImgBox.setMinWidth(App.DEFAULT_STATIC_WIDTH-25);
         rowImgBox.setAlignment(Pos.CENTER_LEFT);
         rowImgBox.setPadding(new Insets(0,0,0,0));
 
@@ -336,7 +333,8 @@ public class SpectrumMarketItem {
         statsBox.setId("transparentColor");
         HBox.setHgrow(statsBox, Priority.ALWAYS);
         VBox.setVgrow(statsBox, Priority.ALWAYS);
-        statsBox.setPadding(new Insets(0,10,0,0));
+        statsBox.setAlignment(Pos.CENTER_RIGHT);
+        statsBox.setPadding(new Insets(0,0,0,0));
 
         Text lblPercentChangeText = new Text(String.format("%-7s", "Change"));
         lblPercentChangeText.setFont(App.txtFont);
@@ -357,26 +355,25 @@ public class SpectrumMarketItem {
         Text percentChangeText = new Text("0.00%");
         percentChangeText.setFont(App.txtFont);
 
-        Text openText = new Text();
-        openText.setFont(App.txtFont);
-        openText.setFill(App.formFieldColor);
-        
-        Text highText = new Text();
-        highText.setFont(App.txtFont);
-        highText.setFill(App.formFieldColor);
-        
-        Text lowText = new Text();
-        lowText.setFont(App.txtFont);
-        lowText.setFill(App.formFieldColor);
+        double textWidth = 100;
+
+        TextField openText = new TextField();
+        openText.setPrefWidth(textWidth);
+        TextField highText = new TextField(); 
+        highText.setPrefWidth(textWidth);
+        TextField lowText = new TextField();
+        lowText.setPrefWidth(textWidth);
+
+        Insets boxPadding = new Insets(5);
 
         HBox openHbox = new HBox(lblOpenText, openText);
-        openHbox.setPadding(new Insets(5));
+        openHbox.setPadding(boxPadding);
         HBox changeHBox = new HBox(lblPercentChangeText, percentChangeText);
-        changeHBox.setPadding(new Insets(5));
+        changeHBox.setPadding(boxPadding);
         HBox highHBox = new HBox(lblHighText, highText);
-        highHBox.setPadding(new Insets(5));
+        highHBox.setPadding(boxPadding);
         HBox lowHBox = new HBox(lblLowText, lowText);
-        lowHBox.setPadding(new Insets(5));
+        lowHBox.setPadding(boxPadding);
 
         VBox statsVbox = new VBox( openHbox,changeHBox, highHBox, lowHBox);
         VBox.setVgrow(statsVbox, Priority.ALWAYS);
@@ -536,9 +533,7 @@ public class SpectrumMarketItem {
 
       
 
-        VBox priceVBox = new VBox( statsBox);
-        HBox.setHgrow(priceVBox,Priority.ALWAYS);
-        priceVBox.setAlignment(Pos.CENTER_LEFT);
+
 
         /*HBox menuBtnBox = new HBox(menuBtn);
         menuBtnBox.setMaxHeight(32);
@@ -548,10 +543,10 @@ public class SpectrumMarketItem {
         leftMarginVBox.setAlignment(Pos.TOP_CENTER);
         leftMarginVBox.setId("darkBox");*/
 
-        HBox rowBox = new HBox( rowImgBox,  priceVBox );
+        HBox rowBox = new HBox( rowImgBox );
         rowBox.setId("rowBox");
         rowBox.setAlignment(Pos.TOP_LEFT);
-        rowBox.maxWidthProperty().bind(m_dataList.gridWidthProperty());
+      //  rowBox.maxWidthProperty().bind(m_dataList.gridWidthProperty());
         rowBox.setFocusTraversable(true);
 
         rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
@@ -648,7 +643,8 @@ public class SpectrumMarketItem {
                     statsVbox.getChildren().add(0,priceHBox);
                     
                 }
-              
+                rowImgBox.getChildren().add(statsBox);
+                
                 openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
                 highText.setText(String.format("%-12s",  newval.getHigh().doubleValue() + "").substring(0,12) );
                 lowText.setText(String.format("%-12s",newval.getLow().doubleValue() + "").substring(0,12) );
@@ -659,10 +655,12 @@ public class SpectrumMarketItem {
                 int increaseDirection = BigDecimal.ZERO.compareTo(increase);
                
                 
-                percentChangeText.setText(increaseDirection == 0 ? "0.00%" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
+                percentChangeText.setText(increaseDirection == 0 ? " 0.00%" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
                 percentChangeText.setFill(increaseDirection == 0 ? App.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
             
             }else{
+                rowImgBox.getChildren().remove(statsBox);
+
                 statsVbox.getChildren().remove(priceHBox);
                 symbolTextPaddingBox.getChildren().add(priceHBox);
                 statsBox.getChildren().clear();

@@ -35,7 +35,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
     private ChangeListener<PriceQuote> m_priceQuoteListener = null;
     private ChangeListener<BigDecimal> m_amountListener = null;
-
+    private SimpleObjectProperty<BigDecimal> m_quoteAmount = new SimpleObjectProperty<>(null);
     private TextField m_amountField;
     private int m_leftColWidth = 140;
     private int m_botRowPadding = 3;
@@ -469,6 +469,14 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
     public void setPriceQuote(PriceQuote priceQuote) {
         m_priceQuote.set(priceQuote);
+    }
+
+    public void setQuoteAmount(BigDecimal amount){
+        m_quoteAmount.set(amount);
+    }
+
+    public BigDecimal getQuoteAmount(){
+        return m_quoteAmount.get();
     }
 
     public void shutdown() {

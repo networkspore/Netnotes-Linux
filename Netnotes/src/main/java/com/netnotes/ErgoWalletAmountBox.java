@@ -21,9 +21,10 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 
 
-public class AmountBox extends HBox implements AmountBoxInterface {
+public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
 
     private long m_quoteTimeout = AddressesData.QUOTE_TIMEOUT;
     private PriceAmount m_priceAmount = null;
@@ -35,10 +36,17 @@ public class AmountBox extends HBox implements AmountBoxInterface {
     private ChangeListener<BigDecimal> m_amountListener = null;
     private ChangeListener<PriceQuote> m_quoteListener = null;
     private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(180);
+    
+    private Text m_quoteAmountSymbolText = null;
+    private TextField m_quoteAmountField = null;
+    private VBox m_quoteAmountBox = null;
+    private HBox m_topBox;
+    private HBox m_fieldBox = null;
+    private HBox m_balanceFieldBox;
 
     private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<BigDecimal> m_quoteAmount = new SimpleObjectProperty<>(null);
-    public AmountBox(){
+    public ErgoWalletAmountBox(){
         super();
         m_id = FriendlyId.createFriendlyId();
     }
@@ -46,9 +54,9 @@ public class AmountBox extends HBox implements AmountBoxInterface {
  
     
 
-    public AmountBox(PriceAmount priceAmount, Scene scene) {
+    public ErgoWalletAmountBox(PriceAmount priceAmount, Scene scene) {
         super();
-        int rowPadding = 2;
+          int rowPadding = 2;
 
         m_id = FriendlyId.createFriendlyId();
         m_priceAmount = priceAmount;
@@ -74,19 +82,23 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         currencyImageView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
         currencyImageView.setImage(m_priceAmount.getCurrency().getIcon());
 
+        HBox amaountFieldBox = new HBox(amountField);
+        HBox.setHgrow(amaountFieldBox, Priority.ALWAYS);
+        amaountFieldBox.setAlignment(Pos.CENTER_LEFT);
+        amaountFieldBox.setMinHeight(30);
 
-        HBox balanceFieldBox = new HBox(amountField);
-        HBox.setHgrow(balanceFieldBox,Priority.ALWAYS);
-        balanceFieldBox.setId("bodyBox");
-        balanceFieldBox.setAlignment(Pos.CENTER_LEFT);
-        balanceFieldBox.setMaxHeight(18);
+        m_balanceFieldBox = new HBox(amaountFieldBox);
+        HBox.setHgrow(m_balanceFieldBox,Priority.ALWAYS);
+        m_balanceFieldBox.setId("bodyBox");
+        m_balanceFieldBox.setAlignment(Pos.CENTER_LEFT);
 
-        HBox topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, balanceFieldBox);
-        HBox.setHgrow(topBox, Priority.ALWAYS);
-        topBox.setAlignment(Pos.CENTER_LEFT);
-        topBox.setPadding(new Insets(0,10,1,0));
+        m_topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, m_balanceFieldBox);
+        HBox.setHgrow(m_topBox, Priority.ALWAYS);
+        m_topBox.setAlignment(Pos.CENTER_LEFT);
+        m_topBox.setPadding(new Insets(0,10,1,0));
 
 
+     
         //////Body
         /// 
         //tokenId
@@ -261,7 +273,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
 
 
-        VBox layoutBox = new VBox(topBox, bodyPaddingBox);
+        VBox layoutBox = new VBox(m_topBox, bodyPaddingBox);
         HBox.setHgrow(layoutBox, Priority.ALWAYS);
         layoutBox.setPrefHeight(18);
         layoutBox.setPadding(new Insets(1,0,1,0));
@@ -301,20 +313,36 @@ public class AmountBox extends HBox implements AmountBoxInterface {
             
         };
 
-        m_quoteListener = (obs, oldval, newval)->{
-            try {
-                Files.writeString(App.logFile.toPath(), "quoteChanged\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-
-            }
-        };
 
         
         m_priceAmount.amountProperty().addListener(m_amountListener);
-    
-        m_priceQuote.addListener(m_quoteListener);
 
+        m_priceQuote.addListener((obs,oldval,newval)->{
+            if(newval != null){
+                if(m_quoteAmountBox == null){
+                    addQuoteAmountBox();
+                }
+            }else{
+                if(m_quoteAmountBox != null){
+                    removeQuoteAmountBox();
+                }
+            }
+        });
     
+        m_quoteAmount.addListener((obs,oldval,newval)->{
+            PriceQuote priceQuote = m_priceQuote.get();
+            if(newval != null){
+                if(m_quoteAmountBox == null){
+                    addQuoteAmountBox();
+                }
+                m_quoteAmountField.setText(newval + "");
+                m_quoteAmountSymbolText.setText(priceQuote != null ? priceQuote.getQuoteSymbol() : "");
+            }else{
+                if(m_quoteAmountBox != null){
+                    removeQuoteAmountBox();
+                }
+            }
+        });
 
         getChildren().add(layoutBox);
         setAlignment(Pos.CENTER_LEFT);
@@ -323,7 +351,37 @@ public class AmountBox extends HBox implements AmountBoxInterface {
     }
 
    
+    public void addQuoteAmountBox(){
+        m_quoteAmountField = new TextField();
+        m_quoteAmountField.setPrefWidth(100);
+        m_quoteAmountField.setPadding(new Insets(0,5,0,5));
+        m_quoteAmountField.setId("itemLbl");
 
+        m_quoteAmountSymbolText = new Text();
+        m_quoteAmountSymbolText.setFill(App.txtColor);
+        m_quoteAmountSymbolText.setFont(App.smallFont);
+        
+        m_fieldBox = new HBox(m_quoteAmountField);
+        m_fieldBox.setAlignment(Pos.CENTER_LEFT);
+        
+
+        m_quoteAmountBox = new VBox(m_fieldBox, m_quoteAmountSymbolText);
+        m_quoteAmountBox.setAlignment(Pos.CENTER_RIGHT);
+        m_quoteAmountBox.setId("bodyBox");
+        m_quoteAmountBox.setPadding( new Insets(0,5,0,0));
+        
+        m_balanceFieldBox.getChildren().add(m_quoteAmountBox);
+    }
+
+    public void removeQuoteAmountBox(){
+        m_balanceFieldBox.getChildren().remove(m_quoteAmountBox);
+        m_quoteAmountBox.getChildren().clear();
+        m_quoteAmountBox = null;
+        m_quoteAmountField = null;
+        m_quoteAmountSymbolText = null;
+        m_fieldBox = null;
+    }
+   
     public long getTimeStamp(){
         return m_priceAmount.getTimeStamp();
     }
@@ -371,16 +429,14 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         return m_priceAmount;
     }
 
-    public PriceQuote getPriceQuote() {
-        return m_priceQuote.get();
-    }
-
-    public void setPriceQuote(PriceQuote priceQuote) {
-        m_priceQuote.set(priceQuote);
-    }
 
     public void setQuoteAmount(BigDecimal amount){
         m_quoteAmount.set(amount);
+    }
+
+    public void setQuote(PriceQuote priceQuote, BigDecimal quoteAmount){
+        m_priceQuote.set(quoteAmount != null ? priceQuote : null);
+        m_quoteAmount.set(priceQuote != null ? quoteAmount : null);
     }
 
     public BigDecimal getQuoteAmount(){

@@ -17,8 +17,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.devskiller.friendly_id.FriendlyId;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -318,7 +316,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             setMaxWidth(App.DEFAULT_STATIC_WIDTH);
 
  
-            double defaultGridWidth = App.DEFAULT_STATIC_WIDTH - 30;
+            double defaultGridWidth = App.DEFAULT_STATIC_WIDTH;
             double defaultGridHeight = heightObject.get() - 100;      
 
             prefHeightProperty().bind(heightObject);
@@ -601,12 +599,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
             scrollPane.prefViewportWidthProperty().bind(widthObject);
 
            // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
-           
-         
-           
+
            scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
               
-            double width = newval.getWidth();
+                double width = newval.getWidth();
            
                 gridWidth.set( width < 300 ? 300 : width );
        

@@ -149,6 +149,7 @@ public class App extends Application {
     public static Font mainFont;
     public static Font txtFont;
     public static Font titleFont;
+    public static Font smallFont;
     
     public final static int DEFAULT_RGBA = 0x00000000;
     
@@ -201,7 +202,7 @@ public class App extends Application {
         mainFont =  Font.font("OCR A Extended", FontWeight.BOLD, 20);
         txtFont = Font.font("OCR A Extended", 18);
         titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 16);
-  
+        smallFont = Font.font("OCR A Extended", 12);
         appStage.setResizable(false);
         appStage.initStyle(StageStyle.UNDECORATED);
         appStage.setTitle("Netnotes");
