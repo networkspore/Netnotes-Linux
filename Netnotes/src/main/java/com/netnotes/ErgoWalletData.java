@@ -105,11 +105,13 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     @Override
     public boolean removeMsgListener(NoteMsgInterface listener){
+      
         if(listener != null){
             String listenerId = listener.getId();
             boolean removed = super.removeMsgListener(listener);;
             if(removed && listenerId != null){
                 m_authorizedIds.remove(listenerId);
+              
             }
             return removed;
         }else{

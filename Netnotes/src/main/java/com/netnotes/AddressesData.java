@@ -1265,12 +1265,12 @@ public class AddressesData {
 
             m_selectedMarket.addListener(m_selectedMarketChanged);
             
-            getDefaultMarket();
+            
 
 
             m_selectedTokenMarketChanged = (obs,oldval,newval)->{
                 if(oldval != null){
-                    connectToTokenExchange(false, newval);
+                    connectToTokenExchange(false, oldval);
                 }
                 
                 if(newval != null){
@@ -1280,6 +1280,7 @@ public class AddressesData {
 
             m_selectedTokenMarket.addListener(m_selectedTokenMarketChanged);
             
+            getDefaultMarket();
             getDefaultTokenMarket();
 
 
@@ -1307,7 +1308,7 @@ public class AddressesData {
     }
 
     public void stop(){
-   
+       
         if(m_scheduledFuture != null){
             m_scheduledFuture.cancel(false);
             m_scheduledFuture = null;
@@ -1321,15 +1322,17 @@ public class AddressesData {
             getErgoNetwork().removeMsgListener(m_ergoNetworkMsgInterface);
             m_ergoNetworkMsgInterface = null;
         }
-
+  
         if(m_selectedMarketChanged != null){
             m_selectedMarket.set(null);
             m_selectedMarket.removeListener(m_selectedMarketChanged);
             m_selectedMarketChanged = null;
         }
 
-        if(m_selectedMarketChanged != null){
+
+        if(m_selectedTokenMarketChanged != null){
             m_selectedTokenMarket.set(null);
+   
             m_selectedTokenMarket.removeListener(m_selectedTokenMarketChanged);
             m_selectedTokenMarketChanged = null;
         }
@@ -1438,9 +1441,6 @@ public class AddressesData {
 
     public void shutdown() {
       
-        m_addressDataList.forEach(item->{
-            item.shutdown();
-        });
        
 
         stop();
@@ -1500,8 +1500,9 @@ public class AddressesData {
             exchangeInterface.addMsgListener(m_marketMsgInterface);
             
         }else{
-
+            
             if(m_marketMsgInterface != null && exchangeInterface != null){
+              
                 exchangeInterface.removeMsgListener(m_marketMsgInterface);  
             }
             m_marketMsgInterface = null;
@@ -1564,6 +1565,7 @@ public class AddressesData {
         }else{
 
             if(m_tokenMarketMsgInterface != null && tokenExchangeInterface != null){
+                
                 tokenExchangeInterface.removeMsgListener(m_tokenMarketMsgInterface);  
             }
             m_tokenMarketMsgInterface = null;

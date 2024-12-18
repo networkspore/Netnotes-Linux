@@ -1,10 +1,6 @@
 package com.netnotes;
 
-
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import com.devskiller.friendly_id.FriendlyId;
 
@@ -34,7 +30,6 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
 
     private ChangeListener<BigDecimal> m_amountListener = null;
-    private ChangeListener<PriceQuote> m_quoteListener = null;
     private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(180);
 
     private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
@@ -441,9 +436,14 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
         m_stableQuoteAmount.set(ergQuoteAmount != null && stableQuoteAmount != null ? stableQuoteAmount : null);
 
         if(priceQuote != null && m_quoteAmountSymbolText != null && m_quoteAmountField != null){
-            
-            m_quoteAmountField.setText(stableQuoteAmount != null ? (stableQuoteAmount + "") : (ergQuoteAmount != null ? ergQuoteAmount + "" : ""));
-            m_quoteAmountSymbolText.setText(stableQuoteAmount != null ? (stableQuoteSymbol != null ? stableQuoteSymbol : "") : (ergQuoteAmount != null ? (priceQuote != null ? priceQuote.getQuoteCurrency() : "") : ""));
+            String quoteAmountString = stableQuoteAmount != null ? (stableQuoteAmount + "") : (ergQuoteAmount != null ? ergQuoteAmount + "" : "");
+            String quoteTextString = stableQuoteAmount != null ? (stableQuoteSymbol != null ? stableQuoteSymbol : "") : (ergQuoteAmount != null ? (priceQuote != null ? priceQuote.getQuoteCurrency() : "") : "");
+            if(!m_quoteAmountField.getText().equals(quoteAmountString)){
+                m_quoteAmountField.setText(quoteAmountString);
+            }
+            if(!quoteTextString.equals(m_quoteAmountSymbolText.getText())){
+                m_quoteAmountSymbolText.setText(quoteTextString);
+            }
         }
     }
 

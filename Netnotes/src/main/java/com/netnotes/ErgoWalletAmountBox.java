@@ -1,10 +1,7 @@
 package com.netnotes;
 
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import com.devskiller.friendly_id.FriendlyId;
 
@@ -34,7 +31,6 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
 
     private ChangeListener<BigDecimal> m_amountListener = null;
-    private ChangeListener<PriceQuote> m_quoteListener = null;
     private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(180);
     
     private Text m_quoteAmountSymbolText = null;
@@ -335,8 +331,14 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
                 if(m_quoteAmountBox == null){
                     addQuoteAmountBox();
                 }
-                m_quoteAmountField.setText(newval + "");
-                m_quoteAmountSymbolText.setText(priceQuote != null ? priceQuote.getQuoteSymbol() : "");
+                String quoteAmountString = newval + "";
+                String quoteSymbolString = priceQuote != null ? priceQuote.getQuoteSymbol() : "";
+                if(!quoteAmountString.equals(m_quoteAmountField.getText())){
+                    m_quoteAmountField.setText(quoteAmountString);
+                }
+                if(!quoteSymbolString.equals(m_quoteAmountSymbolText.getText())){
+                    m_quoteAmountSymbolText.setText(quoteSymbolString);
+                }
             }else{
                 if(m_quoteAmountBox != null){
                     removeQuoteAmountBox();
@@ -369,7 +371,7 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
         m_quoteAmountBox.setAlignment(Pos.CENTER_RIGHT);
         m_quoteAmountBox.setId("bodyBox");
         m_quoteAmountBox.setPadding( new Insets(0,5,0,0));
-        
+
         m_balanceFieldBox.getChildren().add(m_quoteAmountBox);
     }
 

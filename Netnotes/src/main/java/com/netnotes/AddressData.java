@@ -603,10 +603,4 @@ public class AddressData extends Network {
         return getName();
     }
 
-    @Override
-    public void shutdown(){
-       
-      //  m_img = null;
-        super.shutdown();
-    }
 }

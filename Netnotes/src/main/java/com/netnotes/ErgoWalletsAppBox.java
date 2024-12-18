@@ -762,10 +762,15 @@ public class ErgoWalletsAppBox extends AppBox {
                     adrBtnBoxes.getChildren().add(adrBtnsBox);
                 }
             } else {
+                if(noteInterface != null && m_walletMsgInterface != null){
+                    noteInterface.removeMsgListener(m_walletMsgInterface);
+                    m_walletMsgInterface = null;
+                }
+
                 if (adrBtnBoxes.getChildren().contains(adrBtnsBox)) {
                     adrBtnBoxes.getChildren().remove(adrBtnsBox);
                 }
-                lockBox.setLocked();
+        
             }
         };
 
@@ -901,9 +906,6 @@ public class ErgoWalletsAppBox extends AppBox {
         NoteInterface noteInterface = m_selectedWallet.get();
         m_balanceObject.set(null);
         if(noteInterface != null){
-            if(m_walletMsgInterface != null){
-                noteInterface.removeMsgListener(m_walletMsgInterface);
-            }
             m_selectedWallet.set(null);
         }
         if(m_amountBoxes != null){
