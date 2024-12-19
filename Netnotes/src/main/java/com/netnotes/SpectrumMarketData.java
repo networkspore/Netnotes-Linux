@@ -70,7 +70,9 @@ public class SpectrumMarketData extends PriceQuote {
             
             BigDecimal baseVolumeBigDecimal = calculateLongToBigDecimal(baseVolumeValue, baseVolumeDecimals);
 
-            setId(getQuoteId() + "_" + getBaseId());
+            JsonElement idElement = json.get("id");
+
+            setId(idElement != null && !idElement.isJsonNull() ? idElement.getAsString() : getBaseId() + "_" + getQuoteId());
             setDefaultInvert(!getQuoteSymbol().equals("SigUSD"));
 
             setQuoteVolume( quoteVolumeBigDecimal); 

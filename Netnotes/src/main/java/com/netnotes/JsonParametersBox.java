@@ -5,6 +5,7 @@ import com.utils.Utils;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -30,7 +31,6 @@ public class JsonParametersBox extends AppBox{
     private int m_rowHeight = 27;
     private int m_maxRowHeight = 20;
     private int m_colWidth = 150;
-    private String m_fieldId = null;
     private SimpleBooleanProperty m_isOpen = new SimpleBooleanProperty(false);
 
     public JsonParametersBox( JsonObject json, int... colWidth){
@@ -82,9 +82,6 @@ public class JsonParametersBox extends AppBox{
         m_colWidth = width;
     }
 
-    public void setFieldId(String id){
-        m_fieldId = id;
-    }
 
     public void setRows(JsonObject json){
   
@@ -105,8 +102,7 @@ public class JsonParametersBox extends AppBox{
         if(type > 0){
 
             
-            TextField nameText = new TextField();
-            nameText.setEditable(false);
+            Label nameText = new Label();
             nameText.setMaxWidth(m_colWidth);
             nameText.setMinWidth(m_colWidth);
 
@@ -122,13 +118,13 @@ public class JsonParametersBox extends AppBox{
 
             HBox nodeNameBox = new HBox(nameText);
             nodeNameBox.setAlignment(Pos.TOP_LEFT);
-            nodeNameBox.setMinHeight(m_rowHeight);
+            nodeNameBox.setPadding(new Insets(2,0,2,0));
 
             VBox rowBox = new VBox(nodeNameBox);
            
             switch(type){
                 case 1:
-                    Label logoBtnLbl = new Label("⏵ ");
+                    Button logoBtnLbl = new Button("⏵");
                     logoBtnLbl.setId("caretBtn");
 
                     nodeNameBox.getChildren().add(0, logoBtnLbl);
@@ -142,12 +138,12 @@ public class JsonParametersBox extends AppBox{
                     });
                     jsonBox.isOpenProperty().addListener((obs,oldval,newval)->{
                         if(newval){
-                            logoBtnLbl.setText("⏷ ");
+                            logoBtnLbl.setText("⏷");
                             if(!rowBox.getChildren().contains(jsonBox)){
                                 rowBox.getChildren().add(jsonBox);
                             }
                         }else{
-                            logoBtnLbl.setText("⏵ ");
+                            logoBtnLbl.setText("⏵");
                             if(rowBox.getChildren().contains(jsonBox)){
                                 rowBox.getChildren().remove(jsonBox);
                             }
@@ -155,7 +151,8 @@ public class JsonParametersBox extends AppBox{
                     });
                 break;
                 case 2:
-                    Label logoBtnLbl2 = new Label("⏵ ");
+               
+                    Button logoBtnLbl2 = new Button("⏵");
                     logoBtnLbl2.setId("caretBtn");
 
                     nodeNameBox.getChildren().add(0, logoBtnLbl2);
@@ -169,12 +166,12 @@ public class JsonParametersBox extends AppBox{
                     });
                     jsonArrayBox.isOpenProperty().addListener((obs,oldval,newval)->{
                         if(newval){
-                            logoBtnLbl2.setText("⏷ ");
+                            logoBtnLbl2.setText("⏷");
                             if(!rowBox.getChildren().contains(jsonArrayBox)){
                                 rowBox.getChildren().add(jsonArrayBox);
                             }
                         }else{
-                            logoBtnLbl2.setText("⏵ ");
+                            logoBtnLbl2.setText("⏵");
                             if(rowBox.getChildren().contains(jsonArrayBox)){
                                 rowBox.getChildren().remove(jsonArrayBox);
                             }
@@ -199,7 +196,7 @@ public class JsonParametersBox extends AppBox{
                     HBox.setHgrow(fieldBox, Priority.ALWAYS);
                     fieldBox.setId("bodyBox");
                     fieldBox.setAlignment(Pos.CENTER_LEFT);
-                    fieldBox.setMaxHeight(m_maxRowHeight);
+                   
 
                     switch(keyString){
                         case "description":
@@ -213,6 +210,7 @@ public class JsonParametersBox extends AppBox{
                         
                             m_rows.put(keyString, textArea);
                             fieldBox.getChildren().add(textArea);
+                            fieldBox.setMinHeight(70);
                         break;
                         default:
                             TextField textField = new TextField(textString);
@@ -221,6 +219,7 @@ public class JsonParametersBox extends AppBox{
                         
                             m_rows.put(keyString, textField);
                             fieldBox.getChildren().add(textField);
+                           // fieldBox.setPrefHeight(m_maxRowHeight);
                     }
                     
      

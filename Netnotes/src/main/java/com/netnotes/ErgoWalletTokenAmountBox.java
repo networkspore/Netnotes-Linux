@@ -30,7 +30,7 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
 
     private ChangeListener<BigDecimal> m_amountListener = null;
-    private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(180);
+    private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(160);
 
     private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<BigDecimal> m_ergQuoteAmount = new SimpleObjectProperty<>(null);
@@ -64,6 +64,7 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
         
         TextField currencyName = new TextField(priceAmount.getCurrency().getName());
         HBox.setHgrow(currencyName,Priority.ALWAYS);
+        currencyName.minWidthProperty().bind(m_colWidth);
         currencyName.maxWidthProperty().bind(m_colWidth);
         currencyName.setEditable(false);
 

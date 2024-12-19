@@ -20,6 +20,8 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.utils.Utils;
 
 import javafx.beans.binding.Binding;
@@ -1286,11 +1288,14 @@ public class SpectrumFinance extends Network implements NoteInterface {
                     Object sourceObject = success.getSource().getValue();
                     if (sourceObject != null && sourceObject instanceof JsonArray) {
                         JsonArray marketJsonArray = (JsonArray) sourceObject;
+
                         /*try {
-                            Files.writeString( new File(getNetworksData().getDataDir().getAbsolutePath() + "/markets.json").toPath(), marketJsonArray.toString());
+                            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                            Files.writeString(App.logFile.toPath(), gson.toJson(marketJsonArray) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         } catch (IOException e) {
-                 
+
                         }*/
+        
                         if(getConnectionStatus() != App.STARTED){
                             setConnectionStatus(App.STARTED);
                             sendMessage(App.STARTED, System.currentTimeMillis(), NETWORK_ID, App.STARTED);

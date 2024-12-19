@@ -22,14 +22,14 @@ public class PriceAmount  {
 
 
     private final SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>();
-    private final PriceCurrency m_currency;
+    private final SimpleObjectProperty<PriceCurrency> m_currency = new SimpleObjectProperty<>();
     
     private long m_created = System.currentTimeMillis();
     private SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(System.currentTimeMillis());
     private String m_marketId = null;
 
     public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency){
-        m_currency = priceCurrency;
+        m_currency.set(priceCurrency);
 
         m_amount.set(amount);
     }
@@ -50,13 +50,13 @@ public class PriceAmount  {
     }
 
     public PriceAmount(double amount, PriceCurrency currency) {
-        m_currency = currency;
+        m_currency.set( currency);
         setDoubleAmount(amount);
       
     }
 
     public PriceAmount(long amount, PriceCurrency currency, long timeStamp){
-        m_currency = currency;
+        m_currency.set( currency);
         setLongAmount(amount);
         m_timeStampProperty.set(timeStamp);
  
@@ -97,7 +97,7 @@ public class PriceAmount  {
         PriceCurrency importCurrency = new PriceCurrency(tokenId,name,decimals,tokenType, networkType);
 
 
-        m_currency = importCurrency;
+        setCurrency( importCurrency);
         setLongAmount(amountElement.getAsLong());
         m_created = timeStampElement.getAsLong();
        
@@ -195,8 +195,20 @@ public class PriceAmount  {
         
     }
 
+    public void setCurrency(PriceCurrency currency){
+        m_currency.set(currency);
+    }
+
+    public PriceCurrency getCurrency(){
+        return m_currency.get();
+    }
+
+    public SimpleObjectProperty<PriceCurrency> currencyProperty(){
+        return m_currency;
+    }
+
     public String getTokenId(){
-        return m_currency.getTokenId();
+        return m_currency.get().getTokenId();
     }
     
     public SimpleObjectProperty<BigDecimal> amountProperty(){
@@ -213,7 +225,7 @@ public class PriceAmount  {
 
     public BigDecimal calculateLongToBigDecimal(long amount){
         BigDecimal a = m_amount.get() != null ? m_amount.get() : BigDecimal.ZERO;
-        PriceCurrency c = m_currency != null ? m_currency : null;
+        PriceCurrency c = getCurrency() != null ? getCurrency() : null;
        
         if(a == null || c == null){
             try {
@@ -256,7 +268,7 @@ public class PriceAmount  {
         if(m_amount.get() == null || m_currency == null){
             return 0;
         }
-        int decimals = m_currency.getFractionalPrecision();
+        int decimals = getCurrency().getFractionalPrecision();
         BigDecimal pow = BigDecimal.valueOf(10).pow(decimals);
 
         return m_amount.get().multiply(pow).longValue();
@@ -266,11 +278,6 @@ public class PriceAmount  {
         BigDecimal amount = BigDecimal.valueOf(doubleAmount);
         m_amount.set(amount);
     }
-
-    public PriceCurrency getCurrency() {
-        return m_currency;
-    }
-
 
 
 
@@ -287,7 +294,7 @@ public class PriceAmount  {
     public String toString() {
         
 
-        return getAmountString() + m_currency != null ? " " + m_currency.getSymbol() : "";
+        return getAmountString() + m_currency != null ? " " + getCurrency().getSymbol() : "";
     }
 
     public JsonObject getJsonObject(){
@@ -296,7 +303,7 @@ public class PriceAmount  {
         JsonObject json = new JsonObject();
         json.addProperty("amount", amount);
         json.addProperty("timeStamp", m_created);
-        json.add("currency", m_currency == null ? null : m_currency.getJsonObject());
+        json.add("currency", m_currency == null ? null : getCurrency().getJsonObject());
         return json;
     }
 

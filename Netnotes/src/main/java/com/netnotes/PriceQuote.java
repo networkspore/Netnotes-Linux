@@ -134,14 +134,15 @@ public class PriceQuote {
     }
 
     public String getBaseId(){
-        return m_baseId;
+
+        return m_baseId != null && m_baseId != "" ?  m_baseId : getBaseSymbol();
     }
     public String getQuoteCurrencyId(){
         return m_quoteId;
     }
 
     public String getQuoteId(){
-        return m_quoteId;
+        return m_quoteId != null && m_quoteId != "" ?  m_quoteId : getQuoteSymbol();
     }
 
     public void setQuoteId(String quoteId){
@@ -189,7 +190,7 @@ public class PriceQuote {
 
 
     public String getAmountString() {
-        return m_amount + "";
+        return m_amount.get() + "";
     }
 
     public void setAmountString(String amountString){
