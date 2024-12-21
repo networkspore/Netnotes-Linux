@@ -3,7 +3,7 @@ package com.netnotes;
 import com.google.gson.JsonObject;
 
 
-public class SpectrumSort {
+public class ErgpDexSort {
     public static class SortType{
         public final static String LAST_PRICE = "Last Price";
         public final static String BASE_VOL = "Base Volume";
@@ -27,20 +27,20 @@ public class SpectrumSort {
 
     private boolean m_isTargetSwapped = false;
 
-    public SpectrumSort(){
+    public ErgpDexSort(){
 
     }
 
-    public SpectrumSort(String type){
+    public ErgpDexSort(String type){
         m_type = type;
     }
 
-    public SpectrumSort(String type, String direction){
+    public ErgpDexSort(String type, String direction){
         m_type = type;
         m_direction = direction;
     }
 
-    public SpectrumSort(String type, String direction, String swapTarget){
+    public ErgpDexSort(String type, String direction, String swapTarget){
         m_type = type;
         m_direction = direction;
         setSwapTarget(swapTarget);        

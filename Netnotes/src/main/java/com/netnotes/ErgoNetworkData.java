@@ -20,7 +20,6 @@ public class ErgoNetworkData {
 
     private ErgoWallets m_ergoWallets = null ;
     private ErgoNodes m_ergoNodes = null;
-    private ErgoTokens m_ergoTokens = null;
     private ErgoExplorers m_ergoExplorers = null;
     private ErgoMarkets m_ergoMarkets = null;
            
@@ -60,14 +59,10 @@ public class ErgoNetworkData {
         return m_updated;
     }
 
-
     public String getId(){
         return m_id;
     }
     
-  
-
-
     public ErgoWallets getErgoWallets(){
         return m_ergoWallets;
     }
@@ -76,9 +71,7 @@ public class ErgoNetworkData {
         return m_ergoNodes;
     }
 
-    public ErgoTokens getErgoTokens(){
-        return m_ergoTokens;
-    }
+
 
     public ErgoExplorers getErgoExplorers(){
         return m_ergoExplorers;
@@ -91,8 +84,6 @@ public class ErgoNetworkData {
 
     public void installNetworks() {
      
-        
-        m_ergoTokens = new ErgoTokens(this, m_ergoNetwork);
         m_ergoWallets = new ErgoWallets(this, m_ergoNetwork);
         m_ergoExplorers = new ErgoExplorers(this, m_ergoNetwork); 
         m_ergoNodes = new ErgoNodes(this, m_ergoNetwork);

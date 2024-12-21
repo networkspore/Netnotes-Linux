@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutorService;
 
 import com.google.gson.JsonElement;
 
-public class SpectrumMarketData extends PriceQuote {
+public class ErgoDexMarketData extends PriceQuote {
 
  
     private BigDecimal m_baseVolume = BigDecimal.ZERO;
@@ -26,15 +26,15 @@ public class SpectrumMarketData extends PriceQuote {
     private String m_poolId = null;
 
     private BigDecimal m_liquidityUSD = BigDecimal.ZERO;
-
+    private String m_tickerId = null;
 
     private SimpleObjectProperty<PoolStats> m_poolStats = new SimpleObjectProperty<>(null);
     private SimpleObjectProperty<BigDecimal> m_poolSlippage = new SimpleObjectProperty<>(null);
 
 
-    private SimpleObjectProperty<SpectrumChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<ErgoDexChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
 
-    public SpectrumMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, BigDecimal baseVolume, BigDecimal quoteVolume, long timeStamp){
+    public ErgoDexMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, BigDecimal baseVolume, BigDecimal quoteVolume, int baseDecimals, int quoteDecimals, PoolStats poolStats, BigDecimal poolSlippage, long timeStamp){
         setAmount(amount);
         setTransactionCurrency(baseSymbol);
         setQuoteCurrency(quoteSymbol);
@@ -42,22 +42,44 @@ public class SpectrumMarketData extends PriceQuote {
         setQuoteId(quoteId);
         setTimeStamp(timeStamp);
         setId(id);
+        setBaseVolume(baseVolume);
+        setQuoteVolume(quoteVolume);
         m_poolId = poolId;
+        m_poolStats.set(poolStats);
+        m_poolSlippage.set(poolSlippage);
     }
 
-    public SpectrumMarketData(JsonObject json, long timeStamp) throws Exception{
-        super(json.get("lastPrice").getAsBigDecimal(), json.get("baseSymbol").getAsString(), json.get("quoteSymbol").getAsString(),json.get("baseId").getAsString(),json.get("quoteId").getAsString(), timeStamp);
-       
-
+    public ErgoDexMarketData(JsonObject json, long timeStamp) throws Exception{
+        super();
+        JsonElement idElement = json.get("id");
+        JsonElement lastPriceElement = json.get("lastPrice");
+        JsonElement baseSymbolElement = json.get("baseSymbol"); 
+        JsonElement quoteSymbolElement =  json.get("quoteSymbol");
+        JsonElement baseIdElement = json.get("baseId");
+        JsonElement quoteIdElement = json.get("quoteId");
         JsonElement quoteVolumeElement = json.get("baseVolume");
         JsonElement baseVolumeElement = json.get("quoteVolume");
 
-   
+        
         if(
+            idElement != null &&
+            lastPriceElement != null &&
+            baseSymbolElement != null &&
+            quoteSymbolElement != null &&
+            baseIdElement != null &&
+            quoteIdElement != null &&
             baseVolumeElement != null &&  baseVolumeElement.isJsonObject() &&
             quoteVolumeElement != null && quoteVolumeElement.isJsonObject()
         ){
             
+            setId(idElement.getAsString());
+            setLastPrice(lastPriceElement.getAsBigDecimal());
+            setBaseSymbol(baseSymbolElement.getAsString());
+            setQuoteSymbol(quoteSymbolElement.getAsString());
+            setBaseId(baseIdElement.getAsString());
+            setQuoteId(quoteIdElement.getAsString());
+            setTimeStamp(timeStamp);
+   
             JsonObject quoteVolumeObject = quoteVolumeElement.getAsJsonObject();
             long quoteVolumeValue = quoteVolumeObject.get("value").getAsLong();
             int quoteVolumeDecimals = quoteVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
@@ -69,11 +91,8 @@ public class SpectrumMarketData extends PriceQuote {
             int baseVolumeDecimals = baseVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
             
             BigDecimal baseVolumeBigDecimal = calculateLongToBigDecimal(baseVolumeValue, baseVolumeDecimals);
-
-            JsonElement idElement = json.get("id");
-
-            setId(idElement != null && !idElement.isJsonNull() ? idElement.getAsString() : getBaseId() + "_" + getQuoteId());
-            setDefaultInvert(!getQuoteSymbol().equals("SigUSD"));
+          
+            setDefaultInvert(!getQuoteId().equals(ErgoDex.SIGUSD_ID));
 
             setQuoteVolume( quoteVolumeBigDecimal); 
             setBaseVolume(baseVolumeBigDecimal);
@@ -81,11 +100,16 @@ public class SpectrumMarketData extends PriceQuote {
             m_baseDecimals = baseVolumeDecimals;
             m_quoteDecimals = quoteVolumeDecimals;
 
-          
+            m_tickerId = getBaseId().equals(ErgoCurrency.TOKEN_ID) ? getQuoteId() + "_" + getBaseId() : getId();
+            
         }else{
             throw new Exception("Missing expected arguments");
         }
         
+    }
+
+    public String getTickerId(){
+        return m_tickerId;
     }
 
     @Override
@@ -116,7 +140,7 @@ public class SpectrumMarketData extends PriceQuote {
     public BigDecimal getQuoteVolume(){
         return m_quoteVolume;
     }
-  
+
 
     public void setQuoteVolume(BigDecimal quoteVolume){
         m_quoteVolume = quoteVolume;
@@ -138,7 +162,7 @@ public class SpectrumMarketData extends PriceQuote {
         m_lastPoolData = value;
     }
 
-    public SimpleObjectProperty<SpectrumChartView> getSpectrumChartView(){
+    public SimpleObjectProperty<ErgoDexChartView> getSpectrumChartView(){
         return m_chartViewProperty;
     }
 
@@ -177,7 +201,30 @@ public class SpectrumMarketData extends PriceQuote {
         }
     }
 
-    public SpectrumMarketData clone(boolean invert){
+
+
+    public PriceQuote getPriceQuote(){
+        return getPriceQuote(false);
+    }
+
+    public PriceQuote getPriceQuote(boolean invert){
+        BigDecimal amount = invert ? getInvertedAmount(): getAmount();
+        
+        String quoteSymbol = invert ?  getBaseSymbol() : getQuoteSymbol();
+        String baseSymbol  = invert ? getQuoteSymbol() : getBaseSymbol();
+        String quoteId = invert ? getBaseId() : getQuoteId();
+        String baseId  = invert ? getQuoteId() : getBaseId();
+
+        PriceQuote priceQuote = new PriceQuote(getId(), amount, baseSymbol, quoteSymbol, baseId, quoteId, getTimeStamp());
+
+        return priceQuote;
+    }
+
+    public ErgoDexMarketData clone(){
+        return clone(false);
+    }
+
+    public ErgoDexMarketData clone(boolean invert){
 
         BigDecimal price = invert ? getInvertedAmount(): getAmount();
         
@@ -188,7 +235,7 @@ public class SpectrumMarketData extends PriceQuote {
         BigDecimal baseVolume =  invert ? getQuoteVolume() : getBaseVolume();
         BigDecimal quoteVolume = invert ? getBaseVolume() : getQuoteVolume();
 
-        return new SpectrumMarketData(price,baseSymbol,quoteSymbol,baseId,quoteId, getId(), m_poolId, baseVolume, quoteVolume,  getTimeStamp());
+        return new ErgoDexMarketData(price,baseSymbol,quoteSymbol,baseId,quoteId, getId(), m_poolId, baseVolume, quoteVolume,m_baseDecimals, m_quoteDecimals,m_poolStats.get(), m_poolSlippage.get(), getTimeStamp());
 
     }
     
@@ -234,7 +281,7 @@ public class SpectrumMarketData extends PriceQuote {
 
 
      public void updatePoolStats(ExecutorService execService){
-        SpectrumFinance.getPoolStats(getPoolId(), execService, (onSucceeded)->{
+        ErgoDex.getPoolStats(getPoolId(), execService, (onSucceeded)->{
             Object sourceValue = onSucceeded.getSource().getValue();
             
             if(sourceValue != null && sourceValue instanceof JsonObject){
@@ -253,7 +300,7 @@ public class SpectrumMarketData extends PriceQuote {
     }
 
     public void updatePoolSlipage(ExecutorService execService){
-        SpectrumFinance.getPoolSlippage(getPoolId(), execService, (onSucceeded)->{
+        ErgoDex.getPoolSlippage(getPoolId(), execService, (onSucceeded)->{
         Object sourceValue = onSucceeded.getSource().getValue();
         
         if(sourceValue != null && sourceValue instanceof JsonObject){
@@ -360,7 +407,7 @@ public class SpectrumMarketData extends PriceQuote {
         return swapped ? (getQuoteSymbol() + "-" + getBaseSymbol()) : getSymbol();
     }
 
-    public void update(SpectrumMarketData updateData){
+    public void update(ErgoDexMarketData updateData){
         setAmount(updateData.getAmount());
        
         m_baseVolume = updateData.getBaseVolume();
@@ -393,7 +440,7 @@ public class SpectrumMarketData extends PriceQuote {
         private int m_lockedDecimals;
 
         private BigDecimal m_tvl;
-        private BigDecimal m_volume;
+        private BigDecimal m_volumeValue;
         private BigDecimal m_fees;
 
         private long m_feesFrom;
@@ -401,61 +448,97 @@ public class SpectrumMarketData extends PriceQuote {
         private long m_volumeFrom;
         private long m_volumeTo;
         private BigDecimal m_yearlyFeesPercent;
+        private JsonObject m_poolStatsJson = null;
         
         public PoolStats(JsonObject json) throws Exception{
             updatePoolStats(json);
         }
 
+        public JsonObject getJsonObject(){
+            return m_poolStatsJson;
+        }
+
         public void updatePoolStats(JsonObject json) throws Exception{
-            
-            if(json == null){
-                throw new Exception("No pool stats");
-            }
-            
-            JsonElement lockedXElement = json.get("lockedX");
-            JsonElement lockedYElement = json.get("lockedY");
-            JsonElement tvlElement = json.get("tvl");
-            JsonElement volumeElement = json.get("volume");
-            JsonElement feesElement = json.get("fees");
-            JsonElement yearlyFeesPercent = json.get("yearlyFeesPercent");
+            m_poolStatsJson = json;
+            if(json != null){ 
+                JsonElement lockedXElement = json.get("lockedX");
+                JsonElement lockedYElement = json.get("lockedY");
+                JsonElement tvlElement = json.get("tvl");
+                JsonElement volumeElement = json.get("volume");
+                JsonElement feesElement = json.get("fees");
+                JsonElement yearlyFeesPercentElement = json.get("yearlyFeesPercent");
 
-            if(lockedXElement != null && lockedXElement.isJsonObject() && lockedYElement != null && lockedYElement.isJsonObject() && tvlElement != null && volumeElement != null && feesElement != null){
-                
-                JsonObject lockedXObject = lockedXElement.getAsJsonObject();
-                
-                m_lockedXTokenId = lockedXObject.get("id").getAsString();
-                m_lockedXSymbol = lockedXObject.get("ticker").getAsString();
-                m_lockedXAmount = lockedXObject.get("amount").getAsLong();
-                m_lockedDecimals = lockedXObject.get("decimals").getAsInt();
-             
-                JsonObject lockedYObject = lockedYElement.getAsJsonObject();
+                JsonObject lockedXObject = lockedXElement != null && lockedXElement.isJsonObject() ? lockedXElement.getAsJsonObject() : null;
+                JsonElement lockedXTokenIdElement = lockedXObject != null ? lockedXObject.get("id") : null;
+                JsonElement lockedXSymbolElement = lockedXObject != null ? lockedXObject.get("ticker") : null;
+                JsonElement lockedXAmountElement = lockedXObject != null ? lockedXObject.get("amount") : null;
+                JsonElement lockedDecimalsElement = lockedXObject != null ? lockedXObject.get("decimals") : null;
 
-                m_lockedYTokenId = lockedYObject.get("id").getAsString();
-                m_lockedYSymbol = lockedYObject.get("ticker").getAsString();
-                m_lockedYAmount = lockedYObject.get("amount").getAsLong();
-                m_lockedYDecimals = lockedYObject.get("decimals").getAsInt();
+                JsonObject lockedYObject = lockedYElement != null && lockedYElement.isJsonObject() ? lockedYElement.getAsJsonObject() : null;
+                JsonElement lockedYTokenIdElement = lockedYObject != null ? lockedYObject.get("id") : null;
+                JsonElement lockedYSymbolElement = lockedYObject != null ? lockedYObject.get("ticker") : null;
+                JsonElement lockedYAmountElement = lockedYObject != null ? lockedYObject.get("amount") : null;
+                JsonElement lockedYDecimalsElement = lockedYObject != null ? lockedYObject.get("decimals") : null;
 
-                JsonObject volumeObject = volumeElement.getAsJsonObject();
-                m_volume = volumeObject.get("value").getAsBigDecimal();
-                
-                JsonObject volumeWindowObject = volumeObject.get("window").getAsJsonObject();
-                m_volumeFrom = volumeWindowObject.get("from").getAsLong();
-                m_volumeTo = volumeWindowObject.get("to").getAsLong();
-                
-                JsonObject feesObject = feesElement.getAsJsonObject();
-                m_fees = feesObject.get("value").getAsBigDecimal();
-                
-                JsonObject feesWindowObject = feesObject.get("window").getAsJsonObject();
-                m_feesFrom = feesWindowObject.get("from").getAsLong();
-                m_feesTo = feesWindowObject.get("to").getAsLong();
-                
-                m_yearlyFeesPercent = yearlyFeesPercent.getAsBigDecimal();
-               
+                JsonObject volumeObject =  volumeElement != null && volumeElement.isJsonObject() ? volumeElement.getAsJsonObject() : null;
+                JsonElement volumeValueElement = volumeObject != null ? volumeObject.get("value") : null;
 
-            }else{
-                throw new Exception("Invalid data");
-            }
+                JsonObject feesObject = feesElement != null && feesElement.isJsonObject() ? feesElement.getAsJsonObject() : null;
+                JsonElement feesValueElement = feesObject != null ? feesObject.get("value") : null;
+                JsonElement feesObjectWindowElement =  feesObject.get("window");
+
+                JsonObject feesWindowObject = feesObjectWindowElement != null && feesObjectWindowElement.isJsonObject() ? feesObjectWindowElement.getAsJsonObject() : null;
+                JsonElement feesFromElement = feesWindowObject != null ? feesWindowObject.get("from") : null;
+                JsonElement feesToElement = feesWindowObject != null ? feesWindowObject.get("to") : null;
+
+
+                JsonElement volumeWindowElement =  volumeObject != null ? volumeObject.get("window") : null;
+                JsonObject volumeWindowObject = volumeWindowElement != null && volumeWindowElement.isJsonObject() ? volumeWindowElement.getAsJsonObject() : null;
+                JsonElement volumeWindowFromElement = volumeWindowObject != null ? volumeWindowObject.get("from") : null;
+                JsonElement volumeWindowToElement =volumeWindowObject != null ? volumeWindowObject.get("to") : null;
+                JsonElement volumValueElement = volumeObject != null ? volumeObject.get("value") : null;
+
+
+                if( 
+                    tvlElement != null && 
+                    lockedXTokenIdElement != null &&
+                    lockedXSymbolElement != null &&
+                    lockedXAmountElement != null &&
+                    lockedDecimalsElement != null &&
+                    lockedYTokenIdElement != null &&
+                    lockedYSymbolElement != null &&
+                    lockedYAmountElement != null &&
+                    lockedYDecimalsElement != null &&
+                    volumeValueElement != null &&
+                    volumeWindowFromElement != null &&
+                    volumeWindowToElement != null &&
+                    feesValueElement != null
+                ){
+                    
+                    m_lockedXTokenId = lockedXTokenIdElement.getAsString();
+                    m_lockedXSymbol = lockedXSymbolElement.getAsString();
+                    m_lockedXAmount = lockedXAmountElement.getAsLong();
+                    m_lockedDecimals = lockedDecimalsElement.getAsInt();
+
+                    m_lockedYTokenId = lockedYTokenIdElement.getAsString();
+                    m_lockedYSymbol = lockedYSymbolElement.getAsString();
+                    m_lockedYAmount = lockedYAmountElement.getAsLong();
+                    m_lockedYDecimals = lockedYDecimalsElement.getAsInt();
+  
+                    m_volumeValue = volumValueElement.getAsBigDecimal();
+                    
+                    m_volumeFrom = volumeWindowFromElement.getAsLong();
+                    m_volumeTo = volumeWindowToElement.getAsLong();
+                    
+                    m_fees = volumeValueElement.getAsBigDecimal();
+                    
+                    m_feesFrom = feesFromElement.getAsLong();
+                    m_feesTo = feesToElement.getAsLong();
+                    
+                    m_yearlyFeesPercent = yearlyFeesPercentElement.getAsBigDecimal();
+                }
     
+            }
             
         }
 
@@ -491,7 +574,7 @@ public class SpectrumMarketData extends PriceQuote {
         }
         
         public BigDecimal getVolume(){
-            return m_volume;
+            return m_volumeValue;
         }
         
         public BigDecimal getFees(){

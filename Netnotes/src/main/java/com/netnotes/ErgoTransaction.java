@@ -824,7 +824,6 @@ public class ErgoTransaction {
     public PriceAmount[] parseAssetsPriceAmount(JsonArray jsonArray){
         
         if(jsonArray != null && jsonArray.size() > 0){
-            ErgoTokens ergoTokens = getParentAddress().getErgoNetworkData().getErgoTokens();    
           
             int size = jsonArray.size();
             ArrayList<PriceAmount> tokenArrayList = new ArrayList<>();

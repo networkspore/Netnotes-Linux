@@ -19,8 +19,8 @@ public class ErgoMarkets extends Network implements NoteInterface {
   
     private ErgoNetworkData m_ergNetData = null;
 
-    private String m_defaultMarketId = SpectrumFinance.NETWORK_ID;
-    private String m_defaultTokenMarketId = SpectrumFinance.NETWORK_ID;
+    private String m_defaultMarketId = ErgoDex.NETWORK_ID;
+    private String m_defaultTokenMarketId = ErgoDex.NETWORK_ID;
 
     
 

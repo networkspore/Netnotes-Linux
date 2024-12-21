@@ -123,10 +123,9 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         descriptionText.setPadding(new Insets(0, 5, 0, 5));
         descriptionText.setMinWidth(m_leftColWidth);
 
-        TextField descriptionField = new TextField();
+        TextField descriptionField = new TextField(m_balanceAmount.getCurrency().getDescription());
         HBox.setHgrow(descriptionField, Priority.ALWAYS);
         descriptionField.setEditable(false);
-        descriptionField.textProperty().bind(m_balanceAmount.getCurrency().descriptionProperty());
 
         HBox descriptionFieldBox = new HBox(descriptionField);
         HBox.setHgrow(descriptionFieldBox, Priority.ALWAYS);
@@ -148,9 +147,8 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         emissionAmountText.setPadding(new Insets(0, 5, 0, 5));
         emissionAmountText.setMinWidth(m_leftColWidth);
 
-        TextField emissionAmountField = new TextField();
+        TextField emissionAmountField = new TextField(m_balanceAmount.getCurrency().getEmissionAmount() + "");
         emissionAmountField.setEditable(false);
-        emissionAmountField.textProperty().bind(m_balanceAmount.getCurrency().emissionAmountProperty().asString());
         HBox.setHgrow(emissionAmountField, Priority.ALWAYS);
 
         HBox emissionAmountFieldBox = new HBox(emissionAmountField);

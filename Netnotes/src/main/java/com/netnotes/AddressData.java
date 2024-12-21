@@ -459,7 +459,7 @@ public class AddressData extends Network {
                     JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
 
                     JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;
-                    int tokenSize = confirmedTokenArray.size();
+                    int tokenSize = confirmedTokenArray != null ? confirmedTokenArray.size() : 0;
                     if(confirmedTokenArray != null && tokenSize > 0 && isTokenMarket){
                         confirmedObject.remove("tokens");
                         

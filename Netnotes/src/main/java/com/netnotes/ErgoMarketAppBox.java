@@ -51,7 +51,7 @@ public class ErgoMarketAppBox extends AppBox {
 
     private TextField m_marketPriceField;
     private Label m_marketPriceCurrency;
-
+    private JsonParametersBox m_priceParametersBox = null;
     private NoteMsgInterface m_marketMsgInterface;
     private SimpleObjectProperty<PriceQuote> m_tickerPriceQuote = new SimpleObjectProperty<>(null);
     private SimpleIntegerProperty m_exchangeStatus = new SimpleIntegerProperty(App.STOPPED);
@@ -165,46 +165,27 @@ public class ErgoMarketAppBox extends AppBox {
         m_marketPriceField.setEditable(false);
         m_marketPriceField.setAlignment(Pos.CENTER);
 
-        SimpleObjectProperty<LocalDateTime> quoteUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
-
-        JsonParametersBox priceParametersBox = new JsonParametersBox((JsonObject) null,150);
-        priceParametersBox.setPadding(new Insets(5, 10,2,10));
+       
 
  
 
-        Binding<String> quoteStringBinding = Bindings.createObjectBinding(()->{
+
+
+        Binding<String> quoteBinding = Bindings.createObjectBinding(()->{
             PriceQuote quote = m_tickerPriceQuote.get();
             int code = m_exchangeStatus.get();
-           
             switch(code){
-                case App.ERROR:
-                    return m_statusMsg;
                 case App.LIST_CHANGED:
                 case App.LIST_UPDATED:
                     if(quote != null){
-                        
-                        return quote.getDefaultInvert() ? quote.getInvertedAmount().toString() : quote.getAmount().toString();
+                        return quote.getAmountString();
                     }
                 break;
-                case App.STARTING:
-                    return "Connecting...";
-                case App.STARTED:
-                    return "Requesting quote...";
             }
-            return "-";
-        }, m_tickerPriceQuote, m_exchangeStatus, quoteUpdated);
+            return m_statusMsg;
+        }, m_tickerPriceQuote, m_exchangeStatus);
 
-        m_tickerPriceQuote.addListener((obs,oldval,newval)->{
-            if(oldval != null){
-                quoteUpdated.unbind();
-            }
-
-            if(newval != null){
-                quoteUpdated.bind(newval.getLastUpdated());
-            }
-        });
-
-        m_marketPriceField.textProperty().bind(quoteStringBinding);
+        m_marketPriceField.textProperty().bind(quoteBinding);
 
         m_marketPriceCurrency = new Label("");
 
@@ -215,7 +196,7 @@ public class ErgoMarketAppBox extends AppBox {
                 case App.LIST_CHANGED:
                 case App.LIST_UPDATED:
                     if(quote != null){
-                        return quote.getDefaultInvert() ? (" " + quote.getQuoteCurrency() + "/" + quote.getTransactionCurrency()) : (" " + quote.getTransactionCurrency() + "/" + quote.getQuoteCurrency());
+                        return quote.getBaseSymbol() + "/" + quote.getQuoteSymbol();
                     }
                 break;
             }
@@ -245,30 +226,24 @@ public class ErgoMarketAppBox extends AppBox {
            
             toggleShowTickerInfo.setText(newval ? "⏷" : "⏵");
             if(newval){
-                if(!marketPriceBodyBox.getChildren().contains(priceParametersBox)){
-                    marketPriceBodyBox.getChildren().add(priceParametersBox);
+                
+                if(m_priceParametersBox == null){
+                    PriceQuote pricequote = m_tickerPriceQuote.get();
+                    JsonObject quoteJson = pricequote != null ? pricequote.getJsonObject() : Utils.getJsonObject("", "*(no information)");
+                    m_priceParametersBox = new JsonParametersBox(quoteJson,150);
+                    m_priceParametersBox.setPadding(new Insets(5, 10,2,25));
+                    marketPriceBodyBox.getChildren().add(m_priceParametersBox);
                 }
             }else{
-                if(marketPriceBodyBox.getChildren().contains(priceParametersBox)){
-                    marketPriceBodyBox.getChildren().remove(priceParametersBox);
+                if(m_priceParametersBox != null){
+                    marketPriceBodyBox.getChildren().remove(m_priceParametersBox);
+                    m_priceParametersBox = null;
                 }
             }
         });
 
 
-        quoteUpdated.addListener((obs,oldval,newval)->{
-            PriceQuote priceQuote = m_tickerPriceQuote.get();
-            if(priceQuote != null && newval != null){
-                JsonObject json = new JsonObject();
-                json.addProperty("base", priceQuote.getTransactionCurrency());
-                json.addProperty("quote", priceQuote.getQuoteCurrency());
-                json.addProperty("timeStamp", priceQuote.getTimeStamp());
-
-                priceParametersBox.updateParameters((JsonObject) json);
-            }else{
-                priceParametersBox.updateParameters((JsonObject) null);
-            }
-        });
+    
 
         SimpleBooleanProperty showMarketInfo = new SimpleBooleanProperty(false);
 
@@ -361,6 +336,13 @@ public class ErgoMarketAppBox extends AppBox {
             }
             if(newval != null){
                 connectToExchange(m_showBody.get(), newval);
+            }
+        });
+
+        m_tickerPriceQuote.addListener((obs,oldval,newval)->{
+            JsonObject quoteJson = newval != null ? newval.getJsonObject() : Utils.getJsonObject("", "*(no information)");
+            if(m_priceParametersBox != null){
+                m_priceParametersBox.updateParameters(quoteJson);
             }
         });
 
@@ -496,14 +478,14 @@ public class ErgoMarketAppBox extends AppBox {
                 }
 
                 public void sendMessage(int code, long timeStamp, String poolId, Number num){
-                    PriceQuote tickerQuote = m_tickerPriceQuote.get();
+
                     switch(code){
                         case App.LIST_CHANGED:
                         case App.LIST_UPDATED:
                             //updated
-                            if(tickerQuote == null || (tickerQuote != null && !tickerQuote.getExchangeId().equals(exchangeInterface.getNetworkId()))){
+
                                 getQuote();
-                            }
+                            
                             m_exchangeStatus.set(code);
                             break;
                         case App.STOPPED:
@@ -555,17 +537,13 @@ public class ErgoMarketAppBox extends AppBox {
         NoteInterface exchangeInterface = m_selectedMarket.get();
      
         if(exchangeInterface != null){
-            JsonObject note = Utils.getCmdObject("getQuote");
+            JsonObject note = Utils.getCmdObject("getErgoUSDQuote");
             note.addProperty("locationId", m_locationId);
-            note.addProperty("baseType", "symbol");
-            note.addProperty("quoteType", "firstSymbolContains");
-            note.addProperty("base", "ERG");
-            note.addProperty("quote", "USD");
 
             Object result =  exchangeInterface.sendNote(note);
             if(result != null && result instanceof PriceQuote){
                 PriceQuote priceQuote = (PriceQuote) result;
-                priceQuote.setExchangeId(exchangeInterface.getNetworkId());
+                
                 m_tickerPriceQuote.set(priceQuote);
             }
         }

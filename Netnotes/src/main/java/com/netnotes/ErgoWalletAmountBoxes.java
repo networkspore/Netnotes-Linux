@@ -101,6 +101,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                     JsonElement nameElement = tokenObject.get("name");
                     JsonElement tokenTypeElement = tokenObject.get("tokenType");
                     JsonElement tokenQuoteElement = tokenObject.get("tokenQuote");
+                    JsonElement tokenInfoElement = tokenObject.get("tokenInfo");
                     JsonElement tokenQuoteErgAmountElement = tokenObject.get("tokenQuoteErgAmount");
                     JsonElement tokenQuoteAmountElement = tokenObject.get("tokenQuoteAmount");
 
@@ -109,8 +110,13 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                     int decimals = decimalsElement.getAsInt();
                     String name = nameElement.getAsString();
                     String tokenType = tokenTypeElement.getAsString();
+                    JsonObject tokenInfoJsonObject = tokenInfoElement != null && !tokenInfoElement.isJsonNull() && tokenInfoElement.isJsonObject() ? tokenInfoElement.getAsJsonObject() : null;
                     
-                    PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(tokenId, name, decimals, tokenType, m_networkType.toString()));    
+                    PriceCurrency priceCurrency = new PriceCurrency(tokenId, name, decimals, tokenType, m_networkType.toString());
+                    if(tokenInfoJsonObject != null){
+                        priceCurrency.setTokenInfo(tokenInfoJsonObject);
+                    }
+                    PriceAmount tokenAmount = new PriceAmount(amount, priceCurrency);    
                     PriceQuote tokenQuote = tokenQuoteElement != null && !tokenQuoteElement.isJsonNull() && tokenQuoteElement.isJsonObject() ? new PriceQuote(tokenQuoteElement.getAsJsonObject()) : null;
                     BigDecimal tokenQuoteErgAmount = tokenQuoteErgAmountElement != null && !tokenQuoteErgAmountElement.isJsonNull() ? tokenQuoteErgAmountElement.getAsBigDecimal() : null;
                     BigDecimal tokenQuoteAmount = tokenQuoteAmountElement != null && !tokenQuoteAmountElement.isJsonNull() ? tokenQuoteAmountElement.getAsBigDecimal() : null;

@@ -35,23 +35,23 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 
-public class SpectrumDataList extends Network implements NoteInterface {
+public class ErgoDexDataList extends Network implements NoteInterface {
 
     //private ErgoCurrencyToken m_ergoCurrency = new ErgoCurrencyToken(NetworkType.MAINNET);
     public final static String LOADING = "Loading...";
 
-    private SpectrumFinance m_spectrumFinance;
+    private ErgoDex m_spectrumFinance;
 
 
     private VBox m_gridBox = new VBox();
     
-    private ArrayList<SpectrumMarketItem> m_marketsList = new ArrayList<SpectrumMarketItem>();
+    private ArrayList<ErgoDexMarketItem> m_marketsList = new ArrayList<ErgoDexMarketItem>();
 
     private ArrayList<String> m_favoriteIds = new ArrayList<>();
 
     private SimpleStringProperty m_statusMsg = new SimpleStringProperty(LOADING);
 
-    private SpectrumSort m_sortMethod = new SpectrumSort();
+    private ErgpDexSort m_sortMethod = new ErgpDexSort();
     private String m_searchText = null;
    
 
@@ -80,7 +80,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
     private NoteMsgInterface m_spectrumMsgInterface = null;
     private Stage m_appStage;
     
-    public SpectrumDataList(String id,Stage appStage, SpectrumFinance spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, SimpleObjectProperty<HBox> currentBox, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface) {
+    public ErgoDexDataList(String id,Stage appStage, ErgoDex spectrumFinance, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, SimpleObjectProperty<HBox> currentBox, SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface) {
         
         super(null, "spectrumDataList", id, spectrumFinance);
         m_spectrumFinance = spectrumFinance;
@@ -94,8 +94,8 @@ public class SpectrumDataList extends Network implements NoteInterface {
         m_currentBox = currentBox;
 
         m_isInvert.addListener((obs,oldval,newval)->{
-            SpectrumSort sortMethod = getSortMethod();
-            sortMethod.setSwapTarget(newval ?  SpectrumSort.SwapMarket.SWAPPED : SpectrumSort.SwapMarket.STANDARD);
+            ErgpDexSort sortMethod = getSortMethod();
+            sortMethod.setSwapTarget(newval ?  ErgpDexSort.SwapMarket.SWAPPED : ErgpDexSort.SwapMarket.STANDARD);
             sort();
             updateGridBox();
         });
@@ -256,7 +256,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return null;
     }
 
-    public void updateMarkets(ArrayList<SpectrumMarketData> marketsArray) {
+    public void updateMarkets(ArrayList<ErgoDexMarketData> marketsArray) {
         
             int updateSize = marketsArray.size() ;
          
@@ -264,13 +264,13 @@ public class SpectrumDataList extends Network implements NoteInterface {
  
             for(int i = 0; i< updateSize ; i++){
                 
-                SpectrumMarketData marketData = marketsArray.get(i);
+                ErgoDexMarketData marketData = marketsArray.get(i);
           
 
             
-                SpectrumMarketItem item = getMarketItem(marketData.getId());
+                ErgoDexMarketItem item = getMarketItem(marketData.getId());
                 if(item == null){
-                    SpectrumMarketItem newItem = new SpectrumMarketItem( marketData, getSpectrumDataList());
+                    ErgoDexMarketItem newItem = new ErgoDexMarketItem( marketData, getSpectrumDataList());
                     m_marketsList.add(newItem);
                     newItem.init();
                     update.set(true);
@@ -321,9 +321,9 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
 
 
-    public SpectrumMarketItem getMarketItem(String id) {
+    public ErgoDexMarketItem getMarketItem(String id) {
         if (id != null) {
-            for (SpectrumMarketItem item : m_marketsList) {
+            for (ErgoDexMarketItem item : m_marketsList) {
                 if (item.getId().equals(id)) {
                     return item;
                 }
@@ -332,7 +332,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
         return null;
     }
 
-    public SpectrumDataList getSpectrumDataList(){
+    public ErgoDexDataList getSpectrumDataList(){
         return this;
     }
 
@@ -340,7 +340,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
  
 
     private void getData() {
-        JsonObject json = getNetworksData().getData("data", ".", getNetworkId(), SpectrumFinance.NETWORK_ID);
+        JsonObject json = getNetworksData().getData("data", ".", getNetworkId(), ErgoDex.NETWORK_ID);
         openJson(json);
         
     }
@@ -360,7 +360,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 
                     int numCells = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
                     for (int i = 0; i < numCells; i++) {
-                        SpectrumMarketItem marketItem = m_marketsList.get(i);
+                        ErgoDexMarketItem marketItem = m_marketsList.get(i);
     
                         HBox rowBox = marketItem.getRowBox();
     
@@ -377,12 +377,12 @@ public class SpectrumDataList extends Network implements NoteInterface {
                         WorkerStateEvent event = onSuccess;
                         Object sourceObject = event.getSource().getValue();
     
-                        if (sourceObject instanceof SpectrumMarketItem[]) {
-                            SpectrumMarketItem[] searchResults = (SpectrumMarketItem[]) sourceObject;
+                        if (sourceObject instanceof ErgoDexMarketItem[]) {
+                            ErgoDexMarketItem[] searchResults = (ErgoDexMarketItem[]) sourceObject;
                             int numResults = searchResults.length > 100 ? 100 : searchResults.length;
                             m_gridBox.getChildren().clear();
                             for (int i = 0; i < numResults; i++) {
-                                SpectrumMarketItem marketItem = searchResults[i];
+                                ErgoDexMarketItem marketItem = searchResults[i];
     
                                 HBox rowBox = marketItem.getRowBox();
     
@@ -406,7 +406,7 @@ public class SpectrumDataList extends Network implements NoteInterface {
                 loadingBtn.setTextFill(Color.WHITE);
                 loadingBtn.setId("transparentColor");
                 loadingBtn.setGraphicTextGap(15);
-                loadingBtn.setGraphic(IconButton.getIconView(new Image("/assets/spectrum-150.png"), 150));
+                loadingBtn.setGraphic(IconButton.getIconView(new Image(ErgoDex.getAppIconString()), 150));
                 loadingBtn.setContentDisplay(ContentDisplay.TOP);
                 loadingBtn.textProperty().bind(statusMsgProperty());
                 imageBox.getChildren().add(loadingBtn);
@@ -437,50 +437,50 @@ public class SpectrumDataList extends Network implements NoteInterface {
         boolean isAsc = m_sortMethod.isAsc();
         boolean swapped = m_sortMethod.isTargetSwapped();
         switch (type) {
-            case SpectrumSort.SortType.LIQUIDITY_VOL:
+            case ErgpDexSort.SortType.LIQUIDITY_VOL:
                 if (isAsc) {
-                    Collections.sort(m_marketsList, Comparator.comparing(SpectrumMarketItem::getLiquidityUSD));
+                    Collections.sort(m_marketsList, Comparator.comparing(ErgoDexMarketItem::getLiquidityUSD));
 
                 } else {
-                    Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(SpectrumMarketItem::getLiquidityUSD)));
+                    Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketItem::getLiquidityUSD)));
                 }
                 break;
-            case SpectrumSort.SortType.LAST_PRICE:
+            case ErgpDexSort.SortType.LAST_PRICE:
                 
                 if (isAsc) {
-                    Collections.sort(m_marketsList, Comparator.comparing(SpectrumMarketItem::getLastPrice));
+                    Collections.sort(m_marketsList, Comparator.comparing(ErgoDexMarketItem::getLastPrice));
 
                 } else {
-                    Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(SpectrumMarketItem::getLastPrice)));
+                    Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketItem::getLastPrice)));
                 }
                 break;
-            case SpectrumSort.SortType.BASE_VOL:
+            case ErgpDexSort.SortType.BASE_VOL:
                 if(!swapped){
                     if (isAsc) {
-                        Collections.sort(m_marketsList, Comparator.comparing(SpectrumMarketItem::getBaseVolume));
+                        Collections.sort(m_marketsList, Comparator.comparing(ErgoDexMarketItem::getBaseVolume));
                     } else {
-                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(SpectrumMarketItem::getBaseVolume)));
+                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketItem::getBaseVolume)));
                     }
                 }else{
                     if (isAsc) {
-                        Collections.sort(m_marketsList, Comparator.comparing(SpectrumMarketItem::getQuoteVolume));
+                        Collections.sort(m_marketsList, Comparator.comparing(ErgoDexMarketItem::getQuoteVolume));
                     } else {
-                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(SpectrumMarketItem::getQuoteVolume)));
+                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketItem::getQuoteVolume)));
                     }
                 }
                 break;
-            case SpectrumSort.SortType.QUOTE_VOL:
+            case ErgpDexSort.SortType.QUOTE_VOL:
                 if(!swapped){
                     if (isAsc) {
-                        Collections.sort(m_marketsList, Comparator.comparing(SpectrumMarketItem::getQuoteVolume));
+                        Collections.sort(m_marketsList, Comparator.comparing(ErgoDexMarketItem::getQuoteVolume));
                     } else {
-                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(SpectrumMarketItem::getQuoteVolume)));
+                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketItem::getQuoteVolume)));
                     }
                 }else{
                     if (isAsc) {
-                        Collections.sort(m_marketsList, Comparator.comparing(SpectrumMarketItem::getBaseVolume));
+                        Collections.sort(m_marketsList, Comparator.comparing(ErgoDexMarketItem::getBaseVolume));
                     } else {
-                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(SpectrumMarketItem::getBaseVolume)));
+                        Collections.sort(m_marketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketItem::getBaseVolume)));
                     }
                 }
                 break;
@@ -495,11 +495,11 @@ public class SpectrumDataList extends Network implements NoteInterface {
         }
     }
 
-    public SpectrumSort getSortMethod(){
+    public ErgpDexSort getSortMethod(){
         return m_sortMethod;
     }
 
-    public void setSortMethod(SpectrumSort sortMethod){
+    public void setSortMethod(ErgpDexSort sortMethod){
         m_sortMethod = sortMethod;
         sort();
       
@@ -517,12 +517,12 @@ public class SpectrumDataList extends Network implements NoteInterface {
     }
 
     private void doSearch( EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        Task<SpectrumMarketItem[]> task = new Task<SpectrumMarketItem[]>() {
+        Task<ErgoDexMarketItem[]> task = new Task<ErgoDexMarketItem[]>() {
             @Override
-            public SpectrumMarketItem[] call() {
-                List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().toUpperCase().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
+            public ErgoDexMarketItem[] call() {
+                List<ErgoDexMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().toUpperCase().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
 
-                SpectrumMarketItem[] results = new SpectrumMarketItem[searchResultsList.size()];
+                ErgoDexMarketItem[] results = new ErgoDexMarketItem[searchResultsList.size()];
 
                 searchResultsList.toArray(results);
 
@@ -588,12 +588,12 @@ public class SpectrumDataList extends Network implements NoteInterface {
 
     }
 
-    public SpectrumFinance getSpectrumFinance() {
+    public ErgoDex getSpectrumFinance() {
         return m_spectrumFinance;
     }
 
     public void save(){
-        getNetworksData().save("data", ".", getNetworkId(), SpectrumFinance.NETWORK_ID, getJsonObject());
+        getNetworksData().save("data", ".", getNetworkId(), ErgoDex.NETWORK_ID, getJsonObject());
     }
 
     @Override

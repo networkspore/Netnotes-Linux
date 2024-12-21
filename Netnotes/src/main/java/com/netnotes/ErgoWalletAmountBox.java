@@ -83,9 +83,11 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
             m_updateCurrencyBoxRunnable = ()->{
                 PriceCurrency currency = m_priceAmount.getCurrency();
   
-                JsonObject currencyJson = new JsonObject();
-                currencyJson.add("currency", currency.getJsonObject());
-                m_currencyParamsBox.updateParameters(currencyJson);
+                JsonObject infoJson = new JsonObject();
+                JsonObject currencyJson = currency.getJsonObject();
+                currencyJson.remove("imageString");
+                infoJson.add("info",currencyJson );
+                m_currencyParamsBox.updateParameters(infoJson);
             };
             m_updateCurrencyBoxRunnable.run();
             m_priceCurrencyChangeListener = (obs,oldval,newval) ->m_updateCurrencyBoxRunnable.run();
@@ -106,11 +108,12 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
                 m_bodyBox.getChildren().remove(m_currencyParamsBox);
             }
             m_currencyParamsBox.shutdown();
+            m_currencyParamsBox = null;
         }
     }
 
  
-    public void addpriceQuoteBox(){
+    public void addPriceQuoteBox(){
         if(m_priceQuoteVBox == null){
             m_togglePriceQuoteBtn = new Button(m_toggleShowPriceQuote.get() ? "⏷" : "⏵");
             m_togglePriceQuoteBtn.setId("caretBtn");
@@ -138,7 +141,7 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
             m_priceQuoteVBox.setPadding(new Insets(2,0,2,0));
         
             m_priceQuoteParametersBox = new JsonParametersBox((JsonObject) null, (int) m_colWidth.get() + 20);
-            m_priceQuoteParametersBox.setPadding(new Insets(5,0,0,15));
+            m_priceQuoteParametersBox.setPadding(new Insets(5,10,0,15));
 
             m_priceQuoteHeadingChangeListener = (obs,oldval,newval)->{
                 m_priceQuoteField.setText(newval != null ? newval.getAmountString() + " " + newval.getQuoteSymbol() : "");
@@ -190,7 +193,7 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
         }
     }
 
-    public void removepriceQuoteBox(){
+    public void removePriceQuoteBox(){
         if(m_priceQuoteVBox != null){
             
             m_priceQuote.removeListener(m_priceQuoteHeadingChangeListener);
@@ -336,12 +339,12 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
                
                 addQuoteAmountBox();
                 
-                addpriceQuoteBox();
+                addPriceQuoteBox();
             }else{
                 
                 removeQuoteAmountBox();
                 
-                removepriceQuoteBox();
+                removePriceQuoteBox();
             }
         });
     

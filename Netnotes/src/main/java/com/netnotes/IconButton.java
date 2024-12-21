@@ -195,7 +195,7 @@ public class IconButton extends Button {
     public String getName() {
         return m_name;
     }
-
+    
     public void setName(String name) {
 
         m_name = name;
@@ -205,7 +205,7 @@ public class IconButton extends Button {
         FontMetrics metrics = getFontMetrics(font);
 
         int stringWidth = metrics.stringWidth(name);
-        double imageWidth = 75;
+        double imageWidth = getMaxWidth() > 75 ? getMaxWidth() : 75; 
         if (stringWidth > imageWidth) {
             int indexOfSpace = name.indexOf(" ");
 

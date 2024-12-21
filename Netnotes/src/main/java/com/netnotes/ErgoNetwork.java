@@ -41,7 +41,6 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     public static final String WALLET_NETWORK = "WALLET_NETWORK";
     public static final String NODE_NETWORK = "NODE_NETWORK";
-    public static final String TOKEN_NETWORK = "TOKENS_NETWORK";
     public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
     public static final String MARKET_NETWORK = "ERGO_MARKET_NETWORK";
 
@@ -182,8 +181,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
                         return m_ergNetData.getErgoNodes().sendNote(note);
                     case MARKET_NETWORK:
                         return m_ergNetData.getErgoMarkets().sendNote(note);
-                    case TOKEN_NETWORK:
-                        return m_ergNetData.getErgoTokens().sendNote(note);
+
                
                 }
 

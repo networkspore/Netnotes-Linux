@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 import com.utils.Utils;
 
 
-public class SpectrumPriceData {
+public class ErgoDexPriceData {
 
     private long m_startTimestamp = 0;
     private BigDecimal m_open = BigDecimal.ZERO;
@@ -20,7 +20,7 @@ public class SpectrumPriceData {
     private boolean m_lastCloseDirection = false;
     private long m_lastTimeStamp = 0;
     
-    public SpectrumPriceData(long epochStart, long epochEnd, BigDecimal price){
+    public ErgoDexPriceData(long epochStart, long epochEnd, BigDecimal price){
         m_startTimestamp = epochStart;
         m_epochEnd = epochEnd;
         m_open = price;
@@ -30,14 +30,14 @@ public class SpectrumPriceData {
         m_lastTimeStamp = epochStart;
     }
 
-    public SpectrumPriceData(long timestamp, long epochEnd){
+    public ErgoDexPriceData(long timestamp, long epochEnd){
         m_startTimestamp = timestamp;
         m_epochEnd = epochEnd;
         m_lastTimeStamp = timestamp;
     }
 
 
-    public SpectrumPriceData(SpectrumPrice spectrumPrice, long epochStart, long epochEnd){
+    public ErgoDexPriceData(ErgoDexPrice spectrumPrice, long epochStart, long epochEnd){
         m_startTimestamp = epochStart;
         m_lastTimeStamp = epochStart;
 
@@ -55,7 +55,7 @@ public class SpectrumPriceData {
     }
 
 
-    public SpectrumPriceData(long timestamp, BigDecimal open, BigDecimal close, BigDecimal high, BigDecimal low, long epochStart, long epochEnd) {
+    public ErgoDexPriceData(long timestamp, BigDecimal open, BigDecimal close, BigDecimal high, BigDecimal low, long epochStart, long epochEnd) {
         m_startTimestamp = epochStart;
         m_open = open;
         m_close = close;

@@ -4,7 +4,7 @@ import org.ergoplatform.appkit.NetworkType;
 
 public class ErgoCurrency extends PriceCurrency {
 
-    public final static String TOKEN_ID = SpectrumFinance.ERG_ID;
+    public final static String TOKEN_ID = ErgoDex.ERG_ID;
     public final static String NAME = "Ergo";
     public final static String SYMBOL = "ERG";
     public final static String IMAGE_STRING = "/assets/unitErgo.png";
@@ -18,7 +18,7 @@ public class ErgoCurrency extends PriceCurrency {
         super(TOKEN_ID, NAME, SYMBOL, FRACTIONAL_PRECISION, networkType.toString(), IMAGE_STRING, TOKEN_TYPE, FONT_SYMBOL);
         setEmissionAmount(97739925000000000L);
         setDescription("Layer 0 native currency");
-        urlProperty().set(URL_STRING);
+        setUrl(URL_STRING);
         m_networkType = networkType;
     }
 

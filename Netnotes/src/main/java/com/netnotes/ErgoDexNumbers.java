@@ -5,7 +5,7 @@ import java.math.RoundingMode;
 
 import com.google.gson.JsonObject;
 
-public class SpectrumNumbers {
+public class ErgoDexNumbers {
 
     private long m_longValue = Long.MIN_VALUE;
     private BigDecimal m_high = BigDecimal.ZERO;
@@ -16,12 +16,12 @@ public class SpectrumNumbers {
     private BigDecimal m_open = BigDecimal.ZERO;
     private BigDecimal m_close = BigDecimal.ZERO;
     private boolean m_lastCloseDirection = false;
-    private SpectrumPriceData[] m_priceData = null;
+    private ErgoDexPriceData[] m_priceData = null;
     
     private long m_lastTimeStamp;
     private int m_lastIndex = 0;
 
-    public SpectrumNumbers(){}
+    public ErgoDexNumbers(){}
 
     public int getDataLength(){
         return m_lastIndex;
@@ -31,8 +31,8 @@ public class SpectrumNumbers {
         m_lastIndex = index;
     }
 
-    public SpectrumNumbers invert(){
-        SpectrumNumbers inverted = new SpectrumNumbers();
+    public ErgoDexNumbers invert(){
+        ErgoDexNumbers inverted = new ErgoDexNumbers();
         
         inverted.setLongValue(m_longValue);
         inverted.setHigh(getHigh(true));
@@ -90,7 +90,7 @@ public class SpectrumNumbers {
  
 
 
-    public void updateData(SpectrumPriceData data){
+    public void updateData(ErgoDexPriceData data){
 
         m_decimals = Math.max(m_decimals, data.getClose().scale());
 
@@ -115,15 +115,15 @@ public class SpectrumNumbers {
         m_lastTimeStamp = data.getLastTimeStamp();
     }
 
-    public SpectrumPriceData[] getSpectrumPriceData(){
+    public ErgoDexPriceData[] getSpectrumPriceData(){
         return m_priceData;
     }
 
-    public void setSpectrumPriceData(SpectrumPriceData[] data){
+    public void setSpectrumPriceData(ErgoDexPriceData[] data){
         m_priceData = data;
     }
 
-    public SpectrumNumbers(long value) {
+    public ErgoDexNumbers(long value) {
         m_longValue = value;
     }
 
@@ -280,7 +280,7 @@ public class SpectrumNumbers {
             }
         }else{
             try{
-                return m_count == 0 ? BigDecimal.ZERO : m_sum.divide(new BigDecimal(m_count), SpectrumChartView.DECIMAL_PRECISION, RoundingMode.HALF_UP);
+                return m_count == 0 ? BigDecimal.ZERO : m_sum.divide(new BigDecimal(m_count), ErgoDexChartView.DECIMAL_PRECISION, RoundingMode.HALF_UP);
             }catch(ArithmeticException e){
                 return BigDecimal.ZERO;
             }
@@ -291,7 +291,7 @@ public class SpectrumNumbers {
     public BigDecimal getAverage() {
         
         try{
-            return m_count == 0 ? BigDecimal.ZERO : m_sum.divide(new BigDecimal(m_count), SpectrumChartView.DECIMAL_PRECISION, RoundingMode.HALF_UP);
+            return m_count == 0 ? BigDecimal.ZERO : m_sum.divide(new BigDecimal(m_count), ErgoDexChartView.DECIMAL_PRECISION, RoundingMode.HALF_UP);
         }catch(ArithmeticException e){
             return BigDecimal.ZERO;
         }

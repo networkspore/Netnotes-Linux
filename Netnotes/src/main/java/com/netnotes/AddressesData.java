@@ -71,12 +71,12 @@ public class AddressesData {
     public final static NetworkInformation NOMARKET = new NetworkInformation("null", "(disabled)","/assets/bar-chart-150.png", "/assets/bar-chart-30.png", "No market selected" );
     public final static NetworkInformation[] ERGO_MARKETS = new NetworkInformation[]{
         NOMARKET,
-        SpectrumFinance.getNetworkInformation(), 
+        ErgoDex.getNetworkInformation(), 
         KucoinExchange.getNetworkInformation()
     };
     public final static NetworkInformation[] ERGO_TOKEN_MARKETS= new NetworkInformation[]{ 
         NOMARKET,
-        SpectrumFinance.getNetworkInformation() 
+        ErgoDex.getNetworkInformation() 
     }; 
 
     private final NetworkType m_networkType;
@@ -930,13 +930,13 @@ public class AddressesData {
 
             BigDecimal quoteDecimal = ergoAmount.getBigDecimalAmount().multiply(priceQuoteDecimal);
             
-            PriceCurrency quoteCurrency = new PriceCurrency(SpectrumFinance.SIGUSD_ID, "SigUSD", 2, "EIP-004", m_networkType.toString());
+            PriceCurrency quoteCurrency = new PriceCurrency(ErgoDex.SIGUSD_ID, "SigUSD", 2, "EIP-004", m_networkType.toString());
             String quoteIdString = quoteCurrency.getTokenId(); //SpectrumFinance.ERG_ID;
             PriceAmount quotePriceAmount = new PriceAmount(quoteDecimal, quoteCurrency);
-            boolean spectrumIsQuote = quoteIdString.equals(SpectrumFinance.SPF_ID);
+            boolean spectrumIsQuote = quoteIdString.equals(ErgoDex.SPF_ID);
 
             boolean feeIsSPF = false;
-            byte[] spectrumId = Base16.decode(feeIsSPF ? SpectrumFinance.SPF_ID : SpectrumFinance.ERG_ID).get();
+            byte[] spectrumId = Base16.decode(feeIsSPF ? ErgoDex.SPF_ID : ErgoDex.ERG_ID).get();
             //minValueForOrder = minerFee + uiFee + exFee + MinBoxValue
 
             long quoteAmountLong = quotePriceAmount.getLongAmount();
@@ -1025,7 +1025,7 @@ public class AddressesData {
 
                         //ake2b256 -> (Coll[SByte$]) => Coll[SByte$])
                        
-                        AddressInformation minerAddressInfo = new AddressInformation(SpectrumFinance.MINER_ADDRESS);
+                        AddressInformation minerAddressInfo = new AddressInformation(ErgoDex.MINER_ADDRESS);
                         Address minerAddress = minerAddressInfo.getAddress();
                         //MinerPropBytes = Base16.decode("1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304").get()
                         byte[] minerBytes = minerAddress.toPropositionBytes();

@@ -13,9 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import com.utils.Utils;
 
-import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.image.Image;
 
@@ -26,21 +24,20 @@ public class PriceCurrency {
 
     public final static int VALID_TIMEOUT = 1000*60;
     public final static String DEFAULT_TOKEN_URL = "https://explorer.ergoplatform.com/en/token/";
-
+    private String m_boxId = "";
     private String m_defaultCurrencyName = ""; 
     private String m_tokenId = null;
     private String m_symbol = null;
     private String m_name = null;
     private String m_imageString = "/assets/unknown-unit.png";
     private int m_fractionalPrecision = 2;
-    private long m_timestamp = 0;
     private String m_networkType = null;
     
-    private SimpleStringProperty m_fontSymbol = new SimpleStringProperty("");
-    private SimpleStringProperty m_description = new SimpleStringProperty("");
-    private SimpleLongProperty m_emissionAmount = new SimpleLongProperty(0);
-    private SimpleStringProperty m_tokenType = new SimpleStringProperty("");
-    private SimpleStringProperty m_url = new SimpleStringProperty();
+    private String m_fontSymbol = null;
+    private String m_description = null;
+    private long m_emissionAmount = -1;
+    private String m_tokenType = null;
+    private String m_url = null;
 
     private HashData m_hashData = null;
 
@@ -50,16 +47,17 @@ public class PriceCurrency {
         m_tokenId = tokenId;
         m_name = name;
         m_symbol = name;
-        m_tokenType.set(tokenType);
+        m_tokenType = tokenType;
         m_imageString = "/assets/unknown-unit.png";
         m_fractionalPrecision = decimals;
         m_networkType = networkType;
-        m_url.set(DEFAULT_TOKEN_URL + m_tokenId);
+        m_url = !m_tokenId.equals(ErgoCurrency.TOKEN_ID) ? DEFAULT_TOKEN_URL + m_tokenId : ErgoCurrency.URL_STRING;
     }
 
 
     public PriceCurrency(JsonObject json){
         openJson(json);
+
     }
 
    /* public void setErgoTokens(ErgoTokens ergoTokens){
@@ -69,10 +67,9 @@ public class PriceCurrency {
 
 
     public PriceCurrency(String token_id, String name, String symbol, String description, int fractionalPrecision, String unitImageString, String networkType, long emissionAmount, long timestamp) {
-        this(token_id, name, symbol,  fractionalPrecision, networkType, unitImageString, "","");
-        m_timestamp = timestamp;
-        m_description.set(description);
-        m_emissionAmount.set(emissionAmount);
+        this(token_id, name, symbol,  fractionalPrecision, networkType, unitImageString, null,null);
+        m_description = description;
+        m_emissionAmount = emissionAmount;
     }
 
     public PriceCurrency(String token_id, String name, String symbol, int fractionalPrecision,  String networkType, String unitImageString, String tokenType, String fontSymbol) {
@@ -81,8 +78,8 @@ public class PriceCurrency {
         m_symbol = symbol;
         m_imageString = unitImageString;
         m_fractionalPrecision = fractionalPrecision;
-        m_fontSymbol.set(fontSymbol);
-        m_tokenType.set(tokenType);
+        m_fontSymbol = fontSymbol;
+        m_tokenType = tokenType;
         m_networkType = networkType;
 
         if( m_imageString != null && !m_imageString.startsWith("/assets")){
@@ -112,21 +109,22 @@ public class PriceCurrency {
         JsonElement emissionElement = json.get("emissionAmount");
         JsonElement descriptionElement = json.get("description");
         JsonElement decimalsElement = json.get("decimals");
-        JsonElement timeStampElement = json.get("timeStamp");
         JsonElement symbolElement = json.get("symbol");
         JsonElement fontSymbolElement = json.get("fontSymbol");
         JsonElement imageStringElement = json.get("imageString");
         JsonElement hashDataElement = json.get("hashData");
-
+        JsonElement tokenIdElement = json.get("tokenId");
+        JsonElement boxIdElement = json.get("boxId");
+        JsonElement urlElement = json.get("url");
         
-  
-        m_fractionalPrecision = decimalsElement.getAsInt();
-        m_symbol = symbolElement.getAsString();
-        m_emissionAmount.set(emissionElement != null && emissionElement.isJsonPrimitive() ? emissionElement.getAsLong() : 0);
-        m_description.set(descriptionElement != null && descriptionElement.isJsonPrimitive() ? descriptionElement.getAsString(): "");
-        m_timestamp = timeStampElement != null && timeStampElement.isJsonPrimitive() ? timeStampElement.getAsLong() : 0;
+        m_boxId = boxIdElement != null && !boxIdElement.isJsonNull() ? boxIdElement.getAsString() : m_boxId;
+        m_tokenId = tokenIdElement != null && !tokenIdElement.isJsonNull() ? tokenIdElement.getAsString() : m_tokenId;
 
-        m_fontSymbol.set(fontSymbolElement != null && fontSymbolElement.isJsonPrimitive() ? fontSymbolElement.getAsString() : "");
+        m_fractionalPrecision = decimalsElement.getAsInt();
+        m_symbol = symbolElement != null && !symbolElement.isJsonNull() ? symbolElement.getAsString() : m_symbol;
+        m_emissionAmount = emissionElement != null && emissionElement.isJsonPrimitive() ? emissionElement.getAsLong() : -1;
+        m_description = descriptionElement != null && descriptionElement.isJsonPrimitive() ? descriptionElement.getAsString(): null;
+        m_fontSymbol = fontSymbolElement != null && fontSymbolElement.isJsonPrimitive() ? fontSymbolElement.getAsString() : null;
 
         if (hashDataElement != null && hashDataElement.isJsonObject()) {
             m_hashData = new HashData(hashDataElement.getAsJsonObject());
@@ -135,24 +133,9 @@ public class PriceCurrency {
         if (imageStringElement != null && getImgHashData() != null) {
             setImageString(imageStringElement.getAsString());
         }
+        m_url = urlElement != null && !urlElement.isJsonNull() ? urlElement.getAsString() :( !m_tokenId.equals(ErgoCurrency.TOKEN_ID) ? DEFAULT_TOKEN_URL + m_tokenId : ErgoCurrency.URL_STRING);
     }
         
-    public SimpleStringProperty fontSymbolProperty(){
-        return m_fontSymbol;
-    } 
-    public SimpleStringProperty descriptionProperty(){
-        return m_description;
-    }
-    public SimpleLongProperty emissionAmountProperty(){
-        return m_emissionAmount;
-    } 
-    public SimpleStringProperty tokenTypeProperty(){
-        return m_tokenType;
-    } 
-    public SimpleStringProperty urlProperty(){
-        return m_url;
-    }
-  
 
 
     public String getDefaultName(){
@@ -176,11 +159,11 @@ public class PriceCurrency {
     }
 
     public String getTokenType(){
-        return m_tokenType.get();
+        return m_tokenType;
     }
 
     public void setTokenType(String tokenType){
-        m_tokenType.set(tokenType);
+        m_tokenType = tokenType;
     }
    
     public void setDecimals(int decimals){
@@ -193,46 +176,34 @@ public class PriceCurrency {
 
 
     public void setEmissionAmount(long amount){
-        m_emissionAmount.set(amount);
+        m_emissionAmount = amount;
     }
     public long getEmissionAmount(){
-        return m_emissionAmount.get();
+        return m_emissionAmount;
     }
 
     public void setDescription(String description){
-        m_description.set(description);
+        m_description = description;
     }
 
     public String getDescription(){
-        return m_description.get();
+        return m_description;
     }
 
     public String getNetworkTypeString(){
         return m_networkType;
     }
     
-    public void setTimeStamp(long timestamp){
-        m_timestamp = timestamp;
-    }
-
-    public long getTimeStamp(){
-        return m_timestamp;
-    }
-
-    public LocalDateTime getLocalTimeStamp(){
-        return m_timestamp == 0 ? null : Utils.milliToLocalTime(m_timestamp);
-    }
-
     public String getFontSymbol(){
-        return m_fontSymbol.get();
+        return m_fontSymbol;
     }
   
     public void setUrl(String url){
-        m_url.set(url);
+        m_url = url;
     }
     public String getUrl(){
         
-        return m_url.get();
+        return m_url;
     }
  
 
@@ -359,7 +330,10 @@ public class PriceCurrency {
     }
 
     public String getSymbol() {
-        int space = m_symbol.indexOf(" ");
+        String symbol = m_symbol != null ? m_symbol : (m_name != null ? m_name : "unknown");
+
+        int space = symbol != null ? symbol.indexOf(" ") : -1;
+        
         return  space != -1 ? m_symbol.substring(0, space) : m_symbol;
     }
 
@@ -377,38 +351,64 @@ public class PriceCurrency {
         return m_symbol;
     }
 
+    public void setTokenInfo(JsonObject tokenInfoJson){
+        if(tokenInfoJson != null){
+            JsonElement idElement = tokenInfoJson.get("id");
+            JsonElement boxIdElement = tokenInfoJson.get("boxId");
+            JsonElement emissionAmountElement = tokenInfoJson.get("emissionAmount");
+            JsonElement nameElement = tokenInfoJson.get("name");
+            JsonElement descriptionElement = tokenInfoJson.get("description");
+            JsonElement typeElement = tokenInfoJson.get("type");
+            
+
+            if(idElement != null && !idElement.isJsonNull() && idElement.getAsString().equals(m_tokenId)){
+                m_boxId = boxIdElement != null && !boxIdElement.isJsonNull() ? boxIdElement.getAsString() : m_boxId;
+                m_emissionAmount = emissionAmountElement != null && !emissionAmountElement.isJsonNull() ? emissionAmountElement.getAsLong() : m_emissionAmount;
+                m_description = descriptionElement != null && !descriptionElement.isJsonNull() ? descriptionElement.getAsString() : m_description;
+                m_tokenType = typeElement != null && !typeElement.isJsonNull() ? typeElement.getAsString() : m_tokenType;
+                m_name = nameElement != null && !nameElement.isJsonNull()  ? nameElement.getAsString() : m_name;
+            }
+        }
+    }
+
     public JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
-        if(m_tokenId != null){
-            json.addProperty("id", m_tokenId);
+      
+        json.addProperty("tokenId", m_tokenId);
+        if(m_emissionAmount != -1){
+            json.addProperty("emissionAmount", m_emissionAmount);
         }
-  
-        json.addProperty("emissionAmount", m_emissionAmount.get());
-        
+        if(m_boxId != null){
+            json.addProperty("boxId", m_boxId);
+        }
         json.addProperty("name", m_name);
-        if(m_description.get() != null){
-            json.addProperty("description", m_description.get());
+        if(m_symbol != null){
+            json.addProperty("symbol", m_symbol);
+        }
+        if(m_description != null){
+            json.addProperty("description", m_description);
         }
         json.addProperty("decimals", m_fractionalPrecision);
         if(m_networkType != null){
             json.addProperty("networkType", m_networkType);
         }
-        json.addProperty("timeStamp", m_timestamp);
-       
-        json.addProperty("symbol", m_symbol);
+      
+        
         if(m_imageString != null){
             json.addProperty("imageString",m_imageString);
         }
-        if(m_fontSymbol.get() != null){
-            json.addProperty("fontSymbol", m_fontSymbol.get());
+        if(m_fontSymbol != null){
+            json.addProperty("fontSymbol", m_fontSymbol);
         }
-        if(m_tokenType.get() != null){
-            json.addProperty("tokenType",m_tokenType.get());
+        if(m_tokenType != null){
+            json.addProperty("tokenType",m_tokenType);
         }
         if (getImgHashData() != null) {
             json.add("hashData", getImgHashData().getJsonObject());
         }
-    
+        if(m_url != null){
+            json.addProperty("url", m_url);
+        }
 
         return json;
     }

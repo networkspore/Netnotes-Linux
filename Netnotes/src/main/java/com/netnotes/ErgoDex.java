@@ -51,13 +51,13 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
-public class SpectrumFinance extends Network implements NoteInterface {
+public class ErgoDex extends Network implements NoteInterface {
 
-    public final static String DESCRIPTION = "Spectrum Finance is an open source cross-chain decentralized exchange (DEX) for fast, trustless cross-chain swaps, liquidity provision & liquidity mining.";
+    public final static String DESCRIPTION = "ErgoDex is an open source decentralized exchange (DEX) for fast, trustless swaps, liquidity provision & liquidity mining on the Ergo Blockchain.";
 
-    public final static String NAME = "Spectrum Finance";
-    public final static String WEB_URL = "https://spectrum.fi/";
-    public final static String NETWORK_ID = "SPECTRUM_FINANCE";
+    public final static String NAME = "ErgoDex";
+    public final static String WEB_URL = "https://www.ergodex.io";
+    public final static String NETWORK_ID = "ERGO_DEX";
     public final static String API_URL = "https://api.spectrum.fi";
 
     private final static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
@@ -97,7 +97,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     public static final String MARKETS_LIST = "MARKETS_LIST";
 
-    private ArrayList<SpectrumMarketData> m_marketsList = new ArrayList<>();
+    private ArrayList<ErgoDexMarketData> m_marketsList = new ArrayList<>();
 
 
 
@@ -107,7 +107,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private String m_locationId;
 
-    public SpectrumFinance(NetworksData networksData, String locationId) {
+    public ErgoDex(NetworksData networksData, String locationId) {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
         m_locationId = locationId;
@@ -118,11 +118,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
     public static String getAppIconString(){
-        return "/assets/spectrum-150.png";
+        return "/assets/ErgoDex-150.png";
     }
 
  
-    public ArrayList<SpectrumMarketData> marketsList(){
+    public ArrayList<ErgoDexMarketData> marketsList(){
         return m_marketsList;
     }
     
@@ -132,7 +132,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
     public static String getSmallAppIconString(){
-        return "/assets/spectrumFinance.png";
+        return "/assets/ErgoDex-32.png";
     }
 
 
@@ -142,17 +142,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return m_appStage;
     }
 
-    public SpectrumMarketData[] getMarketDataArray(){
-        SpectrumMarketData[] dataArray = new SpectrumMarketData[m_marketsList.size()];
+    public ErgoDexMarketData[] getMarketDataArray(){
+        ErgoDexMarketData[] dataArray = new ErgoDexMarketData[m_marketsList.size()];
         return dataArray = m_marketsList.toArray(dataArray);
     }
 
 
-
-
-    public static SpectrumMarketData getMarketDataById(ArrayList<SpectrumMarketData> dataList, String id) {
+    public static ErgoDexMarketData getMarketDataById(ArrayList<ErgoDexMarketData> dataList, String id) {
         if (id != null) {
-            for (SpectrumMarketData data : dataList) {
+            for (ErgoDexMarketData data : dataList) {
                 if (data.getId().equals(id) ) {
                     return data;
                 }
@@ -162,11 +160,24 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }
 
-    public static int getMarketDataIndexById(ArrayList<SpectrumMarketData> dataList, String id) {
+
+    public static ErgoDexMarketData getMarketDataByTickerId(ArrayList<ErgoDexMarketData> dataList, String tickerId) {
+        if (tickerId != null) {
+            for (ErgoDexMarketData data : dataList) {
+                if (data.getTickerId().equals(tickerId) ) {
+                    return data;
+                }
+            }
+            
+        }
+        return null;
+    }
+
+    public static int getMarketDataIndexById(ArrayList<ErgoDexMarketData> dataList, String id) {
         if (id != null) {
             int size = dataList.size();
             for (int i = 0; i < size; i++) {
-                SpectrumMarketData data = dataList.get(i);
+                ErgoDexMarketData data = dataList.get(i);
                 if (data.getId().equals(id) ) {
                     return i;
                 }
@@ -207,7 +218,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
 
             public Image getAppIcon(){
-                return SpectrumFinance.this.getAppIcon();
+                return ErgoDex.this.getAppIcon();
             }
 
 
@@ -216,15 +227,15 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
 
             public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-                return SpectrumFinance.this.sendNote(note, onSucceeded, onFailed);
+                return ErgoDex.this.sendNote(note, onSucceeded, onFailed);
             }
 
             public Object sendNote(JsonObject note){
-                return SpectrumFinance.this.sendNote(note);
+                return ErgoDex.this.sendNote(note);
             }
 
             public JsonObject getJsonObject(){
-                JsonObject spectrumObject = SpectrumFinance.this.getJsonObject();
+                JsonObject spectrumObject = ErgoDex.this.getJsonObject();
                 spectrumObject.addProperty("apiUrl", API_URL);
                 spectrumObject.addProperty("website", WEB_URL);
                 spectrumObject.addProperty("description", DESCRIPTION);
@@ -232,11 +243,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
 
             public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
-                return SpectrumFinance.this.getTab(appStage, heightObject, widthObject, networkBtn);
+                return ErgoDex.this.getTab(appStage, heightObject, widthObject, networkBtn);
             }
 
             public NetworksData getNetworksData(){
-                return SpectrumFinance.this.getNetworksData();
+                return ErgoDex.this.getNetworksData();
             }
 
             public NoteInterface getParentInterface(){
@@ -244,11 +255,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
             }
 
             public void addUpdateListener(ChangeListener<LocalDateTime> changeListener){
-                SpectrumFinance.this.addUpdateListener(changeListener);
+                ErgoDex.this.addUpdateListener(changeListener);
             }
 
             public void removeUpdateListener(){
-                SpectrumFinance.this.removeUpdateListener();
+                ErgoDex.this.removeUpdateListener();
             }
 
             public void shutdown(){}
@@ -259,16 +270,16 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             public void addMsgListener(NoteMsgInterface listener){
                 if(listener != null && listener.getId() != null){
-                    SpectrumFinance.this.addMsgListener(listener);
+                    ErgoDex.this.addMsgListener(listener);
                 }
             }
             public boolean removeMsgListener(NoteMsgInterface listener){
                 
-                return SpectrumFinance.this.removeMsgListener(listener);
+                return ErgoDex.this.removeMsgListener(listener);
             }
 
             public int getConnectionStatus(){
-                return SpectrumFinance.this.getConnectionStatus();
+                return ErgoDex.this.getConnectionStatus();
             }
 
             public void setConnectionStatus(int status){
@@ -277,7 +288,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
             public String getDescription(){
-                return SpectrumFinance.this.getDescription();
+                return ErgoDex.this.getDescription();
             }
         };
     }
@@ -299,7 +310,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
     private class SpectrumFinanceTab extends AppBox implements TabInterface{
         private Button m_menuBtn;
-        private SpectrumDataList m_spectrumData = null;
+        private ErgoDexDataList m_spectrumData = null;
 
         private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
         private NoteMsgInterface m_networkMsgInterface;
@@ -329,7 +340,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
             SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
 
 
-            m_spectrumData = new SpectrumDataList(FriendlyId.createFriendlyId(), appStage, SpectrumFinance.this, gridWidth,gridHeight, currentBox, m_itemTimeSpan, m_networkInterface);
+            m_spectrumData = new ErgoDexDataList(FriendlyId.createFriendlyId(), appStage, ErgoDex.this, gridWidth,gridHeight, currentBox, m_itemTimeSpan, m_networkInterface);
 
 
             Region spacer = new Region();
@@ -343,10 +354,10 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             BufferedMenuButton sortTypeButton = new BufferedMenuButton("/assets/filter.png", App.MENU_BAR_IMAGE_WIDTH);
 
-            MenuItem sortLiquidityItem = new MenuItem(SpectrumSort.SortType.LIQUIDITY_VOL);
-            MenuItem sortBaseVolItem = new MenuItem(SpectrumSort.SortType.BASE_VOL);
-            MenuItem sortQuoteVolItem = new MenuItem(SpectrumSort.SortType.QUOTE_VOL);
-            MenuItem sortLastPriceItem = new MenuItem(SpectrumSort.SortType.LAST_PRICE);
+            MenuItem sortLiquidityItem = new MenuItem(ErgpDexSort.SortType.LIQUIDITY_VOL);
+            MenuItem sortBaseVolItem = new MenuItem(ErgpDexSort.SortType.BASE_VOL);
+            MenuItem sortQuoteVolItem = new MenuItem(ErgpDexSort.SortType.QUOTE_VOL);
+            MenuItem sortLastPriceItem = new MenuItem(ErgpDexSort.SortType.LAST_PRICE);
           
             sortTypeButton.getItems().addAll(sortLiquidityItem, sortBaseVolItem, sortQuoteVolItem, sortLastPriceItem);
 
@@ -357,16 +368,16 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 sortLastPriceItem.setId(null);
 
                 switch(m_spectrumData.getSortMethod().getType()){
-                    case SpectrumSort.SortType.LIQUIDITY_VOL:
+                    case ErgpDexSort.SortType.LIQUIDITY_VOL:
                         sortLiquidityItem.setId("selectedMenuItem");
                     break;
-                    case SpectrumSort.SortType.BASE_VOL:
+                    case ErgpDexSort.SortType.BASE_VOL:
                         sortBaseVolItem.setId("selectedMenuItem");
                     break;
-                    case SpectrumSort.SortType.QUOTE_VOL:
+                    case ErgpDexSort.SortType.QUOTE_VOL:
                         sortQuoteVolItem.setId("selectedMenuItem");
                     break;
-                    case SpectrumSort.SortType.LAST_PRICE:
+                    case ErgpDexSort.SortType.LAST_PRICE:
                         sortLastPriceItem.setId("selectedMenuItem");
                     break;
                 }
@@ -379,25 +390,25 @@ public class SpectrumFinance extends Network implements NoteInterface {
            // updateSortTypeSelected.run();
 
             sortLiquidityItem.setOnAction(e->{
-                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortLiquidityItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortBaseVolItem.setOnAction(e->{
-                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortBaseVolItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortQuoteVolItem.setOnAction(e->{
-                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortQuoteVolItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortLastPriceItem.setOnAction(e->{
-                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
                 sortMethod.setType(sortLastPriceItem.getText());
                 updateSortTypeSelected.run();
             });
@@ -405,8 +416,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
             BufferedButton sortDirectionButton = new BufferedButton(m_spectrumData.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", App.MENU_BAR_IMAGE_WIDTH);
             sortDirectionButton.setOnAction(e->{
-                SpectrumSort sortMethod = m_spectrumData.getSortMethod();
-                sortMethod.setDirection(sortMethod.isAsc() ? SpectrumSort.SortDirection.DSC : SpectrumSort.SortDirection.ASC);
+                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
+                sortMethod.setDirection(sortMethod.isAsc() ? ErgpDexSort.SortDirection.DSC : ErgpDexSort.SortDirection.ASC);
                 sortDirectionButton.setImage(new Image(sortMethod.isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png"));
                 m_spectrumData.sort();
                 m_spectrumData.updateGridBox();
@@ -639,7 +650,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         @Override
         public String getName() {  
-            return SpectrumFinance.this.getName();
+            return ErgoDex.this.getName();
         }
 
     
@@ -734,7 +745,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }
 
         public void getData(){
-            openJson(getNetworksData().getData("data", ".", "tab", SpectrumFinance.NETWORK_ID));
+            openJson(getNetworksData().getData("data", ".", "tab", ErgoDex.NETWORK_ID));
         }
 
         public void openJson(JsonObject json){
@@ -759,7 +770,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }
 
         public void save(){
-            getNetworksData().save("data", ".", "tab", SpectrumFinance.NETWORK_ID, getJsonObject());
+            getNetworksData().save("data", ".", "tab", ErgoDex.NETWORK_ID, getJsonObject());
         }
 
         @Override
@@ -977,10 +988,11 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
+    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     private void getMarketUpdate(JsonArray jsonArray){
 
-        ArrayList<SpectrumMarketData> tmpMarketsList = new ArrayList<>();
+        ArrayList<ErgoDexMarketData> tmpMarketsList = new ArrayList<>();
         long timeStamp = System.currentTimeMillis();
 
         SimpleBooleanProperty isChanged = new SimpleBooleanProperty(false);
@@ -993,16 +1005,16 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 
                 try{
                     
-                    SpectrumMarketData marketData = new SpectrumMarketData(marketDataJson, timeStamp);
+                    ErgoDexMarketData marketData = new ErgoDexMarketData(marketDataJson, timeStamp);
                
                     int marketIndex = getMarketDataIndexById(tmpMarketsList, marketData.getId());
                     
 
                     if(marketIndex != -1){
-                        SpectrumMarketData lastData = tmpMarketsList.get(marketIndex);
+                        ErgoDexMarketData lastData = tmpMarketsList.get(marketIndex);
                         BigDecimal quoteVolume = lastData.getQuoteVolume();
 
-                        if(marketData.getQuoteVolume().doubleValue() > quoteVolume.doubleValue()){
+                        if(marketData.getQuoteVolume().compareTo(quoteVolume) > 0){
                             tmpMarketsList.set(marketIndex, marketData);
                         }
                     }else{
@@ -1032,7 +1044,8 @@ public class SpectrumFinance extends Network implements NoteInterface {
                 if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
                     JsonArray tickerArray = (JsonArray) tickerSourceObject;
 
-
+                    
+        
                     for (int j = 0; j < tickerArray.size(); j++) {
                 
                         JsonElement tickerObjectElement = tickerArray.get(j);
@@ -1042,22 +1055,33 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
                             JsonElement tickerIdElement = tickerDataJson.get("ticker_id");
                             String tickerId = tickerIdElement != null && tickerIdElement.isJsonPrimitive() ? tickerIdElement.getAsString() : null;
+                            JsonElement poolIdElement = tickerDataJson.get("pool_id");
+                            String poolId = poolIdElement != null && !poolIdElement.isJsonNull() && poolIdElement.isJsonPrimitive() ? poolIdElement.getAsString() : null;
 
                             if(tickerId != null){
                         
-                                SpectrumMarketData marketData = getMarketDataById(tmpMarketsList, tickerId);
+                               
+                                ErgoDexMarketData marketData = getMarketDataByTickerId(tmpMarketsList, tickerId);
                             
+                                if(poolIdElement != null){
+                                    try {
+                                      
+                                        Files.writeString(App.logFile.toPath(), (marketData != null ? "marketData: " + gson.toJson(marketData.getJsonObject()) +"\n" : "notFound\n") + "tickerDataJson:" + gson.toJson(tickerDataJson) +"\n\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                    } catch (IOException e) {
+
+                                    }
+                                }
                                 if(marketData != null){
                                     
                                     JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
-                                    JsonElement poolIdElement = tickerDataJson.get("pool_id");
+                                  
                                     if(liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() ){
 
                                         marketData.setLiquidityUSD(liquidityUsdElement.getAsBigDecimal());
        
                                     }
-                                    if( poolIdElement != null && poolIdElement.isJsonPrimitive()){
-                                        marketData.setPoolId(poolIdElement.getAsString());
+                                    if( poolId != null ){
+                                        marketData.setPoolId(poolId);
                                     }
                                 }
 
@@ -1085,13 +1109,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
 
 
-    private void updateMarketList(ArrayList<SpectrumMarketData> data){
+    private void updateMarketList(ArrayList<ErgoDexMarketData> data){
         int size = data.size();
         long timeStamp = System.currentTimeMillis();
 
         if(m_marketsList.size() == 0){
                 for(int i = 0; i < size; i++){
-                    SpectrumMarketData marketData = data.get(i);
+                    ErgoDexMarketData marketData = data.get(i);
                     if(marketData != null){
                         m_marketsList.add(marketData);    
                     }
@@ -1102,9 +1126,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
         }else{
             SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
             for(int i = 0; i < size; i++){
-                SpectrumMarketData newMarketData = data.get(i);
+                ErgoDexMarketData newMarketData = data.get(i);
                 
-                SpectrumMarketData marketData = getMarketDataById(m_marketsList, newMarketData.getId());
+                ErgoDexMarketData marketData = getMarketDataById(m_marketsList, newMarketData.getId());
                 if(marketData != null){
                     marketData.update(newMarketData);
                 }else{
@@ -1372,17 +1396,17 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
 
-    private List<SpectrumMarketData> m_searchList ;
-    private Optional<SpectrumMarketData> m_quoteOptional;
+    private List<ErgoDexMarketData> m_searchList ;
+    private Optional<ErgoDexMarketData> m_quoteOptional;
 
 
-    private SpectrumMarketData findMarketDataById(String baseId, String quoteId){
+    private ErgoDexMarketData findMarketDataById(String baseId, String quoteId){
         if(m_marketsList != null && baseId != null && quoteId != null){
             int size = m_marketsList.size();
             for(int i = 0; i < size ; i++){
-                SpectrumMarketData data = m_marketsList.get(i);
+                ErgoDexMarketData data = m_marketsList.get(i);
                 if(data.getBaseId().equals(baseId) && data.getQuoteId().equals(quoteId)){
-                    data.setExchangeId(NETWORK_ID);
+                    data.setExchangeName(NETWORK_ID);
                     return data;
                 }
             }
@@ -1390,13 +1414,13 @@ public class SpectrumFinance extends Network implements NoteInterface {
         return null;
     }
 
-    private SpectrumMarketData findMarketDataBySymbol(String baseSymbol, String quoteSymbol){
+    private ErgoDexMarketData findMarketDataBySymbol(String baseSymbol, String quoteSymbol){
         if(m_marketsList != null && baseSymbol != null && quoteSymbol != null){
             int size = m_marketsList.size();
             for(int i = 0; i < size ; i++){
-                SpectrumMarketData data = m_marketsList.get(i);
+                ErgoDexMarketData data = m_marketsList.get(i);
                 if(data.getBaseSymbol().equals(baseSymbol) && data.getQuoteSymbol().equals(quoteSymbol)){
-                    data.setExchangeId(NETWORK_ID);
+                    data.setExchangeName(NETWORK_ID);
                     return data;
                 }
             }
@@ -1412,18 +1436,18 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         String baseType = baseTypeElement != null && baseTypeElement.isJsonPrimitive() ? baseTypeElement.getAsString() : null;
         String quoteType = quoteTypeElement != null && quoteTypeElement.isJsonPrimitive() ? quoteTypeElement.getAsString() : null;
-        String base = baseElement != null && baseElement.isJsonPrimitive() ? baseElement.getAsString() : null;
-        String quote = quoteElement != null && quoteElement.isJsonPrimitive() ? quoteElement.getAsString() : null;
+        String baseString = baseElement != null && baseElement.isJsonPrimitive() ? baseElement.getAsString() : null;
+        String quoteString = quoteElement != null && quoteElement.isJsonPrimitive() ? quoteElement.getAsString() : null;
 
         m_searchList = null;
-        if(baseType != null && base != null){
+        if(baseType != null && baseString != null){
             switch(baseType){
          
                 case "symbol":
-                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().toLowerCase().equals(base.toLowerCase())).collect(Collectors.toList());
+                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseSymbol().toLowerCase().equals(baseString.toLowerCase())).collect(Collectors.toList());
                 break;
                 case "id":
-                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseId().equals(base)).collect(Collectors.toList());
+                    m_searchList = m_marketsList.stream().filter(item -> item.getBaseId().equals(baseString)).collect(Collectors.toList());
                  
                     
                     break;
@@ -1433,23 +1457,22 @@ public class SpectrumFinance extends Network implements NoteInterface {
 
         m_searchList = m_searchList != null ? m_searchList : m_marketsList;
 
-        if(quoteType != null && quote != null){
+        if(quoteType != null && quoteString != null){
             switch(quoteType){
                 case "firstSymbolContains":
-                    m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteSymbol().contains(quote)).findFirst();
+                    m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteSymbol().contains(quoteString)).findFirst();
                     if(m_quoteOptional.isPresent()){
-                        return m_quoteOptional.get();
+                      
+                        return m_quoteOptional.get().getPriceQuote();
                     }
                 break;
                 case "firstId":
-                    m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteId().equals(quote)).findFirst();
+                    m_quoteOptional = m_searchList.stream().filter(item -> item.getQuoteId().equals(quoteString)).findFirst();
                   
                     
                     if(m_quoteOptional.isPresent()){
                      
-                        SpectrumMarketData data = m_quoteOptional.get();
-                        data.setExchangeId(NETWORK_ID);
-                        return data;
+                        return m_quoteOptional.get().getPriceQuote();
                     }
                 break;
             }
@@ -1459,7 +1482,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
     }
 
     private Object getErgoUSDQuote(){
-        return findMarketDataById(ErgoCurrency.TOKEN_ID, SIGUSD_ID);
+        return findMarketDataById(ErgoCurrency.TOKEN_ID, SIGUSD_ID).getPriceQuote();
     }
 
     private Object getTokenQuoteInErg(JsonObject note){
@@ -1468,11 +1491,9 @@ public class SpectrumFinance extends Network implements NoteInterface {
         JsonElement idElement = note != null ? note.get("tokenId") : null;
         String tokenId = idElement != null && !idElement.isJsonNull() && idElement.isJsonPrimitive() ? idElement.getAsString() : null;
         if(tokenId != null){
-            SpectrumMarketData data = findMarketDataById(ERG_ID, tokenId);
+            ErgoDexMarketData data = findMarketDataById(ERG_ID, tokenId);
             if(data != null){
-                SpectrumMarketData invertedQuote = data.clone(true);
-                invertedQuote.setExchangeId(NETWORK_ID);
-                return invertedQuote;
+                return data.getPriceQuote(true);
             }
         }
         return null;
@@ -1486,7 +1507,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         String quoteId = quoteIdElement != null && !quoteIdElement.isJsonNull() && quoteIdElement.isJsonPrimitive() ? quoteIdElement.getAsString() : null;
 
         if(baseId != null && quoteId != null){
-            return findMarketDataById(baseId, quoteId);
+            return findMarketDataById(baseId, quoteId).getPriceQuote();
         }
         return null;
     }
@@ -1499,7 +1520,7 @@ public class SpectrumFinance extends Network implements NoteInterface {
         String quoteSymbol = quoteSymbolElement != null && !quoteSymbolElement.isJsonNull() && quoteSymbolElement.isJsonPrimitive() ? quoteSymbolElement.getAsString() : null;
 
         if(baseSymbol != null && quoteSymbol != null){
-            return findMarketDataBySymbol(baseSymbol, quoteSymbol);
+            return findMarketDataBySymbol(baseSymbol, quoteSymbol).getPriceQuote();
         }
         return null;
     }

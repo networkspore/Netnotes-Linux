@@ -5,7 +5,7 @@ import java.math.RoundingMode;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-public class SpectrumTickerData {
+public class ErgoDexTickerData {
     private String m_tickerId;
     private BigDecimal m_lastPrice;
     private BigDecimal m_liquidityUSD;
@@ -14,7 +14,7 @@ public class SpectrumTickerData {
     private String m_targetId;
    
     
-    public SpectrumTickerData(JsonObject tickerDataJson){
+    public ErgoDexTickerData(JsonObject tickerDataJson){
         JsonElement tickerIdElement = tickerDataJson.get("ticker_id");
         JsonElement lastPriceElement = tickerDataJson.get("last_price");
         JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");

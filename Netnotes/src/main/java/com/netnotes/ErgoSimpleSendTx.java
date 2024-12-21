@@ -69,8 +69,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         }
 
         ErgoAmount parentAmount = new ErgoAmount(nanoErgsElement.getAsLong(), getParentAddress().getNetworkType());
-        
-        ErgoTokens ergoTokens = parentAddress.getErgoNetworkData().getErgoTokens();
+
 
 
         setErgoAmount(parentAmount);
@@ -94,7 +93,7 @@ public class ErgoSimpleSendTx extends ErgoTransaction  {
         for(int i = 0; i < tokensArrayLength ; i ++ ){
             JsonElement tokenElement = tokensArray.get(i);
             
-            PriceAmount tokenAmount = tokenElement != null && tokenElement.isJsonObject() ? new PriceAmount(parentAddress.getErgoNetworkData().getErgoTokens(), tokenElement.getAsJsonObject()) : UNKNOWN_PRICE_AMOUNT;
+            PriceAmount tokenAmount = tokenElement != null && tokenElement.isJsonObject() ? new PriceAmount(tokenElement.getAsJsonObject()) : UNKNOWN_PRICE_AMOUNT;
           
             tokenAmounts[i] = tokenAmount;
         }

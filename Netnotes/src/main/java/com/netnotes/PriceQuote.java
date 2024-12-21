@@ -20,7 +20,7 @@ public class PriceQuote {
     private String m_quoteSymbol;
     private long m_timestamp = 0;
     private String m_quoteId = "";
-    private String m_exchangeId = "";
+    private String m_exchangeName = "";
     private boolean m_defaultInvert = false;
     private String m_id = "";
 
@@ -68,6 +68,11 @@ public class PriceQuote {
         
         setPrices(amount, transactionCurrency, quoteCurrency, baseId, quoteId);
     }
+    public PriceQuote(String id, BigDecimal amount, String transactionCurrency, String quoteCurrency,String baseId, String quoteId, long timestamp) {
+        m_timestamp = timestamp;
+        m_id = id;
+        setPrices(amount, transactionCurrency, quoteCurrency, baseId, quoteId);
+    }
 
     private void setPrices(String amountString, String transactionCurrency, String quoteCurrency){
         setStringAmount(amountString);
@@ -95,12 +100,12 @@ public class PriceQuote {
         return getBaseSymbol() + "-" + getQuoteSymbol();
     }
 
-    public void setExchangeId(String id){
-        m_exchangeId = id;
+    public void setExchangeName(String name){
+        m_exchangeName = name;
     }
 
-    public String getExchangeId(){
-        return m_exchangeId;
+    public String getExchangeName(){
+        return m_exchangeName;
     }
 
     public void setStringAmount(String amountString) {

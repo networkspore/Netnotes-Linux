@@ -62,7 +62,7 @@ public class PriceAmount  {
  
     }
 
-    public PriceAmount(ErgoTokens ergoTokens, JsonObject json) throws Exception{
+    public PriceAmount(JsonObject json) throws Exception{
         
         
         JsonElement amountElement = json.get("amount");

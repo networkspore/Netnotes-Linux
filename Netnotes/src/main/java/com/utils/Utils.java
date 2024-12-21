@@ -809,6 +809,52 @@ public class Utils {
 
     }
 
+    public static JsonObject getJsonFromUrlSync(String urlString){
+                                             
+        try{
+            InputStream inputStream = null;
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            String outputString = null;
+
+            URL url = new URL(urlString);
+
+            URLConnection con = url.openConnection();
+
+            con.setRequestProperty("User-Agent", USER_AGENT);
+    
+            inputStream = con.getInputStream();
+
+            byte[] buffer = new byte[2048];
+
+            int length;
+
+
+            while ((length = inputStream.read(buffer)) != -1) {
+
+                outputStream.write(buffer, 0, length);
+
+            }
+
+            outputStream.close();
+
+            if(outputStream.size() > 0){
+                outputString = outputStream.toString();
+
+                JsonElement jsonElement = new JsonParser().parse(outputString);
+
+                JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
+
+                return jsonObject == null ? null : jsonObject;
+            }else{
+                return null;
+            }
+
+       }catch(Exception err){
+            
+       }
+       return null;
+   }
+
     public static String formatedBytes(long bytes, int decimals) {
 
         if (bytes == 0) {

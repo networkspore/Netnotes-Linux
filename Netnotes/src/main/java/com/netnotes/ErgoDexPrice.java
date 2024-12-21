@@ -6,11 +6,11 @@ import java.math.RoundingMode;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 
-public class SpectrumPrice{
+public class ErgoDexPrice{
         private BigDecimal m_price;
         private long m_timeStamp;
 
-        public SpectrumPrice(JsonObject json) throws Exception{
+        public ErgoDexPrice(JsonObject json) throws Exception{
             JsonElement timestampElement = json != null && json.isJsonObject() ? json.get("timestamp") : null;
             JsonElement priceElement = json != null && json.isJsonObject() ? json.get("price") : null;
 
@@ -23,7 +23,7 @@ public class SpectrumPrice{
         }
 
         
-        public SpectrumPrice(JsonObject json, boolean invert) throws Exception{
+        public ErgoDexPrice(JsonObject json, boolean invert) throws Exception{
             JsonElement timestampElement = json != null && json.isJsonObject() ? json.get("timestamp") : null;
             JsonElement priceElement = json != null && json.isJsonObject() ? json.get("price") : null;
 
@@ -46,7 +46,7 @@ public class SpectrumPrice{
         }
 
 
-        public SpectrumPrice(BigDecimal price, long timeStamp){
+        public ErgoDexPrice(BigDecimal price, long timeStamp){
             m_price = price;
             m_timeStamp = timeStamp;
         }
@@ -71,8 +71,8 @@ public class SpectrumPrice{
             
         }
 
-        public SpectrumPrice getInverted() throws ArithmeticException{
-            return new SpectrumPrice(getInvertedPrice(), m_timeStamp);
+        public ErgoDexPrice getInverted() throws ArithmeticException{
+            return new ErgoDexPrice(getInvertedPrice(), m_timeStamp);
         }
 
         public JsonObject getInvertedJson(){

@@ -49,6 +49,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -71,6 +72,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
@@ -90,7 +92,7 @@ public class NetworksData {
     public final static NetworkInformation[] SUPPORTED_APPS = new NetworkInformation[]{
    
        // KucoinExchange.getNetworkInformation(),
-        SpectrumFinance.getNetworkInformation()
+        ErgoDex.getNetworkInformation()
         
     };
 
@@ -383,7 +385,7 @@ public class NetworksData {
             addNetwork(createNetwork(ErgoNetwork.NETWORK_ID), false);
             m_currentNetworkId.set(ErgoNetwork.NETWORK_ID);
 
-            addApp(createApp(SpectrumFinance.NETWORK_ID), true);
+            addApp(createApp(ErgoDex.NETWORK_ID), true);
            
         }
     }
@@ -395,10 +397,10 @@ public class NetworksData {
                 /*case KucoinExchange.NETWORK_ID:
                     return new KucoinExchange(this), false);
                  */
-                case SpectrumFinance.NETWORK_ID:
+                case ErgoDex.NETWORK_ID:
                     String locationId = FriendlyId.createFriendlyId();
-                    m_locationsIds.put(locationId, SpectrumFinance.NAME);
-                    return new SpectrumFinance(this, locationId);
+                    m_locationsIds.put(locationId, ErgoDex.NAME);
+                    return new ErgoDex(this, locationId);
 
                 
             }
@@ -2061,9 +2063,10 @@ public class NetworksData {
         public static final String NAME = "Networks";
         private String m_status = App.STATUS_STOPPED;
         private VBox m_listBox = new VBox();
-        private ContextMenu m_installContextMenu = new ContextMenu();
+
         private SimpleObjectProperty<NetworkInformation> m_installItemInformation = new SimpleObjectProperty<>(null);
         private HBox m_installFieldBox;
+        private MenuButton m_installMenuBtn;
 
         public String getName(){
             return NAME;
@@ -2141,27 +2144,51 @@ public class NetworksData {
 
             updateNetworkList();
 
-            Label installText = new Label("Install: ");
-            installText.setMinWidth(58);
+            Text installText = new Text("Networks: ");
+            installText.setFont(App.txtFont);
+            installText.setFill(App.txtColor);
 
-            TextField installField = new TextField();
-            installField.setPromptText("(Select network to install)");
-            installField.setEditable(false);
-            HBox.setHgrow(installField, Priority.ALWAYS);
+            String emptyInstallstring = "(Click to select network)";
+            m_installMenuBtn = new MenuButton(emptyInstallstring);
+            m_installMenuBtn.setId("arrowMenuButton");
 
-            Label installMenuBtn = new Label("⏷");
-            installMenuBtn.setId("lblBtn");
+            m_installMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
+                m_installMenuBtn.getItems().clear();
+                for(int i = 0; i < SUPPORTED_NETWORKS.length; i++){
+                    NetworkInformation networkInformation = SUPPORTED_NETWORKS[i];
+                    if(getNetwork(networkInformation.getNetworkId()) == null){
+                        ImageView intallItemImgView = new ImageView();
+                        intallItemImgView.setPreserveRatio(true);
+                        intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                        intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
+                        MenuItem installItem = new MenuItem(String.format("%-30s",networkInformation.getNetworkName()), intallItemImgView);
+                    
+                        installItem.setOnAction(e->{
+                            m_installItemInformation.set(networkInformation);
+                        });
+    
+                        m_installMenuBtn.getItems().add(installItem);
+                    }
+                }
+                if(m_installMenuBtn.getItems().size() == 0){
+                    MenuItem installItem = new MenuItem(String.format("%-30s","(none available)"));
+                    m_installMenuBtn.getItems().add(installItem);
+                }
+    
+            });
 
             ImageView installFieldImgView = new ImageView();
             installFieldImgView.setPreserveRatio(true);
             installFieldImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
 
-            m_installFieldBox = new HBox(installFieldImgView, installField, installMenuBtn);
+            m_installFieldBox = new HBox(m_installMenuBtn);
             HBox.setHgrow(m_installFieldBox, Priority.ALWAYS);
             m_installFieldBox.setId("bodyBox");
             m_installFieldBox.setPadding(new Insets(2, 5, 2, 2));
             m_installFieldBox.setMaxHeight(18);
             m_installFieldBox.setAlignment(Pos.CENTER_LEFT);
+
+            m_installMenuBtn.prefWidthProperty().bind(m_installFieldBox.widthProperty().subtract(-1));
 
             Button installBtn = new Button("Install");
       
@@ -2172,14 +2199,20 @@ public class NetworksData {
 
             m_installItemInformation.addListener((obs,oldval,newval)->{
                 if(newval != null){
-                    installField.setText(newval.getNetworkName());
+                    m_installMenuBtn.setText(newval.getNetworkName());
                     installFieldImgView.setImage(new Image(newval.getSmallIconString()));
+                    if(!m_installFieldBox.getChildren().contains(installFieldImgView)){
+                        m_installFieldBox.getChildren().add(0, installFieldImgView);
+                    }
                     if(!m_installFieldBox.getChildren().contains(installBtn)){
                         m_installFieldBox.getChildren().add(installBtn);
                     }
                 }else{
-                    installField.setText("");
+                    m_installMenuBtn.setText(emptyInstallstring);
                     installFieldImgView.setImage(null);
+                    if(m_installFieldBox.getChildren().contains(installFieldImgView)){
+                        m_installFieldBox.getChildren().remove(installFieldImgView);
+                    }
                     if(m_installFieldBox.getChildren().contains(installBtn)){
                         m_installFieldBox.getChildren().remove(installBtn);
                     }
@@ -2188,12 +2221,7 @@ public class NetworksData {
 
             Region topRegion = new Region();
             
-            installBox.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
-                if(!e.getSource().equals(installBtn)){
-                    showInstallContextMenu();
-                }
-            });
-
+  
             VBox.setVgrow(topRegion, Priority.ALWAYS);
           
             Region hBar1 = new Region();
@@ -2240,38 +2268,7 @@ public class NetworksData {
             }
         }
 
-        public void showInstallContextMenu(){
-            m_installContextMenu.getItems().clear();
-            for(int i = 0; i < SUPPORTED_NETWORKS.length; i++){
-                NetworkInformation networkInformation = SUPPORTED_NETWORKS[i];
-                if(getNetwork(networkInformation.getNetworkId()) == null){
-                    ImageView intallItemImgView = new ImageView();
-                    intallItemImgView.setPreserveRatio(true);
-                    intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
-                    intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
-                    MenuItem installItem = new MenuItem(String.format("%-40s",networkInformation.getNetworkName()), intallItemImgView);
-                
-                    installItem.setOnAction(e->{
-                        m_installItemInformation.set(networkInformation);
-                    });
-
-                    m_installContextMenu.getItems().add(installItem);
-                }
-            }
-            if(m_installContextMenu.getItems().size() == 0){
-                MenuItem installItem = new MenuItem(String.format("%-40s","(none available)"));
-                m_installContextMenu.getItems().add(installItem);
-            }
-
-            Point2D p = m_installFieldBox.localToScene(0.0, 0.0);
-
-            m_installContextMenu.show(m_installFieldBox,
-                p.getX() + m_installFieldBox.getScene().getX() + m_installFieldBox.getScene().getWindow().getX(),
-                (p.getY() + m_installFieldBox.getScene().getY() + m_installFieldBox.getScene().getWindow().getY()
-                        + m_installFieldBox.getLayoutBounds().getHeight()));
-
-        }
-
+    
         public void updateNetworkList(){
 
             m_listBox.getChildren().clear();
@@ -2393,10 +2390,11 @@ public class NetworksData {
                 }
             }else{
                 
-                IconButton emptyAddAppBtn = new IconButton(new Image("/assets/settings-outline-white-30.png"), "Install Network", IconStyle.ICON);
-                emptyAddAppBtn.disableActions();
+                BufferedButton emptyAddAppBtn = new BufferedButton("/assets/settings-outline-white-30.png", 75);
+                emptyAddAppBtn.setText("Install Network");
+                emptyAddAppBtn.setContentDisplay(ContentDisplay.TOP);
                 emptyAddAppBtn.setOnAction(e->{
-                    showInstallContextMenu();
+                    m_installMenuBtn.show();
                 });
                 HBox addBtnBox = new HBox(emptyAddAppBtn);
                 HBox.setHgrow(addBtnBox, Priority.ALWAYS);
@@ -2414,10 +2412,9 @@ public class NetworksData {
         public static final int PADDING = 10;
         public static final String NAME = "Manage Apps";
 
-
+        private MenuButton m_installMenuBtn;
         private String m_status = App.STATUS_STOPPED;
         private SimpleStringProperty m_selectedAppId = new SimpleStringProperty(null);
-        private ContextMenu m_installContextMenu = new ContextMenu();
         private VBox m_listBox = new VBox();
         private SimpleObjectProperty<NetworkInformation> m_installItemInformation = new SimpleObjectProperty<>(null);
         private HBox m_installFieldBox;
@@ -2474,34 +2471,57 @@ public class NetworksData {
             
 
 
-            Label installText = new Label("Install: ");
-            installText.setMinWidth(58);
+            Text installText = new Text("Apps: ");
+            installText.setFont(App.txtFont);
+            installText.setFill(App.txtColor);
 
-            TextField installField = new TextField();
-            installField.setPromptText("(Select app to install)");
-            installField.setEditable(false);
-            HBox.setHgrow(installField, Priority.ALWAYS);
-
-        
-
-            Label installMenuBtn = new Label("⏷");
-            installMenuBtn.setId("lblBtn");
+            String installDefaultText = "(Click to select App)";
 
             ImageView installFieldImgView = new ImageView();
             installFieldImgView.setPreserveRatio(true);
             installFieldImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+
+            m_installMenuBtn = new MenuButton(installDefaultText);
+            m_installMenuBtn.setId("arrowMenuButton");
+            m_installMenuBtn.setGraphic(installFieldImgView);
+            m_installMenuBtn.setContentDisplay(ContentDisplay.LEFT);
             
+            m_installMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
+                m_installMenuBtn.getItems().clear();
+                for(int i = 0; i < SUPPORTED_APPS.length; i++){
+                    NetworkInformation networkInformation = SUPPORTED_APPS[i];
+                    if(getNetwork(networkInformation.getNetworkId()) == null){
+                        ImageView intallItemImgView = new ImageView();
+                        intallItemImgView.setPreserveRatio(true);
+                        intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                        intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
+                        
+                        MenuItem installItem = new MenuItem(String.format("%-30s",networkInformation.getNetworkName()), intallItemImgView);
+                        installItem.setOnAction(e->{
+                            m_installItemInformation.set(networkInformation);
+                        });
+    
+                        m_installMenuBtn.getItems().add(installItem);
+                    }
+                }
+                if(m_installMenuBtn.getItems().size() == 0){
+                    MenuItem installItem = new MenuItem(String.format("%-30s", "(none available)"));
+                    m_installMenuBtn.getItems().add(installItem);
+                }
+            });
 
 
-            m_installFieldBox = new HBox(installFieldImgView, installField, installMenuBtn);
+            m_installFieldBox = new HBox(m_installMenuBtn);
             HBox.setHgrow(m_installFieldBox, Priority.ALWAYS);
             m_installFieldBox.setId("bodyBox");
             m_installFieldBox.setPadding(new Insets(2, 5, 2, 2));
             m_installFieldBox.setMaxHeight(18);
             m_installFieldBox.setAlignment(Pos.CENTER_LEFT);
 
+            m_installMenuBtn.prefWidthProperty().bind(m_installFieldBox.widthProperty().subtract(1));
+
             Button installBtn = new Button("Install");
-        
+            installBtn.setMinWidth(110);
 
             HBox installBox = new HBox(installText, m_installFieldBox);
             HBox.setHgrow(installBox,Priority.ALWAYS);
@@ -2510,13 +2530,14 @@ public class NetworksData {
 
             m_installItemInformation.addListener((obs,oldval,newval)->{
                 if(newval != null){
-                    installField.setText(newval.getNetworkName());
+                    m_installMenuBtn.setText(newval.getNetworkName());
                     installFieldImgView.setImage(new Image(newval.getSmallIconString()));
+                 
                     if(!m_installFieldBox.getChildren().contains(installBtn)){
                         m_installFieldBox.getChildren().add(installBtn);
                     }
                 }else{
-                    installField.setText("");
+                    m_installMenuBtn.setText(installDefaultText);
                     installFieldImgView.setImage(null);
                     if(m_installFieldBox.getChildren().contains(installBtn)){
                         m_installFieldBox.getChildren().remove(installBtn);
@@ -2525,20 +2546,8 @@ public class NetworksData {
             });
 
 
-            
-            
-
-           
-
             Region topRegion = new Region();
             
-
-            installBox.addEventFilter(MouseEvent.MOUSE_CLICKED,e->{
-                if(!e.getSource().equals(installBtn)){
-                    showInstallContextMenu();
-                }
-            });
-
             VBox.setVgrow(topRegion, Priority.ALWAYS);
                 
             Region hBar1 = new Region();
@@ -2579,38 +2588,6 @@ public class NetworksData {
 
         }
 
-        public void showInstallContextMenu(){
-            m_installContextMenu.getItems().clear();
-            for(int i = 0; i < SUPPORTED_APPS.length; i++){
-                NetworkInformation networkInformation = SUPPORTED_APPS[i];
-                if(getNetwork(networkInformation.getNetworkId()) == null){
-                    ImageView intallItemImgView = new ImageView();
-                    intallItemImgView.setPreserveRatio(true);
-                    intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
-                    intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
-                    
-                    MenuItem installItem = new MenuItem(String.format("%-40s",networkInformation.getNetworkName()), intallItemImgView);
-                    installItem.setOnAction(e->{
-                        m_installItemInformation.set(networkInformation);
-                    });
-
-                    m_installContextMenu.getItems().add(installItem);
-                }
-            }
-            if(m_installContextMenu.getItems().size() == 0){
-                MenuItem installItem = new MenuItem(String.format("%-40s", "(none available)"));
-                m_installContextMenu.getItems().add(installItem);
-            }
-
-            Point2D p = m_installFieldBox.localToScene(0.0, 0.0);
-         
-
-            m_installContextMenu.show(m_installFieldBox,
-                p.getX() + m_installFieldBox.getScene().getX() + m_installFieldBox.getScene().getWindow().getX(),
-                (p.getY() + m_installFieldBox.getScene().getY() + m_installFieldBox.getScene().getWindow().getY()
-                        + m_installFieldBox.getLayoutBounds().getHeight()));
-
-        };
 
         public void updateAppList(){
             m_listBox.getChildren().clear();
@@ -2677,11 +2654,13 @@ public class NetworksData {
 
                 }
             }else{
-                IconButton emptyAddAppBtn = new IconButton(new Image("/assets/settings-outline-white-120.png"), "Install App", IconStyle.ICON);
-                emptyAddAppBtn.disableActions();
+                BufferedButton emptyAddAppBtn = new BufferedButton("/assets/settings-outline-white-120.png", 75);
+                emptyAddAppBtn.setText("Install App");
+                emptyAddAppBtn.setContentDisplay(ContentDisplay.TOP);
                 emptyAddAppBtn.setOnAction(e->{
-                    showInstallContextMenu();
+                    m_installMenuBtn.show();
                 });
+
                 HBox addBtnBox = new HBox(emptyAddAppBtn);
                 HBox.setHgrow(addBtnBox, Priority.ALWAYS);
                 VBox.setVgrow(addBtnBox, Priority.ALWAYS);

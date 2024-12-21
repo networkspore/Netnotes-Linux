@@ -28,7 +28,7 @@ import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.image.WritableImage;
 
-public class SpectrumChartView {
+public class ErgoDexChartView {
 
     
     public final static int DECIMAL_PRECISION = 6;
@@ -91,13 +91,13 @@ public class SpectrumChartView {
     private static Color m_overlayHighlightRed = new Color(0x70e96d71, true);
 
 
-    private SpectrumMarketData m_marketData;
-    private SpectrumFinance m_spectrumFinance;
+    private ErgoDexMarketData m_marketData;
+    private ErgoDex m_spectrumFinance;
 
     private static Font m_arial = new Font("Arial", Font.PLAIN, 12);
 
 
-    private SpectrumPrice[] m_data = null; 
+    private ErgoDexPrice[] m_data = null; 
     
     
 
@@ -105,12 +105,12 @@ public class SpectrumChartView {
 
     private ArrayList<NoteMsgInterface> m_msgListeners = new ArrayList<>();
 
-    public SpectrumChartView(SpectrumMarketData marketData, SpectrumFinance spectrumFinance) {
+    public ErgoDexChartView(ErgoDexMarketData marketData, ErgoDex spectrumFinance) {
         m_marketData = marketData;
         m_spectrumFinance = spectrumFinance;
     }
  
-    public long addPrices(SpectrumPrice[] prices){
+    public long addPrices(ErgoDexPrice[] prices){
         
         
         if(m_data != null && m_data.length > 0 && prices != null && prices.length > 0){
@@ -118,14 +118,14 @@ public class SpectrumChartView {
           
             int size = m_data.length;
 
-            SpectrumPrice lastItem = m_data[size -1];
+            ErgoDexPrice lastItem = m_data[size -1];
             long lastTimeStamp = lastItem.getTimeStamp();
 
             int priceLength = prices.length;
             int startIndex = 0;                 
             
             for(int i = 0; i < priceLength ; i ++){
-                SpectrumPrice p = prices[i];
+                ErgoDexPrice p = prices[i];
                 if(p.getTimeStamp() > lastTimeStamp){
                     break;
                 }
@@ -137,10 +137,10 @@ public class SpectrumChartView {
             if(size > 0 && itemsLeft > 0){
                 int newSize = size + itemsLeft;
                 
-                SpectrumPrice[] data = Arrays.copyOf(m_data, newSize);
+                ErgoDexPrice[] data = Arrays.copyOf(m_data, newSize);
                 System.arraycopy(prices, startIndex, data, size, itemsLeft);
               
-                SpectrumPrice newLastItem = data[newSize -1];
+                ErgoDexPrice newLastItem = data[newSize -1];
                 m_data = data;
 
                 return newLastItem.getTimeStamp();
@@ -246,8 +246,8 @@ public class SpectrumChartView {
                 JsonArray json = (JsonArray) succededObject;
                 getSpectrumPriceArray(m_spectrumFinance.getExecService(), json, (onSpectrumData)->{
                     Object sourceObject = onSpectrumData.getSource().getValue();
-                    if(sourceObject != null && sourceObject instanceof SpectrumPrice[]){
-                        m_data = (SpectrumPrice[]) sourceObject;
+                    if(sourceObject != null && sourceObject instanceof ErgoDexPrice[]){
+                        m_data = (ErgoDexPrice[]) sourceObject;
                         if(m_data.length > 2){
                             m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
                       
@@ -306,8 +306,8 @@ public class SpectrumChartView {
                         
                         getSpectrumPriceArray(m_spectrumFinance.getExecService(), json, (onSpectrumData)->{
                             Object sourceObject = onSpectrumData.getSource().getValue();
-                            if(sourceObject != null && sourceObject instanceof SpectrumPrice[]){
-                                SpectrumPrice[] prices = (SpectrumPrice[]) sourceObject;
+                            if(sourceObject != null && sourceObject instanceof ErgoDexPrice[]){
+                                ErgoDexPrice[] prices = (ErgoDexPrice[]) sourceObject;
                                
                                
                                 
@@ -396,22 +396,22 @@ public class SpectrumChartView {
     }
 
 
-    public SpectrumPrice[] getSpectrumPriceArray(JsonArray jsonArray) throws Exception{
+    public ErgoDexPrice[] getSpectrumPriceArray(JsonArray jsonArray) throws Exception{
  
 
         int size = jsonArray.size();
 
-        SpectrumPrice data[] = new SpectrumPrice[size];
+        ErgoDexPrice data[] = new ErgoDexPrice[size];
         
         for(int i = 0; i < size ; i ++){
-            SpectrumPrice spectrumPrice = new SpectrumPrice(jsonArray.get(i).getAsJsonObject());
+            ErgoDexPrice spectrumPrice = new ErgoDexPrice(jsonArray.get(i).getAsJsonObject());
             data[i] = spectrumPrice; 
         }
 
         return data; 
     }
 
-    public SpectrumPrice[] getSpectrumData(){
+    public ErgoDexPrice[] getSpectrumData(){
         return m_data;
     }
 
@@ -461,12 +461,12 @@ public class SpectrumChartView {
 
 
    
-    public void updatePriceListNumbers(ArrayList<SpectrumPriceData> priceList, SimpleObjectProperty<SpectrumNumbers> numbersObject){
-        SpectrumNumbers numbers = new SpectrumNumbers();
+    public void updatePriceListNumbers(ArrayList<ErgoDexPriceData> priceList, SimpleObjectProperty<ErgoDexNumbers> numbersObject){
+        ErgoDexNumbers numbers = new ErgoDexNumbers();
         int size = priceList.size();
 
         for(int i = 0; i < size ; i++ ){
-            SpectrumPriceData priceData = priceList.get(i);
+            ErgoDexPriceData priceData = priceList.get(i);
             numbers.updateData(priceData);
         }
 
@@ -547,14 +547,14 @@ public class SpectrumChartView {
 
     
 
-    public boolean updateRowChart(SpectrumNumbers spectrumNumbers, TimeSpan timeSpan, int cellWidth, BufferedImage bImg, int posColor, int negColor) throws ArithmeticException{
+    public boolean updateRowChart(ErgoDexNumbers spectrumNumbers, TimeSpan timeSpan, int cellWidth, BufferedImage bImg, int posColor, int negColor) throws ArithmeticException{
   
 
         int imgWidth = (int) bImg.getWidth();        
         int imgHeight = (int) bImg.getHeight();
         BigDecimal bigImageHeight = (BigDecimal.valueOf(imgHeight));
 
-        SpectrumPriceData[] priceList = spectrumNumbers.getSpectrumPriceData();
+        ErgoDexPriceData[] priceList = spectrumNumbers.getSpectrumPriceData();
 
         //long latestTime = System.currentTimeMillis();
   
@@ -616,7 +616,7 @@ public class SpectrumChartView {
         boolean isPositive = increaseDirection < 1;
 
         while (i < priceListSize) {
-            SpectrumPriceData priceData = priceList[i];
+            ErgoDexPriceData priceData = priceList[i];
 
             int x = i * cellWidth;
        
@@ -712,10 +712,10 @@ public class SpectrumChartView {
         m_decimals = decimals;
     }
     
-    private static void getOpen(SimpleObjectProperty<SpectrumPrice> lastPriceObject, SimpleIntegerProperty index, long epochStart, SpectrumPrice[] dataList){
+    private static void getOpen(SimpleObjectProperty<ErgoDexPrice> lastPriceObject, SimpleIntegerProperty index, long epochStart, ErgoDexPrice[] dataList){
  
         while(index.get() +1 < dataList.length){
-            SpectrumPrice indexPrice = dataList[index.get() +1];
+            ErgoDexPrice indexPrice = dataList[index.get() +1];
             long timeStamp = indexPrice.getTimeStamp();
             if(timeStamp >= epochStart){
                 break;
@@ -725,14 +725,14 @@ public class SpectrumChartView {
         };
     }
 
-    private static void addPrices(boolean isInvert, SpectrumPrice[] dataList, SimpleIntegerProperty index, SpectrumPriceData priceData){
+    private static void addPrices(boolean isInvert, ErgoDexPrice[] dataList, SimpleIntegerProperty index, ErgoDexPriceData priceData){
         int size = dataList.length;
 
         long epochEnd = priceData.getEpochEnd();
 
         if(index.get() + 1 < size){         
             try{
-                SimpleObjectProperty<SpectrumPrice> nextSpectrumPrice = new SimpleObjectProperty<>(isInvert ? dataList[index.get() + 1].getInverted() : dataList[index.get() + 1]);
+                SimpleObjectProperty<ErgoDexPrice> nextSpectrumPrice = new SimpleObjectProperty<>(isInvert ? dataList[index.get() + 1].getInverted() : dataList[index.get() + 1]);
           
                 while(nextSpectrumPrice.get().getTimeStamp() <= epochEnd && nextSpectrumPrice.get().getTimeStamp() > priceData.getEpochStart()){
                     long timestamp = nextSpectrumPrice.get().getTimeStamp();
@@ -770,8 +770,8 @@ public class SpectrumChartView {
         }
     }
 
-    public static SpectrumNumbers process(SpectrumPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime) throws ArithmeticException{
-        SpectrumNumbers numbers = new SpectrumNumbers();
+    public static ErgoDexNumbers process(ErgoDexPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime) throws ArithmeticException{
+        ErgoDexNumbers numbers = new ErgoDexNumbers();
 
         long timeSpanMillis = timeSpan.getMillis();
 
@@ -782,8 +782,8 @@ public class SpectrumChartView {
 
        
 
-        SpectrumPriceData[] priceList = new SpectrumPriceData[numItems];
-        SimpleObjectProperty<SpectrumPrice> lastPriceObject = new SimpleObjectProperty<>(null);
+        ErgoDexPriceData[] priceList = new ErgoDexPriceData[numItems];
+        SimpleObjectProperty<ErgoDexPrice> lastPriceObject = new SimpleObjectProperty<>(null);
         
         for(int i = 0 ; i < numItems ; i++){
             long span = i * timeSpanMillis;
@@ -792,13 +792,13 @@ public class SpectrumChartView {
 
             getOpen(lastPriceObject, index, epochStart, sDArray);
 
-            SpectrumPrice lastPrice = isInvert && lastPriceObject.get() != null ? lastPriceObject.get().getInverted() : lastPriceObject.get() ;
+            ErgoDexPrice lastPrice = isInvert && lastPriceObject.get() != null ? lastPriceObject.get().getInverted() : lastPriceObject.get() ;
 
             BigDecimal price = lastPrice != null ?  lastPrice.getPrice() : BigDecimal.ZERO;
 
-            SpectrumPriceData lastPriceData = i == 0 ? null : priceList[i -1];
+            ErgoDexPriceData lastPriceData = i == 0 ? null : priceList[i -1];
 
-            SpectrumPriceData priceData = new SpectrumPriceData( epochStart, epochEnd, lastPriceData == null ? price : lastPriceData.getClose());
+            ErgoDexPriceData priceData = new ErgoDexPriceData( epochStart, epochEnd, lastPriceData == null ? price : lastPriceData.getClose());
 
             addPrices(isInvert, sDArray, index, priceData);
 
@@ -807,7 +807,7 @@ public class SpectrumChartView {
             numbers.updateData(priceData);
           
         }
-        SpectrumPrice sDxm2 = sDArray[sDArray.length-2]; 
+        ErgoDexPrice sDxm2 = sDArray[sDArray.length-2]; 
         numbers.setLastCloseDirection(sDxm2.getPrice().compareTo(numbers.getClose()) == -1);
         numbers.setSpectrumPriceData(priceList);
         numbers.setDataLength(index.get());
@@ -918,7 +918,7 @@ public class SpectrumChartView {
         
         if(m_data != null){
              
-            SpectrumPrice[] sPData = m_data;
+            ErgoDexPrice[] sPData = m_data;
             int size = sPData.length;
             if(size > 2){
             Task<Object> task = new Task<Object>() {
@@ -932,7 +932,7 @@ public class SpectrumChartView {
                 
                    // SpectrumNumbers numbers = new SpectrumNumbers();
 
-                    SpectrumPrice oldestPrice = sPData[0];
+                    ErgoDexPrice oldestPrice = sPData[0];
                     long oldestTimeStamp = oldestPrice.getTimeStamp();
 
                     long timeSpanMillis = timeSpan.getMillis();
@@ -1039,11 +1039,11 @@ public class SpectrumChartView {
    
     }*/
 
-    public JsonObject getPriceDataJson(ArrayList<SpectrumPriceData> priceList){
+    public JsonObject getPriceDataJson(ArrayList<ErgoDexPriceData> priceList){
         JsonObject json = new JsonObject();
         JsonArray jsonArray = new JsonArray();
 
-        for(SpectrumPriceData dataItem : priceList){
+        for(ErgoDexPriceData dataItem : priceList){
             jsonArray.add(dataItem.getJsonObject());
         }
 
@@ -1073,11 +1073,11 @@ public class SpectrumChartView {
     /*1min, 3min, 15min, 30min, 1hour, 2hour, 4hour, 6hour, 8hour, 12hour, 1day, 1week */
 
 
-    public int getChartTopY(double scale,SpectrumNumbers numberClass, BufferedImage img) {
+    public int getChartTopY(double scale,ErgoDexNumbers numberClass, BufferedImage img) {
         return img.getHeight() - (int) (scale * numberClass.getHigh(false).doubleValue());
     }
 
-    public int getChartBottomY(double scale, SpectrumNumbers numberClass, BufferedImage img) {
+    public int getChartBottomY(double scale, ErgoDexNumbers numberClass, BufferedImage img) {
         return img.getHeight() - (int) (scale * numberClass.getLow(false).doubleValue());
     }
 
@@ -1098,12 +1098,12 @@ public class SpectrumChartView {
     public static int SCALE_COL_PADDING = 40;
     
     
-    public static void updateBufferedImage(BufferedImage img, Graphics2D g2d, Font labelFont, FontMetrics labelMetrics, SpectrumNumbers numbers, int cellWidth, int cellPadding, int scaleColWidth,  int amStringWidth, TimeSpan timeSpan,  RangeBar rangeBar) {
+    public static void updateBufferedImage(BufferedImage img, Graphics2D g2d, Font labelFont, FontMetrics labelMetrics, ErgoDexNumbers numbers, int cellWidth, int cellPadding, int scaleColWidth,  int amStringWidth, TimeSpan timeSpan,  RangeBar rangeBar) {
         
         if(img == null ){
             return;
         }
-        SpectrumPriceData[] priceList = numbers.getSpectrumPriceData();
+        ErgoDexPriceData[] priceList = numbers.getSpectrumPriceData();
 
         if(priceList == null || (priceList != null && priceList.length == 0) ) {
             return;
@@ -1256,7 +1256,7 @@ public class SpectrumChartView {
         j = 0;
         int i = startPostion;
         while (i < priceList.length) {
-            SpectrumPriceData priceData = priceList[i];
+            ErgoDexPriceData priceData = priceList[i];
 
             int x = ((priceListWidth < chartWidth) ? (chartWidth - priceListWidth) : 0) + (j * (cellWidth + cellPadding));
             j++;
@@ -1318,7 +1318,7 @@ public class SpectrumChartView {
         
         
         for(i = priceList.length-1; i >= startPostion; i--){
-            SpectrumPriceData priceData = priceList[i];
+            ErgoDexPriceData priceData = priceList[i];
             
             int x = ((priceListWidth < chartWidth) ? (chartWidth - priceListWidth) : 0) + (j * (cellWidth + cellPadding));
             j--;
@@ -1614,15 +1614,15 @@ public class SpectrumChartView {
 
     
     public class SpectrumData {
-        private SpectrumPrice[] m_dataArray;
-        private SpectrumNumbers m_oneDay;
-        private SpectrumNumbers m_sevenDay;
-        private SpectrumNumbers m_sixMonth;
-        private SpectrumNumbers m_oneMonth;
-        private SpectrumNumbers m_oneYear;
-        private SpectrumNumbers m_allTime; 
+        private ErgoDexPrice[] m_dataArray;
+        private ErgoDexNumbers m_oneDay;
+        private ErgoDexNumbers m_sevenDay;
+        private ErgoDexNumbers m_sixMonth;
+        private ErgoDexNumbers m_oneMonth;
+        private ErgoDexNumbers m_oneYear;
+        private ErgoDexNumbers m_allTime; 
         
-        public SpectrumData(SpectrumPrice[] data, SpectrumNumbers oneDay, SpectrumNumbers sevenDay, SpectrumNumbers sixMonth, SpectrumNumbers oneMonth, SpectrumNumbers oneYear, SpectrumNumbers allTime){
+        public SpectrumData(ErgoDexPrice[] data, ErgoDexNumbers oneDay, ErgoDexNumbers sevenDay, ErgoDexNumbers sixMonth, ErgoDexNumbers oneMonth, ErgoDexNumbers oneYear, ErgoDexNumbers allTime){
             m_dataArray = data;
             m_oneDay = oneDay;
             m_sevenDay = sevenDay;
@@ -1632,49 +1632,49 @@ public class SpectrumChartView {
             m_allTime = allTime;
         }
 
-        public SpectrumPrice[] getPriceData(){
+        public ErgoDexPrice[] getPriceData(){
             return m_dataArray;
         }
 
-        public void setPriceData(SpectrumPrice[] value){
+        public void setPriceData(ErgoDexPrice[] value){
             m_dataArray = value;
         }
 
-        public SpectrumNumbers getOneDay(){
+        public ErgoDexNumbers getOneDay(){
             return m_oneDay;
         }
-        public SpectrumNumbers getSevenDay(){
+        public ErgoDexNumbers getSevenDay(){
             return m_sevenDay;
         }
-        public SpectrumNumbers getOneMonth(){
+        public ErgoDexNumbers getOneMonth(){
             return m_oneMonth;
         }
-        public SpectrumNumbers getSixMonth(){
+        public ErgoDexNumbers getSixMonth(){
             return m_sixMonth;
         }
-        public SpectrumNumbers getOneYear(){
+        public ErgoDexNumbers getOneYear(){
             return m_oneYear;
         }
-        public SpectrumNumbers getAllTime(){
+        public ErgoDexNumbers getAllTime(){
             return m_allTime;
         }
 
-        public void setOneDay(SpectrumNumbers value){
+        public void setOneDay(ErgoDexNumbers value){
             m_oneDay = value;
         }
-        public void setSevenDay(SpectrumNumbers value){
+        public void setSevenDay(ErgoDexNumbers value){
             m_sevenDay = value;
         }
-        public void setOneMonth(SpectrumNumbers value){
+        public void setOneMonth(ErgoDexNumbers value){
             m_oneMonth = value;
         }
-        public void setSixMonth(SpectrumNumbers value){
+        public void setSixMonth(ErgoDexNumbers value){
             m_sixMonth = value;
         }
-        public void setOneYear(SpectrumNumbers value){
+        public void setOneYear(ErgoDexNumbers value){
             m_oneYear = value;
         }
-        public void setAllTime(SpectrumNumbers value){
+        public void setAllTime(ErgoDexNumbers value){
             m_allTime = value;
         }
     }

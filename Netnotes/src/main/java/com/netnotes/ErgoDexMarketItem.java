@@ -54,7 +54,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-public class SpectrumMarketItem {
+public class ErgoDexMarketItem {
     public class StageKeyPress{
         private final long m_timeStamp;
         private KeyCode m_keyCode;
@@ -88,8 +88,8 @@ public class SpectrumMarketItem {
     public static int FILL_COLOR = 0xffffffff;
     public static java.awt.Color WHITE_COLOR = new java.awt.Color(FILL_COLOR, true);
 
-    private SpectrumDataList m_dataList = null;
-    private final SpectrumMarketData m_marketData;
+    private ErgoDexDataList m_dataList = null;
+    private final ErgoDexMarketData m_marketData;
    // private Stage m_stage = null;
 
     private SimpleBooleanProperty m_showSwap = new SimpleBooleanProperty(false);
@@ -110,7 +110,7 @@ public class SpectrumMarketItem {
     // private ArrayList<SpectrumMarketInterface> m_msgListeners = new ArrayList<>();
 
 
-    public SpectrumMarketItem(SpectrumMarketData marketData, SpectrumDataList dataList) {
+    public ErgoDexMarketItem(ErgoDexMarketData marketData, ErgoDexDataList dataList) {
         m_dataList = dataList;
         m_marketData = marketData;
 
@@ -135,7 +135,7 @@ public class SpectrumMarketItem {
     }
 
 
-    public SpectrumMarketData getMarketData() {
+    public ErgoDexMarketData getMarketData() {
         return m_marketData;
     }
 
@@ -203,7 +203,7 @@ public class SpectrumMarketItem {
         chartBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
 
 
-        String initialValue = m_isInvert.get() ? m_marketData.getInvertedLastPrice().doubleValue() + "" :  m_marketData.getLastPrice().doubleValue() + "";
+        String initialValue = m_isInvert.get() ? m_marketData.getInvertedLastPrice() + "" :  m_marketData.getLastPrice() + "";
         initialValue = initialValue.substring(0,Math.min(12, initialValue.length()));
         
        
@@ -257,7 +257,7 @@ public class SpectrumMarketItem {
 
 
         Runnable updateImages = ()->{
-            NoteInterface networkInterface = m_dataList.networkInterfaceProperty().get();
+          /*  NoteInterface networkInterface = m_dataList.networkInterfaceProperty().get();
             if(networkInterface == null){
                 return;
             }
@@ -311,7 +311,7 @@ public class SpectrumMarketItem {
             }
 
                 
-            m_tmpObj = null;
+            m_tmpObj = null;*/
         };
        
         
@@ -322,7 +322,7 @@ public class SpectrumMarketItem {
         rowImgBox.setAlignment(Pos.CENTER_LEFT);
         rowImgBox.setPadding(new Insets(0,0,0,0));
 
-        SimpleObjectProperty<SpectrumNumbers> numbersObject = new SimpleObjectProperty<>(null);
+        SimpleObjectProperty<ErgoDexNumbers> numbersObject = new SimpleObjectProperty<>(null);
         
         int posColor = 0xff028A0F;
         int negColor = 0xff9A2A2A;
@@ -384,7 +384,7 @@ public class SpectrumMarketItem {
 
   
         Runnable updateRowImg = () ->{
-            SpectrumChartView chartView =  m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView chartView =  m_marketData.getSpectrumChartView().get();
             int height = (int) chartHeightObject.get();
             boolean isCurrent = height > (int) regularHeight;
            // int w = ;
@@ -410,8 +410,8 @@ public class SpectrumMarketItem {
                 
                 chartView.processData(invert, startTimeStamp, colSpan, currentTime, m_dataList.getSpectrumFinance().getExecService(), (onSucceeded)->{
                     Object sourceValue = onSucceeded.getSource().getValue();
-                    if(sourceValue != null && sourceValue instanceof SpectrumNumbers){
-                        SpectrumNumbers numbers =(SpectrumNumbers) sourceValue;
+                    if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
+                        ErgoDexNumbers numbers =(ErgoDexNumbers) sourceValue;
                         
                
                        
@@ -428,7 +428,7 @@ public class SpectrumMarketItem {
                         rowChartImgView.setFitWidth(m_rowImg.getWidth());
                         rowChartImgView.setFitHeight(m_rowImg.getHeight());
 
-                        String priceString = String.format("%-12s", numbers.getClose().doubleValue()).substring(0,12).trim();
+                        String priceString = String.format("%-12s", numbers.getClose() + "").substring(0,12).trim();
                         
                         priceText.setPrefWidth(isCurrent ? 130 : 100);
                         priceText.setText(priceString);
@@ -473,7 +473,7 @@ public class SpectrumMarketItem {
         SimpleObjectProperty<NoteMsgInterface> listListenerObject = new SimpleObjectProperty<>(null);
 
         Runnable addChartViewListener = ()->{
-            SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView chartView = m_marketData.getSpectrumChartView().get();
             
             if(chartView != null && listListenerObject.get() == null){
                 NoteMsgInterface msgInterface = new NoteMsgInterface() {
@@ -570,7 +570,7 @@ public class SpectrumMarketItem {
             openChartBtn.setId(m_marketData != null ? (isChart ? "availableBtn" : "offlineBtn") : "offlineBtn");
             symbolText.setText(m_marketData.getCurrentSymbol(isInvert));
             if(!isChart){
-                priceText.setText(isInvert ? m_marketData.getInvertedLastPrice().doubleValue() + "" : m_marketData.getLastPrice().doubleValue() + "");
+                priceText.setText(isInvert ? m_marketData.getInvertedLastPrice() + "" : m_marketData.getLastPrice() + "");
             }
 
         };
@@ -637,17 +637,20 @@ public class SpectrumMarketItem {
         numbersObject.addListener((obs,oldval,newval)->{
             if(newval != null){
                 symbolTextPaddingBox.getChildren().remove(priceHBox);
+                if(!rowImgBox.getChildren().contains(statsBox)){
+                    rowImgBox.getChildren().add(statsBox);
+                }
                 if(!statsBox.getChildren().contains(statsVbox)){
                     statsBox.getChildren().add(statsVbox);
                   
                     statsVbox.getChildren().add(0,priceHBox);
                     
                 }
-                rowImgBox.getChildren().add(statsBox);
+              
                 
-                openText.setText(String.format("%-12s",newval.getOpen().doubleValue() + "").substring(0,12));
-                highText.setText(String.format("%-12s",  newval.getHigh().doubleValue() + "").substring(0,12) );
-                lowText.setText(String.format("%-12s",newval.getLow().doubleValue() + "").substring(0,12) );
+                openText.setText(String.format("%-12s",newval.getOpen() + "").substring(0,12));
+                highText.setText(String.format("%-12s",  newval.getHigh() + "").substring(0,12) );
+                lowText.setText(String.format("%-12s",newval.getLow() + "").substring(0,12) );
 
                 BigDecimal increase = newval.getPercentIncrease();
                 increase = increase == null ? BigDecimal.ZERO : increase;
@@ -689,7 +692,7 @@ public class SpectrumMarketItem {
             addChartViewListener.run();
         }
 
-        ChangeListener<SpectrumChartView> chartViewChangeListener = (obs,oldval,newval)->{
+        ChangeListener<ErgoDexChartView> chartViewChangeListener = (obs,oldval,newval)->{
             if(oldval != null && listListenerObject.get() != null){
                 oldval.removeMsgListener(listListenerObject.get());
                 listListenerObject.set(null);
@@ -716,7 +719,7 @@ public class SpectrumMarketItem {
 
         Runnable shutdown = () ->
         {
-            SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView chartView = m_marketData.getSpectrumChartView().get();
             
             m_marketData.getSpectrumChartView().removeListener(chartViewChangeListener);
 
@@ -753,7 +756,7 @@ public class SpectrumMarketItem {
     public void init(){
         if(m_marketData.isPool()){
             boolean isSet = m_marketData.getSpectrumChartView().get() == null;            
-            SpectrumChartView chartView = isSet ? new SpectrumChartView(m_marketData, m_dataList.getSpectrumFinance()) : m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView chartView = isSet ? new ErgoDexChartView(m_marketData, m_dataList.getSpectrumFinance()) : m_marketData.getSpectrumChartView().get();
 
             if(isSet){
                 m_marketData.getSpectrumChartView().set(chartView);
@@ -979,7 +982,7 @@ public class SpectrumMarketItem {
 
     private WritableImage m_rowWImg = null;
     
-    private SpectrumNumbers m_numbers = null;
+    private ErgoDexNumbers m_numbers = null;
     private NoteMsgInterface m_chartMsgInterface;
     private ContentTab m_contentTab = null;
 
@@ -1005,7 +1008,7 @@ public class SpectrumMarketItem {
                 a.showAndWait();
                 return;
             }
-            SpectrumChartView spectrumChartView = m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView spectrumChartView = m_marketData.getSpectrumChartView().get();
             SimpleBooleanProperty shutdownSwap = new SimpleBooleanProperty(false);
             SimpleObjectProperty<TimeSpan> timeSpanObject = new SimpleObjectProperty<>(new TimeSpan("30min"));
  
@@ -1016,7 +1019,7 @@ public class SpectrumMarketItem {
             SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(12);
             SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
 
-            SpectrumFinance exchange = m_dataList.getSpectrumFinance();
+            ErgoDex exchange = m_dataList.getSpectrumFinance();
            
 
             Image logo = m_dataList.getSpectrumFinance().getSmallAppIcon();
@@ -1215,7 +1218,7 @@ public class SpectrumMarketItem {
                           
                 int viewPortHeight = (int) bounds.getHeight();
                 int viewPortWidth = (int) bounds.getWidth();
-                int maxBars =  (SpectrumChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding));
+                int maxBars =  (ErgoDexChartView.MAX_CHART_WIDTH / (cellWidth + cellPadding));
 
                 TimeSpan timeSpan = timeSpanObject.get();
                 long timestamp = System.currentTimeMillis();
@@ -1228,8 +1231,8 @@ public class SpectrumMarketItem {
                      m_dataList.getSpectrumFinance().getExecService(), 
                      (onSucceeded)->{
                         Object sourceValue = onSucceeded.getSource().getValue();
-                        if(sourceValue != null && sourceValue instanceof SpectrumNumbers){
-                            SpectrumNumbers numbers = (SpectrumNumbers) sourceValue;
+                        if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
+                            ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
                             
                             int size = numbers.dataLength();
 
@@ -1242,13 +1245,13 @@ public class SpectrumMarketItem {
 
                                 int scaleLabelLength = (numbers.getClose() +"").length();
 
-                                int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
+                                int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ ErgoDexChartView.SCALE_COL_PADDING;
                                 
                                 
 
-                                int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, SpectrumChartView.MIN_CHART_WIDTH));
+                                int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, ErgoDexChartView.MIN_CHART_WIDTH));
                                 
-                                int height = Math.min(SpectrumChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, SpectrumChartView.MIN_CHART_HEIGHT));
+                                int height = Math.min(ErgoDexChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, ErgoDexChartView.MIN_CHART_HEIGHT));
 
                                 boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
                             
@@ -1258,7 +1261,7 @@ public class SpectrumMarketItem {
                                 m_numbers = numbers;
             
                                 
-                                SpectrumChartView.updateBufferedImage(
+                                ErgoDexChartView.updateBufferedImage(
                                     m_img, 
                                     m_g2d, 
                                     labelFont, 
@@ -1290,7 +1293,7 @@ public class SpectrumMarketItem {
                                 
                                 if(isNewImg){
                                     setChartScrollRight.run();
-                                    if(viewPortWidth > SpectrumChartView.MAX_CHART_WIDTH){
+                                    if(viewPortWidth > ErgoDexChartView.MAX_CHART_WIDTH){
                                         chartImageView.setFitWidth(viewPortWidth);
                                     }else{
                                         
@@ -1313,7 +1316,7 @@ public class SpectrumMarketItem {
                 TimeSpan timeSpan = timeSpanObject.get();
                
                 if(m_numbers != null){
-                    SpectrumNumbers numbers = m_numbers;
+                    ErgoDexNumbers numbers = m_numbers;
                     
                     int size = numbers.dataLength();
 
@@ -1326,14 +1329,14 @@ public class SpectrumMarketItem {
 
                         int scaleLabelLength = (numbers.getClose() +"").length();
 
-                        int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ SpectrumChartView.SCALE_COL_PADDING;
+                        int scaleColWidth =  (scaleLabelLength * zeroStringWidth )+ ErgoDexChartView.SCALE_COL_PADDING;
                         
                         Bounds bounds = chartScroll.viewportBoundsProperty().get();
                         int viewPortHeight = (int) bounds.getHeight();
                         int viewPortWidth = (int) bounds.getWidth();
                         
                         int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
-                        int height = Math.min(SpectrumChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, SpectrumChartView.MIN_CHART_HEIGHT));
+                        int height = Math.min(ErgoDexChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, ErgoDexChartView.MIN_CHART_HEIGHT));
 
                         
 
@@ -1343,7 +1346,7 @@ public class SpectrumMarketItem {
                         m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
                         
                         
-                        SpectrumChartView.updateBufferedImage(
+                        ErgoDexChartView.updateBufferedImage(
                             m_img, 
                             m_g2d, 
                             labelFont, 
@@ -1360,7 +1363,7 @@ public class SpectrumMarketItem {
                         chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
                         if(isNewImg){
                             setChartScrollRight.run();
-                            double w = Math.max(viewPortWidth, SpectrumChartView.MAX_CHART_WIDTH);
+                            double w = Math.max(viewPortWidth, ErgoDexChartView.MAX_CHART_WIDTH);
                             if(w > viewPortHeight){
                                 chartImageView.setFitWidth(w);
                             }else{
@@ -1434,7 +1437,7 @@ public class SpectrumMarketItem {
      
        
 
-            SpectrumChartView chartView = m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView chartView = m_marketData.getSpectrumChartView().get();
             
             if(chartView != null && m_chartMsgInterface == null){
               
@@ -1538,7 +1541,7 @@ public class SpectrumMarketItem {
 
 
             String contentTabId = FriendlyId.createFriendlyId();
-            m_contentTab = new ContentTab(contentTabId, SpectrumFinance.NETWORK_ID, logo, titleProperty.get(), layoutBox);
+            m_contentTab = new ContentTab(contentTabId, ErgoDex.NETWORK_ID, logo, titleProperty.get(), layoutBox);
             m_contentTab.getTabLabel().textProperty().bind(titleProperty);
             
             ChangeListener<Number> shutdownListener = (obs,oldval,newval)->{

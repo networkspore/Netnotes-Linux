@@ -1,6 +1,10 @@
 package com.netnotes;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
@@ -9,6 +13,10 @@ import java.util.concurrent.ExecutorService;
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.utils.Utils;
 
@@ -16,6 +24,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Button;
@@ -112,8 +121,19 @@ public class ErgoExplorerData {
                getTokenInfo(tokenId, onSucceeded, onFailed);
           }
      }
-
+     /*
+     {
+          "id": "string",
+          "boxId": "string",
+          "emissionAmount": 0,
+          "name": "string",
+          "description": "string",
+          "type": "string",
+          "decimals": 0
+     }
+     */
      public void getTokenInfo(String tokenId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+          
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           
           String urlString = namedUrl.getUrlString() + "/api/v1/tokens/" + tokenId;
@@ -121,6 +141,148 @@ public class ErgoExplorerData {
           
 
           Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+     
+     }
+
+     public class TokenInfoResult {
+          private JsonObject m_balanceObject;
+          private JsonObject m_tokenInfoObject;
+
+          public TokenInfoResult(JsonObject balanceObject, JsonObject tokenInfoObject){
+               m_balanceObject = balanceObject;
+               m_tokenInfoObject = tokenInfoObject;
+          }
+
+          public JsonObject getBalanceObject(){
+               return m_balanceObject;
+          }
+
+          public JsonObject getTokenInfObject(){
+               return m_tokenInfoObject;
+          }
+     }
+
+
+     public void getBalanceTokenInfo(JsonObject balance, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+          if(balance != null){
+               JsonObject cachedTokenInfo = getNetworksData().getData("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
+          
+               Task<Object> task = new Task<Object>() {
+               @Override
+                    public Object call() {
+                         JsonObject infoObject = cachedTokenInfo;
+                         JsonObject balanceJson = balance;
+
+                         JsonElement tokenInfoArrayElement = infoObject != null ? infoObject.get("array") : null;
+                         JsonArray tokenInfoArray = tokenInfoArrayElement != null ? tokenInfoArrayElement.getAsJsonArray() : new JsonArray();
+                         int tokenInfoArraySize = tokenInfoArray.size();
+
+                      
+                         JsonElement confirmedElement = balanceJson.get("confirmed");
+                         JsonObject confirmedObject = confirmedElement != null && confirmedElement.isJsonObject() ? confirmedElement.getAsJsonObject() : null;
+                         if(confirmedObject != null){
+                         
+                              JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
+                              JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;     
+                              int tokenSize = confirmedTokenArray != null ? confirmedTokenArray.size() : 0;
+                              if(confirmedTokenArray != null && tokenSize > 0){
+                                   balanceJson.remove("confirmed");
+                                   confirmedObject.remove("tokens");
+                                   JsonArray udpatedTokenArray = new JsonArray();
+                                   String urlString = m_ergoNetworkUrlProperty.getUrlString() + "/api/v1/tokens/";
+
+                                   for (int i = 0; i < tokenSize ; i++) {
+                                        JsonElement tokenElement = confirmedTokenArray.get(i);
+
+                                        JsonObject tokenObject = tokenElement.getAsJsonObject();
+
+                                        JsonElement tokenIdElement = tokenObject.get("tokenId");
+                                        String tokenId = tokenIdElement.getAsString();
+
+                                        JsonObject infoArrayResult = getTokenInfoFromJsonArray(tokenInfoArray, tokenId);
+
+                                        if(infoArrayResult != null){
+                                             tokenObject.add("tokenInfo", infoArrayResult);
+                                        }else{
+                                             JsonObject urlInfoResult = Utils.getJsonFromUrlSync(urlString + tokenId);
+                                             
+                                             if(urlInfoResult != null){
+                                                  tokenObject.add("tokenInfo", urlInfoResult);
+                                                  tokenInfoArray.add(urlInfoResult);
+                                             }
+                                        }
+                                        udpatedTokenArray.add(tokenObject);
+                                   }
+                                   confirmedObject.add("tokens", udpatedTokenArray);
+                                   balanceJson.add("confirmed", confirmedObject);
+                                   if(tokenInfoArray.size() > tokenInfoArraySize){
+                                        JsonObject tokenInfoObject = new JsonObject();
+                                        tokenInfoObject.add("array", tokenInfoArray);
+
+                                        return new TokenInfoResult(balanceJson, tokenInfoObject);
+                                   }else{
+                                        return new TokenInfoResult(balanceJson, null);
+                                   }
+                              }
+
+                         
+                         }
+
+                         return new TokenInfoResult(balanceJson, null);
+                    }
+               };
+
+               task.setOnFailed(onFailed);
+
+               task.setOnSucceeded((onFinished)->{
+                    Object result = onFinished.getSource().getValue();
+                    if(result != null && result instanceof TokenInfoResult){
+                         TokenInfoResult tokenInfoResult = (TokenInfoResult) result;
+                         JsonObject saveResult = tokenInfoResult.getTokenInfObject();
+                         if(saveResult != null){
+                              getNetworksData().save("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, saveResult);
+                         }
+                         Utils.returnObject(tokenInfoResult.getBalanceObject(), getExecService(), onSucceeded, onFailed);
+                    }else{
+                         Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
+                    }
+               });
+
+               getExecService().submit(task);
+        
+          }else{
+               Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
+          }
+     }
+
+     
+
+     public static JsonObject getTokenInfoFromJsonArray(JsonArray tokenInfoArray, String tokenId){
+          if(tokenInfoArray != null && tokenId != null){
+               int size = tokenInfoArray.size();
+               for(int i = 0; i < size ; i++){
+                    JsonElement tokenInfoElement = tokenInfoArray.get(i);
+                    JsonObject tokenInfoObject = tokenInfoElement.getAsJsonObject();
+                    JsonElement idElement = tokenInfoObject.get("id");
+                    if(idElement != null && !idElement.isJsonNull() && idElement.getAsString().equals(tokenId)){
+                         return tokenInfoObject;
+                    }
+               }
+          }
+          return null;
+     }
+
+     protected void getBalance(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
+               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
+               Utils.getUrlJson(urlString,getExecService(), (onBalance)->{
+                    Object sourceValue = onBalance.getSource().getValue();
+                    getBalanceTokenInfo(sourceValue != null && sourceValue instanceof JsonObject ? (JsonObject) sourceValue : null, onSucceeded, onFailed);
+               }, onFailed);
+          }
      }
 
      public ExecutorService getExecService(){
@@ -314,15 +476,7 @@ public class ErgoExplorerData {
           }
      }
 
-     protected void getBalance(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-
-          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
-
-          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
-               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
-               Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
-          }
-     }
+   
 
      private void getTransaction(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement txIdElement = note!=null ? note.get("txId") : null;

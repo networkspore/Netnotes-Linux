@@ -124,10 +124,9 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         descriptionText.setPadding(new Insets(0,5,0,5));
         descriptionText.maxWidthProperty().bind(m_colWidth);
 
-        TextField descriptionField = new TextField( );
+        TextField descriptionField = new TextField(m_priceAmount.getCurrency().getDescription() );
         HBox.setHgrow(descriptionField,Priority.ALWAYS);
         descriptionField.setEditable(false);
-        descriptionField.textProperty().bind(m_priceAmount.getCurrency().descriptionProperty());
 
         HBox descriptionFieldBox = new HBox(descriptionField);
         HBox.setHgrow(descriptionFieldBox,Priority.ALWAYS);
@@ -150,9 +149,8 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         emissionAmountText.setPadding(new Insets(0,5,0,5));
         emissionAmountText.maxWidthProperty().bind(m_colWidth);
 
-        TextField emissionAmountField = new TextField();
+        TextField emissionAmountField = new TextField(m_priceAmount.getCurrency().getEmissionAmount() + "");
         emissionAmountField.setEditable(false);
-        emissionAmountField.textProperty().bind(m_priceAmount.getCurrency().emissionAmountProperty().asString());
         HBox.setHgrow(emissionAmountField,Priority.ALWAYS);
 
         HBox emissionAmountFieldBox = new HBox(emissionAmountField);
@@ -202,9 +200,8 @@ public class AmountBox extends HBox implements AmountBoxInterface {
         urlText.setPadding(new Insets(0,5,0,5));
         urlText.maxWidthProperty().bind(m_colWidth);
 
-        TextField urlField = new TextField();
+        TextField urlField = new TextField(m_priceAmount.getCurrency().getUrl());
         HBox.setHgrow(urlField,Priority.ALWAYS);
-        urlField.textProperty().bind(m_priceAmount.getCurrency().urlProperty());
 
 
 
