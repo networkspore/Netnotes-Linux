@@ -10,6 +10,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -36,6 +37,7 @@ public class ErgoTokenMarketAppBox extends AppBox {
     private String m_locationId = null;
 
     private HBox m_tokenMarketsFieldBox;
+    private ImageView m_menuBtnImgView;
     private MenuButton m_tokenMarketsMenuBtn;
     private Button m_disableBtn;
 
@@ -76,9 +78,14 @@ public class ErgoTokenMarketAppBox extends AppBox {
         topLogoText.setFont(App.txtFont);
         topLogoText.setFill(App.txtColor);
 
+        m_menuBtnImgView = new ImageView();
+        m_menuBtnImgView.setPreserveRatio(true);
+        m_menuBtnImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
 
         m_tokenMarketsMenuBtn = new MenuButton();
         m_tokenMarketsMenuBtn.setId("arrowMenuButton");
+        m_tokenMarketsMenuBtn.setContentDisplay(ContentDisplay.LEFT);
+        m_tokenMarketsMenuBtn.setGraphic(m_menuBtnImgView);
         m_tokenMarketsMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
             if(newval){
                 updateMarkets();
@@ -168,6 +175,7 @@ public class ErgoTokenMarketAppBox extends AppBox {
                 }
             }
             m_tokenMarketsMenuBtn.setText(marketInterface != null ?marketInterface.getName() : selectString);
+            m_menuBtnImgView.setImage(marketInterface != null ? marketInterface.getAppIcon() : null);
         };
         setMarketInfo.run();
       
@@ -242,7 +250,7 @@ public class ErgoTokenMarketAppBox extends AppBox {
         JsonObject note = Utils.getCmdObject("getDefaultTokenInterface");
         note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
-        Object obj = m_ergoNetworkInterface.sendNote(note);;
+        Object obj = m_ergoNetworkInterface.sendNote(note);
         NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
         m_selectedTokenMarket.set(noteInterface);
         
@@ -278,8 +286,14 @@ public class ErgoTokenMarketAppBox extends AppBox {
                 m_tokenMarketsMenuBtn.getItems().add(menuItems);
                 
             }
-       
-       
+
+            MenuItem disableItem = new MenuItem(String.format("%-20s", " " + "(disable)"));
+            disableItem.setOnAction(action -> {
+                m_tokenMarketsMenuBtn.hide();
+                clearDefault();
+            });
+            
+            m_tokenMarketsMenuBtn.getItems().add(disableItem);
         }else{
             MenuItem explorerItem = new MenuItem(String.format("%-50s", " Unable to find available markets."));
             m_tokenMarketsMenuBtn.getItems().add(explorerItem);
@@ -290,11 +304,11 @@ public class ErgoTokenMarketAppBox extends AppBox {
     @Override
     public void sendMessage(int code, long timestamp,String networkId, String msg){
         
-        if(networkId != null && networkId.equals(ErgoNetwork.MARKET_NETWORK)){
+        if(networkId != null && networkId.equals(ErgoNetwork.TOKEN_MARKET_NETWORK)){
 
             switch(code){
                 
-                case ErgoMarkets.TOKEN_LIST_DEFAULT_CHANGED:
+                case App.LIST_DEFAULT_CHANGED:
                     getDefaultTokenMarket(); 
                 break;
               

@@ -84,10 +84,6 @@ public class ErgoWalletsAppBox extends AppBox {
     private Stage m_appStage;
 
     private SimpleObjectProperty<NoteInterface> m_selectedWallet = new SimpleObjectProperty<>(null);
-    private SimpleObjectProperty<NoteInterface> m_selectedMarket = new SimpleObjectProperty<>(null);
-    private SimpleObjectProperty<NoteInterface> m_selectedTokenMarket = new SimpleObjectProperty<>(null);
-    private SimpleObjectProperty<NoteInterface> m_selectedTokensMarket = new SimpleObjectProperty<>(null);
-
 
 
     private NoteMsgInterface m_walletMsgInterface = null;
@@ -143,30 +139,10 @@ public class ErgoWalletsAppBox extends AppBox {
         
     }
 
-    public void getDefaultMarket(){
-        
-        JsonObject note = Utils.getCmdObject("getDefaultMarketInterface");
-        note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
-        note.addProperty("locationId", m_locationId);
-        Object obj = m_ergoNetworkInterface.sendNote(note);
-        NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
-        m_selectedMarket.set(noteInterface);
-     
-    }
 
     
     @Override
     public void sendMessage(int code, long timeStamp,String networkId, String msg){
-        if(networkId != null && networkId.equals(ErgoNetwork.MARKET_NETWORK)){
-
-            switch(code){
-                
-                case ErgoMarkets.MARKET_LIST_DEFAULT_CHANGED:
-                    getDefaultMarket(); 
-                break;
-              
-            }
-        }
 
         if(networkId != null && networkId.equals(ErgoNetwork.WALLET_NETWORK)){
             
@@ -886,7 +862,7 @@ public class ErgoWalletsAppBox extends AppBox {
         if(m_openWalletBtn.getText().equals("")){
             updateWallet();
         }
-        getDefaultMarket();
+
         getDefaultWallet();
         getChildren().add(m_mainBox);
     }

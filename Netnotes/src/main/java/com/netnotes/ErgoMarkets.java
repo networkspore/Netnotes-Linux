@@ -14,8 +14,6 @@ import com.google.gson.JsonArray;
 public class ErgoMarkets extends Network implements NoteInterface {
     public static final String NAME = "Ergo Markets";
     public static final String DESCRIPTION = "A collection of markets for Ergo";
-    public static final int MARKET_LIST_DEFAULT_CHANGED = 25;
-    public static final int TOKEN_LIST_DEFAULT_CHANGED = 26;
   
     private ErgoNetworkData m_ergNetData = null;
 
@@ -91,7 +89,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
         m_defaultMarketId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(MARKET_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, (String) null);
         save();
 
         return true;
@@ -99,10 +97,10 @@ public class ErgoMarkets extends Network implements NoteInterface {
 
     public Boolean clearDefaultTokenMarket(){
 
-        m_defaultMarketId = null;
+        m_defaultTokenMarketId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(TOKEN_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.TOKEN_MARKET_NETWORK, (String) null);
         save();
 
         return true;
@@ -128,7 +126,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
             save();
             long timeStamp = System.currentTimeMillis();
             
-            getErgoNetwork().sendMessage(MARKET_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, defaultMarketId);
+            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, defaultMarketId);
         }
     }
 
@@ -140,7 +138,7 @@ public class ErgoMarkets extends Network implements NoteInterface {
             save();
             long timeStamp = System.currentTimeMillis();
             
-            getErgoNetwork().sendMessage(TOKEN_LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, defaultTokenMarketId);
+            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.TOKEN_MARKET_NETWORK, defaultTokenMarketId);
         }
     }
 
@@ -318,9 +316,13 @@ public class ErgoMarkets extends Network implements NoteInterface {
  
     @Override
     public JsonObject getJsonObject() {
-        JsonObject json = super.getJsonObject();
-        json.addProperty("defaultMarketId", m_defaultMarketId);
-        json.addProperty("defaultTokenMarketId", m_defaultTokenMarketId);
+        JsonObject json = new JsonObject();
+        if(m_defaultMarketId != null){
+            json.addProperty("defaultMarketId", m_defaultMarketId);
+        }
+        if(m_defaultTokenMarketId != null){
+            json.addProperty("defaultTokenMarketId", m_defaultTokenMarketId);
+        }
         return json;
     }
 

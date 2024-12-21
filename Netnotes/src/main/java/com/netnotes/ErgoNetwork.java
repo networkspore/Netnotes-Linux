@@ -42,7 +42,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public static final String WALLET_NETWORK = "WALLET_NETWORK";
     public static final String NODE_NETWORK = "NODE_NETWORK";
     public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
-    public static final String MARKET_NETWORK = "ERGO_MARKET_NETWORK";
+    public static final String MARKET_NETWORK = "MARKET_NETWORK";
+    public static final String TOKEN_MARKET_NETWORK = "TOKEN_MARKET_NETWORK";
 
     private NetworkType m_networkType = NetworkType.MAINNET;
 
@@ -309,6 +310,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
                         break;
                         case MARKET_NETWORK:
                             m_ergoMarketsAppBox.sendMessage(code, timestamp, networkId, num);
+                        break;
+                        case TOKEN_MARKET_NETWORK:
                             m_ergoTokenMarketAppBox.sendMessage(code, timestamp, networkId, num);
                         break;
                     }
@@ -327,6 +330,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
                         break;
                         case MARKET_NETWORK:
                             m_ergoMarketsAppBox.sendMessage(code, timestamp, networkId, msg);
+                        break;
+                        case TOKEN_MARKET_NETWORK:
                             m_ergoTokenMarketAppBox.sendMessage(code, timestamp, networkId, msg);
                         break;
                     }

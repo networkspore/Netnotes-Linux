@@ -2153,28 +2153,29 @@ public class NetworksData {
             m_installMenuBtn.setId("arrowMenuButton");
 
             m_installMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
-                m_installMenuBtn.getItems().clear();
-                for(int i = 0; i < SUPPORTED_NETWORKS.length; i++){
-                    NetworkInformation networkInformation = SUPPORTED_NETWORKS[i];
-                    if(getNetwork(networkInformation.getNetworkId()) == null){
-                        ImageView intallItemImgView = new ImageView();
-                        intallItemImgView.setPreserveRatio(true);
-                        intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
-                        intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
-                        MenuItem installItem = new MenuItem(String.format("%-30s",networkInformation.getNetworkName()), intallItemImgView);
-                    
-                        installItem.setOnAction(e->{
-                            m_installItemInformation.set(networkInformation);
-                        });
-    
+                if(newval){
+                    m_installMenuBtn.getItems().clear();
+                    for(int i = 0; i < SUPPORTED_NETWORKS.length; i++){
+                        NetworkInformation networkInformation = SUPPORTED_NETWORKS[i];
+                        if(getNetwork(networkInformation.getNetworkId()) == null){
+                            ImageView intallItemImgView = new ImageView();
+                            intallItemImgView.setPreserveRatio(true);
+                            intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                            intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
+                            MenuItem installItem = new MenuItem(String.format("%-30s",networkInformation.getNetworkName()), intallItemImgView);
+                        
+                            installItem.setOnAction(e->{
+                                m_installItemInformation.set(networkInformation);
+                            });
+        
+                            m_installMenuBtn.getItems().add(installItem);
+                        }
+                    }
+                    if(m_installMenuBtn.getItems().size() == 0){
+                        MenuItem installItem = new MenuItem(String.format("%-30s","(none available)"));
                         m_installMenuBtn.getItems().add(installItem);
                     }
                 }
-                if(m_installMenuBtn.getItems().size() == 0){
-                    MenuItem installItem = new MenuItem(String.format("%-30s","(none available)"));
-                    m_installMenuBtn.getItems().add(installItem);
-                }
-    
             });
 
             ImageView installFieldImgView = new ImageView();
@@ -2487,26 +2488,28 @@ public class NetworksData {
             m_installMenuBtn.setContentDisplay(ContentDisplay.LEFT);
             
             m_installMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
-                m_installMenuBtn.getItems().clear();
-                for(int i = 0; i < SUPPORTED_APPS.length; i++){
-                    NetworkInformation networkInformation = SUPPORTED_APPS[i];
-                    if(getNetwork(networkInformation.getNetworkId()) == null){
-                        ImageView intallItemImgView = new ImageView();
-                        intallItemImgView.setPreserveRatio(true);
-                        intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
-                        intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
-                        
-                        MenuItem installItem = new MenuItem(String.format("%-30s",networkInformation.getNetworkName()), intallItemImgView);
-                        installItem.setOnAction(e->{
-                            m_installItemInformation.set(networkInformation);
-                        });
-    
+                if(newval){
+                    m_installMenuBtn.getItems().clear();
+                    for(int i = 0; i < SUPPORTED_APPS.length; i++){
+                        NetworkInformation networkInformation = SUPPORTED_APPS[i];
+                        if(getNetwork(networkInformation.getNetworkId()) == null){
+                            ImageView intallItemImgView = new ImageView();
+                            intallItemImgView.setPreserveRatio(true);
+                            intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+                            intallItemImgView.setImage(new Image(networkInformation.getSmallIconString()));
+                            
+                            MenuItem installItem = new MenuItem(String.format("%-30s",networkInformation.getNetworkName()), intallItemImgView);
+                            installItem.setOnAction(e->{
+                                m_installItemInformation.set(networkInformation);
+                            });
+
+                            m_installMenuBtn.getItems().add(installItem);
+                        }
+                    }
+                    if(m_installMenuBtn.getItems().size() == 0){
+                        MenuItem installItem = new MenuItem(String.format("%-30s", "(none available)"));
                         m_installMenuBtn.getItems().add(installItem);
                     }
-                }
-                if(m_installMenuBtn.getItems().size() == 0){
-                    MenuItem installItem = new MenuItem(String.format("%-30s", "(none available)"));
-                    m_installMenuBtn.getItems().add(installItem);
                 }
             });
 

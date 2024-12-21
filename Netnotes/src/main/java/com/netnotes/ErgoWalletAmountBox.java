@@ -144,7 +144,9 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
             m_priceQuoteParametersBox.setPadding(new Insets(5,10,0,15));
 
             m_priceQuoteHeadingChangeListener = (obs,oldval,newval)->{
-                m_priceQuoteField.setText(newval != null ? newval.getAmountString() + " " + newval.getQuoteSymbol() : "");
+                if(m_priceQuoteField != null){
+                    m_priceQuoteField.setText(newval != null ? newval.getAmountString() + " " + newval.getQuoteSymbol() : "");
+                }
             };
 
             m_priceQuote.addListener(m_priceQuoteHeadingChangeListener);

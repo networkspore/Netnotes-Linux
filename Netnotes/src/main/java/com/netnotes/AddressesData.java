@@ -1232,18 +1232,29 @@ public class AddressesData {
 
                 @Override
                 public void sendMessage(int code, long timestamp, String networkId, String msg) {
-                    if(networkId != null && networkId.equals(ErgoNetwork.MARKET_NETWORK)){
-
-                        switch(code){
-                            
-                            case ErgoMarkets.MARKET_LIST_DEFAULT_CHANGED:
-                                getDefaultMarket(); 
+                    
+                    if(networkId != null){
+                        switch(networkId){
+                            case ErgoNetwork.MARKET_NETWORK:
+                                switch(code){
+                                
+                                    case App.LIST_DEFAULT_CHANGED:
+                                        getDefaultMarket(); 
+                                    break;
+                                
+                                }
                             break;
-                            case ErgoMarkets.TOKEN_LIST_DEFAULT_CHANGED:
-                                getDefaultTokenMarket();
+                            case ErgoNetwork.TOKEN_MARKET_NETWORK:
+                                switch(code){
+                                    case App.LIST_DEFAULT_CHANGED:
+                                        getDefaultTokenMarket();
+                                    break;
+                                }
                             break;
                         }
+                       
                     }
+                   
                 }
 
                 @Override

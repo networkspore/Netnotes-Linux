@@ -1,5 +1,6 @@
 package com.netnotes;
 
+import java.awt.Menu;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -19,6 +20,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -57,6 +59,7 @@ public class ErgoMarketAppBox extends AppBox {
     private SimpleIntegerProperty m_exchangeStatus = new SimpleIntegerProperty(App.STOPPED);
     private String m_statusMsg = "Unavailable";
     private SimpleBooleanProperty m_showTickerBody = new SimpleBooleanProperty(false);
+    private ImageView m_menuBtnImgView;
 
     public ErgoMarketAppBox(Stage appStage, String locationId, NoteInterface ergoNetworkInterface){
         super();
@@ -95,9 +98,14 @@ public class ErgoMarketAppBox extends AppBox {
         topLogoText.setFont(App.txtFont);
         topLogoText.setFill(App.txtColor);
 
+        m_menuBtnImgView = new ImageView();
+        m_menuBtnImgView.setPreserveRatio(true);
+        m_menuBtnImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
 
         m_ergoMarketsMenuBtn = new MenuButton();
         m_ergoMarketsMenuBtn.setId("arrowMenuButton");
+        m_ergoMarketsMenuBtn.setContentDisplay(ContentDisplay.LEFT);
+        m_ergoMarketsMenuBtn.setGraphic(m_menuBtnImgView);
         m_ergoMarketsMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
             if(newval){
                 updateMarkets();
@@ -306,6 +314,7 @@ public class ErgoMarketAppBox extends AppBox {
                 }
             }
             m_ergoMarketsMenuBtn.setText(marketInterface != null ?marketInterface.getName() : selectString);
+            m_menuBtnImgView.setImage(marketInterface != null ? marketInterface.getAppIcon() : null);
         };
         setMarketInfo.run();
       
@@ -377,7 +386,7 @@ public class ErgoMarketAppBox extends AppBox {
     }
 
     public void setDefaultMarket(String id){
-        JsonObject note = Utils.getCmdObject("setDefault");
+        JsonObject note = Utils.getCmdObject("setDefaultMarket");
         note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
         note.addProperty("id", id);
@@ -386,7 +395,7 @@ public class ErgoMarketAppBox extends AppBox {
     }
 
     public void clearDefault(){
-        JsonObject note = Utils.getCmdObject("clearDefault");
+        JsonObject note = Utils.getCmdObject("clearDefaultMarket");
         note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
         m_ergoNetworkInterface.sendNote(note);
@@ -397,7 +406,7 @@ public class ErgoMarketAppBox extends AppBox {
         JsonObject note = Utils.getCmdObject("getDefaultMarketInterface");
         note.addProperty("networkId", ErgoNetwork.MARKET_NETWORK);
         note.addProperty("locationId", m_locationId);
-        Object obj = m_ergoNetworkInterface.sendNote(note);;
+        Object obj = m_ergoNetworkInterface.sendNote(note);
         NoteInterface noteInterface =obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
         m_selectedMarket.set(noteInterface);
         
@@ -431,10 +440,15 @@ public class ErgoMarketAppBox extends AppBox {
                     setDefaultMarket(id);
                 });
                 m_ergoMarketsMenuBtn.getItems().add(menuItems);
-                
+      
+   
             }
-       
-       
+            MenuItem disableItem = new MenuItem(String.format("%-20s", " " + "(disable)"));
+            disableItem.setOnAction(action -> {
+                m_ergoMarketsMenuBtn.hide();
+                clearDefault();
+            });
+            m_ergoMarketsMenuBtn.getItems().add(disableItem);
         }else{
             MenuItem explorerItem = new MenuItem(String.format("%-50s", " Unable to find available markets."));
             m_ergoMarketsMenuBtn.getItems().add(explorerItem);
@@ -449,7 +463,7 @@ public class ErgoMarketAppBox extends AppBox {
 
             switch(code){
                 
-                case ErgoMarkets.MARKET_LIST_DEFAULT_CHANGED:
+                case App.LIST_DEFAULT_CHANGED:
                     getDefaultMarket(); 
                 break;
               
