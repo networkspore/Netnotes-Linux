@@ -142,7 +142,7 @@ public class ErgoExplorerList {
 
     public void save() {
        
-        m_ergoExplorer.getNetworksData().save("data", ".", m_ergoExplorer.getNetworkId(),ErgoNetwork.NETWORK_ID, getJsonObject());
+        m_ergoExplorer.getNetworksData().save("data", ".", ErgoNetwork.EXPLORER_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
         
     }
 

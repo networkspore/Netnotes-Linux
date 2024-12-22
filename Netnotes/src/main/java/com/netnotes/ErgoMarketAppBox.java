@@ -443,7 +443,7 @@ public class ErgoMarketAppBox extends AppBox {
       
    
             }
-            MenuItem disableItem = new MenuItem(String.format("%-20s", " " + "(disable)"));
+            MenuItem disableItem = new MenuItem(String.format("%-20s", " " + "[disabled]"));
             disableItem.setOnAction(action -> {
                 m_ergoMarketsMenuBtn.hide();
                 clearDefault();

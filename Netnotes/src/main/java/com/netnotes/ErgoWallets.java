@@ -12,7 +12,7 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 
-public class ErgoWallets extends Network implements NoteInterface {
+public class ErgoWallets  {
 
     public final static String DESCRIPTION = "Ergo Wallet allows you to create and manage wallets on the Ergo Blockchain.";
     public final static String SUMMARY = "Access can be controlled with the Ergo Wallet, in order to keep the wallet isolated, or access can be given to the Ergo Network in order to make transactions, or the Ergo Explorer to get your ERG ballance and to the KuCoin Exchange to get your ERG value real time.";
@@ -28,10 +28,18 @@ public class ErgoWallets extends Network implements NoteInterface {
 
 
     public ErgoWallets( ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, ErgoNetwork.WALLET_NETWORK, ergoNetwork);
+      //  super(new Image(getAppIconString()), NAME, ErgoNetwork.WALLET_NETWORK, ergoNetwork);
         m_ergNetData = ergoNetworkData;
         m_ergoWalletDataList = new ErgoWalletDataList(this);
 
+    }
+
+    public String getName(){
+        return NAME;
+    }
+
+    public Image getIcon(){
+        return getSmallAppIcon();
     }
 
 
@@ -43,6 +51,10 @@ public class ErgoWallets extends Network implements NoteInterface {
         return m_timeStampProperty;
     }
 
+    private Image m_smallAppIcon = new Image(getSmallAppIconString());
+    public Image getSmallAppIcon() {
+        return m_smallAppIcon;
+    }
 
 
    
@@ -56,14 +68,10 @@ public class ErgoWallets extends Network implements NoteInterface {
     }
 
     
-    private Image m_smallAppIcon = new Image(getSmallAppIconString());
-    public Image getSmallAppIcon() {
-        return m_smallAppIcon;
-    }
 
     
 
-    @Override
+
     public Object sendNote(JsonObject note){
      
         if(note != null && m_ergoWalletDataList != null){
@@ -95,7 +103,7 @@ public class ErgoWallets extends Network implements NoteInterface {
         return null;
     }
 
-    @Override
+
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         JsonElement cmdElement = note.get(App.CMD);
 
@@ -113,16 +121,10 @@ public class ErgoWallets extends Network implements NoteInterface {
 
     
 
-
-
-    @Override
     public String getDescription(){
         return DESCRIPTION;
     }
 
-  
-    public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(ErgoNetwork.WALLET_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
-    }
+
 
 }

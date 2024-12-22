@@ -120,6 +120,10 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
     }
 
+    public void save(){
+        m_ergoWalletsDataList.save();
+    }
+
     private JsonObject updateFile(JsonObject note){
 
         JsonElement fileElement = note.get("file");
@@ -136,7 +140,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                     if( getConnectionStatus() == App.STOPPED){
                         setWalletFile(walletFile);
                 
-                        updated();
+                        save();
                         return Utils.getMsgObject(App.UPDATED, "Saved");
                     }else{
                         return Utils.getMsgObject(App.ERROR, "Error: In use");
@@ -157,7 +161,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
     private void setWalletFile(File walletFile){
   
         m_walletFile = walletFile;
-        updated();
+        save();
     }
 
     public File getWalleFile(){
@@ -165,9 +169,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
       
     }
 
-    private void updated(){
-        getLastUpdated().set(LocalDateTime.now());
-    }
+
 
     
 
@@ -187,7 +189,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
                     if(!getErgoWalletsDataList().containsName(name)){
                         setName(name);
-                        updated();
+                        save();
                         return Utils.getMsgObject(App.UPDATED, "Saved");
                     }else{
                         return Utils.getMsgObject(App.ERROR, "Name in use");
@@ -215,7 +217,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
     }
 
     private ExecutorService getExecService(){
-        return getErgoWallets().getNetworksData().getExecService();
+        return getErgoNetworkData().getNetworksData().getExecService();
     }
     
   

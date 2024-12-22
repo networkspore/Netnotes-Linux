@@ -30,7 +30,7 @@ public class JsonParametersBox extends AppBox{
     private Pattern m_regexPattern = Pattern.compile("(?<=.)(?=(\\p{Upper}))");
     private int m_rowHeight = 27;
     private int m_maxRowHeight = 20;
-    private int m_colWidth = 150;
+    private int m_colWidth = 160;
     private SimpleBooleanProperty m_isOpen = new SimpleBooleanProperty(false);
 
     public JsonParametersBox( JsonObject json, int... colWidth){

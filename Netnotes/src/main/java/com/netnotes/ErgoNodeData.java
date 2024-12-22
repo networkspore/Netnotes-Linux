@@ -58,7 +58,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     private String m_configId = null;
 
     public ErgoNodeData(String imgString, String name, String id, String clientType, ErgoNodesList nodesList, JsonObject jsonObj) throws Exception {
-        super(new Image(imgString), name,id, nodesList.getErgoNodes());
+        super(new Image(imgString), name,id, nodesList.getNetworksData());
         m_ergoNodesList = nodesList;
         m_clientType = clientType;
         m_configId = m_configId == null ? FriendlyId.createFriendlyId() : m_configId;
@@ -68,7 +68,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     }
 
     public ErgoNodeData(String id,String name, String clientType, String configId, ErgoNodesList ergoNodesList, NamedNodeUrl namedNodeUrl) {
-        super(new Image(clientType.equals(LOCAL_NODE) ? DEFAULT_LOCAL_IMG  : DEFAULT_IMG  ), name, id, ergoNodesList.getErgoNodes());
+        super(new Image(clientType.equals(LOCAL_NODE) ? DEFAULT_LOCAL_IMG  : DEFAULT_IMG  ), name, id, ergoNodesList.getNetworksData());
   
         m_ergoNodesList = ergoNodesList;
         m_clientType = clientType;
@@ -174,14 +174,6 @@ public class ErgoNodeData extends Network implements NoteInterface {
 
 
 
-
-
-    
-
-    public NetworksData getNetworksData(){
-        return getErgoNodesList().getErgoNodes().getNetworksData();
-    }
-    
     @Override
     public void start() {
         if(getConnectionStatus() == App.STOPPED){
@@ -194,7 +186,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
 
 
     public ExecutorService getExecutorService(){
-        return m_ergoNodesList.getErgoNodes().getNetworksData().getExecService();
+        return getNetworksData().getExecService();
     }
 
     /*private void getClient(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){

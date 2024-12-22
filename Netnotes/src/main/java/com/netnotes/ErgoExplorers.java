@@ -8,7 +8,7 @@ import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.image.Image;
 
-public class ErgoExplorers extends Network implements NoteInterface {
+public class ErgoExplorers  {
 
     public final static String DESCRIPTION = "Ergo Explorer allows you to explore and search the Ergo blockchain.";
     public final static String SUMMARY = "Installing the Ergo Explorer allows balance and transaction information to be looked up for wallet addresses.";
@@ -16,6 +16,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     
     public final static String MAINNET_EXPLORER_URL = "explorer.ergoplatform.com/";
     public final static String TESTNET_EXPLORER_URL = "testnet.ergoplatform.com/";
+  
 
     public final static String DEFAULT_EXPLORER_ID = ErgoPlatformExplorerData.ERGO_PLATFORM_EXPLORER;
 
@@ -26,7 +27,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     private ErgoNetwork m_ergoNetwork;
 
     public ErgoExplorers(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME,ErgoNetwork.EXPLORER_NETWORK, ergoNetwork);
+     
         m_ergoNetwork = ergoNetwork;
         m_ergNetData = ergoNetworkData;
         
@@ -34,7 +35,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
     
-    @Override
+
     public String getDescription(){
         return DESCRIPTION;
     }
@@ -57,7 +58,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
         return m_smallAppIcon;
     }
 
-    @Override
+
     public Object sendNote(JsonObject note){
 
         JsonElement cmdElement = note.get(App.CMD);
@@ -83,7 +84,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
 
-    @Override
+  
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
@@ -110,12 +111,9 @@ public class ErgoExplorers extends Network implements NoteInterface {
         return m_explorerList;
     }*/
 
-    @Override
-    public void start(){
-      
-        super.start();
+    public NetworksData getNetworksData(){
+        return m_ergNetData.getNetworksData();
     }
-
 
     public void getData(String subId, String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
@@ -142,17 +140,7 @@ public class ErgoExplorers extends Network implements NoteInterface {
     }
 
 
-    @Override
-    public void stop(){
-        if(m_explorerList != null){
-            m_explorerList = null;
-        }
-        super.stop();
-    }
 
-    public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(getNetworkId(), getName(), getAppIconString(), getSmallAppIconString(),DESCRIPTION );
-    }
 }
 
 

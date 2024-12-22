@@ -9,7 +9,7 @@ import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.image.Image;
 
-public class ErgoNodes extends Network implements NoteInterface {
+public class ErgoNodes {
 
   //  private File logFile = new File("netnotes-log.txt");
 
@@ -26,21 +26,15 @@ public class ErgoNodes extends Network implements NoteInterface {
     private ErgoNetwork m_ergoNetwork;
 
     public ErgoNodes(ErgoNetworkData ergoNetworkData, ErgoNetwork ergoNetwork) {
-        super(new Image(getAppIconString()), NAME, ErgoNetwork.NODE_NETWORK, ergoNetwork);
-
         
         m_ergoNetwork = ergoNetwork;
-       
-   
-        setStageWidth(750);
-  
         m_ergoNodesList = new ErgoNodesList(this, ergoNetworkData);
     }
 
     public ErgoNetwork getErgoNetwork(){
         return m_ergoNetwork;
     }
-    @Override
+  
     public String getDescription(){
         return DESCRIPTION;
     }
@@ -61,10 +55,7 @@ public class ErgoNodes extends Network implements NoteInterface {
     }
 
 
-    
 
-
-    @Override
     public Object sendNote(JsonObject note){
         
         if(m_ergoNodesList != null){
@@ -101,8 +92,6 @@ public class ErgoNodes extends Network implements NoteInterface {
     }
   
 
- 
-    @Override
     public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
@@ -290,30 +279,7 @@ public class ErgoNodes extends Network implements NoteInterface {
 
     } */
 
-    @Override
-    public JsonObject getJsonObject() {
-        JsonObject json = super.getJsonObject();
-       
-        return json;
-    }
 
-
-
-    @Override
-    protected void start(){
-        if(getConnectionStatus() == App.STOPPED){
-            super.start();
-          
-        }
-    }
-
-    @Override
-    protected void stop(){
-        super.stop();
-     
-    }
-
-    @Override
     public void shutdown(){
         if(m_ergoNodesList != null){
             m_ergoNodesList.shutdown();

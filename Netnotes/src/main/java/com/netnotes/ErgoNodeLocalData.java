@@ -829,7 +829,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     
             updateStatus(App.STARTING, "Starting");
 
-            Utils.checkDrive(m_appDir, getErgoNodesList().getErgoNodes().getNetworksData().getExecService(), (onSuccess)->{
+            Utils.checkDrive(m_appDir, getNetworksData().getExecService(), (onSuccess)->{
                 
                 Object sourceValue = onSuccess.getSource().getValue();
 

@@ -78,7 +78,7 @@ public class ErgoWalletDataList {
 
     private void getData(){
         
-        openJson(m_ergoWallets.getNetworksData().getData("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID));
+        openJson(getNetworksData().getData("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID));
     }
 
     public void openJson(JsonObject json) {
@@ -139,7 +139,7 @@ public class ErgoWalletDataList {
     }
 
     public void save(){
-        m_ergoWallets.getNetworksData().save("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
+        getNetworksData().save("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
     }
 
     public void setDefaultWalletId(String id){
@@ -194,14 +194,7 @@ public class ErgoWalletDataList {
 
     public void add(ErgoWalletData walletData, boolean isSave) {
         m_walletDataList.add(walletData);
-        walletData.addUpdateListener((obs,oldval,newval)->{ 
 
-            long timeStamp = System.currentTimeMillis();
-
-            getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, ErgoNetwork.WALLET_NETWORK, walletData.getNetworkId());
-        
-            save();
-        }); 
 
         
         
@@ -222,8 +215,7 @@ public class ErgoWalletDataList {
                 ErgoWalletData walletData = m_walletDataList.get(i);
                 if (walletData.getNetworkId().equals(id)) {
 
-                    walletData.removeUpdateListener();
-                    walletData.shutdown();
+     
                     m_walletDataList.remove(i);
                     
                     if(m_defaultWalletId != null && id.equals(m_defaultWalletId)){
@@ -249,7 +241,7 @@ public class ErgoWalletDataList {
     
 
     private NetworksData getNetworksData(){
-        return m_ergoWallets.getNetworksData();
+        return m_ergoWallets.getErgoNetworkData().getNetworksData();
     }
 
 
@@ -627,10 +619,6 @@ public class ErgoWalletDataList {
     }
 
 
-    public void shutdown(){
-        
-        m_walletDataList.forEach(item->shutdown());
-    }
 
     public JsonArray getWallets(){
 

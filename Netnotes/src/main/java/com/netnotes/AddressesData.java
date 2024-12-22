@@ -251,7 +251,7 @@ public class AddressesData {
     }
 
     public ExecutorService getExecService(){
-        return m_walletData.getErgoWallets().getNetworksData().getExecService();
+        return m_walletData.getNetworksData().getExecService();
     }
 
 

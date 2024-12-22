@@ -81,6 +81,7 @@ public class ErgoNetworkData {
         return m_ergoMarkets;
     }
 
+    private NoteMsgInterface m_networksDataMsgInterface = null;
 
     public void installNetworks() {
      
@@ -89,8 +90,36 @@ public class ErgoNetworkData {
         m_ergoNodes = new ErgoNodes(this, m_ergoNetwork);
         m_ergoMarkets = new ErgoMarkets(this, m_ergoNetwork);
         
+        m_networksDataMsgInterface = new NoteMsgInterface() {
+
+            @Override
+            public String getId() {
+                return getLocationId();
+            }
+
+            @Override
+            public void sendMessage(int code, long timestamp, String networkId, String msg) {
+                switch(networkId){
+                    case NetworksData.APPS:
+                        m_ergoMarkets.sendMessage(code, timestamp, networkId, msg);
+                    break;
+                }
+                
+            }
+
+            @Override
+            public void sendMessage(int code, long timestamp, String networkId, Number number) {
+                        
+            }
+            
+        };   
+
+        getNetworksData().addMsgListener(m_networksDataMsgInterface);
     }
 
+    public NetworksData getNetworksData(){
+        return m_ergoNetwork.getNetworksData();
+    }
 
     public JsonObject getStageObject() {
         JsonObject jsonObject = new JsonObject();
@@ -107,297 +136,14 @@ public class ErgoNetworkData {
 
 
     public void shutdown(){
-
+        if(m_networksDataMsgInterface != null){
+            getNetworksData().removeMsgListener(m_networksDataMsgInterface);
+            m_networksDataMsgInterface = null;
+        }
     }
 
 
 
 }
-    
-    /*  private Image m_offlineImage = new Image("/assets/cloud-offline-30.png");
-     private Image m_explorerImage = new Image("/assets/ergo-explorer-30.png");
-
-         private SimpleObjectProperty<ErgoExplorerList> m_ergoExplorerList = new SimpleObjectProperty<>(null);
-
-
-    
-    public void updateMarketMenu(Menu menuBtn){
-        menuBtn.getItems().clear();
-
-        String selectedMarketId = m_walletData.getMarketsId();
-       
-            
-        for(NetworkInformation marketInfo : ERGO_MARKETS){
-            NoteInterface noteInterface = m_walletData.getNetworksData().getNoteInterface(marketInfo.getNetworkId());
-            ImageView imgView = new ImageView(new Image(marketInfo.iconString()));
-            imgView.setPreserveRatio(true);
-            imgView.setFitHeight(30);
-     
-            boolean selected = selectedMarketId != null ? selectedMarketId.equals(marketInfo.getNetworkId()) : false;
-            MenuItem menuItem = new MenuItem(marketInfo.getNetworkName() + (noteInterface == null && !marketInfo.getNetworkId().equals(NOMARKET.getNetworkId()) ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
-      
-
-            if(selected){
-                menuItem.setId("selectedMenuItem");
-               
-            }
-            
-            menuItem.setUserData(marketInfo);
-        
-            menuItem.setOnAction(e->{
-                NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
-                m_walletData.setMarketsId(mInfo.getNetworkId());
-                NoteInterface marketInterface = m_walletData.getNetworksData().getNoteInterface(mInfo.getNetworkId());
-     
-                m_selectedErgoMarket.set(marketInterface != null ? marketInterface : null);
-               
-            });
-
-            menuBtn.getItems().add(menuItem);
-
-        }
-
-        
-    }
-
-    public void updateTokenMarketMenu(Menu menuBtn){
-        menuBtn.getItems().clear();
-
-        String selectedMarketId = m_walletData.getMarketsId();
- 
-            
-        for(NetworkInformation marketInfo : ERGO_TOKEN_MARKETS){
-            NoteInterface noteInterface = m_walletData.getNetworksData().getNoteInterface(marketInfo.getNetworkId());
-            ImageView imgView = new ImageView(new Image(marketInfo.iconString()));
-            imgView.setPreserveRatio(true);
-            imgView.setFitHeight(30);
-     
-            boolean selected = selectedMarketId != null ? selectedMarketId.equals(marketInfo.getNetworkId()) : false;
-            MenuItem menuItem = new MenuItem(marketInfo.getNetworkName() + (noteInterface == null && !marketInfo.getNetworkId().equals(NOMARKET.getNetworkId()) ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
-      
-
-            if(selected){
-                menuItem.setId("selectedMenuItem");
-         
-            }
-            
-            menuItem.setUserData(marketInfo);
-        
-            menuItem.setOnAction(e->{
-                NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
-                m_walletData.setMarketsId(mInfo.getNetworkId());
-                NoteInterface marketInterface = m_walletData.getNetworksData().getNoteInterface(mInfo.getNetworkId());
-     
-                m_selectedErgoMarket.set(marketInterface != null ? marketInterface : null);
-               
-            });
-
-            menuBtn.getItems().add(menuItem);
-
-        }
-        
-        
-    }
-
-
-    public void updateMarketMenu(MenuButton menuBtn){
-        menuBtn.getItems().clear();
-
-        String selectedMarketId = m_walletData.getMarketsId();
-            
-        for(NetworkInformation marketInfo : ERGO_MARKETS){
-            NoteInterface noteInterface = m_walletData.getNetworksData().getNoteInterface(marketInfo.getNetworkId());
-            ImageView imgView = new ImageView(new Image(marketInfo.iconString()));
-            imgView.setPreserveRatio(true);
-            imgView.setFitHeight(30);
-     
-            boolean selected = selectedMarketId != null ? selectedMarketId.equals(marketInfo.getNetworkId()) : false;
-            MenuItem menuItem = new MenuItem(marketInfo.getNetworkName() + (noteInterface == null && !marketInfo.getNetworkId().equals(NOMARKET.getNetworkId()) ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
-      
-
-            if(selected){
-            
-                menuItem.setId("selectedMenuItem");
-  
-            }
-            
-            menuItem.setUserData(marketInfo);
-        
-            menuItem.setOnAction(e->{
-                NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
-                m_walletData.setMarketsId(mInfo.getNetworkId());
-                NoteInterface marketInterface = m_walletData.getNetworksData().getNoteInterface(mInfo.getNetworkId());
-     
-   
-                m_selectedErgoMarket.set(marketInterface != null ? marketInterface : null);
-               
-           
-            });
-
-            menuBtn.getItems().add(menuItem);
-            
-        }
-
-       
-    }
-
-    
-    public void updateTokenMarketMenu(BufferedMenuButton menuBtn, Tooltip tooltip){
-        menuBtn.getItems().clear();
-
-        String selectedMarketId = m_walletData.getTokenMarketId();
-        SimpleBooleanProperty found = new SimpleBooleanProperty(false);
-            
-        for(NetworkInformation marketInfo : ERGO_TOKEN_MARKETS){
-            NoteInterface noteInterface = m_walletData.getNetworksData().getNoteInterface(marketInfo.getNetworkId());
-            ImageView imgView = new ImageView(new Image(marketInfo.iconString()));
-            imgView.setPreserveRatio(true);
-            imgView.setFitHeight(30);
-     
-            boolean selected = selectedMarketId != null ? selectedMarketId.equals(marketInfo.getNetworkId()) : false;
-            MenuItem menuItem = new MenuItem(marketInfo.getNetworkName() + (noteInterface == null && !marketInfo.getNetworkId().equals(NOMARKET.getNetworkId()) ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
-      
-
-            if(selected){
-            
-                menuBtn.setImage(new Image(marketInfo.iconString()));
-                found.set(true);
-                menuItem.setId("selectedMenuItem");
-                tooltip.setText("Token Market: " + marketInfo.getNetworkName());
-            }
-            
-            menuItem.setUserData(marketInfo);
-        
-            menuItem.setOnAction(e->{
-                NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
-                m_walletData.setMarketsId(mInfo.getNetworkId());
-                NoteInterface marketInterface = m_walletData.getNetworksData().getNoteInterface(mInfo.getNetworkId());
-     
-                menuBtn.setImage(new Image(mInfo.iconString()));
-                m_selectedErgoMarket.set(marketInterface != null ? marketInterface : null);
-               
-                updateTokenMarketMenu(menuBtn, tooltip);
-            });
-
-            menuBtn.getItems().add(menuItem);
-
-        }
-
-        if(!found.get()){
-            tooltip.setText("Token Market: unavailable");
-   
-            menuBtn.setImage(new Image("/assets/bar-chart-30.png"));
-        }
-    }
-
-   private void addTokenInterface(ErgoTokens ergoTokens){
-       
-         String tokensInterfaceId = FriendlyId.createFriendlyId();
-        m_tokenMsgInterface = new NoteMsgInterface(){
-
-            public String getId() {
-                return tokensInterfaceId;
-            }
-            
-            public void sendMessage(String networkId, int code, long timestamp){
-
-            }
-
-            public void sendMessage(int msg, long timestamp){
-                switch(msg){
-                    case App.STARTED:
-                    
-                    break;
-                    case App.STOPPED:
-                    
-                    break;
-                    case App.LIST_CHANGED:
-                    case App.LIST_UPDATED:
-                    
-                    break;
-                }
-               
-
-            }
-            public void sendMessage(String networkId, int code, long timestamp, String msg){
-                
-            }
-            public void sendMessage(int code, long timestamp, String msg){
-                
-            }
-        };
-        ergoTokens.addMsgListener(m_tokenMsgInterface);
-    }
-
-    
-
-    
-    private void addTokenMarketInterface(NoteInterface market){
-        String marketInterfaceId = FriendlyId.createFriendlyId();
-
-        m_ergoMarketMsgInterface = new NoteMsgInterface(){
-            
-            public String getId() {
-                return marketInterfaceId;
-            }
-            
-            public void sendMessage(String networkId, int code, long timestamp){
-
-            }
-
-            public void sendMessage(int msg, long timestamp){
-                switch(msg){
-                    case App.STARTED:
-                    case App.LIST_CHANGED:
-                    case App.LIST_UPDATED:
-                        updateTokenQuotes(marketInterfaceId);
-                    break;
-                }
-                
-            }
-            public void sendMessage(String networkId, int code, long timestamp, String msg){
-                
-            }
-            public void sendMessage(int code, long timestamp, String msg){
-                
-            }
-        };
-
-        if(market.getConnectionStatus() == App.STARTED){
-            updateTokenQuotes(marketInterfaceId);
-        }
-
-        market.addMsgListener(m_ergoMarketMsgInterface);
-
-        
-
-    }
-
-        private NoteMsgInterface m_tokenMarketMsgInterface = null;
-    private NoteMsgInterface m_ergoMarketMsgInterface = null;
-    
-    private ChangeListener<ErgoTokens> m_ergoTokensChangeListener = null;
-    private NoteMsgInterface m_tokenMsgInterface = null;
-    
-
-    private ChangeListener<NoteInterface> m_ergoMarketsChangeListener = null;
-    private ChangeListener<NoteInterface> m_ergoTokenMarketChangeListener = null;
-
-
-    //shutdown 
-
-        if(m_ergoTokensChangeListener != null){
-            m_ergoTokens.removeListener(m_ergoTokensChangeListener);
-            m_ergoTokensChangeListener = null;
-        }
-
-        m_selectedErgoMarket.set(null);
-
-        if(m_ergoMarketsChangeListener != null){
-            m_selectedErgoMarket.removeListener(m_ergoMarketsChangeListener);
-        }
-        
-        m_selectedTokensMarket.set(null);
-     */
 
 

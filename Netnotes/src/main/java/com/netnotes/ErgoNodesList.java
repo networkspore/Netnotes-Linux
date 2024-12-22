@@ -43,7 +43,7 @@ public class ErgoNodesList {
     private void getData() {
         
    
-        JsonObject json = m_ergoNodes.getNetworksData().getData("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID);
+        JsonObject json = getNetworksData().getData("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID);
         
 
         openJson(json);
@@ -57,7 +57,7 @@ public class ErgoNodesList {
     private void getPublicNodesList(){
         
   
-        Utils.getUrlJson(PUBLIC_NODES_LIST_URL, getErgoNetwork().getNetworksData().getExecService(), (onSucceeded) -> {
+        Utils.getUrlJson(PUBLIC_NODES_LIST_URL, getNetworksData().getExecService(), (onSucceeded) -> {
             Object sourceObject = onSucceeded.getSource().getValue();
             if (sourceObject != null && sourceObject instanceof JsonObject) {
                 //openNodeJson((JsonObject) sourceObject);
@@ -84,14 +84,14 @@ public class ErgoNodesList {
           
             save();
             long timeStamp = System.currentTimeMillis();
-            JsonObject note = Utils.getMsgObject(App.LIST_DEFAULT_CHANGED, timeStamp, m_ergoNodes.getNetworkId());
+            JsonObject note = Utils.getMsgObject(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.NODE_NETWORK);
             note.addProperty("code", App.LIST_DEFAULT_CHANGED);
             note.addProperty("timeStamp", timeStamp);
             if(id != null){
                 note.addProperty("id",  id);
             }
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, m_ergoNodes.getNetworkId(), note.toString());
+            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.NODE_NETWORK, note.toString());
         }
     
     }
@@ -115,10 +115,10 @@ public class ErgoNodesList {
         m_defaultNodeId = null;
         long timeStamp = System.currentTimeMillis();
         
-        JsonObject note = Utils.getJsonObject("networkId", m_ergoNodes.getNetworkId());
+        JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.NODE_NETWORK);
         note.addProperty("code", App.LIST_DEFAULT_CHANGED);
         note.addProperty("timeStamp", timeStamp);
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, m_ergoNodes.getNetworkId(), note.toString());
+        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.NODE_NETWORK, note.toString());
         
 
         return true;
@@ -132,7 +132,7 @@ public class ErgoNodesList {
     }
 
     public NetworksData getNetworksData(){
-        return m_ergoNodes.getNetworksData();
+        return m_ergoNetworkData.getNetworksData();
     }
 
     public ErgoNetworkData getErgoNetworkData(){
@@ -312,7 +312,7 @@ public class ErgoNodesList {
                 if(isSave){
                     save();
         
-                    JsonObject note = Utils.getJsonObject("networkId", m_ergoNodes.getNetworkId());
+                    JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.NODE_NETWORK);
                     
                     JsonArray jsonArray = new JsonArray();
                     jsonArray.add(nodeData.getJsonObject());
@@ -323,7 +323,7 @@ public class ErgoNodesList {
                     long timeStamp = System.currentTimeMillis();
                     note.addProperty("timeStamp", timeStamp);
                     
-                    getErgoNetwork() .sendMessage(App.LIST_ITEM_REMOVED, timeStamp, m_ergoNodes.getNetworkId(), note.toString());
+                    getErgoNetwork() .sendMessage(App.LIST_ITEM_REMOVED, timeStamp, ErgoNetwork.NODE_NETWORK, note.toString());
                 }
 
                 return true;
@@ -344,7 +344,7 @@ public class ErgoNodesList {
             JsonArray idsArray = idsElement.getAsJsonArray();
             if(idsArray.size() > 0){
                 
-                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, m_ergoNodes.getNetworkId());
+                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.NODE_NETWORK);
                 JsonArray jsonArray = new JsonArray();
 
                 for(JsonElement element : idsArray){
@@ -372,7 +372,7 @@ public class ErgoNodesList {
 
                 save();
 
-                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, m_ergoNodes.getNetworkId(), json.toString());
+                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.NODE_NETWORK, json.toString());
 
                 return json;
             }
@@ -527,7 +527,7 @@ public class ErgoNodesList {
 
     public void save() {
         JsonObject saveJson = getDataJson();
-        m_ergoNodes.getNetworksData().save("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID, saveJson);
+        getNetworksData().save("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID, saveJson);
         
  
     }

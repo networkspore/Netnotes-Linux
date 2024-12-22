@@ -16,10 +16,6 @@ import javafx.util.Duration;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-
 import com.google.gson.JsonElement;
 
 public class ErgoNodeClientControl extends AppBox{
@@ -280,8 +276,8 @@ public class ErgoNodeClientControl extends AppBox{
             
             if (newval) {
                 if(m_paramsBox == null){
-                    m_paramsBox = new JsonParametersBox(Utils.getJsonObject("Status", "Updating..."));
-                    m_paramsBox.setPadding(new Insets(0,10,0,5));
+                    m_paramsBox = new JsonParametersBox(Utils.getJsonObject("Status", "Updating..."), 230);
+                    m_paramsBox.setPadding(new Insets(5,10,0,5));
        
                     m_propertiesBox.getChildren().add(m_paramsBox);
                     getStatus();

@@ -595,14 +595,11 @@ public class ErgoTransaction {
         return m_txPartnerTypeProperty;
     }
     
-    public void openLink(){
-        NoteInterface noteInterface = getExplorer();
-        JsonObject note = Utils.getCmdObject("getWebsiteTxLink");
-        note.addProperty("txId", getTxId());
+    public void openLink(String explorerUrlString){
 
-        Object obj = noteInterface.sendNote(note);
-        if(obj != null && obj instanceof String){
-            String explorerUrlString = (String) obj;
+
+        if(explorerUrlString != null){
+
             getParentAddress().getNetworksData().openHostUrl(explorerUrlString);
         }
     }

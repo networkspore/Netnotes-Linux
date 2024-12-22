@@ -105,7 +105,7 @@ public class NetworksData {
     
     private SimpleStringProperty m_currentNetworkId = new SimpleStringProperty(null);
     
-    private Tooltip m_networkToolTip = new Tooltip("Network");
+   // private Tooltip m_networkToolTip = new Tooltip("Network");
 
     private HashMap<String, String>  m_locationsIds = new HashMap<>();
 
@@ -490,34 +490,44 @@ public class NetworksData {
         
     }
 
+    private ArrayList<NoteMsgInterface> m_msgListeners = new ArrayList<>();
 
+    public void addMsgListener(NoteMsgInterface item) {
+        if (item != null && !m_msgListeners.contains(item)) {
+            String locationId = item.getId();
+            if(getLocationString(locationId) != null){
+                m_msgListeners.add(item);
+            }
+        }
+    }
 
-    private void sendMessage(int code, long timestamp, String type, String msg){
-        if(m_appsMenu != null){
-            m_appsMenu.sendMessage(code, timestamp, type, msg);
+    public boolean removeMsgListener(NoteMsgInterface item){
+        if(item != null){
+            return m_msgListeners.remove(item);
+        }
+
+        return false;
+    }
+
+    private void sendMessage(int code, long timeStamp,String networkId, String msg){
+        m_appsMenu.sendMessage(code, timeStamp, networkId, msg);
+        
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(code, timeStamp, networkId, msg);
         }
         TabInterface tabInterface = m_currentMenuTab.get();
-        if(tabInterface != null && (tabInterface instanceof ManageAppsTab || tabInterface instanceof ManageNetworksTab) ){
-            tabInterface.sendMessage(code, timestamp, type, msg);
-        }
-
-        for (Map.Entry<String, NoteInterface> entry : m_apps.entrySet()) {
-            NoteInterface noteInterface = entry.getValue();
-            if(noteInterface instanceof Network){
-                Network network = (Network) noteInterface;
-                network.sendMessage(code, timestamp, type, msg);
-            }
-        }
-
-        for (Map.Entry<String, NoteInterface> entry : m_networks.entrySet()) {
-            NoteInterface noteInterface = entry.getValue();
-            if(noteInterface instanceof Network){
-                Network network = (Network) noteInterface;
-                network.sendMessage(code, timestamp, type, msg);
-            }
+        if( tabInterface != null && (tabInterface instanceof ManageAppsTab || tabInterface instanceof ManageNetworksTab)){
+            tabInterface.sendMessage(code, timeStamp, networkId, msg);
         }
         
     }
+
+    private void sendMessage(int code, long timeStamp, String networkId, Number num){
+        for(int i = 0; i < m_msgListeners.size() ; i++){
+            m_msgListeners.get(i).sendMessage(code, timeStamp, networkId, num);
+        }
+    }
+
 
     private boolean addApp(NoteInterface noteInterface, boolean isSave) {
         // int i = 0;
@@ -1167,7 +1177,7 @@ public class NetworksData {
         m_tabLabel.setPadding(new Insets(2,0,2,5));
         m_tabLabel.setFont(App.titleFont);
 
-        m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
+      //  m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
 
         HBox vBar = new HBox();
         vBar.setAlignment(Pos.CENTER);
@@ -2492,7 +2502,8 @@ public class NetworksData {
                     m_installMenuBtn.getItems().clear();
                     for(int i = 0; i < SUPPORTED_APPS.length; i++){
                         NetworkInformation networkInformation = SUPPORTED_APPS[i];
-                        if(getNetwork(networkInformation.getNetworkId()) == null){
+                        
+                        if(getAppNetwork(networkInformation.getNetworkId()) == null){
                             ImageView intallItemImgView = new ImageView();
                             intallItemImgView.setPreserveRatio(true);
                             intallItemImgView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
@@ -2827,8 +2838,8 @@ public class NetworksData {
 
             HBox socketBox = new HBox();
             socketBox.setId("socketBox");
-            socketBox.setMaxHeight(BTN_IMG_SIZE);
-            socketBox.setMaxWidth(BTN_IMG_SIZE);
+            socketBox.setMaxHeight(27);
+            socketBox.setMaxWidth(27);
             socketBox.setMouseTransparent(true);
        
 

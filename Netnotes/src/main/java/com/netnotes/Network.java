@@ -88,15 +88,12 @@ public class Network  {
 
     
     public void addMsgListener(NoteMsgInterface item) {
-        if (!m_msgListeners.contains(item)) {
+        if (item != null && !m_msgListeners.contains(item)) {
             if(m_connectionStatus != App.STARTED){
                 start();
             }
             m_msgListeners.add(item);
-        }else{
-          
         }
-
     }
 
 
