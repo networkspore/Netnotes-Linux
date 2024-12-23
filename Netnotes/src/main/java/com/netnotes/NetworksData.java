@@ -3536,7 +3536,7 @@ public class NetworksData {
             return m_itemTabs.get(id);
         }
 
-        public boolean contains(String id){
+        public boolean containsId(String id){
             return m_itemTabs.get(id) != null;
         }
 

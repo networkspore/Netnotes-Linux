@@ -222,9 +222,6 @@ public class ErgoDex extends Network implements NoteInterface {
             }
 
 
-            public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
-                return getLastUpdated();
-            }
 
             public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
                 return ErgoDex.this.sendNote(note, onSucceeded, onFailed);
@@ -254,14 +251,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 return getParentInterface();
             }
 
-            public void addUpdateListener(ChangeListener<LocalDateTime> changeListener){
-                ErgoDex.this.addUpdateListener(changeListener);
-            }
-
-            public void removeUpdateListener(){
-                ErgoDex.this.removeUpdateListener();
-            }
-
+    
             public void shutdown(){}
 
             public SimpleObjectProperty<LocalDateTime> shutdownNowProperty(){
@@ -296,30 +286,35 @@ public class ErgoDex extends Network implements NoteInterface {
 
     
 
-    private SpectrumFinanceTab m_spectrumFinanceTab = null;;
+    private ErgoDexTab m_ergoDexTab = null;
 
     @Override
     public TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
-        if(m_spectrumFinanceTab != null){
-            return m_spectrumFinanceTab;
+        if(m_ergoDexTab != null){
+            return m_ergoDexTab;
         }else{
-            m_spectrumFinanceTab = new SpectrumFinanceTab(appStage,  heightObject, widthObject, menuBtn);
-            return m_spectrumFinanceTab;
+            m_ergoDexTab = new ErgoDexTab(appStage,  heightObject, widthObject, menuBtn);
+            return m_ergoDexTab;
         }
     }
 
-    private class SpectrumFinanceTab extends AppBox implements TabInterface{
+    private class ErgoDexTab extends AppBox implements TabInterface{
         private Button m_menuBtn;
         private ErgoDexDataList m_spectrumData = null;
+        private String noNetworkImgString = "/assets/globe-outline-white-30.png";
 
-        private SimpleObjectProperty<NoteInterface> m_networkInterface = new SimpleObjectProperty<>(null);
-        private NoteMsgInterface m_networkMsgInterface;
+        private SimpleObjectProperty<NoteInterface> m_ergoNetworkInterface = new SimpleObjectProperty<>(null);
+        
+        private NoteMsgInterface m_ergoDexMsgInterface;
+        private NoteMsgInterface m_networksDataMsgInterface;
+
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
         private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
+        private TextField m_lastUpdatedField = new TextField();
 
-        public SpectrumFinanceTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
+        public ErgoDexTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
             super(getNetworkId());
             addListeners();
             getData();
@@ -327,6 +322,35 @@ public class ErgoDex extends Network implements NoteInterface {
             m_menuBtn = menuBtn;
             setPrefWidth(App.DEFAULT_STATIC_WIDTH);
             setMaxWidth(App.DEFAULT_STATIC_WIDTH);
+
+
+            ImageView networkMenuBtnImageView = new ImageView(new Image(noNetworkImgString));
+            networkMenuBtnImageView.setPreserveRatio(true);
+            networkMenuBtnImageView.setFitWidth(30);
+
+            MenuButton networkMenuBtn = new MenuButton();
+            networkMenuBtn.setGraphic(networkMenuBtnImageView);
+            networkMenuBtn.setPadding(new Insets(0, 3, 0, 0));
+
+            
+            Tooltip networkTip = new Tooltip("Network: (select)");
+            networkTip.setShowDelay(new javafx.util.Duration(50));
+            networkTip.setFont(App.txtFont);
+
+            networkMenuBtn.setTooltip(networkTip);
+
+            m_ergoNetworkInterface.addListener((obs,oldval,newval)->{
+                if(newval != null){
+                    networkMenuBtnImageView.setImage(newval.getAppIcon());
+                    networkTip.setText(newval.getName());
+                }else{
+                    networkMenuBtnImageView.setImage(new Image(noNetworkImgString));
+                    networkTip.setText("Ergo Network: Unavailable");
+                }
+            });
+
+
+            addNetworksListener();
 
  
             double defaultGridWidth = App.DEFAULT_STATIC_WIDTH;
@@ -337,10 +361,11 @@ public class ErgoDex extends Network implements NoteInterface {
             
             SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
             SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
-            SimpleObjectProperty<HBox> currentBox = new SimpleObjectProperty<>(null);
 
+            ScrollPane scrollPane = new ScrollPane();
+            scrollPane.setPadding(new Insets(2));
 
-            m_spectrumData = new ErgoDexDataList(FriendlyId.createFriendlyId(), appStage, ErgoDex.this, gridWidth,gridHeight, currentBox, m_itemTimeSpan, m_networkInterface);
+            m_spectrumData = new ErgoDexDataList(FriendlyId.createFriendlyId(), appStage, ErgoDex.this, gridWidth,gridHeight,m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  scrollPane);
 
 
             Region spacer = new Region();
@@ -383,8 +408,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 }
 
                 m_spectrumData.sort();
-                m_spectrumData.updateGridBox();
-                m_spectrumData.getLastUpdated().set(LocalDateTime.now());
+                m_spectrumData.updateGrid();
             };
 
            // updateSortTypeSelected.run();
@@ -420,8 +444,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 sortMethod.setDirection(sortMethod.isAsc() ? ErgpDexSort.SortDirection.DSC : ErgpDexSort.SortDirection.ASC);
                 sortDirectionButton.setImage(new Image(sortMethod.isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png"));
                 m_spectrumData.sort();
-                m_spectrumData.updateGridBox();
-                m_spectrumData.getLastUpdated().set(LocalDateTime.now());
+                m_spectrumData.updateGrid();
             });
 
             BufferedButton swapTargetButton = new BufferedButton(m_spectrumData.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
@@ -450,49 +473,12 @@ public class ErgoDex extends Network implements NoteInterface {
             HBox.setHgrow(menuBarRegion, Priority.ALWAYS);
 
             
-            Tooltip currentNetworkTip = new Tooltip("Install: Ergo Network");
-            currentNetworkTip.setShowDelay(new javafx.util.Duration(100));
-            currentNetworkTip.setFont(App.txtFont);
+           
 
-            
-
-
-            ImageView networkMenuBtnImageView = new ImageView();
-            networkMenuBtnImageView.setPreserveRatio(true);
-            networkMenuBtnImageView.setFitWidth(30);
-
-            MenuButton networkMenuBtn = new MenuButton();
-            networkMenuBtn.setGraphic(networkMenuBtnImageView);
-            networkMenuBtn.setPadding(new Insets(0, 3, 0, 0));
-            
-            Tooltip networkTip = new Tooltip("Network: (select)");
-            networkTip.setShowDelay(new javafx.util.Duration(50));
-            networkTip.setFont(App.txtFont);
-
-            networkMenuBtn.setTooltip(networkTip);
-            
-            networkMenuBtn.addEventFilter(MouseEvent.MOUSE_PRESSED, (e)->{
-                getNetworkMenu(networkMenuBtn);
-            });
-
-            ChangeListener<NoteInterface> networkChangeListener = (obs,oldval,newval)->{
-                if(newval != null){
-                    networkMenuBtnImageView.setImage(newval.getAppIcon());
-                    networkTip.setText("Network: " + newval.getName());
-                }
-            };
-
-            m_networkInterface.addListener(networkChangeListener);
-
-            if(m_networkInterface.get() != null){
-                NoteInterface networkInterface = m_networkInterface.get();
-                networkMenuBtnImageView.setImage(networkInterface.getAppIcon());
-                networkTip.setText("Network: " + networkInterface.getName());
-            }
 
             VBox networkMenuBtnBox = new VBox( networkMenuBtn);
 
-            getNetworkMenu(networkMenuBtn);
+
     
             VBox.setVgrow(networkMenuBtnBox,Priority.ALWAYS);
 
@@ -560,8 +546,8 @@ public class ErgoDex extends Network implements NoteInterface {
 
             VBox chartList = m_spectrumData.getGridBox();
   
-            ScrollPane scrollPane = new ScrollPane(chartList);
-            scrollPane.setPadding(new Insets(2));
+            scrollPane.setContent(chartList);
+            
         //    HBox headingsBox = new HBox();
 
             HBox menuBarBox = new HBox(m_menuBar);
@@ -573,14 +559,10 @@ public class ErgoDex extends Network implements NoteInterface {
 
      
 
-            Text lastUpdatedTxt = new Text("Updated ");
-            lastUpdatedTxt.setFill(App.formFieldColor);
-            lastUpdatedTxt.setFont(App.titleFont);
-
-            TextField lastUpdatedField = new TextField();
-            lastUpdatedField.setEditable(false);
-            lastUpdatedField.setId("formFieldSmall");
-            lastUpdatedField.setPrefWidth(230);
+      
+            m_lastUpdatedField.setEditable(false);
+            m_lastUpdatedField.setId("formFieldSmall");
+            m_lastUpdatedField.setPrefWidth(230);
 
             Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(m_spectrumData.statusMsgProperty().get().startsWith("Error") ? m_spectrumData.statusMsgProperty().get() : "") ,m_spectrumData.statusMsgProperty());
 
@@ -593,7 +575,7 @@ public class ErgoDex extends Network implements NoteInterface {
             lastUpdatedRegion.setMinWidth(10);
             HBox.setHgrow(lastUpdatedRegion, Priority.ALWAYS);
 
-            HBox lastUpdatedBox = new HBox(errorText, lastUpdatedRegion, lastUpdatedTxt, lastUpdatedField);
+            HBox lastUpdatedBox = new HBox(errorText, lastUpdatedRegion, m_lastUpdatedField);
             lastUpdatedBox.setAlignment(Pos.CENTER_RIGHT);
             HBox.setHgrow(lastUpdatedBox, Priority.ALWAYS);
 
@@ -631,21 +613,43 @@ public class ErgoDex extends Network implements NoteInterface {
 
             chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
        
-            m_spectrumData.addUpdateListener((obs,oldval,newval)->{
-                if(newval != null){
-         
-                    lastUpdatedField.setText(Utils.formatDateTimeString(newval));
-                    
-                }else{
-                    lastUpdatedField.setText(m_spectrumData.statusMsgProperty().get());
-                }
-            });
+       
         
         }
 
+        public void updateErgoNetworkInterface(){
+            m_ergoNetworkInterface.set(getNetworksData().getNetwork(ErgoNetwork.NETWORK_ID));
+        }
 
+        public void addNetworksListener(){
+            m_networksDataMsgInterface = new NoteMsgInterface() {
 
+                @Override
+                public String getId() {
+                    
+                    return m_locationId;
+                }
 
+                @Override
+                public void sendMessage(int code, long timestamp, String networkId, String msg) {
+                    switch(networkId){
+                        case NetworksData.NETWORKS:
+                            updateErgoNetworkInterface();
+                        break;
+                    }
+                }
+
+                @Override
+                public void sendMessage(int code, long timestamp, String networkId, Number number) {
+                    
+                }
+                
+            };
+
+            updateErgoNetworkInterface();
+
+            getNetworksData().addMsgListener(m_ergoDexMsgInterface);
+        }
         
 
         @Override
@@ -666,7 +670,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 case App.STATUS_STOPPED:
                     m_menuBtn.setId("menuTabBtn");
                     shutdown();
-                    m_spectrumFinanceTab = null;
+                    
                 break;
                 case App.STATUS_MINIMIZED:
                     m_menuBtn.setId("minimizedMenuBtn"); 
@@ -683,12 +687,22 @@ public class ErgoDex extends Network implements NoteInterface {
 
         @Override
         public void shutdown() {
-            m_spectrumData.shutdown();
-            m_spectrumData.removeUpdateListener();
+            
+            if(m_networksDataMsgInterface != null){
+                getNetworksData().removeMsgListener(m_networksDataMsgInterface);
+                m_networksDataMsgInterface = null;
+            }
 
-            m_networkInterface.set(null);
+            m_ergoNetworkInterface.set(null);
+
+            m_spectrumData.shutdown();
+            m_ergoNetworkInterface.set(null);
+
+            m_ergoDexTab = null;
 
             m_appStage = null;
+
+        
 
         }
  
@@ -697,17 +711,17 @@ public class ErgoDex extends Network implements NoteInterface {
 
         private void addListeners(){
             m_networkChanged = (obs,oldval,newval)->{
-                if(oldval != null && m_networkMsgInterface != null){
+                if(oldval != null && m_ergoDexMsgInterface != null){
                    
-                    oldval.removeMsgListener(m_networkMsgInterface);
-                    m_networkMsgInterface = null;
+                    oldval.removeMsgListener(m_ergoDexMsgInterface);
+                    m_ergoDexMsgInterface = null;
                 }
 
                 if(newval != null){
                 
                     String networkInterfaceId = FriendlyId.createFriendlyId();
                     
-                    m_networkMsgInterface = new NoteMsgInterface(){
+                    m_ergoDexMsgInterface = new NoteMsgInterface(){
         
                         public String getId() {
                             return networkInterfaceId;
@@ -734,13 +748,13 @@ public class ErgoDex extends Network implements NoteInterface {
                         
                     };
                     
-                    newval.addMsgListener(m_networkMsgInterface);
+                    newval.addMsgListener(m_ergoDexMsgInterface);
                 }
 
               
             };
            
-            m_networkInterface.addListener(m_networkChanged);
+            m_ergoNetworkInterface.addListener(m_networkChanged);
            
         }
 
@@ -749,12 +763,9 @@ public class ErgoDex extends Network implements NoteInterface {
         }
 
         public void openJson(JsonObject json){
-            JsonElement currentNetworkIdElement = json != null ? json.get("currentNetworkId") : null;
+
             JsonElement itemTimeSpanElement = json != null ? json.get("itemTimeSpan") : null;
 
-            String currentNetworkId = currentNetworkIdElement == null ? ErgoNetwork.NETWORK_ID : (currentNetworkIdElement.isJsonNull() ? null : currentNetworkIdElement.getAsString());
-            
-            setCurrentNetworkId(currentNetworkId, false);
             TimeSpan timeSpan = itemTimeSpanElement != null && itemTimeSpanElement.isJsonObject() ? new TimeSpan(itemTimeSpanElement.getAsJsonObject()) : new TimeSpan("1day");
             
             m_itemTimeSpan.set(timeSpan);
@@ -764,7 +775,6 @@ public class ErgoDex extends Network implements NoteInterface {
             TimeSpan itemTimeSpan = m_itemTimeSpan == null ? new TimeSpan("1day") : m_itemTimeSpan.get();
 
             JsonObject networkObj = new JsonObject();
-            networkObj.addProperty("currentNetworkId", m_currentNetworkId);
             networkObj.add("itemTimeSpan", itemTimeSpan.getJsonObject());
             return networkObj;
         }
@@ -781,93 +791,9 @@ public class ErgoDex extends Network implements NoteInterface {
     
    
 
-        public void setCurrentNetworkId(String networkId, boolean update){
-            m_currentNetworkId = networkId;
-
-            NoteInterface networkInterface = m_currentNetworkId != null ? getNetworksData().getNetwork(m_currentNetworkId) : null;
-    
-            m_networkInterface.set(networkInterface);
-     
-            if(update){
-                save();
-            }    
-        }
     
         
-        public void getNetworkMenu(MenuButton networkMenuBtn){
-            networkMenuBtn.getItems().clear();
-
-            String selectedMarketId = m_currentNetworkId;
-        
-            SimpleBooleanProperty found = new SimpleBooleanProperty(false);
-            
-            for(int i = 0; i < SUPPORTED_NETWORKS.length ; i++ ){
-                NetworkInformation networkInfo = SUPPORTED_NETWORKS[i];
-               
-
-                NoteInterface noteInterface = getNetworksData().getNetwork(networkInfo.getNetworkId());
-                ImageView imgView = new ImageView(new Image(networkInfo.iconString()));
-                imgView.setPreserveRatio(true);
-                imgView.setFitHeight(30);
-                
-                boolean selected = selectedMarketId.equals(networkInfo.getNetworkId());
-                MenuItem menuItem = new MenuItem(networkInfo.getNetworkName() + (noteInterface == null ? ": (not installed)" : (selectedMarketId != null && selected ? " (selected)" :  "") ), imgView);
-        
-
-                if(selected){
-                    ImageView menuBtnGraphic = new ImageView(new Image(networkInfo.iconString()));
-                    menuBtnGraphic.setPreserveRatio(true);
-                    menuBtnGraphic.setFitWidth(30);
-                    networkMenuBtn.setGraphic(menuBtnGraphic);
-
-                    menuItem.setId("selectedMenuItem");
-                    found.set(true);
-                }
-                
-                menuItem.setUserData(networkInfo);
-            
-                menuItem.setOnAction(e->{
-                    NetworkInformation mInfo = (NetworkInformation) menuItem.getUserData();
-                
-                    setCurrentNetworkId(mInfo.getNetworkId(), true);
-
-                    ImageView menuBtnGraphic = new ImageView(new Image(mInfo.getSmallIconString()));
-                    menuBtnGraphic.setPreserveRatio(true);
-                    menuBtnGraphic.setFitWidth(30);
-
-                    networkMenuBtn.setGraphic(menuBtnGraphic);
-
-
-                    getNetworkMenu(networkMenuBtn);
-                });
-
-                networkMenuBtn.getItems().add(menuItem);
-            }
-
-            MenuItem noneItem = new MenuItem("(none)");
-            if(selectedMarketId == null){
-                noneItem.setId("selectedMenuItem");
-            }
-            noneItem.setOnAction(e->{
-                if(selectedMarketId != null){
-                    setCurrentNetworkId(null, true);
-                    ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-30.png"));
-                    menuBtnGraphic.setPreserveRatio(true);
-                    menuBtnGraphic.setFitWidth(30);
-                    networkMenuBtn.setGraphic(menuBtnGraphic);
-                    getNetworkMenu(networkMenuBtn);
-                }
-            });
-
-            if(!found.get()){
-                ImageView menuBtnGraphic = new ImageView(new Image("/assets/globe-outline-white-120.png"));
-                menuBtnGraphic.setPreserveRatio(true);
-                menuBtnGraphic.setFitWidth(30);
-
-                networkMenuBtn.setGraphic(menuBtnGraphic);
-            }
-        }   
-    
+      
       
     }
 
@@ -1026,7 +952,7 @@ public class ErgoDex extends Network implements NoteInterface {
                     
                 }catch(Exception e){
                     try {
-                        Files.writeString(App.logFile.toPath(), "SpectrumFinance(updateMarkets): " + e.toString() + " " + marketDataJson.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(App.logFile.toPath(), "egoDex(updateMarkets): " + e.toString() + " " + marketDataJson.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e1) {
                     
                     }
@@ -1063,14 +989,8 @@ public class ErgoDex extends Network implements NoteInterface {
                                
                                 ErgoDexMarketData marketData = getMarketDataByTickerId(tmpMarketsList, tickerId);
                             
-                                if(poolIdElement != null){
-                                    try {
-                                      
-                                        Files.writeString(App.logFile.toPath(), (marketData != null ? "marketData: " + gson.toJson(marketData.getJsonObject()) +"\n" : "notFound\n") + "tickerDataJson:" + gson.toJson(tickerDataJson) +"\n\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                    } catch (IOException e) {
-
-                                    }
-                                }
+                             
+                                
                                 if(marketData != null){
                                     
                                     JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
@@ -1097,7 +1017,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 }
             }, (onTickersFailed)->{
                 try {
-                    Files.writeString(App.logFile.toPath(), "SpectrumFinance (onTickersFailed): " + onTickersFailed.getSource().getException().toString() +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(App.logFile.toPath(), "egoDex (onTickersFailed): " + onTickersFailed.getSource().getException().toString() +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
                    
                 }
@@ -1164,7 +1084,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
                 try {
-                    Files.writeString(App.logFile.toPath(), "\nSpectrumFinance: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(App.logFile.toPath(), "\negoDex: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e1) {
 
                 }
@@ -1529,6 +1449,8 @@ public class ErgoDex extends Network implements NoteInterface {
     @Override
     public void shutdown(){
         super.shutdown();
+
+    
     }
  
 

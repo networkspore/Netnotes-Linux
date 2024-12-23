@@ -419,8 +419,8 @@ public class ErgoDexMarketData extends PriceQuote {
             m_chartViewProperty.get().update();
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        getLastUpdated().set(now);
+
+        getLastUpdated().set(LocalDateTime.now());
  
     }
 

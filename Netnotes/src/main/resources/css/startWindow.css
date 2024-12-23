@@ -949,6 +949,7 @@
     -fx-background-radius: 30;
     -fx-padding: 2;
     -fx-opacity: .8;
+    -fx-cursor: hand;
 }
 #onlineBtn:hover{
     -fx-opacity:1;
@@ -1432,6 +1433,13 @@
 #darkField:focused:hover {
 
     -fx-text-fill: white;
+}
+
+#italicFont{
+    -fx-font-family: 'OCR A Extended';
+    -fx-text-size: 12px;
+    -fx-font-style: italic;
+    -fx-text-fill: #777777;
 }
 
 #rowField  {
