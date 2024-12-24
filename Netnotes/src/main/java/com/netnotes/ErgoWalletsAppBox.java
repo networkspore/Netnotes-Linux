@@ -69,7 +69,7 @@ public class ErgoWalletsAppBox extends AppBox {
     private NoteInterface m_ergoNetworkInterface = null;
 
 
-    
+    private LockField m_lockBox;
     private SimpleBooleanProperty showWallet = new SimpleBooleanProperty(false);
     private SimpleBooleanProperty showBalance = new SimpleBooleanProperty(false);
 
@@ -102,7 +102,6 @@ public class ErgoWalletsAppBox extends AppBox {
     private MenuButton m_openWalletBtn;
 
     private JsonParser m_jsonParser = new JsonParser();
-
     private NetworkType m_networkType = NetworkType.MAINNET;
 
 
@@ -203,20 +202,34 @@ public class ErgoWalletsAppBox extends AppBox {
         
     }
 
+    public void getBalance(){
+        NoteInterface walletInterface = m_selectedWallet.get();
+
+        if(m_lockBox.isUnlocked()){
+            JsonObject note = Utils.getCmdObject("getBalance");
+            note.addProperty("locationId", m_locationId);
+            note.addProperty("accessId", m_lockBox.getLockId());
+            
+            Object obj = walletInterface.sendNote(note);
+            
+            if(obj != null && obj instanceof JsonObject){
+
+                m_balanceObject.set((JsonObject) obj);
+                
+            
+            }else{
+                m_balanceObject.set(null);
+                showBalance.set(false);
+            }
+
+        }else{
+            m_balanceObject.set(null);
+            showBalance.set(false);
+        }
+    }
+
     public ErgoWalletsAppBox(Stage appStage, String locationId, NoteInterface ergoNetwork) {
         super();
-
-
-        /*m_walletField = new TextField();
-        HBox.setHgrow(m_walletField, Priority.ALWAYS);
-
-        m_walletField.setAlignment(Pos.CENTER_LEFT);
-        m_walletField.setText(walletBtnDefaultString);
-
-        m_walletField.setMinWidth(90);
-        m_walletField.setEditable(false);
-        m_walletField.setId("hand");*/
-        
 
         m_ergoNetworkInterface = ergoNetwork;
 
@@ -235,11 +248,11 @@ public class ErgoWalletsAppBox extends AppBox {
         topIconBox.setMinWidth(30);
 
 
-        LockField lockBox = new LockField("Address", "≬", "[Unlock]");
-        lockBox.setPadding(new Insets(2, 5, 2, 0));
-        lockBox.setAlignment(Pos.CENTER_LEFT);
-        lockBox.setMaxHeight(15);
-        HBox.setHgrow(lockBox, Priority.ALWAYS);
+        m_lockBox = new LockField();
+        m_lockBox.setPadding(new Insets(2, 5, 2, 0));
+        m_lockBox.setAlignment(Pos.CENTER_LEFT);
+        m_lockBox.setMaxHeight(15);
+        HBox.setHgrow(m_lockBox, Priority.ALWAYS);
 
         
        
@@ -247,10 +260,10 @@ public class ErgoWalletsAppBox extends AppBox {
         Button toggleShowBalance = new Button(showBalance.get() ? "⏷" : "⏵");
         toggleShowBalance.setId("caretBtn");
         toggleShowBalance.setOnAction(e -> {
-            if (lockBox.isUnlocked()) {
+            if (m_lockBox.isUnlocked()) {
                 showBalance.set(!showBalance.get());
             } else {
-                lockBox.requestFocus();
+                m_lockBox.requestFocus();
             }
         });
 
@@ -306,7 +319,7 @@ public class ErgoWalletsAppBox extends AppBox {
         SeparatorMenuItem seperatorAdrMenuItem = new SeparatorMenuItem();
 
         MenuItem copyAdrMenuItem = new MenuItem("⧉  Copy address to clipbord");
-        copyAdrMenuItem.setOnAction(e->lockBox.copyAddressToClipboard());
+        copyAdrMenuItem.setOnAction(e->m_lockBox.copyAddressToClipboard());
 
        // MenuItem addAdrMenuItem = new MenuItem("➕  Add address to wallet");
         MenuItem sendMenuItem = new MenuItem("⮩  Send");
@@ -325,7 +338,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         sendMenuItem.setOnAction(e->{
             hideMenus.run();
-            m_currentBox.set(new SendAppBox(lockBox));
+            m_currentBox.set(new SendAppBox());
         });
 
          
@@ -502,7 +515,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         m_disableWalletBtn.setOnMouseClicked(e -> {
             showWallet.set(false);
-            lockBox.setLocked();
+            m_lockBox.setLocked();
             m_balanceObject.set(null);
             JsonObject note = Utils.getCmdObject("clearDefault");
             note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
@@ -551,14 +564,14 @@ public class ErgoWalletsAppBox extends AppBox {
 
        
 
-        lockBox.setOnMenuShowing((obs,oldval,newval) -> {
+        m_lockBox.setOnMenuShowing((obs,oldval,newval) -> {
             if(newval){
                 NoteInterface selectedWallet = m_selectedWallet.get();
-                lockBox.getItems().clear();
+                m_lockBox.getItems().clear();
 
-                if (selectedWallet != null && lockBox.getLockId() != null) {
+                if (selectedWallet != null && m_lockBox.getLockId() != null) {
                     JsonObject json = Utils.getCmdObject("getAddresses");
-                    json.addProperty("accessId", lockBox.getLockId());
+                    json.addProperty("accessId", m_lockBox.getLockId());
                     json.addProperty("locationId", m_locationId);
 
                     Object successObject = selectedWallet.sendNote(json);
@@ -578,12 +591,12 @@ public class ErgoWalletsAppBox extends AppBox {
                                 MenuItem addressMenuItem = new MenuItem(name + ": " + address);
                                 addressMenuItem.setOnAction(e1 -> {
                                     m_balanceObject.set(null);
-                                    lockBox.setAddress(address);
-                                    lockBox.setName(name);
-                                    lockBox.setWalletName( m_selectedWallet.get().getName());
+                                    m_lockBox.setAddress(address);
+                                    m_lockBox.setName(name);
+                                    m_lockBox.setWalletName( m_selectedWallet.get().getName());
                                 });
 
-                                lockBox.getItems().add(addressMenuItem);
+                                m_lockBox.getItems().add(addressMenuItem);
                             }
                         }
 
@@ -626,7 +639,7 @@ public class ErgoWalletsAppBox extends AppBox {
             }
         });
 
-        HBox addressBtnsBox = new HBox(toggleShowBalance, lockBox, adrBtnBoxes);
+        HBox addressBtnsBox = new HBox(toggleShowBalance, m_lockBox, adrBtnBoxes);
         addressBtnsBox.setPadding(new Insets(2, 0, 2, 0));
         addressBtnsBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(addressBtnsBox, Priority.ALWAYS);
@@ -669,33 +682,7 @@ public class ErgoWalletsAppBox extends AppBox {
         balancePaddingBox.setPadding(new Insets(0, 0, 0, 0));
         HBox.setHgrow(balancePaddingBox, Priority.ALWAYS);
         
-        Runnable getBalance = ()->{
-
-            NoteInterface walletInterface = m_selectedWallet.get();
-
-            if(lockBox.isUnlocked()){
-                JsonObject note = Utils.getCmdObject("getBalance");
-                note.addProperty("locationId", m_locationId);
-                note.addProperty("accessId", lockBox.getLockId());
-                
-                Object obj = walletInterface.sendNote(note);
-                
-                if(obj != null && obj instanceof JsonObject){
-
-                    m_balanceObject.set((JsonObject) obj);
-                   
-                
-                }else{
-                    m_balanceObject.set(null);
-                    showBalance.set(false);
-                }
-
-            }else{
-                m_balanceObject.set(null);
-                showBalance.set(false);
-            }
-        };
-
+      
 
 
         ChangeListener<String> lockListener = (obs, oldval, newval) -> {
@@ -725,13 +712,13 @@ public class ErgoWalletsAppBox extends AppBox {
                         String address = addressElement.getAsString();
                         String name = nameElement.getAsString();
 
-                        lockBox.setAddress(address);
-                        lockBox.setName(name);
-                        lockBox.setWalletName( m_selectedWallet.get().getName());
-                        getBalance.run();
+                        m_lockBox.setAddress(address);
+                        m_lockBox.setName(name);
+                        m_lockBox.setWalletName( m_selectedWallet.get().getName());
+                        getBalance();
                        
                     } else {
-                        lockBox.setLocked();
+                        m_lockBox.setLocked();
                     }
                 }
                 if (!adrBtnBoxes.getChildren().contains(adrBtnsBox)) {
@@ -752,7 +739,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         
 
-        lockBox.lockId().addListener(lockListener);
+        m_lockBox.lockId().addListener(lockListener);
 
 
         m_selectedWallet.addListener((obs, oldVal, newVal) -> {
@@ -763,11 +750,11 @@ public class ErgoWalletsAppBox extends AppBox {
                 m_walletMsgInterface = null;
             }
         
-            if(newVal != null && m_amountBoxes != null){
+            if(m_amountBoxes != null){
                 m_amountBoxes.shutdown();
             }
     
-            lockBox.setLocked();
+            m_lockBox.setLocked();
             m_configBox.set(null);
             updateWallet();
         });
@@ -787,12 +774,12 @@ public class ErgoWalletsAppBox extends AppBox {
             }
         });
 
-        lockBox.setOnSend(e->{
+        m_lockBox.setOnSend(e->{
             hideMenus.run();
-            m_currentBox.set(new SendAppBox(lockBox));
+            m_currentBox.set(new SendAppBox());
         });
 
-        lockBox.setPasswordAction(e -> {
+        m_lockBox.setPasswordAction(e -> {
             
             NoteInterface noteInterface = m_selectedWallet.get();
 
@@ -828,14 +815,8 @@ public class ErgoWalletsAppBox extends AppBox {
 
                                 switch (code) {
                                     case App.UPDATED:
-                                        if (networkId != null && networkId.equals(lockBox.getAddress())) {
-                                            JsonElement jsonElement = m_jsonParser.parse(msg);
-
-                                            if(jsonElement != null && jsonElement.isJsonObject()){
-                                                
-                                                m_balanceObject.set(jsonElement.getAsJsonObject());
-                                                
-                                            }
+                                        if (networkId != null && networkId.equals(m_lockBox.getAddress())) {
+                                            getBalance();
                                         }else{
                                             m_balanceObject.set(null);
                                         }
@@ -847,7 +828,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
                         noteInterface.addMsgListener(m_walletMsgInterface);
 
-                        lockBox.setUnlocked(accessId);
+                        m_lockBox.setUnlocked(accessId);
                         
                         FxTimer.runLater(java.time.Duration.ofMillis(150), ()->{
                             showBalance.set(true);
@@ -1842,15 +1823,15 @@ public class ErgoWalletsAppBox extends AppBox {
 
     private class SendAppBox extends AppBox {
         
-        private LockField m_sendLockBox;
+  
         private ErgoWalletAmountSendBoxes m_amountBoxes;
         private Button m_sendBtn = new Button("Send");
         private Tooltip m_tooltip = new Tooltip();
       
    
-        public SendAppBox(LockField lockBox){
+        public SendAppBox(){
             super();
-            m_sendLockBox = lockBox;
+
 
             Label backButton = new Label("🡄");
             backButton.setId("lblBtn");
@@ -1902,7 +1883,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
             AddressBox toAddress = new AddressBox(new AddressInformation(""), m_appStage.getScene(), m_networkType);
             HBox.setHgrow(toAddress, Priority.ALWAYS);
-            toAddress.getInvalidAddressList().add(m_sendLockBox.getAddress());
+            toAddress.getInvalidAddressList().add(m_lockBox.getAddress());
         
             HBox addressFieldBox = new HBox(toAddress);
             HBox.setHgrow(addressFieldBox, Priority.ALWAYS);
@@ -2203,7 +2184,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 JsonObject walletObject = new JsonObject();
                 walletObject.addProperty("name", walletInterface.getName());
-                walletObject.addProperty("address", m_sendLockBox.getAddress());
+                walletObject.addProperty("address", m_lockBox.getAddress());
 
                 sendObject.add("wallet", walletObject);
 
@@ -2257,7 +2238,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 sendObject.add("network", networkJson);
 
                 JsonObject note = Utils.getCmdObject("sendAssets");
-                note.addProperty("accessId", m_sendLockBox.getLockId());
+                note.addProperty("accessId", m_lockBox.getLockId());
                 note.addProperty("locationId", m_locationId);
                 note.add("data", sendObject);
 

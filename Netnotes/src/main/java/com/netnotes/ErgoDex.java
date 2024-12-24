@@ -16,12 +16,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.netnotes.NetworksData.ManageNetworksTab;
 import com.utils.Utils;
 
 import javafx.beans.binding.Binding;
@@ -30,7 +28,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -39,11 +36,11 @@ import javafx.scene.control.Button;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -60,12 +57,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static String NETWORK_ID = "ERGO_DEX";
     public final static String API_URL = "https://api.spectrum.fi";
 
-    private final static NetworkInformation[]  SUPPORTED_NETWORKS = new NetworkInformation[]{
-        ErgoNetwork.getNetworkInformation()
-    };
 
-    private String m_currentNetworkId = ErgoNetwork.NETWORK_ID;
-    
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
     public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
 
@@ -300,12 +292,12 @@ public class ErgoDex extends Network implements NoteInterface {
 
     private class ErgoDexTab extends AppBox implements TabInterface{
         private Button m_menuBtn;
-        private ErgoDexDataList m_spectrumData = null;
+        private ErgoDexDataList m_dexDataList = null;
         private String noNetworkImgString = "/assets/globe-outline-white-30.png";
 
+        private boolean m_isErgoNetwork = true;
         private SimpleObjectProperty<NoteInterface> m_ergoNetworkInterface = new SimpleObjectProperty<>(null);
         
-        private NoteMsgInterface m_ergoDexMsgInterface;
         private NoteMsgInterface m_networksDataMsgInterface;
 
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
@@ -316,7 +308,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
         public ErgoDexTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
             super(getNetworkId());
-            addListeners();
+            
             getData();
             m_appStage = appStage;
             m_menuBtn = menuBtn;
@@ -332,6 +324,53 @@ public class ErgoDex extends Network implements NoteInterface {
             networkMenuBtn.setGraphic(networkMenuBtnImageView);
             networkMenuBtn.setPadding(new Insets(0, 3, 0, 0));
 
+            networkMenuBtn.showingProperty().addListener((obs,oldval,newval)->{
+                networkMenuBtn.getItems().clear();
+                if(newval){
+                    if(getErgoNetworkInterface() != null){
+                        MenuItem openNetworkItem = new MenuItem("Open…");
+                        openNetworkItem.setOnAction(e->{
+                            networkMenuBtn.hide();
+                            getNetworksData().openNetwork(ErgoNetwork.NETWORK_ID);
+                        });
+                        networkMenuBtn.getItems().add(openNetworkItem);
+                    }else{
+                        MenuItem manageNetworkItem = new MenuItem("Manage networks…");
+                        manageNetworkItem.setOnAction(e->{
+                            networkMenuBtn.hide();
+                            getNetworksData().openStatic(ManageNetworksTab.NAME);
+                        });
+                        networkMenuBtn.getItems().add(manageNetworkItem);
+                    }
+
+                    SeparatorMenuItem separatorMenuItem = new SeparatorMenuItem();
+                    
+                    networkMenuBtn.getItems().add(separatorMenuItem);
+
+                    if(isErgoNetwork()){
+                        MenuItem disableNetworkItem = new MenuItem("[disable access]");
+                        disableNetworkItem.setOnAction(e->{
+                            setErgoNetworkEnabled(false);
+                        });
+                        networkMenuBtn.getItems().add(disableNetworkItem);
+                    }else{
+                        MenuItem enableNetworkItem = new MenuItem("[enable access]");
+                        enableNetworkItem.setOnAction(e->{
+                            setErgoNetworkEnabled(true);
+                            if(getErgoNetworkInterface() == null){
+                                networkMenuBtn.hide();
+                                getNetworksData().openStatic(ManageNetworksTab.NAME);
+                            }
+                        });
+
+                        networkMenuBtn.getItems().add(enableNetworkItem);
+                    }
+                
+       
+                    
+                
+                }
+            });
             
             Tooltip networkTip = new Tooltip("Network: (select)");
             networkTip.setShowDelay(new javafx.util.Duration(50));
@@ -365,7 +404,7 @@ public class ErgoDex extends Network implements NoteInterface {
             ScrollPane scrollPane = new ScrollPane();
             scrollPane.setPadding(new Insets(2));
 
-            m_spectrumData = new ErgoDexDataList(FriendlyId.createFriendlyId(), appStage, ErgoDex.this, gridWidth,gridHeight,m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  scrollPane);
+            m_dexDataList = new ErgoDexDataList(m_locationId, appStage, ErgoDex.this, gridWidth,gridHeight,m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  scrollPane);
 
 
             Region spacer = new Region();
@@ -392,7 +431,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 sortQuoteVolItem.setId(null);
                 sortLastPriceItem.setId(null);
 
-                switch(m_spectrumData.getSortMethod().getType()){
+                switch(m_dexDataList.getSortMethod().getType()){
                     case ErgpDexSort.SortType.LIQUIDITY_VOL:
                         sortLiquidityItem.setId("selectedMenuItem");
                     break;
@@ -407,52 +446,52 @@ public class ErgoDex extends Network implements NoteInterface {
                     break;
                 }
 
-                m_spectrumData.sort();
-                m_spectrumData.updateGrid();
+                m_dexDataList.sort();
+                m_dexDataList.updateGrid();
             };
 
            // updateSortTypeSelected.run();
 
             sortLiquidityItem.setOnAction(e->{
-                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
                 sortMethod.setType(sortLiquidityItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortBaseVolItem.setOnAction(e->{
-                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
                 sortMethod.setType(sortBaseVolItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortQuoteVolItem.setOnAction(e->{
-                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
                 sortMethod.setType(sortQuoteVolItem.getText());
                 updateSortTypeSelected.run();
             });
 
             sortLastPriceItem.setOnAction(e->{
-                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
                 sortMethod.setType(sortLastPriceItem.getText());
                 updateSortTypeSelected.run();
             });
 
 
-            BufferedButton sortDirectionButton = new BufferedButton(m_spectrumData.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton sortDirectionButton = new BufferedButton(m_dexDataList.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", App.MENU_BAR_IMAGE_WIDTH);
             sortDirectionButton.setOnAction(e->{
-                ErgpDexSort sortMethod = m_spectrumData.getSortMethod();
+                ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
                 sortMethod.setDirection(sortMethod.isAsc() ? ErgpDexSort.SortDirection.DSC : ErgpDexSort.SortDirection.ASC);
                 sortDirectionButton.setImage(new Image(sortMethod.isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png"));
-                m_spectrumData.sort();
-                m_spectrumData.updateGrid();
+                m_dexDataList.sort();
+                m_dexDataList.updateGrid();
             });
 
-            BufferedButton swapTargetButton = new BufferedButton(m_spectrumData.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton swapTargetButton = new BufferedButton(m_dexDataList.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
             swapTargetButton.setOnAction(e->{
-                m_spectrumData.isInvertProperty().set(!m_spectrumData.isInvertProperty().get());
+                m_dexDataList.isInvertProperty().set(!m_dexDataList.isInvertProperty().get());
             });
 
-            m_spectrumData.isInvertProperty().addListener((obs,oldval,newval)->{
+            m_dexDataList.isInvertProperty().addListener((obs,oldval,newval)->{
                 swapTargetButton.setImage(new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
         
             });
@@ -466,7 +505,7 @@ public class ErgoDex extends Network implements NoteInterface {
             searchField.setPrefWidth(200);
             searchField.setPadding(new Insets(2, 10, 3, 10));
             searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-                m_spectrumData.setSearchText(searchField.getText());
+                m_dexDataList.setSearchText(searchField.getText());
             });
 
             Region menuBarRegion = new Region();
@@ -544,7 +583,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
       
 
-            VBox chartList = m_spectrumData.getGridBox();
+            VBox chartList = m_dexDataList.getGridBox();
   
             scrollPane.setContent(chartList);
             
@@ -564,7 +603,7 @@ public class ErgoDex extends Network implements NoteInterface {
             m_lastUpdatedField.setId("formFieldSmall");
             m_lastUpdatedField.setPrefWidth(230);
 
-            Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(m_spectrumData.statusMsgProperty().get().startsWith("Error") ? m_spectrumData.statusMsgProperty().get() : "") ,m_spectrumData.statusMsgProperty());
+            Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(m_dexDataList.statusMsgProperty().get().startsWith("Error") ? m_dexDataList.statusMsgProperty().get() : "") ,m_dexDataList.statusMsgProperty());
 
             Text errorText = new Text("");
             errorText.setFont(App.titleFont);
@@ -612,13 +651,27 @@ public class ErgoDex extends Network implements NoteInterface {
             scrollPane.prefViewportHeightProperty().bind(heightObject.subtract(footerVBox.heightProperty()));
 
             chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
-       
-       
-        
+        }
+        private boolean isErgoNetwork(){
+            return m_isErgoNetwork;
+        }
+        private void setErgoNetworkEnabled(boolean isEnabled){
+            m_isErgoNetwork = isEnabled;
+            save();
+            
+            updateErgoNetworkInterface();
+        }
+
+        private NoteInterface getErgoNetworkInterface(){
+            return getNetworksData().getNetwork(ErgoNetwork.NETWORK_ID);
         }
 
         public void updateErgoNetworkInterface(){
-            m_ergoNetworkInterface.set(getNetworksData().getNetwork(ErgoNetwork.NETWORK_ID));
+            if(isErgoNetwork()){
+                m_ergoNetworkInterface.set(getErgoNetworkInterface());
+            }else{
+                m_ergoNetworkInterface.set(null);
+            }
         }
 
         public void addNetworksListener(){
@@ -648,7 +701,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             updateErgoNetworkInterface();
 
-            getNetworksData().addMsgListener(m_ergoDexMsgInterface);
+            getNetworksData().addMsgListener(m_networksDataMsgInterface);
         }
         
 
@@ -695,7 +748,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             m_ergoNetworkInterface.set(null);
 
-            m_spectrumData.shutdown();
+            m_dexDataList.shutdown();
             m_ergoNetworkInterface.set(null);
 
             m_ergoDexTab = null;
@@ -707,56 +760,6 @@ public class ErgoDex extends Network implements NoteInterface {
         }
  
 
-        private ChangeListener<NoteInterface> m_networkChanged;
-
-        private void addListeners(){
-            m_networkChanged = (obs,oldval,newval)->{
-                if(oldval != null && m_ergoDexMsgInterface != null){
-                   
-                    oldval.removeMsgListener(m_ergoDexMsgInterface);
-                    m_ergoDexMsgInterface = null;
-                }
-
-                if(newval != null){
-                
-                    String networkInterfaceId = FriendlyId.createFriendlyId();
-                    
-                    m_ergoDexMsgInterface = new NoteMsgInterface(){
-        
-                        public String getId() {
-                            return networkInterfaceId;
-                        }
-                        public void sendMessage(int code, long timeStamp, String networkId, Number num){
-                            switch(code){
-                                case App.STARTED:
-                                   
-                                break;
-                                case App.STOPPED:
-                                
-                                break;
-                                case App.LIST_CHANGED:
-                                case App.LIST_UPDATED:
-                                
-                                break;
-                            }
-                        }
-                    
-                        public void sendMessage(int code, long timestamp, String networkId, String msg){
-                                
-                        }
-                    
-                        
-                    };
-                    
-                    newval.addMsgListener(m_ergoDexMsgInterface);
-                }
-
-              
-            };
-           
-            m_ergoNetworkInterface.addListener(m_networkChanged);
-           
-        }
 
         public void getData(){
             openJson(getNetworksData().getData("data", ".", "tab", ErgoDex.NETWORK_ID));
@@ -765,10 +768,13 @@ public class ErgoDex extends Network implements NoteInterface {
         public void openJson(JsonObject json){
 
             JsonElement itemTimeSpanElement = json != null ? json.get("itemTimeSpan") : null;
-
+            JsonElement isErgoNetworkElement = json != null ? json.get("isErgoNetwork") : null;
             TimeSpan timeSpan = itemTimeSpanElement != null && itemTimeSpanElement.isJsonObject() ? new TimeSpan(itemTimeSpanElement.getAsJsonObject()) : new TimeSpan("1day");
             
+            boolean isErgoNetwork = isErgoNetworkElement != null ? isErgoNetworkElement.getAsBoolean() : true;
+
             m_itemTimeSpan.set(timeSpan);
+            m_isErgoNetwork = isErgoNetwork;
         }
 
         public JsonObject getJsonObject(){
@@ -776,6 +782,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             JsonObject networkObj = new JsonObject();
             networkObj.add("itemTimeSpan", itemTimeSpan.getJsonObject());
+            networkObj.addProperty("isErgoNetworkEnabled", isErgoNetwork());
             return networkObj;
         }
 
@@ -914,7 +921,6 @@ public class ErgoDex extends Network implements NoteInterface {
 
         Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
-    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     private void getMarketUpdate(JsonArray jsonArray){
 

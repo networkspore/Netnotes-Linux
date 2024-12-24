@@ -50,7 +50,7 @@ public class ErgoDexDataList  {
     public final static String LOADING = "Loading...";
     public final static String ID = "spectrumDataList";
     private ErgoDex m_ergodex;
-
+    private String m_locationId;
 
     private VBox m_gridBox = new VBox();
     
@@ -90,10 +90,12 @@ public class ErgoDexDataList  {
     private SimpleObjectProperty<NoteInterface> m_ergoNetworkInterfaceProperty = new SimpleObjectProperty<>(null);
     private ScrollPane m_scrollPane;
     private TextField m_updatedField;
+
     
-    public ErgoDexDataList(String id,Stage appStage, ErgoDex ergoDex, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
+    public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
         m_currentIndex = new SimpleIntegerProperty(0);
 
+        m_locationId = locationId;
         m_ergodex = ergoDex;
         m_appStage = appStage;
         setup();
@@ -118,6 +120,7 @@ public class ErgoDexDataList  {
 
     }
 
+
     public SimpleIntegerProperty currentIndex(){
         return m_currentIndex;
     }
@@ -134,9 +137,14 @@ public class ErgoDexDataList  {
         return m_appStage;
     }
 
-    public SimpleObjectProperty<NoteInterface> networkInterfaceProperty(){
+    public SimpleObjectProperty<NoteInterface> ergoNetworkProperty(){
         return m_networkInterface;
     }
+
+    public String getLocationId(){
+        return m_locationId;
+    }
+
 
     public void addDexistener(){
 

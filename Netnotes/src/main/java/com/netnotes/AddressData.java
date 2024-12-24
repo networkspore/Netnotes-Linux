@@ -445,7 +445,7 @@ public class AddressData extends Network {
                         
                         JsonElement nanoErgElement = confirmedObject.get("nanoErgs");
                         long nanoErg = nanoErgElement != null && nanoErgElement.isJsonPrimitive() ? nanoErgElement.getAsLong() : 0;
-                        ErgoAmount ergoAmount =  nanoErg > 0 ? new ErgoAmount(nanoErg, m_networkType) : null;
+                        ErgoAmount ergoAmount =  new ErgoAmount(nanoErg, m_networkType);
                     
                         BigDecimal ergoQuoteAmount = ergoQuote.getAmount().multiply(ergoAmount.getBigDecimalAmount());    
                         
@@ -528,7 +528,7 @@ public class AddressData extends Network {
         
         balanceJson.addProperty("address", m_addressString);
         balanceJson.addProperty("timeStamp", timeStamp);
-        String balanceString = balanceJson.toString();
+       // String balanceString = balanceJson.toString();
         
         m_balanceJson = balanceJson;
         /*try {
@@ -538,7 +538,7 @@ public class AddressData extends Network {
 
         }*/
         
-        m_walletData.sendMessage(App.UPDATED,System.currentTimeMillis() ,m_addressString, balanceString); 
+        m_walletData.sendMessage(App.UPDATED,timeStamp ,m_addressString,(String) null); 
 
 
     }

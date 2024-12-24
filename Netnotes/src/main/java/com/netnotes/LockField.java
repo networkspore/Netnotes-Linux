@@ -50,9 +50,13 @@ public class LockField extends HBox {
 
     private final HBox m_topBox;
 
-    public LockField(String lockString,String unlockLabelString, String prompt){
+    public LockField(){
         super();
         setAlignment(Pos.CENTER_LEFT);
+        String lockString = "Address";
+        String unlockLabelString = "≬";
+        String prompt = "[Unlock]";
+        
         m_lockString = String.format("%-8s",lockString);
         m_label = new Label(m_lockLabelString);
         m_label.setId("logoBox");
@@ -203,9 +207,6 @@ public class LockField extends HBox {
         if(m_lockId.get() != null){
             m_lockId.set(null);
             m_label.setText(m_lockLabelString);
-
- 
-           
 
             if(!getChildren().contains(m_unlockBtnBox)){
                 getChildren().add(m_unlockBtnBox);

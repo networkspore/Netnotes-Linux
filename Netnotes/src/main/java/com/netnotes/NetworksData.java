@@ -988,7 +988,7 @@ public class NetworksData {
 
     }
 
-    private void openStatic(String networkId){
+    public void openStatic(String networkId){
         TabInterface currentTab = m_currentMenuTab.get();
 
         String currentTabId = currentTab != null ? currentTab.getAppId() : null;
@@ -1010,7 +1010,7 @@ public class NetworksData {
     }
 
    
-    private void openNetwork(String networkId){
+    public void openNetwork(String networkId){
         TabInterface currentTab = m_currentMenuTab.get();
         
         String currentTabId = currentTab != null ? currentTab.getAppId() : null;
@@ -1041,7 +1041,7 @@ public class NetworksData {
         }
     }
 
-    private void openApp(String networkId){
+    public void openApp(String networkId){
         TabInterface currentTab = m_currentMenuTab.get();
 
         String currentTabId = currentTab != null ? currentTab.getAppId() : null;
@@ -2069,7 +2069,7 @@ public class NetworksData {
     }
 
 
-    private class ManageNetworksTab extends AppBox  implements TabInterface{
+    public class ManageNetworksTab extends AppBox  implements TabInterface{
         public static final String NAME = "Networks";
         private String m_status = App.STATUS_STOPPED;
         private VBox m_listBox = new VBox();
