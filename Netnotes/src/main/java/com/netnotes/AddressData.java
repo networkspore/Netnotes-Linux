@@ -10,6 +10,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.utils.Utils;
 import java.io.IOException;
@@ -22,8 +23,8 @@ public class AddressData extends Network {
 
     //private final ArrayList<ErgoTransaction> m_watchedTransactions = new ArrayList<>();
 
-    private JsonObject m_balanceJson = null;
-   
+    private String m_balanceString = null;
+    private JsonParser m_jsonParser = new JsonParser();
   /* 
     private final SimpleObjectProperty<ErgoTransaction> m_selectedTransaction = new SimpleObjectProperty<>(null);
     
@@ -41,7 +42,7 @@ public class AddressData extends Network {
         super(null, name, addressString, walletData);
         //m_wallet = wallet;
         m_walletData = walletData;
-     
+        
         m_index = index;
         m_networkType = networktype;
         m_addressString = addressString;
@@ -54,8 +55,9 @@ public class AddressData extends Network {
         json.addProperty("address", m_addressString);
         json.addProperty("name", getName());
         json.addProperty("networkType", m_networkType.toString());
-        if(m_balanceJson != null){
-            json.add("balance", m_balanceJson);
+        JsonObject balanceObject = getBalance();
+        if(balanceObject != null){
+            json.add("balance", balanceObject);
         }
         return json;
     }
@@ -219,7 +221,11 @@ public class AddressData extends Network {
     public JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
         json.addProperty("address", m_addressString);
-        json.add("balance", m_balanceJson);
+        JsonObject balanceObject = getBalance();
+        if(balanceObject != null){
+            json.add("balance", balanceObject);
+        }
+        
         return json;
     }
 
@@ -530,7 +536,7 @@ public class AddressData extends Network {
         balanceJson.addProperty("timeStamp", timeStamp);
        // String balanceString = balanceJson.toString();
         
-        m_balanceJson = balanceJson;
+        m_balanceString = balanceJson.toString();
         /*try {
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             Files.writeString(App.logFile.toPath(), gson.toJson(balanceJson) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -544,7 +550,13 @@ public class AddressData extends Network {
     }
     
     public JsonObject getBalance(){
-        return m_balanceJson;
+        if(m_balanceString != null){
+            JsonElement balanceElement = m_jsonParser.parse(m_balanceString);
+            if(balanceElement != null && balanceElement.isJsonObject()){
+                return balanceElement.getAsJsonObject();
+            }
+        }
+        return null;
     }
 
    

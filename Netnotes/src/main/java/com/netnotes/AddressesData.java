@@ -936,7 +936,7 @@ public class AddressesData {
             boolean spectrumIsQuote = quoteIdString.equals(ErgoDex.SPF_ID);
 
             boolean feeIsSPF = false;
-            byte[] spectrumId = Base16.decode(feeIsSPF ? ErgoDex.SPF_ID : ErgoDex.ERG_ID).get();
+            byte[] spectrumId = Base16.decode(feeIsSPF ? ErgoDex.SPF_ID : ErgoCurrency.TOKEN_ID).get();
             //minValueForOrder = minerFee + uiFee + exFee + MinBoxValue
 
             long quoteAmountLong = quotePriceAmount.getLongAmount();

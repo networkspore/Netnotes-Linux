@@ -2843,10 +2843,11 @@ public class NetworksData {
             socketBox.setMouseTransparent(true);
        
 
-            
-            
+            HBox socketPaddingBox = new HBox(socketBox);
+            socketPaddingBox.setMouseTransparent(true);
+            socketPaddingBox.setPadding(new Insets(0,0,0,5));
 
-            StackPane currentNetworkBox = new StackPane(m_networkBtn, socketBox, networkMenuBtnBox);
+            StackPane currentNetworkBox = new StackPane(m_networkBtn, socketPaddingBox, networkMenuBtnBox);
             currentNetworkBox.setMaxWidth(52);
             currentNetworkBox.setMaxHeight(52);
             currentNetworkBox.setMinWidth(52);

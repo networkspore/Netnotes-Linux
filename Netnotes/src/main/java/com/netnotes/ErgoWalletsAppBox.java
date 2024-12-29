@@ -209,7 +209,7 @@ public class ErgoWalletsAppBox extends AppBox {
             JsonObject note = Utils.getCmdObject("getBalance");
             note.addProperty("locationId", m_locationId);
             note.addProperty("accessId", m_lockBox.getLockId());
-            
+            note.addProperty("address", m_lockBox.getAddress());
             Object obj = walletInterface.sendNote(note);
             
             if(obj != null && obj instanceof JsonObject){
@@ -423,7 +423,6 @@ public class ErgoWalletsAppBox extends AppBox {
         HBox walletBtnBox = new HBox(m_walletFieldBox, walletMenuBtnPadding);
         walletBtnBox.setPadding(new Insets(2, 2, 0, 5));
         HBox.setHgrow(walletBtnBox, Priority.ALWAYS);
-
         walletBtnBox.setAlignment(Pos.CENTER_LEFT);
 
      

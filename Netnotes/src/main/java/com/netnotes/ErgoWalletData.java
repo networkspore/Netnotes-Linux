@@ -22,7 +22,6 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -540,10 +539,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 return ErgoWalletData.this.getAppIcon();
             }
 
-   
-            public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
-                return null;
-            }
 
             public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
                 return ErgoWalletData.this.sendNote(note, onSucceeded, onFailed);
@@ -570,9 +565,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 return null;
             }
 
-            public void addUpdateListener(ChangeListener<LocalDateTime> changeListener){}
-
-            public void removeUpdateListener(){}
 
 
             public void shutdown(){}

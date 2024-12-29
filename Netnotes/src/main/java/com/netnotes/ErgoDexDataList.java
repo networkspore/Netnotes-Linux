@@ -3,9 +3,6 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,17 +15,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
@@ -46,7 +40,6 @@ import javafx.stage.Stage;
 
 public class ErgoDexDataList  {
 
-    //private ErgoCurrencyToken m_ergoCurrency = new ErgoCurrencyToken(NetworkType.MAINNET);
     public final static String LOADING = "Loading...";
     public final static String ID = "spectrumDataList";
     private ErgoDex m_ergodex;
@@ -270,11 +263,6 @@ public class ErgoDexDataList  {
         return m_isInvert;
     }
 
-
-  
-    public TabInterface getTab(){
-        return null;
-    }
 
     public void updateMarkets(ArrayList<ErgoDexMarketData> marketsArray) {
         

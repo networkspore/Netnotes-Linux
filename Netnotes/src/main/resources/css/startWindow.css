@@ -1087,7 +1087,7 @@
     -fx-border-style: solid;
     -fx-border-radius: 45;
     -fx-background-radius: 45;
-    -fx-padding: 0;
+
     -fx-opacity: 0.9;
 
 }
@@ -1168,7 +1168,7 @@
     -fx-min-height: 50;
     -fx-min-width: 50;
     -fx-max-width: 50;
-    -fx-alignment: center;
+    -fx-padding: 0 0 0 5;
 }
 
 #menuTabBtn:hover {   
@@ -1176,12 +1176,13 @@
 }
 
 #minimizedMenuBtn {
-    -fx-background-color:radial-gradient(center 2% 50%, radius 100%, #ffffff 2%, #88888800 8%, transparent 100%);
+    -fx-background-color:radial-gradient(center 2% 50%, radius 100%, #777777 2%, #88888800 8%, transparent 100%);
     -fx-opacity: .8;
     -fx-min-height: 50;
     -fx-min-width: 50;
     -fx-max-width: 50;
     -fx-alignment: center;
+    -fx-padding: 0 0 0 5;
 }
 
 #minimizedMenuBtn:hover{
@@ -1194,7 +1195,7 @@
     -fx-min-height: 50;
     -fx-min-width: 50;
     -fx-max-width: 50;
-    -fx-alignment: center;
+    -fx-padding: 0 0 0 5;
 }
 #activeMenuBtn:hover {
    

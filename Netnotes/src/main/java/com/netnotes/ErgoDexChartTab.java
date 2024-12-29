@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.netnotes.NetworksData.ManageNetworksTab;
 import com.utils.Utils;
 
 import javafx.application.Platform;
@@ -27,12 +28,15 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -55,7 +59,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
+import org.ergoplatform.appkit.NetworkType;
 import org.reactfx.util.FxTimer;
 
 public class ErgoDexChartTab extends ContentTab {
@@ -638,550 +644,590 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
     public class ErgoDexSwapBox extends VBox{
- 
+        public final static String WALLET_BOX = "Wallet";
+
+        private VBox m_swapScrollContentBox;
+        private SimpleStringProperty m_currentSwapContentBox = new SimpleStringProperty(WALLET_BOX);
+        private ScrollPane m_swapBoxScroll;
+        private ErgoDexWalletBox m_dexWallet;
+
         private ChangeListener<LocalDateTime> m_marketDataUpdateListener = null;
 
         public ErgoDexSwapBox(){
             super();
             setMinWidth(SWAP_BOX_MIN_WIDTH);
-
+            VBox.setVgrow(this, Priority.ALWAYS);
+            m_dexWallet = new ErgoDexWalletBox();
             // SimpleObjectProperty<PriceAmount> spfPriceAmountObject = new SimpleObjectProperty<>(null);
-             SimpleObjectProperty<PriceAmount> basePriceAmountObject = new SimpleObjectProperty<>(null); 
-             SimpleObjectProperty<PriceAmount> quotePriceAmountObject = new SimpleObjectProperty<>(null);
-     
-             SimpleObjectProperty<BigDecimal> orderPriceObject = new SimpleObjectProperty< BigDecimal>();
-      
-             SimpleBooleanProperty isBuyObject = new SimpleBooleanProperty(true);
-          //   SimpleBooleanProperty isSpfFeesObject = new SimpleBooleanProperty(false);
-             SimpleObjectProperty<BigDecimal> currentAmount = new SimpleObjectProperty<>(BigDecimal.ZERO);
-             SimpleObjectProperty<BigDecimal> currentVolume = new SimpleObjectProperty<>(BigDecimal.ZERO);
-             
-             SimpleStringProperty orderTypeStringObject = new SimpleStringProperty(MARKET_ORDER);
-     
-             SimpleBooleanProperty showPoolStats = new SimpleBooleanProperty(true);
-     
-             Runnable updateOrderPriceObject = () ->{
-                 if(orderTypeStringObject.get() != null && orderTypeStringObject.get().equals(MARKET_ORDER)){
-                     orderPriceObject.set(isInvert() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice());
-                 }
-                 
-             };
-     
-             updateOrderPriceObject.run();
-     
-     
-             TextField baseQuantityField = new TextField();
-             HBox.setHgrow(baseQuantityField, Priority.ALWAYS);
-             baseQuantityField.setId("formField");
-             baseQuantityField.setEditable(false);
-             baseQuantityField.setAlignment(Pos.CENTER_RIGHT);
-     
-             ImageView baseImgView = new ImageView();
-             baseImgView.setPreserveRatio(true);
-     
-     
-     
-             StackPane baseQuantityFieldBox = new StackPane(baseImgView, baseQuantityField);
-             baseQuantityFieldBox.setId("darkBox");
-             baseQuantityFieldBox.setPadding(new Insets(0,3,0,0));
-             baseQuantityFieldBox.setAlignment(Pos.CENTER_LEFT);
-             HBox.setHgrow(baseQuantityFieldBox, Priority.ALWAYS);
-     
-             HBox baseQuantityBox = new HBox(baseQuantityFieldBox);
-             baseQuantityBox.setPadding(new Insets(0,5,0,3));
-             baseQuantityBox.setAlignment(Pos.CENTER_LEFT);
-             HBox.setHgrow(baseQuantityBox, Priority.ALWAYS);
-     
-        
-             
-     
-     
-             ImageView poolStatsIconView = new ImageView(m_dataList.getErgoDex().getSmallAppIcon());
-             poolStatsIconView.setFitWidth(20);
-             poolStatsIconView.setPreserveRatio(true);
-     
-             Label poolStatsLbl = new Label("Profile");
-             poolStatsLbl.setFont(App.titleFont);
-             poolStatsLbl.setTextFill(App.txtColor);
-             poolStatsLbl.setPadding(new Insets(0, 0, 0, 10));
-     
-             Region poolStatsSpacer = new Region();
-             HBox.setHgrow(poolStatsSpacer, Priority.ALWAYS);
-     
-             
-             
-             BufferedButton poolStatsToggleShowBtn = new BufferedButton("/assets/caret-up-15.png", 15);
-             poolStatsToggleShowBtn.setId("toolBtn");
-             poolStatsToggleShowBtn.setPadding(new Insets(0, 5, 0, 3));
-             poolStatsToggleShowBtn.setOnAction(e->{
-                 showPoolStats.set(!showPoolStats.get());
-             });
-             
-     
-             
-             HBox poolStatsTopBar = new HBox(poolStatsIconView, poolStatsLbl, poolStatsSpacer, poolStatsToggleShowBtn);
-             poolStatsTopBar.setAlignment(Pos.CENTER_LEFT);
-             poolStatsTopBar.setPadding(new Insets(5,1, 5, 5));
-             poolStatsTopBar.setId("networkTopBar");
-     
-             
-     
-             VBox poolStatsBox = new VBox();
-     
-             VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
-             
-             
-             showPoolStats.addListener((obs,oldval,newval)->{
-                 
-                 poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
-             
-                 if(newval){
-                     
-                 }else{
-                    
-                 }
-             });
-     
-             Button buyBtn = new Button("Buy");
-             buyBtn.setOnAction(e->{
-                 isBuyObject.set(true);
-             });
-     
-             Button sellBtn = new Button("Sell");
-             sellBtn.setOnAction(e->{
-                 isBuyObject.set(false);
-             });
-     
-             Region buySellSpacerRegion = new Region();
-             VBox.setVgrow(buySellSpacerRegion, Priority.ALWAYS);
-     
-             HBox buySellBox = new HBox(buyBtn, sellBtn);
-             HBox.setHgrow(buySellBox,Priority.ALWAYS);
-     
-             buyBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
-             sellBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
-     
-      
-             
-             
-     
-     
-             
-             Button marketOrderBtn = new Button("Market");
-             marketOrderBtn.setId("selectedBtn");
-     
-             HBox orderTypeBtnBox = new HBox(marketOrderBtn);
-             HBox.setHgrow(orderTypeBtnBox, Priority.ALWAYS);
-         
-             orderTypeBtnBox.setAlignment(Pos.CENTER_LEFT);
-     
-             marketOrderBtn.prefWidthProperty().bind(orderTypeBtnBox.widthProperty().divide(3));
-     
-             HBox orderTypeBox = new HBox(orderTypeBtnBox);
-             HBox.setHgrow(orderTypeBox, Priority.ALWAYS);
-             orderTypeBox.setAlignment(Pos.CENTER_LEFT);
-         //    orderTypeBox.setPadding(new Insets(5));
-     
-             Text orderPriceText = new Text(String.format("%-9s", "Price"));
-             orderPriceText.setFill(App.txtColor);
-             orderPriceText.setFont(App.txtFont);
-     
-             ImageView orderPriceImageView = new ImageView(PriceCurrency.getBlankBgIcon(38, m_marketData.getCurrentSymbol(isInvert())));
-             
-     
-             TextField orderPriceTextField = new TextField(orderPriceObject.get() != null ? orderPriceObject.get().toString() : "");
-             HBox.setHgrow(orderPriceTextField, Priority.ALWAYS);
-             orderPriceTextField.setAlignment(Pos.CENTER_RIGHT);
-     
-     
-             TextField orderPriceStatusField = new TextField(m_marketData.getLastUpdated().get() != null ? Utils.formatTimeString(m_marketData.getLastUpdated().get()) : "");
-             orderPriceStatusField.setPrefWidth(80);
-             orderPriceStatusField.setId("smallSecondaryColor");
-             orderPriceStatusField.setPadding(new Insets(1,0,0,0));
-             orderPriceStatusField.setAlignment(Pos.BOTTOM_RIGHT);
-     
-             HBox orderPriceStatusBox = new HBox(orderPriceStatusField);
-             VBox.setVgrow(orderPriceStatusBox, Priority.ALWAYS);
-             HBox.setHgrow(orderPriceStatusBox, Priority.ALWAYS);
-             orderPriceStatusBox.setAlignment(Pos.BOTTOM_RIGHT);
-     
-             StackPane orderPriceStackBox = new StackPane(orderPriceStatusBox, orderPriceImageView, orderPriceTextField);
-             HBox.setHgrow(orderPriceStackBox, Priority.ALWAYS);
-             orderPriceStackBox.setAlignment(Pos.CENTER_LEFT);
-             orderPriceStackBox.setId("darkBox");
-     
-             HBox orderPriceBox = new HBox(orderPriceText, orderPriceStackBox);
-             HBox.setHgrow(orderPriceBox, Priority.ALWAYS);
-             orderPriceBox.setAlignment(Pos.CENTER_LEFT);
-             orderPriceBox.setPadding(new Insets(5,0,5,0));
-     
-             HBox pricePaddingBox = new HBox(orderPriceBox);
-             HBox.setHgrow(pricePaddingBox, Priority.ALWAYS);
-             pricePaddingBox.setPadding(new Insets(5));
-     
-             Text amountText = new Text(String.format("%-9s", "Amount"));
-             amountText.setFill(App.txtColor);
-             amountText.setFont(App.txtFont);
-     
-             ImageView amountFieldImage = new ImageView();
-             amountFieldImage.setPreserveRatio(true);
-     
-     
-             TextField amountField = new TextField("0.0");
-             HBox.setHgrow(amountField, Priority.ALWAYS);
-             amountField.setId("swapBtn");
-             amountField.setPadding(new Insets(2,10,2,10));
-             amountField.setAlignment(Pos.CENTER_RIGHT);
-             
-            
-     
-             StackPane amountStack = new StackPane(amountFieldImage, amountField);
-             HBox.setHgrow(amountStack, Priority.ALWAYS);
-             amountStack.setAlignment(Pos.CENTER_LEFT);
-             amountStack.setId("darkBox");
-             amountStack.setPadding(new Insets(2));
-             amountStack.setMinHeight(40);
-             Slider amountSlider = new Slider();
-             HBox.setHgrow(amountSlider, Priority.ALWAYS);
-             amountSlider.setShowTickMarks(true);
-             amountSlider.setMinorTickCount(4);
-             amountSlider.setSnapToTicks(true);
-             amountSlider.setMax(0);
-     
-            
-     
-             amountSlider.valueProperty().addListener((obs,oldval,newval)->{
-     
-                 if(newval.doubleValue() == 0){
-                     amountField.setText("0.0");
-                 }else{
-                     amountField.setText(newval.doubleValue() + "");
-                 }
-                 
-             });
-             VBox amountVBox = new VBox( amountStack, amountSlider);
-             HBox.setHgrow(amountVBox, Priority.ALWAYS);
-     
-             HBox amountPaddingBox = new HBox(amountText, amountVBox);
-             amountPaddingBox.setAlignment(Pos.CENTER_LEFT);
-             HBox.setHgrow(amountPaddingBox,Priority.ALWAYS);
-             amountPaddingBox.setPadding(new Insets(5));
-     
-             HBox feeAmountPaddingBox = new HBox();
-             HBox.setHgrow(feeAmountPaddingBox,Priority.ALWAYS);
-     
-             Text volumeText = new Text(String.format("%-9s", "Volume"));
-             volumeText.setFill(App.txtColor);
-             volumeText.setFont(App.txtFont);
-     
-             ImageView volumeFieldImage = new ImageView();
-             volumeFieldImage.setPreserveRatio(true);
-     
-     
-     
-             TextField volumeField = new TextField("0.0");
-             HBox.setHgrow(volumeField, Priority.ALWAYS);
-             volumeField.setId("swapBtnStatic");
-             volumeField.setEditable(false);
-             volumeField.setPadding(new Insets(2,10,2,10));
-             volumeField.setAlignment(Pos.CENTER_RIGHT);
-         
-             currentVolume.addListener((obs,oldVal, newVal)->{
-                 if(newVal.equals(BigDecimal.ZERO)){
-                     volumeField.setText("0.0");
-                 }else{
-                     volumeField.setText(String.format("%.6f", newVal));
-                 }
-             });
-     
-             Runnable updateVolumeFromAmount = ()->{
-                 
-     
-                 BigDecimal bigPrice =  orderPriceObject.get() != null ? orderPriceObject.get() : BigDecimal.ZERO;
-                 
-                 BigDecimal bigAmount = currentAmount.get() != null ? currentAmount.get() : BigDecimal.ZERO;
-     
-                 BigDecimal volume = BigDecimal.ZERO;
-                 if(!bigAmount.equals(BigDecimal.ZERO)){
-                     try{
-                         volume = isBuyObject.get() ? bigAmount.multiply(bigPrice) : bigAmount.divide(bigPrice, m_marketData.getFractionalPrecision(), RoundingMode.HALF_UP);
-                     }catch(Exception e){
-                         volume = BigDecimal.ZERO;
-                     }
-                 }
-             
-                 currentVolume.set(volume);
-                 PriceAmount amountAvailable = isBuyObject.get() ? basePriceAmountObject.get() : quotePriceAmountObject.get();
-                 if(amountAvailable != null){
-                     if(amountAvailable.amountProperty().get().compareTo(bigAmount) == -1){
-                         amountField.setId("swapBtnUnavailable");
-                         volumeField.setId("swapBtnUnavailable");
-                     }else{
-                         amountField.setId("swapBtnAvailable");
-                         volumeField.setId("swapBtnAvailable");
-                     }
-                 }else{
-                     amountField.setId("swapBtn");
-                     volumeField.setId("swapBtn");
-                 }
-                 
-                 //if(bigAmount.compareTo(newval))
-             
-             };
-             
-             currentAmount.addListener((obs,oldval, newval)->updateVolumeFromAmount.run());
-             
-             
-             amountField.textProperty().addListener((obs, oldval, newval)->{
-                 
-                 int decimals = m_marketData.getFractionalPrecision();
-                 String number = newval.replaceAll("[^0-9.]", "");
-                 int index = number.indexOf(".");
-                 String leftSide = index != -1 ? number.substring(0, index + 1) : number;
-                 String rightSide = index != -1 ?  number.substring(index + 1) : "";
-     
-                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
-                 rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
-     
-                 String str = leftSide +  rightSide;
-                 amountField.setText(str);
-                 
-                 try{
-                     if(!Utils.onlyZero(str)){
-                         BigDecimal bigAmount = new BigDecimal(str);
-                         currentAmount.set(bigAmount);
-                   
-                     }else{
-                         currentAmount.set(BigDecimal.ZERO);
-                     }
-                 }catch(Exception e){
-                     currentAmount.set(BigDecimal.ZERO);
-                  
-                 }   
-        
-     
-                 
-             });
-     
-     
-     
-             amountField.focusedProperty().addListener((obs,oldval,newval)->{
-                 if(!newval){
-                     String str = amountField.getText();
-                     if(str.equals(("0.")) && str.equals(("0")) && str.equals("") && str.equals(".")){
-                         amountField.setText("0.0");
-                     }
-                 }
-             });
-     
-             StackPane volumeStack = new StackPane(volumeFieldImage, volumeField);
-             HBox.setHgrow(volumeStack, Priority.ALWAYS);
-             volumeStack.setAlignment(Pos.CENTER_LEFT);
-             volumeStack.setId("darkBox");
-             //volumeStack.setPadding(new Insets(2));
-             volumeStack.setMinHeight(40);
-     
-            
-     
-             HBox quoteVolumHbox = new HBox(volumeText, volumeStack); 
-             HBox.setHgrow(quoteVolumHbox, Priority.ALWAYS);
-             quoteVolumHbox.setAlignment(Pos.CENTER_LEFT);
-             
-     
-             HBox quoteAmountPaddingBox = new HBox(quoteVolumHbox);
-             HBox.setHgrow(quoteAmountPaddingBox,Priority.ALWAYS);
-             quoteAmountPaddingBox.setPadding(new Insets(5));
-            
-             HBox isBuyPaddingBox = new HBox(buySellBox);
-             HBox.setHgrow(isBuyPaddingBox, Priority.ALWAYS);
-             isBuyPaddingBox.setPadding(new Insets(15));
-     
-             Button executeBtn = new Button("");
-             executeBtn.setOnAction(e->{
-                 boolean isBuy = isBuyObject.get();
-                 boolean invert = isBuy ? isInvert() : !isInvert();
-                
-                 String quoteId = invert ?  m_marketData.getBaseId() : m_marketData.getQuoteId();
-                 String baseId = invert ? m_marketData.getQuoteId() : m_marketData.getBaseId();
-                 BigDecimal baseAmount = currentAmount.get();
-     
-                // executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
-                 //swap();
-             });
-     
-             HBox executeBox = new HBox(executeBtn);
-             HBox.setHgrow(executeBox,Priority.ALWAYS);
-             executeBox.setAlignment(Pos.CENTER);
-             executeBox.setMinHeight(40);
-             
-     
-             HBox executePaddingBox = new HBox(executeBox);
-             HBox.setHgrow(executePaddingBox, Priority.ALWAYS);
-             executePaddingBox.setPadding(new Insets(5));
-     
-             VBox marketBox = new VBox(isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, executePaddingBox );
-             marketBox.setPadding(new Insets(5));
-             marketBox.setId("bodyBox");
-     
-          
-     
-             VBox marketPaddingBox = new VBox(orderTypeBox, marketBox);
-     
-             
-     
-     
-             Runnable updateOrderType = () ->{
-             
-                 String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
-                 
-                 switch(orderType){
-                     
-                     case LIMIT_ORDER:
-                         orderPriceTextField.setId("swapBtn");
-                         orderPriceTextField.setEditable(true);
-                     
-                         break;
-                     case MARKET_ORDER:        
-                     default:
-                         orderPriceTextField.setId("swapBtnStatic");
-                         orderPriceTextField.setEditable(false);
-                      
-                         
-                 }
-             
-             };
-             
-     
-             orderTypeStringObject.addListener((obs,oldVal,newVal)->updateOrderType.run());
-     
-             updateOrderType.run();
-     
-           
-     
-             
-     
-             Runnable updateBuySellBtns = ()->{
-                 boolean isBuy = isBuyObject.get();
-                 buyBtn.setId(isBuy ? "iconBtnSelected" : "iconBtn");
-                 sellBtn.setId(isBuy ? "iconBtn" : "iconBtnSelected");
-                 
-                 boolean invert = isInvert();
-                
-                 String quoteSymbol = invert ?  m_marketData.getBaseSymbol() : m_marketData.getQuoteSymbol();
-     
-                 executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
-     
-                 
-             };
-     
-             updateBuySellBtns.run();
-     
-             Text feesText = new Text("Fees");
-             feesText.setFont(App.titleFont);
-             feesText.setFill(Color.WHITE);
-     
-             HBox feesTextBox = new HBox(feesText);
-             HBox.setHgrow(feesTextBox,Priority.ALWAYS);
-             VBox.setVgrow(feesTextBox,Priority.ALWAYS);
-             feesTextBox.setAlignment(Pos.TOP_RIGHT);
-     
-     
-           /*  Runnable updateFeesBtn = () ->{
-                 
-                 if(isSpfFeesObject.get()){
-                     //ergoRemoveFees
-                     if(ergoQuantityFieldBox.getChildren().contains(feesTextBox)){
-                         ergoQuantityFieldBox.getChildren().remove(feesTextBox);
-                     }
-                     //spfAddFees
-                     if(!spfQuantityFieldBox.getChildren().contains(feesTextBox)){
-                         spfQuantityFieldBox.getChildren().add(feesTextBox);
-                     }
-                 }else{
-                     //spfAddFees
-                     if(spfQuantityFieldBox.getChildren().contains(feesTextBox)){
-                         spfQuantityFieldBox.getChildren().remove(feesTextBox);
-                     }
-                     //ergoRemoveFees
-                     if(!ergoQuantityFieldBox.getChildren().contains(feesTextBox)){
-                         ergoQuantityFieldBox.getChildren().add(feesTextBox);
-                     }
-                 }
-             };
-     
-             updateFeesBtn.run();
-     
-             ergoQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-                 isSpfFeesObject.set(false);
-             });
-             spfQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-                 isSpfFeesObject.set(true);
-             });*/
-     
-        
-     
-             isBuyObject.addListener((obs,oldval,newval)->{
-                 updateBuySellBtns.run();
-      
-              
-             });
-     
-             isInvertProperty().addListener((obs,oldval, newval)->{
-                 updateBuySellBtns.run();
-     
-                 orderPriceImageView.setImage(PriceCurrency.getBlankBgIcon(38, m_marketData.getCurrentSymbol(newval)));
-             });
-     
-             
-             orderPriceObject.addListener((obs,oldval,newval)->{
-              
-                 if(newval != null){
-                     
-                     orderPriceTextField.setText(newval.toString());
-                   
-                 }else{
-                     orderPriceTextField.setText("");
-                 }
-             });
-     
-     
-     
-          //   isSpfFeesObject.addListener((obs,oldval,newval)->updateFeesBtn.run());
-            //AddressData update
-                 
-        
-     
-             m_marketDataUpdateListener = (obs,oldVal,newVal)->{
-                 String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
-                 
-                 switch(orderType){
-                     case MARKET_ORDER:
-                         updateOrderPriceObject.run();
-                         updateVolumeFromAmount.run();
-                         orderPriceStatusField.setText(Utils.formatTimeString(newVal));
-                     break;
-                 }
-     
-                 
-                 
-             };
-             
-             m_marketData.getLastUpdated().addListener(m_marketDataUpdateListener);
-     
-           
-            
-     
-             
-     
-             
+            SimpleObjectProperty<PriceAmount> basePriceAmountObject = new SimpleObjectProperty<>(null); 
+            SimpleObjectProperty<PriceAmount> quotePriceAmountObject = new SimpleObjectProperty<>(null);
     
-     
-            getChildren().add(marketPaddingBox);
-             
-             
-
+            SimpleObjectProperty<BigDecimal> orderPriceObject = new SimpleObjectProperty< BigDecimal>();
+    
+            SimpleBooleanProperty isBuyObject = new SimpleBooleanProperty(true);
+        //   SimpleBooleanProperty isSpfFeesObject = new SimpleBooleanProperty(false);
+            SimpleObjectProperty<BigDecimal> currentAmount = new SimpleObjectProperty<>(BigDecimal.ZERO);
+            SimpleObjectProperty<BigDecimal> currentVolume = new SimpleObjectProperty<>(BigDecimal.ZERO);
+            
+            SimpleStringProperty orderTypeStringObject = new SimpleStringProperty(MARKET_ORDER);
+    
+            SimpleBooleanProperty showPoolStats = new SimpleBooleanProperty(true);
+    
+            Runnable updateOrderPriceObject = () ->{
+                if(orderTypeStringObject.get() != null && orderTypeStringObject.get().equals(MARKET_ORDER)){
+                    orderPriceObject.set(isInvert() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice());
+                }
+                
+            };
+    
+            updateOrderPriceObject.run();
+    
+    
+            TextField baseQuantityField = new TextField();
+            HBox.setHgrow(baseQuantityField, Priority.ALWAYS);
+            baseQuantityField.setId("formField");
+            baseQuantityField.setEditable(false);
+            baseQuantityField.setAlignment(Pos.CENTER_RIGHT);
+    
+            ImageView baseImgView = new ImageView();
+            baseImgView.setPreserveRatio(true);
+    
+    
+    
+            StackPane baseQuantityFieldBox = new StackPane(baseImgView, baseQuantityField);
+            baseQuantityFieldBox.setId("darkBox");
+            baseQuantityFieldBox.setPadding(new Insets(0,3,0,0));
+            baseQuantityFieldBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(baseQuantityFieldBox, Priority.ALWAYS);
+    
+            HBox baseQuantityBox = new HBox(baseQuantityFieldBox);
+            baseQuantityBox.setPadding(new Insets(0,5,0,3));
+            baseQuantityBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(baseQuantityBox, Priority.ALWAYS);
+    
+    
+            
+    
+    
+            ImageView poolStatsIconView = new ImageView(m_dataList.getErgoDex().getSmallAppIcon());
+            poolStatsIconView.setFitWidth(20);
+            poolStatsIconView.setPreserveRatio(true);
+    
+            Label poolStatsLbl = new Label("Profile");
+            poolStatsLbl.setFont(App.titleFont);
+            poolStatsLbl.setTextFill(App.txtColor);
+            poolStatsLbl.setPadding(new Insets(0, 0, 0, 10));
+    
+            Region poolStatsSpacer = new Region();
+            HBox.setHgrow(poolStatsSpacer, Priority.ALWAYS);
+    
+            
+            
+            BufferedButton poolStatsToggleShowBtn = new BufferedButton("/assets/caret-up-15.png", 15);
+            poolStatsToggleShowBtn.setId("toolBtn");
+            poolStatsToggleShowBtn.setPadding(new Insets(0, 5, 0, 3));
+            poolStatsToggleShowBtn.setOnAction(e->{
+                showPoolStats.set(!showPoolStats.get());
+            });
+            
+    
+            
+            HBox poolStatsTopBar = new HBox(poolStatsIconView, poolStatsLbl, poolStatsSpacer, poolStatsToggleShowBtn);
+            poolStatsTopBar.setAlignment(Pos.CENTER_LEFT);
+            poolStatsTopBar.setPadding(new Insets(5,1, 5, 5));
+            poolStatsTopBar.setId("networkTopBar");
+    
+            
+    
+            VBox poolStatsBox = new VBox();
+    
+            VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
+            
+            
+            showPoolStats.addListener((obs,oldval,newval)->{
+                
+                poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
+            
+                if(newval){
+                    
+                }else{
+                
+                }
+            });
+    
+            Button buyBtn = new Button("Buy");
+            buyBtn.setOnAction(e->{
+                isBuyObject.set(true);
+            });
+    
+            Button sellBtn = new Button("Sell");
+            sellBtn.setOnAction(e->{
+                isBuyObject.set(false);
+            });
+    
+            Region buySellSpacerRegion = new Region();
+            VBox.setVgrow(buySellSpacerRegion, Priority.ALWAYS);
+    
+            HBox buySellBox = new HBox(buyBtn, sellBtn);
+            HBox.setHgrow(buySellBox,Priority.ALWAYS);
+    
+            buyBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
+            sellBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
+    
+    
+            
+            
+    
+    
+            
+            Button marketOrderBtn = new Button("Market");
+            marketOrderBtn.setId("selectedBtn");
+    
+            HBox orderTypeBtnBox = new HBox(marketOrderBtn);
+            HBox.setHgrow(orderTypeBtnBox, Priority.ALWAYS);
+        
+            orderTypeBtnBox.setAlignment(Pos.CENTER_LEFT);
+    
+            marketOrderBtn.prefWidthProperty().bind(orderTypeBtnBox.widthProperty().divide(3));
+    
+            HBox orderTypeBox = new HBox(orderTypeBtnBox);
+            HBox.setHgrow(orderTypeBox, Priority.ALWAYS);
+            orderTypeBox.setAlignment(Pos.CENTER_LEFT);
+        //    orderTypeBox.setPadding(new Insets(5));
+    
+            Text orderPriceText = new Text(String.format("%-9s", "Price"));
+            orderPriceText.setFill(App.txtColor);
+            orderPriceText.setFont(App.txtFont);
+    
+            ImageView orderPriceImageView = new ImageView(PriceCurrency.getBlankBgIcon(38, m_marketData.getCurrentSymbol(isInvert())));
+            
+    
+            TextField orderPriceTextField = new TextField(orderPriceObject.get() != null ? orderPriceObject.get().toString() : "");
+            HBox.setHgrow(orderPriceTextField, Priority.ALWAYS);
+            orderPriceTextField.setAlignment(Pos.CENTER_RIGHT);
+    
+    
+            TextField orderPriceStatusField = new TextField(m_marketData.getLastUpdated().get() != null ? Utils.formatTimeString(m_marketData.getLastUpdated().get()) : "");
+            orderPriceStatusField.setPrefWidth(80);
+            orderPriceStatusField.setId("smallSecondaryColor");
+            orderPriceStatusField.setPadding(new Insets(1,0,0,0));
+            orderPriceStatusField.setAlignment(Pos.BOTTOM_RIGHT);
+    
+            HBox orderPriceStatusBox = new HBox(orderPriceStatusField);
+            VBox.setVgrow(orderPriceStatusBox, Priority.ALWAYS);
+            HBox.setHgrow(orderPriceStatusBox, Priority.ALWAYS);
+            orderPriceStatusBox.setAlignment(Pos.BOTTOM_RIGHT);
+    
+            StackPane orderPriceStackBox = new StackPane(orderPriceStatusBox, orderPriceImageView, orderPriceTextField);
+            HBox.setHgrow(orderPriceStackBox, Priority.ALWAYS);
+            orderPriceStackBox.setAlignment(Pos.CENTER_LEFT);
+            orderPriceStackBox.setId("darkBox");
+    
+            HBox orderPriceBox = new HBox(orderPriceText, orderPriceStackBox);
+            HBox.setHgrow(orderPriceBox, Priority.ALWAYS);
+            orderPriceBox.setAlignment(Pos.CENTER_LEFT);
+            orderPriceBox.setPadding(new Insets(5,0,5,0));
+    
+            HBox pricePaddingBox = new HBox(orderPriceBox);
+            HBox.setHgrow(pricePaddingBox, Priority.ALWAYS);
+            pricePaddingBox.setPadding(new Insets(5));
+    
+            Text amountText = new Text(String.format("%-9s", "Amount"));
+            amountText.setFill(App.txtColor);
+            amountText.setFont(App.txtFont);
+    
+            ImageView amountFieldImage = new ImageView();
+            amountFieldImage.setPreserveRatio(true);
+    
+    
+            TextField amountField = new TextField("0.0");
+            HBox.setHgrow(amountField, Priority.ALWAYS);
+            amountField.setId("swapBtn");
+            amountField.setPadding(new Insets(2,10,2,10));
+            amountField.setAlignment(Pos.CENTER_RIGHT);
+            
+        
+    
+            StackPane amountStack = new StackPane(amountFieldImage, amountField);
+            HBox.setHgrow(amountStack, Priority.ALWAYS);
+            amountStack.setAlignment(Pos.CENTER_LEFT);
+            amountStack.setId("darkBox");
+            amountStack.setPadding(new Insets(2));
+            amountStack.setMinHeight(40);
+            Slider amountSlider = new Slider();
+            HBox.setHgrow(amountSlider, Priority.ALWAYS);
+            amountSlider.setShowTickMarks(true);
+            amountSlider.setMinorTickCount(4);
+            amountSlider.setSnapToTicks(true);
+            amountSlider.setMax(0);
+    
+        
+    
+            amountSlider.valueProperty().addListener((obs,oldval,newval)->{
+    
+                if(newval.doubleValue() == 0){
+                    amountField.setText("0.0");
+                }else{
+                    amountField.setText(newval.doubleValue() + "");
+                }
+                
+            });
+            VBox amountVBox = new VBox( amountStack, amountSlider);
+            HBox.setHgrow(amountVBox, Priority.ALWAYS);
+    
+            HBox amountPaddingBox = new HBox(amountText, amountVBox);
+            amountPaddingBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(amountPaddingBox,Priority.ALWAYS);
+            amountPaddingBox.setPadding(new Insets(5));
+    
+            HBox feeAmountPaddingBox = new HBox();
+            HBox.setHgrow(feeAmountPaddingBox,Priority.ALWAYS);
+    
+            Text volumeText = new Text(String.format("%-9s", "Volume"));
+            volumeText.setFill(App.txtColor);
+            volumeText.setFont(App.txtFont);
+    
+            ImageView volumeFieldImage = new ImageView();
+            volumeFieldImage.setPreserveRatio(true);
+    
+    
+    
+            TextField volumeField = new TextField("0.0");
+            HBox.setHgrow(volumeField, Priority.ALWAYS);
+            volumeField.setId("swapBtnStatic");
+            volumeField.setEditable(false);
+            volumeField.setPadding(new Insets(2,10,2,10));
+            volumeField.setAlignment(Pos.CENTER_RIGHT);
+        
+            currentVolume.addListener((obs,oldVal, newVal)->{
+                if(newVal.equals(BigDecimal.ZERO)){
+                    volumeField.setText("0.0");
+                }else{
+                    volumeField.setText(String.format("%.6f", newVal));
+                }
+            });
+    
+            Runnable updateVolumeFromAmount = ()->{
+                
+    
+                BigDecimal bigPrice =  orderPriceObject.get() != null ? orderPriceObject.get() : BigDecimal.ZERO;
+                
+                BigDecimal bigAmount = currentAmount.get() != null ? currentAmount.get() : BigDecimal.ZERO;
+    
+                BigDecimal volume = BigDecimal.ZERO;
+                if(!bigAmount.equals(BigDecimal.ZERO)){
+                    try{
+                        volume = isBuyObject.get() ? bigAmount.multiply(bigPrice) : bigAmount.divide(bigPrice, m_marketData.getFractionalPrecision(), RoundingMode.HALF_UP);
+                    }catch(Exception e){
+                        volume = BigDecimal.ZERO;
+                    }
+                }
+            
+                currentVolume.set(volume);
+                PriceAmount amountAvailable = isBuyObject.get() ? basePriceAmountObject.get() : quotePriceAmountObject.get();
+                if(amountAvailable != null){
+                    if(amountAvailable.amountProperty().get().compareTo(bigAmount) == -1){
+                        amountField.setId("swapBtnUnavailable");
+                        volumeField.setId("swapBtnUnavailable");
+                    }else{
+                        amountField.setId("swapBtnAvailable");
+                        volumeField.setId("swapBtnAvailable");
+                    }
+                }else{
+                    amountField.setId("swapBtn");
+                    volumeField.setId("swapBtn");
+                }
+                
+                //if(bigAmount.compareTo(newval))
+            
+            };
+            
+            currentAmount.addListener((obs,oldval, newval)->updateVolumeFromAmount.run());
+            
+            
+            amountField.textProperty().addListener((obs, oldval, newval)->{
+                
+                int decimals = m_marketData.getFractionalPrecision();
+                String number = newval.replaceAll("[^0-9.]", "");
+                int index = number.indexOf(".");
+                String leftSide = index != -1 ? number.substring(0, index + 1) : number;
+                String rightSide = index != -1 ?  number.substring(index + 1) : "";
+    
+                rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
+                rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
+    
+                String str = leftSide +  rightSide;
+                amountField.setText(str);
+                
+                try{
+                    if(!Utils.onlyZero(str)){
+                        BigDecimal bigAmount = new BigDecimal(str);
+                        currentAmount.set(bigAmount);
+                
+                    }else{
+                        currentAmount.set(BigDecimal.ZERO);
+                    }
+                }catch(Exception e){
+                    currentAmount.set(BigDecimal.ZERO);
+                
+                }   
+    
+    
+                
+            });
+    
+    
+    
+            amountField.focusedProperty().addListener((obs,oldval,newval)->{
+                if(!newval){
+                    String str = amountField.getText();
+                    if(str.equals(("0.")) && str.equals(("0")) && str.equals("") && str.equals(".")){
+                        amountField.setText("0.0");
+                    }
+                }
+            });
+    
+            StackPane volumeStack = new StackPane(volumeFieldImage, volumeField);
+            HBox.setHgrow(volumeStack, Priority.ALWAYS);
+            volumeStack.setAlignment(Pos.CENTER_LEFT);
+            volumeStack.setId("darkBox");
+            //volumeStack.setPadding(new Insets(2));
+            volumeStack.setMinHeight(40);
+    
+        
+    
+            HBox quoteVolumHbox = new HBox(volumeText, volumeStack); 
+            HBox.setHgrow(quoteVolumHbox, Priority.ALWAYS);
+            quoteVolumHbox.setAlignment(Pos.CENTER_LEFT);
+            
+    
+            HBox quoteAmountPaddingBox = new HBox(quoteVolumHbox);
+            HBox.setHgrow(quoteAmountPaddingBox,Priority.ALWAYS);
+            quoteAmountPaddingBox.setPadding(new Insets(5));
+        
+            HBox isBuyPaddingBox = new HBox(buySellBox);
+            HBox.setHgrow(isBuyPaddingBox, Priority.ALWAYS);
+            isBuyPaddingBox.setPadding(new Insets(15));
+    
+            Button executeBtn = new Button("");
+            executeBtn.setOnAction(e->{
+                boolean isBuy = isBuyObject.get();
+                boolean invert = isBuy ? isInvert() : !isInvert();
+            
+                String quoteId = invert ?  m_marketData.getBaseId() : m_marketData.getQuoteId();
+                String baseId = invert ? m_marketData.getQuoteId() : m_marketData.getBaseId();
+                BigDecimal baseAmount = currentAmount.get();
+    
+            // executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
+                //swap();
+            });
+    
+            HBox executeBox = new HBox(executeBtn);
+            HBox.setHgrow(executeBox,Priority.ALWAYS);
+            executeBox.setAlignment(Pos.CENTER);
+            executeBox.setMinHeight(40);
+            
+    
+            HBox executePaddingBox = new HBox(executeBox);
+            HBox.setHgrow(executePaddingBox, Priority.ALWAYS);
+            executePaddingBox.setPadding(new Insets(5));
+    
+            VBox marketBox = new VBox(isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, executePaddingBox );
+            marketBox.setPadding(new Insets(5));
+            marketBox.setId("bodyBox");
+    
+        
+    
+            VBox marketPaddingBox = new VBox(orderTypeBox, marketBox);
+    
+            
+    
+    
+            Runnable updateOrderType = () ->{
+            
+                String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
+                
+                switch(orderType){
+                    
+                    case LIMIT_ORDER:
+                        orderPriceTextField.setId("swapBtn");
+                        orderPriceTextField.setEditable(true);
+                    
+                        break;
+                    case MARKET_ORDER:        
+                    default:
+                        orderPriceTextField.setId("swapBtnStatic");
+                        orderPriceTextField.setEditable(false);
+                    
+                        
+                }
+            
+            };
+            
+    
+            orderTypeStringObject.addListener((obs,oldVal,newVal)->updateOrderType.run());
+    
+            updateOrderType.run();
+    
+        
+    
+            
+    
+            Runnable updateBuySellBtns = ()->{
+                boolean isBuy = isBuyObject.get();
+                buyBtn.setId(isBuy ? "iconBtnSelected" : "iconBtn");
+                sellBtn.setId(isBuy ? "iconBtn" : "iconBtnSelected");
+                
+                boolean invert = isInvert();
+            
+                String quoteSymbol = invert ?  m_marketData.getBaseSymbol() : m_marketData.getQuoteSymbol();
+    
+                executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
+    
+                
+            };
+    
+            updateBuySellBtns.run();
+    
+            Text feesText = new Text("Fees");
+            feesText.setFont(App.titleFont);
+            feesText.setFill(Color.WHITE);
+    
+            HBox feesTextBox = new HBox(feesText);
+            HBox.setHgrow(feesTextBox,Priority.ALWAYS);
+            VBox.setVgrow(feesTextBox,Priority.ALWAYS);
+            feesTextBox.setAlignment(Pos.TOP_RIGHT);
+    
+    
+        /*  Runnable updateFeesBtn = () ->{
+                
+                if(isSpfFeesObject.get()){
+                    //ergoRemoveFees
+                    if(ergoQuantityFieldBox.getChildren().contains(feesTextBox)){
+                        ergoQuantityFieldBox.getChildren().remove(feesTextBox);
+                    }
+                    //spfAddFees
+                    if(!spfQuantityFieldBox.getChildren().contains(feesTextBox)){
+                        spfQuantityFieldBox.getChildren().add(feesTextBox);
+                    }
+                }else{
+                    //spfAddFees
+                    if(spfQuantityFieldBox.getChildren().contains(feesTextBox)){
+                        spfQuantityFieldBox.getChildren().remove(feesTextBox);
+                    }
+                    //ergoRemoveFees
+                    if(!ergoQuantityFieldBox.getChildren().contains(feesTextBox)){
+                        ergoQuantityFieldBox.getChildren().add(feesTextBox);
+                    }
+                }
+            };
+    
+            updateFeesBtn.run();
+    
+            ergoQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
+                isSpfFeesObject.set(false);
+            });
+            spfQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
+                isSpfFeesObject.set(true);
+            });*/
+    
+    
+    
+            isBuyObject.addListener((obs,oldval,newval)->{
+                updateBuySellBtns.run();
+    
+            
+            });
+    
+            isInvertProperty().addListener((obs,oldval, newval)->{
+                updateBuySellBtns.run();
+    
+                orderPriceImageView.setImage(PriceCurrency.getBlankBgIcon(38, m_marketData.getCurrentSymbol(newval)));
+            });
+    
+            
+            orderPriceObject.addListener((obs,oldval,newval)->{
+            
+                if(newval != null){
+                    
+                    orderPriceTextField.setText(newval.toString());
+                
+                }else{
+                    orderPriceTextField.setText("");
+                }
+            });
+    
+    
+    
+        //   isSpfFeesObject.addListener((obs,oldval,newval)->updateFeesBtn.run());
+        //AddressData update
+                
+    
+    
+            m_marketDataUpdateListener = (obs,oldVal,newVal)->{
+                String orderType = orderTypeStringObject.get() != null ? orderTypeStringObject.get() : "";
+                
+                switch(orderType){
+                    case MARKET_ORDER:
+                        updateOrderPriceObject.run();
+                        updateVolumeFromAmount.run();
+                        orderPriceStatusField.setText(Utils.formatTimeString(newVal));
+                    break;
+                }
+    
+                
+                
+            };
+            
+            m_marketData.getLastUpdated().addListener(m_marketDataUpdateListener);
            
+            Button walletBtn = new Button(WALLET_BOX);
+             walletBtn.setId("selectedBtn");
+
+            HBox swapScrollHeadingBox = new HBox(walletBtn);
+            HBox.setHgrow(swapScrollHeadingBox, Priority.ALWAYS);
+            swapScrollHeadingBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
+                m_currentSwapContentBox.set(WALLET_BOX);
+            });
+
+            VBox walletVBox = new VBox();
+            HBox.setHgrow(walletVBox, Priority.ALWAYS);
+
+            m_currentSwapContentBox.addListener((obs,oldVal,newVal)->setSwapContent(newVal != null ? newVal : WALLET_BOX));
+            
+            
+            m_swapScrollContentBox = new VBox(m_dexWallet);
+           
+            m_swapBoxScroll = new ScrollPane(m_swapScrollContentBox); 
+            m_swapBoxScroll.prefViewportWidthProperty().bind(widthProperty()); 
+            m_swapBoxScroll.prefViewportHeightProperty().bind(heightProperty().subtract(swapScrollHeadingBox.heightProperty()).subtract(marketPaddingBox.heightProperty()).subtract(1));
+        
+            m_swapScrollContentBox.setPrefWidth(m_swapBoxScroll.viewportBoundsProperty().get().getWidth());
+            m_swapScrollContentBox.setMinHeight(m_swapBoxScroll.viewportBoundsProperty().get().getHeight());
+
+            m_swapBoxScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+                double width = newval.getWidth();
+                double height = newval.getHeight();
+                m_swapScrollContentBox.setPrefWidth(width);
+                m_swapScrollContentBox.setMinHeight(height);
+            });
+
+            getChildren().addAll(swapScrollHeadingBox, m_swapBoxScroll, marketPaddingBox);
+                
+    
              
+        }
+
+        private void setSwapContent(String value){
+     
+            switch(value){
+                case WALLET_BOX:
+                    if(!m_swapScrollContentBox.getChildren().contains(m_dexWallet)){
+                        m_swapScrollContentBox.getChildren().clear();
+                        m_swapScrollContentBox.getChildren().add(m_dexWallet);
+                    }
+                    break;
+            }
         }
 
         public void shutdown(){
@@ -1190,258 +1236,320 @@ public class ErgoDexChartTab extends ContentTab {
             }
         }
 
+        public class ErgoDexWalletBox extends VBox {
+            private final String emptyAddressString = "[unlock]";;
+            private final String walletBtnDefaultString = "[select wallet]";
+            private SimpleObjectProperty<PriceAmount> m_ergoAmountProperty = new SimpleObjectProperty<>(null);
+            private SimpleObjectProperty<PriceAmount> m_baseAmountProperty = new SimpleObjectProperty<>(null);
+            private SimpleObjectProperty<PriceAmount> m_quoteAmountProperty = new SimpleObjectProperty<>(null);
+    
+           
+            private SimpleBooleanProperty m_showAssets = new SimpleBooleanProperty(true);
 
-        
-    }
+            private NoteMsgInterface m_ergoNetworkMsgInterface = null;
+       
+    
+            private MenuButton m_openWalletBtn;
+            private HBox m_walletFieldBox;
+    
+            private Button m_clearWalletBtn;
+            private VBox m_selectedAddressBox;
+    
+ 
+            private MenuButton m_walletAdrMenu = null;
+            private HBox m_walletAdrFieldBox;
+            private Button m_walletCloseBtn;
+            private HBox m_walletAdrBox;
+            private VBox m_walletBodyVBox;
+            private ErgoWalletControl m_walletControl;
+    
+            public NoteInterface getErgoNetworkInterface(){
+                return m_dataList.ergoNetworkProperty().get();
+            }
+    
+            public String getLocationId(){
+                return m_dataList.getLocationId();
+            }
+    
+            public ErgoDexWalletBox(){
+                int colWidth = 120;
+    
+                m_walletControl = new ErgoWalletControl(getLocationId(), m_dataList.ergoNetworkProperty().get());
+    
+                Label walletLabel = new Label("Wallet");
+                walletLabel.setMinWidth(colWidth);
+               
+                m_openWalletBtn = new MenuButton(walletBtnDefaultString);
+                m_openWalletBtn.setId("arrowMenuButton");
+                m_openWalletBtn.showingProperty().addListener((obs,oldval,newval)->{
+                    if(newval){
+                        updateWalletsMenu();
+                    }
+                });
 
-    public class ErgoDexWalletBox extends VBox {
+    
+                m_walletFieldBox = new HBox(m_openWalletBtn);
+                HBox.setHgrow(m_walletFieldBox, Priority.ALWAYS);
+                m_walletFieldBox.setAlignment(Pos.CENTER_LEFT);
+                m_walletFieldBox.setId("bodyBox");
+                m_walletFieldBox.setPadding(new Insets(0, 1, 0, 0));
+                m_walletFieldBox.setMaxHeight(18);
+                m_openWalletBtn.prefWidthProperty().bind(m_walletFieldBox.widthProperty().subtract(1));
 
-        private SimpleObjectProperty<NoteInterface> m_selectedWallet = new SimpleObjectProperty<>(null);
-        private SimpleBooleanProperty showBalance = new SimpleBooleanProperty(false);
-        private SimpleObjectProperty<JsonObject> m_balanceObject = new SimpleObjectProperty<>(null);
-
-        private NoteMsgInterface m_ergoNetworkMsgInterface = null;
-        private NoteMsgInterface m_walletMsgInterface = null;
-
-        private LockField m_lockBox;
-
-        public NoteInterface getErgoNetworkInterface(){
-            return m_dataList.ergoNetworkProperty().get();
-        }
-
-        public String getLocationId(){
-            return m_dataList.getLocationId();
-        }
-
-        public ErgoDexWalletBox(){
-
-            m_lockBox = new LockField();
-            m_lockBox.setPasswordAction(onAction->{
-                NoteInterface walletInterface = m_selectedWallet.get();
-                connectToWallet(walletInterface);
-            });
-            m_lockBox.lockId().addListener((obs,oldval,newval)->{
-                NoteInterface walletInterface = m_selectedWallet.get();
-
-                showBalance.set(false);
+             
+    
+                HBox selectWalletRowBox = new HBox(walletLabel, m_walletFieldBox);
+                selectWalletRowBox.setAlignment(Pos.CENTER_LEFT);
+    
+                m_clearWalletBtn = new Button("☓");
+                m_clearWalletBtn.setId("lblBtn");
+                m_clearWalletBtn.setOnAction(e -> m_walletControl.clearWallet());
+    
+    
+                Label addressLabel = new Label("Address");
+                addressLabel.setMinWidth(colWidth);
+    
                 
-                if (newval != null && walletInterface != null) {
-                    getAddresses(newval, walletInterface);
-                    
-                    /* Add Address Buttons
-                     *
-                     * if (!adrBtnBoxes.getChildren().contains(adrBtnsBox)) {
-                        adrBtnBoxes.getChildren().add(adrBtnsBox);
-                    }*/
-                } else {
-                    removeWalletInterface(walletInterface);
 
-                    /* Remove address buttons
-                    if (adrBtnBoxes.getChildren().contains(adrBtnsBox)) {
-                        adrBtnBoxes.getChildren().remove(adrBtnsBox);
-                    }
-                     */
-                }
-            });
+                m_walletAdrMenu = new MenuButton(emptyAddressString);
             
-            m_selectedWallet.addListener((obs, oldVal, newVal) -> {
-
-                if (oldVal != null && m_walletMsgInterface != null) {
-                    oldVal.removeMsgListener(m_walletMsgInterface);
-                    m_walletMsgInterface = null;
-                }
-        
-                m_lockBox.setLocked();
-        
-            });
-
-            m_dataList.ergoNetworkProperty().addListener((obs,oldval,newval)->{
-                if(oldval != null){
-                    connectToErgoNetwork(false, oldval);
-                }
-                if(newval != null){
-                    connectToErgoNetwork(true, newval);
-                }
-            });
-
-            connectToErgoNetwork(true, getErgoNetworkInterface());
-        }
-
-        public void connectToWallet(NoteInterface walletInterface){
-
-            if(walletInterface != null){
-                JsonObject getWalletObject = Utils.getCmdObject("getAccessId");
-                getWalletObject.addProperty("locationId", getLocationId());
-
-                walletInterface.sendNote(getWalletObject, onSucceeded->{
-                    Object successObject = onSucceeded.getSource().getValue();
-
-                    if (successObject != null) {
-                        JsonObject json = (JsonObject) successObject;
-                        // addressesDataObject.set(json);
-                        JsonElement codeElement = json.get("code");
-                        JsonElement accessIdElement = json.get("accessId");
-
-
-                        if(accessIdElement != null && codeElement == null){
-                        
-                            String accessId = accessIdElement.getAsString();
-                            m_lockBox.setUnlocked(accessId);
-
-                            m_walletMsgInterface = new NoteMsgInterface() {
-                                private final String m_accessId = accessId;
-                                private final NoteInterface m_walletInterface = walletInterface;
-
-                                public String getId() {
-                                    return m_accessId;
-                                }
-                                @Override
-                                public void sendMessage(int code, long timestamp,String networkId, Number num) {
-                                }
-
-                                public void sendMessage(int code, long timestamp,String networkId, String msg) {
-                                
-
-                                    switch (code) {
-                                        case App.UPDATED:
-                                            if (networkId != null && m_lockBox.getAddress() != null && networkId.equals(m_lockBox.getAddress())) {
-                                                updateBalance(m_accessId, m_walletInterface);
-                                            }else{
-                                                m_balanceObject.set(null);
-                                            }
-                                            break;
-                                
-                                    }
-                                }
-                            };
-
-                            walletInterface.addMsgListener(m_walletMsgInterface);
+                m_walletAdrMenu.showingProperty().addListener((obs,oldval,newval)->{
+            
+                    if(newval){
+                        if(m_walletControl.currentAddress().get() != null){
+                            updateAddressesMenu();
+                        }else{
+                            if(m_walletControl.walletNameProperty().get() != null){
+                                m_walletControl.connectToWallet();
+                            }
                         }
-                    } 
-                }, onFailed->{});
-            }
-        }
-
-        public void getAddresses(String accessId, NoteInterface walletInterface){
-            if(accessId != null && walletInterface != null){
-                JsonObject json = Utils.getCmdObject("getAddresses");
-                json.addProperty("accessId", accessId);
-                json.addProperty("locationId", getLocationId());
-
-                Object successObject = walletInterface.sendNote(json);
-
-                if (successObject != null && successObject instanceof JsonArray) {
-
-                    JsonArray jsonArray = (JsonArray) successObject;
-                    if (jsonArray.size() > 0) {
-                        JsonObject adr0 = jsonArray.get(0).getAsJsonObject();
-                        JsonElement addressElement = adr0.get("address");
-                        JsonElement nameElement = adr0.get("name");
-
-                        String address = addressElement.getAsString();
-                        String name = nameElement.getAsString();
-
-                        m_lockBox.setAddress(address);
-                        m_lockBox.setName(name);
-                        m_lockBox.setWalletName( m_selectedWallet.get().getName());
-                        
-                        updateBalance(accessId, walletInterface);
-                    
-                    } else {
-                        m_lockBox.setLocked();
                     }
-                }
-            }
-        }
+                });
+    
 
-        public void updateBalance(String accessId, NoteInterface walletInterface){
-            if(accessId != null && walletInterface != null){
-                if(m_lockBox.isUnlocked()){
-                    JsonObject note = Utils.getCmdObject("getBalance");
-                    note.addProperty("locationId", getLocationId());
-                    note.addProperty("accessId", accessId);
-                    
-                    Object obj = walletInterface.sendNote(note);
-                    
-                    if(obj != null && obj instanceof JsonObject){
+                m_walletAdrFieldBox = new HBox(m_walletAdrMenu);
+                HBox.setHgrow(m_walletAdrFieldBox, Priority.ALWAYS);
+                m_walletAdrFieldBox.setId("bodyBox");
+                m_walletAdrMenu.prefWidthProperty().bind(m_walletAdrFieldBox.widthProperty().subtract(1));
+    
+                m_walletAdrBox = new HBox(addressLabel, m_walletAdrFieldBox);
+                HBox.setHgrow(m_walletAdrBox, Priority.ALWAYS);
+                m_walletAdrBox.setAlignment(Pos.CENTER_LEFT);
+    
+               
+                
+                m_walletCloseBtn = new Button("☓");
+                m_walletCloseBtn.setId("lblBtn");
+                m_walletCloseBtn.setOnAction(e -> {
+                    m_walletControl.disconnectWallet();
+                });
+    
+                getChildren().addAll(selectWalletRowBox, m_walletAdrBox);
 
-                        m_balanceObject.set((JsonObject) obj);
-                    
-                    
+                m_walletBodyVBox = new VBox();
+    
+    
+                m_walletControl.currentAddress().addListener((obs,oldval,newval)->{
+                    if(newval != null){
+                        if(!m_walletAdrFieldBox.getChildren().contains( m_walletCloseBtn)){
+                            m_walletAdrFieldBox.getChildren().add( m_walletCloseBtn);
+                        }
+                        m_walletAdrMenu.setText(newval);
+            
                     }else{
-                        m_balanceObject.set(null);
-                        showBalance.set(false);
+                        if(m_walletAdrFieldBox.getChildren().contains( m_walletCloseBtn)){
+                            m_walletAdrFieldBox.getChildren().remove( m_walletCloseBtn);
+                        }
+                        m_walletAdrMenu.setText(emptyAddressString);
+                        
                     }
+                });
+
+    
+                m_showAssets.addListener((obs,oldval,newval)->{
+                    if(newval){
+                        if(!getChildren().contains(m_walletBodyVBox)){
+                            getChildren().add(m_walletBodyVBox);
+                        }
+                    }else{
+                        if(getChildren().contains(m_walletBodyVBox)){
+                            getChildren().remove(m_walletBodyVBox);
+                        }
+                    }
+                });
+                
+                m_walletControl.walletNameProperty().addListener((obs, oldVal, newVal) -> {
+    
+                    m_openWalletBtn.setText(newVal != null ? newVal : "[select wallet]" );
+
+                    if(newVal != null){
+                      
+                        if(!m_walletAdrFieldBox.getChildren().contains(m_clearWalletBtn)){
+                            m_walletAdrFieldBox.getChildren().add(m_clearWalletBtn);
+                        }
+                    }else{
+                     
+                        if(m_walletAdrFieldBox.getChildren().contains(m_clearWalletBtn)){
+                            m_walletAdrFieldBox.getChildren().remove(m_clearWalletBtn);
+                        }
+                    }
+            
+                });
+    
+                m_dataList.ergoNetworkProperty().addListener((obs,oldval,newval)->{
+                    m_walletControl.setErgoNetworkInterface(newval);
+                    if(oldval != null){
+                        connectToErgoNetwork(false, oldval);
+                    }
+                    if(newval != null){
+                        connectToErgoNetwork(true, newval);
+                    }
+                });
+    
+                connectToErgoNetwork(true, getErgoNetworkInterface());
+
+                m_walletControl.getDefaultWallet();
+            
+            }
+    
+            public void connectToErgoNetwork(boolean connect, NoteInterface ergoNetworkInterface){
+                
+                if(connect && ergoNetworkInterface != null){
+                    m_ergoNetworkMsgInterface = new NoteMsgInterface() {
+                        private String msgId = FriendlyId.createFriendlyId();
+                        
+                        @Override
+                        public String getId() {
+                            return msgId;
+                        }
+    
+                        @Override
+                        public void sendMessage(int code, long timestamp, String networkId, String msg) {
+                            switch(networkId){
+                                case ErgoNetwork.WALLET_NETWORK:
+                                    if(code == App.LIST_ITEM_REMOVED){
+                                        m_walletControl.walletRemoved(msg);
+                                    }
+                        
+                                break;
+                            }
+                        }
+    
+                        @Override
+                        public void sendMessage(int code, long timestamp, String networkId, Number number) {
+                            
+                        }
+                        
+                    };
+    
+                    ergoNetworkInterface.addMsgListener(m_ergoNetworkMsgInterface);
+                    m_walletControl.getDefaultWallet();
+                }else{
+    
+                    if(ergoNetworkInterface != null && m_ergoNetworkMsgInterface != null){
+                        ergoNetworkInterface.removeMsgListener(m_ergoNetworkMsgInterface);
+                    }
+                    m_ergoNetworkMsgInterface = null;
+                }
+ 
+            }
+
+            public void updateWalletsMenu(){
+                m_openWalletBtn.getItems().clear();
+                NoteInterface ergoNetworkInterface = getErgoNetworkInterface();
+                if(ergoNetworkInterface != null){
+
+                    JsonArray walletIds = m_walletControl.getWallets();
+
+                    if (walletIds != null) {
+                        for (JsonElement element : walletIds) {
+                            if (element != null && element instanceof JsonObject) {
+                                JsonObject json = element.getAsJsonObject();
+    
+                                String name = json.get("name").getAsString();
+                                String id = json.get("id").getAsString();
+    
+                                MenuItem walletItem = new MenuItem(String.format("%-50s", " " + name));
+    
+                                walletItem.setOnAction(action -> {
+                                
+                                    m_walletControl.setWalletInterface(id);
+                                });
+    
+                                m_openWalletBtn.getItems().add(walletItem);
+                            }
+                        }
+                        
+                    }
+
+                    MenuItem disableWallet = new MenuItem("[none]");
+                    disableWallet.setOnAction(e->{
+                        m_walletControl.clearWallet();
+                    });
+
+                    SeparatorMenuItem separatorItem = new SeparatorMenuItem();
+
+                    MenuItem openErgoNetworkItem = new MenuItem("Open (Ergo Network)…");
+                    openErgoNetworkItem.setOnAction(e->{
+                        m_openWalletBtn.hide();
+                        getNetworksData().openNetwork(ErgoNetwork.NETWORK_ID);
+                    });
+
+                    m_openWalletBtn.getItems().addAll(disableWallet, separatorItem, openErgoNetworkItem);
 
                 }else{
-                    m_balanceObject.set(null);
-                    showBalance.set(false);
+                    MenuItem manageNetworkItem = new MenuItem("Manage networks…");
+                    manageNetworkItem.setOnAction(e->{
+                        m_openWalletBtn.hide();
+                        getNetworksData().openStatic(ManageNetworksTab.NAME);
+                    });
+                    m_openWalletBtn.getItems().add(manageNetworkItem);
                 }
             }
-        }
+         
 
-        public void removeWalletInterface(NoteInterface walletInterface){
-            if(walletInterface != null && m_walletMsgInterface != null){
-                walletInterface.removeMsgListener(m_walletMsgInterface);
-                m_walletMsgInterface = null;
-            }
-        }
+            public void updateAddressesMenu(){
 
-        public void connectToErgoNetwork(boolean connect, NoteInterface ergoNetworkInterface){
-            
-            if(connect && ergoNetworkInterface != null){
-                m_ergoNetworkMsgInterface = new NoteMsgInterface() {
-                    private String msgId = FriendlyId.createFriendlyId();
-                    
-                    @Override
-                    public String getId() {
-                        return msgId;
-                    }
+                JsonArray addressesArray = m_walletControl.getAddresses();
+                m_walletAdrMenu.getItems().clear();
 
-                    @Override
-                    public void sendMessage(int code, long timestamp, String networkId, String msg) {
+                if(addressesArray != null){
+                    int size = addressesArray.size();
+                    for(int i = 0; i < size ; i++){
+                       
+                        JsonElement addressJsonElement = addressesArray.get(i);
+                        JsonObject addressJson = addressJsonElement != null && !addressJsonElement.isJsonNull() && addressJsonElement.isJsonObject() ? addressJsonElement.getAsJsonObject() : null;
+                        JsonElement addressElement = addressJson != null ? addressJson.get("address") : null;
+                        String address = addressElement != null ? addressElement.getAsString() : null;
                         
+                        if(address != null){
+                            MenuItem addressItem = new MenuItem(address);
+                            addressItem.setOnAction(e->{
+                                m_walletControl.currentAddress().set(address);
+                                m_walletControl.updateBalance();
+                            });
+                            m_walletAdrMenu.getItems().add(addressItem);
+                       }
+                       
                     }
-
-                    @Override
-                    public void sendMessage(int code, long timestamp, String networkId, Number number) {
-                        
-                    }
-                    
-                };
-
-                ergoNetworkInterface.addMsgListener(m_ergoNetworkMsgInterface);
-
-            }else{
-
-                if(ergoNetworkInterface != null && m_ergoNetworkMsgInterface != null){
-                    ergoNetworkInterface.removeMsgListener(m_ergoNetworkMsgInterface);
+                    MenuItem closeWalletItem = new MenuItem("[lock wallet]");
+                    closeWalletItem.setOnAction(e->{
+                        m_walletControl.disconnectWallet();
+                    });
+                    m_walletAdrMenu.getItems().add(closeWalletItem);
                 }
-                m_ergoNetworkMsgInterface = null;
             }
-            getErgoNetworkInterface();
-        }
 
-        public void getDefaultWallet(){
-            m_balanceObject.set(null);
-            NoteInterface ergoNetworkInterface = getErgoNetworkInterface();
-            if(ergoNetworkInterface != null){
-                JsonObject note = Utils.getCmdObject("getDefaultInterface");
-                note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
-                note.addProperty("locationId", m_dataList.getLocationId());
-                NoteInterface noteInterface = (NoteInterface) ergoNetworkInterface.sendNote(note);
-            
-                m_selectedWallet.set(noteInterface);
-            }else{
-                m_selectedWallet.set(null);
+            public void shutdown(){
+                connectToErgoNetwork(false, getErgoNetworkInterface());
+                m_walletControl.shutdown();
             }
+    
             
         }
-
-        public void shutdown(){
-            connectToErgoNetwork(false, getErgoNetworkInterface());
-        }
-
+        
     }
+
+   
 
 }

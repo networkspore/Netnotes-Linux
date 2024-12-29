@@ -4,7 +4,7 @@ import org.ergoplatform.appkit.NetworkType;
 
 public class ErgoCurrency extends PriceCurrency {
 
-    public final static String TOKEN_ID = ErgoDex.ERG_ID;
+    public final static String TOKEN_ID = "0000000000000000000000000000000000000000000000000000000000000000";
     public final static String NAME = "Ergo";
     public final static String SYMBOL = "ERG";
     public final static String IMAGE_STRING = "/assets/unitErgo.png";

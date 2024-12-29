@@ -16,6 +16,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.ergoplatform.appkit.NetworkType;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -65,7 +67,6 @@ public class ErgoDex extends Network implements NoteInterface {
     public static java.awt.Color NEGATIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xffe96d71, true);
     public static java.awt.Color NEUTRAL_COLOR = new java.awt.Color(0x111111);
 
-    public final static String ERG_ID = "0000000000000000000000000000000000000000000000000000000000000000";
     public final static String SPF_ID = "9a06d9e545a41fd51eeffc5e20d818073bf820c635e2a9d922269913e0de369d";
     public final static String SIGUSD_ID = "03faf2cb329f2e90d6d23b58d91bbb6c046aa143261cc21f52fbe2824bfcbf04";
 
@@ -86,7 +87,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
     public static final String MARKET_DATA_ID = "marketData";
     public static final String TICKER_DATA_ID = "tickerData";
-
+    public static final NetworkType NETWORK_TYPE = NetworkType.MAINNET;
     public static final String MARKETS_LIST = "MARKETS_LIST";
 
     private ArrayList<ErgoDexMarketData> m_marketsList = new ArrayList<>();
@@ -533,12 +534,11 @@ public class ErgoDex extends Network implements NoteInterface {
 
          
             MenuButton timeSpanBtn = new MenuButton();
-            timeSpanBtn.setId("urlMenuButton");
+            timeSpanBtn.setId("arrowMenuButton");
             timeSpanBtn.setMinWidth(100);
             timeSpanBtn.setPrefWidth(100);
-            timeSpanBtn.textProperty().bind( Bindings.concat( m_itemTimeSpan.asString(), " 🞃"));
+            timeSpanBtn.textProperty().bind( m_itemTimeSpan.asString());
             timeSpanBtn.setAlignment(Pos.CENTER_RIGHT);
-            timeSpanBtn.setPadding(Insets.EMPTY);
     
             
             String[] spans = { "1hour", "8hour", "12hour", "1day", "1week", "1month", "6month", "1year" };
@@ -573,7 +573,11 @@ public class ErgoDex extends Network implements NoteInterface {
                 save();
             });
 
-            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtn, rightSideMenu);
+            HBox timeSpanBtnBox = new HBox(timeSpanBtn);
+            timeSpanBtnBox.setId("urlMenuButton");
+            timeSpanBtnBox.setAlignment(Pos.CENTER_LEFT);
+
+            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion,timeSpanBtnBox, rightSideMenu);
             HBox.setHgrow(m_menuBar, Priority.ALWAYS);
             m_menuBar.setAlignment(Pos.CENTER_LEFT);
             m_menuBar.setId("menuBar");
@@ -749,7 +753,6 @@ public class ErgoDex extends Network implements NoteInterface {
             m_ergoNetworkInterface.set(null);
 
             m_dexDataList.shutdown();
-            m_ergoNetworkInterface.set(null);
 
             m_ergoDexTab = null;
 
@@ -1417,7 +1420,7 @@ public class ErgoDex extends Network implements NoteInterface {
         JsonElement idElement = note != null ? note.get("tokenId") : null;
         String tokenId = idElement != null && !idElement.isJsonNull() && idElement.isJsonPrimitive() ? idElement.getAsString() : null;
         if(tokenId != null){
-            ErgoDexMarketData data = findMarketDataById(ERG_ID, tokenId);
+            ErgoDexMarketData data = findMarketDataById(ErgoCurrency.TOKEN_ID, tokenId);
             if(data != null){
                 return data.getPriceQuote(true);
             }

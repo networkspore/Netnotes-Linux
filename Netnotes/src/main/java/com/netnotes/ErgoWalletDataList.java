@@ -207,43 +207,25 @@ public class ErgoWalletDataList {
         }
     }
     
+    private NetworksData getNetworksData(){
+        return m_ergoWallets.getErgoNetworkData().getNetworksData();
+    }
 
-    public boolean remove(String id, boolean isSave) {
+    private boolean removeWallet(String id) {
     
         if(id != null){
             for (int i =0; i< m_walletDataList.size(); i++) {
                 ErgoWalletData walletData = m_walletDataList.get(i);
                 if (walletData.getNetworkId().equals(id)) {
 
-     
                     m_walletDataList.remove(i);
                     
-                    if(m_defaultWalletId != null && id.equals(m_defaultWalletId)){
-                        clearDefault();
-                    }
-
-                    if(isSave){
-
-                        save();
-
-                        long timeStamp = System.currentTimeMillis();
-                        
-                        getErgoNetwork().sendMessage(App.LIST_ITEM_REMOVED, timeStamp, ErgoNetwork.WALLET_NETWORK,  walletData.getNetworkId());
-                    
-                    }
                     return true;
                 }
             }
         }
         return false;
     }
-
-    
-
-    private NetworksData getNetworksData(){
-        return m_ergoWallets.getErgoNetworkData().getNetworksData();
-    }
-
 
     public boolean removeWallet(JsonObject note ){
         long timestamp = System.currentTimeMillis();
@@ -268,11 +250,13 @@ public class ErgoWalletDataList {
                     JsonObject idObj = element.getAsJsonObject();
                     JsonElement idElement = idObj.get("id");
                     String id = idElement.getAsString();
+                    
+                    if(removeWallet(id)){
+                        jsonArray.add(idObj);
+                    }
+
                     if(m_defaultWalletId != null && id.equals(m_defaultWalletId)){
                         clearDefault();
-                    }
-                    if(remove(idElement.getAsString(), false)){
-                        jsonArray.add(idObj);
                     }
                 }
 
@@ -486,6 +470,16 @@ public class ErgoWalletDataList {
         }else{
             return null;
         }
+    }
+
+    public NoteInterface getWalletInterface(JsonObject note){
+        JsonElement idElement = note.get("id");
+
+        if(idElement != null && !idElement.isJsonNull() && idElement.isJsonPrimitive()){
+            ErgoWalletData walletData = getWallet(idElement.getAsString());
+            return walletData.getNoteInterface();
+        }
+        return null;
     }
 
     private ErgoWalletData getWallet(String id){

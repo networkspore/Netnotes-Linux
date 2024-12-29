@@ -89,6 +89,8 @@ public class ErgoWallets  {
                         return m_ergoWalletDataList.getDefault();
                     case "getDefaultInterface":
                         return m_ergoWalletDataList.getDefaultInterface();
+                    case "getWalletInterface":
+                        return m_ergoWalletDataList.getWalletInterface(note);
                     case "getWalletById":
                         return m_ergoWalletDataList.getWalletById(note);
                     case "getWalletByName":

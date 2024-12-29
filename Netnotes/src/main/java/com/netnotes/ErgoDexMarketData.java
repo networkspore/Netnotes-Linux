@@ -14,7 +14,8 @@ import com.google.gson.JsonElement;
 
 public class ErgoDexMarketData extends PriceQuote {
 
- 
+    private boolean m_isBaseErg = false;
+
     private BigDecimal m_baseVolume = BigDecimal.ZERO;
     private BigDecimal m_quoteVolume = BigDecimal.ZERO;
 
@@ -99,13 +100,17 @@ public class ErgoDexMarketData extends PriceQuote {
 
             m_baseDecimals = baseVolumeDecimals;
             m_quoteDecimals = quoteVolumeDecimals;
-
-            m_tickerId = getBaseId().equals(ErgoCurrency.TOKEN_ID) ? getQuoteId() + "_" + getBaseId() : getId();
+            m_isBaseErg = getBaseId().equals(ErgoCurrency.TOKEN_ID);
+            m_tickerId = isBaseErg() ? getQuoteId() + "_" + getBaseId() : getId();
             
         }else{
             throw new Exception("Missing expected arguments");
         }
         
+    }
+
+    public boolean isBaseErg(){
+        return m_isBaseErg;
     }
 
     public String getTickerId(){
