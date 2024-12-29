@@ -14,7 +14,7 @@ import javafx.beans.property.SimpleObjectProperty;
 
 public class PriceQuote {
 
-    private SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>( BigDecimal.ZERO);
+    private SimpleObjectProperty<BigDecimal> m_quoteDecimal = new SimpleObjectProperty<>( BigDecimal.ZERO);
     private String m_baseId = "";
     private String m_baseSymbol;
     private String m_quoteSymbol;
@@ -47,7 +47,7 @@ public class PriceQuote {
         m_id = idElement != null && !idElement.isJsonNull() ? idElement.getAsString() : m_baseId + "_" + m_quoteId;  
         BigDecimal amount = amountElement != null && !amountElement.isJsonNull() ? amountElement.getAsBigDecimal() : BigDecimal.ZERO;
 
-        m_amount.set(amount);
+        m_quoteDecimal.set(amount);
     }
 
 
@@ -119,7 +119,7 @@ public class PriceQuote {
     }
 
     public void setAmount(BigDecimal amount){
-        m_amount.set(amount);
+        m_quoteDecimal.set(amount);
     }
 
     protected void setDefaultInvert(boolean invert){
@@ -154,24 +154,24 @@ public class PriceQuote {
         m_quoteId = quoteId;
     }
 
-    public double getDoubleAmount() {
-        return getAmount().doubleValue();
+    public double getDoubleQuote() {
+        return getQuote().doubleValue();
     }
 
-    public BigDecimal getBigDecimalAmount(){
-        return getAmount();
+    public BigDecimal getBigDecimalQuote(){
+        return getQuote();
     }
 
-    public BigDecimal getAmount(){
-        return m_amount.get();
+    public BigDecimal getQuote(){
+        return m_quoteDecimal.get();
     }
 
-    public SimpleObjectProperty<BigDecimal> amountProperty(){
-        return m_amount;
+    public SimpleObjectProperty<BigDecimal> bigDecimalQuoteProperty(){
+        return m_quoteDecimal;
     }
 
-    public BigDecimal getInvertedAmount(){
-        BigDecimal amount = m_amount.get();
+    public BigDecimal getInvertedQuote(){
+        BigDecimal amount = m_quoteDecimal.get();
         
         if(amount.equals(BigDecimal.ZERO)){
             return amount;
@@ -190,12 +190,12 @@ public class PriceQuote {
     }
 
     public int getFractionalPrecision(){
-        return getAmount().scale();
+        return getQuote().scale();
     }
 
 
     public String getAmountString() {
-        return m_amount.get() + "";
+        return m_quoteDecimal.get() + "";
     }
 
     public void setAmountString(String amountString){
@@ -266,7 +266,7 @@ public class PriceQuote {
         json.addProperty("baseSymbol", getBaseSymbol());
         json.addProperty("quoteId", getQuoteId());
         json.addProperty("quoteSymbol", getQuoteSymbol());
-        json.addProperty("amount", getAmount());
+        json.addProperty("amount", getQuote());
         json.addProperty("timeStamp", getTimeStamp());
         return json;
     }
@@ -278,20 +278,20 @@ public class PriceQuote {
         json.addProperty("baseSymbol", getQuoteSymbol() );
         json.addProperty("quoteId",getBaseId());
         json.addProperty("quoteSymbol",getBaseSymbol());
-        json.addProperty("amount", getInvertedAmount());
+        json.addProperty("amount", getInvertedQuote());
         json.addProperty("timeStamp", getTimeStamp());
         return json;
     }
 
  
     public String toString(boolean invert) {
-        return invert ? (getInvertedAmount() + " " +  m_quoteSymbol + "/" +m_baseSymbol ) : toString();
+        return invert ? (getInvertedQuote() + " " +  m_quoteSymbol + "/" +m_baseSymbol ) : toString();
     }
 
 
     @Override
     public String toString() {
-        return m_amount + " " + m_baseSymbol + "/" + m_quoteSymbol;
+        return m_quoteDecimal + " " + m_baseSymbol + "/" + m_quoteSymbol;
     }
 
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());

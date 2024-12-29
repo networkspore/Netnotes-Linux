@@ -1,5 +1,9 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
@@ -160,6 +164,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
         if (cmdElement != null  && networkIdElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && locationIdElement != null && locationIdElement.isJsonPrimitive()) {
             String locationId = locationIdElement.getAsString();
             String locationString = getNetworksData().getLocationString(locationId);
+
+     
             if(m_ergNetData.isLocationAuthorized(locationString)){
                 
                 note.remove("locationString");

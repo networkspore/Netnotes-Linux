@@ -1227,6 +1227,7 @@
 #barBtn {
     -fx-background-color:linear-gradient(to right,  #88888840 25%, #77777740 70%, #11111130 100%);
     -fx-opacity: .8;
+    -fx-cursor: hand;
 }
 
 #barBtn:hover {

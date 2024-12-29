@@ -41,7 +41,7 @@ import javafx.stage.Stage;
 public class ErgoDexDataList  {
 
     public final static String LOADING = "Loading...";
-    public final static String ID = "spectrumDataList";
+    public final static String NETWORK_ID = "spectrumDataList";
     private ErgoDex m_ergodex;
     private String m_locationId;
 
@@ -65,7 +65,6 @@ public class ErgoDexDataList  {
     private SimpleDoubleProperty m_gridWidth;
     private SimpleDoubleProperty m_gridHeight;
     private SimpleObjectProperty<TimeSpan> m_timeSpanObject;
-    private SimpleObjectProperty<NoteInterface> m_networkInterface;
     private SimpleIntegerProperty m_currentIndex;
 
         
@@ -94,7 +93,7 @@ public class ErgoDexDataList  {
         setup();
         m_scrollPane = scrollPane;
         m_updatedField = updatedField;
-        m_networkInterface = networkInterface;
+        m_ergoNetworkInterfaceProperty = networkInterface;
         m_gridWidth = gridWidth;
         m_gridHeight = gridHeight;
         m_timeSpanObject = timeSpanObject;
@@ -122,7 +121,7 @@ public class ErgoDexDataList  {
         return m_scrollPane;
     }
 
-    public SimpleObjectProperty<NoteInterface> ergoNetworkInterfaceProperty(){
+    public SimpleObjectProperty<NoteInterface> ergoInterfaceProperty(){
         return m_ergoNetworkInterfaceProperty;
     }
     
@@ -130,9 +129,7 @@ public class ErgoDexDataList  {
         return m_appStage;
     }
 
-    public SimpleObjectProperty<NoteInterface> ergoNetworkProperty(){
-        return m_networkInterface;
-    }
+
 
     public String getLocationId(){
         return m_locationId;
@@ -347,7 +344,7 @@ public class ErgoDexDataList  {
  
 
     private void getData() {
-        JsonObject json = getNetworksData().getData("data", ".", ID, ErgoDex.NETWORK_ID);
+        JsonObject json = getNetworksData().getData("data", ".", NETWORK_ID, ErgoDex.NETWORK_ID);
         openJson(json);
         
     }
@@ -611,7 +608,7 @@ public class ErgoDexDataList  {
     }
 
     public void save(){
-        getNetworksData().save("data", ".", ID, ErgoDex.NETWORK_ID, getJsonObject());
+        getNetworksData().save("data", ".", NETWORK_ID, ErgoDex.NETWORK_ID, getJsonObject());
     }
 
    

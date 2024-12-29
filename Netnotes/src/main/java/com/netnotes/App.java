@@ -735,19 +735,20 @@ public class App extends Application {
     private ScrollPane m_staticContent;
 
     public final static double DEFAULT_STATIC_WIDTH = 500;
+    private Button m_stageMaximizeBtn;
 
     private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH +5);
     private SimpleDoubleProperty m_menuWidth = new SimpleDoubleProperty(52);
     private void loadMainStage(Stage appStage) {
    
         Button closeBtn = new Button();
-        Button maximizeBtn = new Button();
+        m_stageMaximizeBtn = new Button();
 
         appStage.setTitle("Netnotes");
 
         //getScene().getWindow().getX()
 
-        m_titleBox = createTopBar(icon, maximizeBtn, closeBtn, appStage);
+        m_titleBox = createTopBar(icon, m_stageMaximizeBtn, closeBtn, appStage);
 
         
         //m_headerBox.setPadding(new Insets(0, 2, 2, 2));
@@ -800,7 +801,7 @@ public class App extends Application {
 
         appScene.getWindow().centerOnScreen();
 
-        m_networksData.createMenu(appStage, m_menuWidth, m_menuBox, m_staticContent, m_contentBox);
+        m_networksData.createMenu(appStage, m_stageMaximizeBtn, m_menuWidth, m_menuBox, m_staticContent, m_contentBox);
 
         m_networksData.menuTabProperty().addListener((obs,oldval,newval)->{
             if(newval != null){
@@ -845,7 +846,7 @@ public class App extends Application {
             m_lastExecution = executor.schedule(save, EXECUTION_TIME, TimeUnit.MILLISECONDS);
         });
 
-        maximizeBtn.setOnAction(maxEvent -> {
+        m_stageMaximizeBtn.setOnAction(maxEvent -> {
             boolean maximized = appStage.isMaximized();
             m_networksData.setStageMaximized(!maximized);
 
@@ -861,7 +862,7 @@ public class App extends Application {
 
         closeBtn.setOnAction(e -> {
             if(m_networksData.getStageMaximized()){
-                maximizeBtn.fire();
+                m_stageMaximizeBtn.fire();
         
                 FxTimer.runLater(Duration.ofMillis(150), ()->{
                     m_networksData.save();

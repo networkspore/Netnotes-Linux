@@ -453,7 +453,7 @@ public class AddressData extends Network {
                         long nanoErg = nanoErgElement != null && nanoErgElement.isJsonPrimitive() ? nanoErgElement.getAsLong() : 0;
                         ErgoAmount ergoAmount =  new ErgoAmount(nanoErg, m_networkType);
                     
-                        BigDecimal ergoQuoteAmount = ergoQuote.getAmount().multiply(ergoAmount.getBigDecimalAmount());    
+                        BigDecimal ergoQuoteAmount = ergoQuote.getQuote().multiply(ergoAmount.getBigDecimalAmount());    
                         
                         confirmedObject.addProperty("ergoQuoteAmount", ergoQuoteAmount);
                         m_totalErg = m_totalErg.add(ergoAmount.getBigDecimalAmount());    
@@ -494,14 +494,14 @@ public class AddressData extends Network {
                             if(tokenQuote != null){
                                 
                                 tokenObject.add("tokenQuote", tokenQuote.getJsonObject());
-                                BigDecimal tokenQuoteErgAmount =  tokenQuote.getAmount().multiply(tokenAmount.getBigDecimalAmount());
+                                BigDecimal tokenQuoteErgAmount =  tokenQuote.getQuote().multiply(tokenAmount.getBigDecimalAmount());
 
                                 m_totalErg = m_totalErg.add(tokenQuoteErgAmount);    
                                 tokenObject.addProperty("tokenQuoteErgAmount", tokenQuoteErgAmount);
                             
                                 if(ergoQuote != null){
                                     
-                                    BigDecimal tokenQuoteAmount = ergoQuote.getAmount().multiply(tokenQuoteErgAmount);
+                                    BigDecimal tokenQuoteAmount = ergoQuote.getQuote().multiply(tokenQuoteErgAmount);
                                     m_totalQuote = m_totalQuote.add(tokenQuoteAmount);
 
                                     tokenObject.addProperty("tokenQuoteAmount", tokenQuoteAmount);

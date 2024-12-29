@@ -34,6 +34,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.stage.Stage;
 
 public class ErgoDexMarketItem {
     public class StageKeyPress{
@@ -231,7 +232,7 @@ public class ErgoDexMarketItem {
         
         Text symbolText = new Text(m_marketData.getCurrentSymbol(m_isInvert.get()));
         symbolText.setFont(Font.font("DejaVu Sans Mono, Book", FontWeight.NORMAL, 14));
-        symbolText.setFill(App.txtColor);
+        symbolText.setFill(Color.WHITE);
         
         DropShadow shadow = new DropShadow();
         symbolText.setEffect(shadow);
@@ -977,11 +978,20 @@ public class ErgoDexMarketItem {
         if(m_chartTab == null){
 
             Image logo = m_dataList.getErgoDex().getSmallAppIcon();
-      
-     
+            
 
 
-            m_chartTab = new ErgoDexChartTab(FriendlyId.createFriendlyId(), logo, m_marketData.getCurrentSymbol(isInvert()) + (m_marketData != null ? " - " +(isInvert() ? m_marketData.getInvertedLastPrice().toString() : m_marketData.getLastPrice()) + "" : ""), new VBox(),  m_dataList, m_marketData, this);
+            VBox layoutBox = new VBox();
+            layoutBox.setPrefWidth(getNetworksData().getContentTabs().bodyWidth().get());
+            layoutBox.setPrefHeight(getNetworksData().getContentTabs().bodyHeight().get());
+
+            m_chartTab = new ErgoDexChartTab(FriendlyId.createFriendlyId(), 
+                logo, 
+                m_marketData.getCurrentSymbol(isInvert()) + (m_marketData != null ? " - " +(isInvert() ? m_marketData.getInvertedLastPrice().toString() : m_marketData.getLastPrice()) + "" : ""), 
+                layoutBox, 
+                m_dataList, 
+                m_marketData, 
+                this);
            
             m_chartTab.shutdownMilliesProperty().addListener((obs,oldval,newval)->{
                 if(newval.longValue() > 0){
@@ -1005,7 +1015,9 @@ public class ErgoDexMarketItem {
     }
   
 
-
+    public Stage getStage(){
+        return m_dataList.appStage();
+    }
 
 
     public Scene getScene(){

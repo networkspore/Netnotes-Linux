@@ -37,6 +37,7 @@ import com.utils.Utils;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -124,8 +125,8 @@ public class NetworksData {
 
     private SimpleStringProperty m_stageIconStyle = new SimpleStringProperty(IconStyle.ICON);
 
-    private double m_stageWidth = 700;
-    private double m_stageHeight = 600;
+    private double m_stageWidth = 780;
+    private double m_stageHeight = 640;
     private double m_stagePrevWidth = 310;
     private double m_stagePrevHeight = 500;
     private boolean m_stageMaximized = false;
@@ -1153,18 +1154,22 @@ public class NetworksData {
 
 
 
-
-
- 
-
     private SimpleDoubleProperty m_menuWidth;
     private VBox m_contentBox;
     private ContentTabs m_contentTabs;
 
+    private Button m_maximizeBtn;
   
+    public void toggleMaximized(){
+        m_maximizeBtn.fire();
+    }
 
-    public void createMenu(Stage appStage,SimpleDoubleProperty menuWidth, HBox menuBox, ScrollPane subMenuScroll, VBox contentBox){
-         
+    public boolean isStageMaximized(){
+        return m_appStage.isMaximized();
+    }
+
+    public void createMenu(Stage appStage, Button maximizeBtn, SimpleDoubleProperty menuWidth, HBox menuBox, ScrollPane subMenuScroll, VBox contentBox){
+        m_maximizeBtn = maximizeBtn;
         m_menuWidth = menuWidth;
         m_contentBox = contentBox;
         m_appStage = appStage;
@@ -3476,6 +3481,15 @@ public class NetworksData {
        // private ScrollPane m_bodyScroll;
        // private SimpleDoubleProperty m_tabsHeight = new SimpleDoubleProperty(30);
         private StackPane m_bodyBox;
+
+        public ReadOnlyDoubleProperty bodyWidth(){
+            return m_bodyBox.widthProperty();
+        }
+
+        public ReadOnlyDoubleProperty bodyHeight(){
+            return m_bodyBox.heightProperty();
+        }
+
        
         private HashMap<String, ContentTab> m_itemTabs = new HashMap<>();
 
@@ -3511,7 +3525,8 @@ public class NetworksData {
 
             m_bodyBox = new StackPane();
             HBox.setHgrow(m_bodyBox, Priority.ALWAYS);
-
+            VBox.setVgrow(m_bodyBox, Priority.ALWAYS);
+            
             /* 
             m_bodyScroll = new ScrollPane();
             m_bodyScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));

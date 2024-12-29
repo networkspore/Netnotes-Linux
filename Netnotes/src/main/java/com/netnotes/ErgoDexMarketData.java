@@ -213,7 +213,7 @@ public class ErgoDexMarketData extends PriceQuote {
     }
 
     public PriceQuote getPriceQuote(boolean invert){
-        BigDecimal amount = invert ? getInvertedAmount(): getAmount();
+        BigDecimal amount = invert ? getInvertedQuote(): getQuote();
         
         String quoteSymbol = invert ?  getBaseSymbol() : getQuoteSymbol();
         String baseSymbol  = invert ? getQuoteSymbol() : getBaseSymbol();
@@ -231,7 +231,7 @@ public class ErgoDexMarketData extends PriceQuote {
 
     public ErgoDexMarketData clone(boolean invert){
 
-        BigDecimal price = invert ? getInvertedAmount(): getAmount();
+        BigDecimal price = invert ? getInvertedQuote(): getQuote();
         
         String quoteSymbol = invert ?  getBaseSymbol() : getQuoteSymbol();
         String baseSymbol  = invert ? getQuoteSymbol() : getBaseSymbol();
@@ -263,7 +263,7 @@ public class ErgoDexMarketData extends PriceQuote {
 
     public BigDecimal getLastPrice(){
         
-        return getAmount();
+        return getQuote();
     }
 
     public void setLastPrice(BigDecimal lastPrice){
@@ -274,13 +274,13 @@ public class ErgoDexMarketData extends PriceQuote {
    
 
     public String lastPriceString(){
-        return getAmount() + "";
+        return getQuote() + "";
     }
 
 
 
     public BigDecimal getInvertedLastPrice(){
-        return getInvertedAmount();
+        return getInvertedQuote();
     }
 
 
@@ -413,7 +413,7 @@ public class ErgoDexMarketData extends PriceQuote {
     }
 
     public void update(ErgoDexMarketData updateData){
-        setAmount(updateData.getAmount());
+        setAmount(updateData.getQuote());
        
         m_baseVolume = updateData.getBaseVolume();
         m_quoteVolume = updateData.getQuoteVolume();

@@ -390,7 +390,7 @@ public class ErgoDex extends Network implements NoteInterface {
             });
 
 
-            addNetworksListener();
+            addNetworksDataListener();
 
  
             double defaultGridWidth = App.DEFAULT_STATIC_WIDTH;
@@ -678,7 +678,7 @@ public class ErgoDex extends Network implements NoteInterface {
             }
         }
 
-        public void addNetworksListener(){
+        public void addNetworksDataListener(){
             m_networksDataMsgInterface = new NoteMsgInterface() {
 
                 @Override

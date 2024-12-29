@@ -1,5 +1,9 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -182,11 +186,13 @@ public class ErgoWalletControl {
     
     public void getDefaultWallet(){
         NoteInterface ergoNetworkInterface = m_ergoNetworkInterface;
-        
+         
         if(ergoNetworkInterface != null){
             JsonObject note = Utils.getCmdObject("getDefaultInterface");
             note.addProperty("networkId", ErgoNetwork.WALLET_NETWORK);
             note.addProperty("locationId", getLocationId());
+           
+          
             Object obj = ergoNetworkInterface.sendNote(note);
             NoteInterface walletInterface = obj != null && obj instanceof NoteInterface ? (NoteInterface) obj : null;
             setWalletInterface(walletInterface);

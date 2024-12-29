@@ -28,7 +28,6 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
@@ -36,7 +35,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -57,11 +55,9 @@ import java.io.IOException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-
+import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 
-import org.ergoplatform.appkit.NetworkType;
 import org.reactfx.util.FxTimer;
 
 public class ErgoDexChartTab extends ContentTab {
@@ -72,11 +68,12 @@ public class ErgoDexChartTab extends ContentTab {
     public final static String MARKET_ORDER = "Market order";
     public final static String LIMIT_ORDER = "limit order";
     public final static double SWAP_BOX_MIN_WIDTH = 300;
+    public final static String DEFAULT_ID = "DEFAULT_ID";
 
     private ScrollPane m_chartScroll;
     private int m_cellWidth = 20;
     private int m_cellPadding = 3;
-    private SimpleObjectProperty<TimeSpan> m_chartTimeSpanObject = new SimpleObjectProperty<>(new TimeSpan("30min"));
+   
     private ErgoDexChartView m_spectrumChartView;
     private java.awt.Font m_labelFont;
     private FontMetrics m_labelMetrics;
@@ -86,7 +83,7 @@ public class ErgoDexChartTab extends ContentTab {
     private ImageView m_chartImageView;
     private ChangeListener<Boolean> m_invertListener = null;
 
-    private SimpleBooleanProperty m_showSwap = new SimpleBooleanProperty(false);
+   
   
     private BufferedImage m_img = null;
     private Graphics2D m_g2d = null;
@@ -104,6 +101,13 @@ public class ErgoDexChartTab extends ContentTab {
     private Button m_toggleSwapBtn;
     private HBox m_bodyBox;
 
+    private SimpleBooleanProperty m_showSwap = new SimpleBooleanProperty(true);
+    private SimpleBooleanProperty m_showWallet = new SimpleBooleanProperty(true);
+    private SimpleBooleanProperty m_showPoolStats = new SimpleBooleanProperty(true);
+        
+
+    private SimpleObjectProperty<TimeSpan> m_chartTimeSpanObject = new SimpleObjectProperty<>(new TimeSpan("30min"));
+    private String m_defaultWalletId = DEFAULT_ID;
 
     public boolean isInvert(){
         return m_marketItem.isInvert();
@@ -121,12 +125,15 @@ public class ErgoDexChartTab extends ContentTab {
         return m_marketItem.isInvertProperty();
     }
 
+
+
     public ErgoDexChartTab(String id, Image logo, String title,  Pane layoutBox,  ErgoDexDataList dataList, ErgoDexMarketData marketData, ErgoDexMarketItem marketItem){
         super(id, ErgoDex.NETWORK_ID, logo, title , layoutBox);
         m_dataList = dataList;
         m_marketData = marketData;
         m_marketItem = marketItem;
-
+        getData();
+      
         m_titleProperty = new SimpleStringProperty(title);
 
         m_labelFont = m_dataList.getLabelFont();
@@ -207,9 +214,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_chartRange = new RangeBar(rangeWidth, rangeHeight, getNetworksData().getExecService());
         m_chartImageView = new ImageView();
         m_chartImageView.setPreserveRatio(true);
-        m_chartScroll = new ScrollPane(m_chartImageView);
-        
-        headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
+        m_chartScroll = new ScrollPane(m_chartImageView);        headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
         
         Region headingPaddingRegion = new Region();
         headingPaddingRegion.setMinHeight(5);
@@ -223,6 +228,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         setChartRangeItem.setOnAction((e)->m_chartRange.toggleSettingRange());
 
+     
                     //⯈🗘
         m_toggleSwapBtn = new Button("⯈");
         m_toggleSwapBtn.setTextFill(App.txtColor);
@@ -231,7 +237,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_toggleSwapBtn.setId("barBtn");
         //toggleSwapBtn.setMinWidth(20);
         m_toggleSwapBtn.setOnAction(e->{
-            m_showSwap.set(!m_showSwap.get());
+            setShowSwap(!getShowSwap());
         });
 
         Region topRegion = new Region();
@@ -267,9 +273,12 @@ public class ErgoDexChartTab extends ContentTab {
         m_chartScroll.prefViewportWidthProperty().bind(layoutBox.widthProperty().subtract(45));
         m_chartScroll.prefViewportHeightProperty().bind(layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
 
+
+        //layoutBox.setPrefWidth(Double.MAX_VALUE);
+
         rangeHeight.bind(layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(65));
 
- 
+      
         
         m_chartRange.bottomVvalueProperty().addListener((obs,oldval,newval)->{
             if(m_chartRange.settingRangeProperty().get()){
@@ -333,7 +342,7 @@ public class ErgoDexChartTab extends ContentTab {
 
                 if (item != null && item instanceof TimeSpan) {
 
-                    m_chartTimeSpanObject.set((TimeSpan)item);
+                    setTimeSpan((TimeSpan)item);
             
                     
                 }
@@ -390,6 +399,87 @@ public class ErgoDexChartTab extends ContentTab {
     
        
         createChart();
+    }
+
+
+    public void getData(){
+        JsonObject json = getNetworksData().getData("chartData", m_marketData.getId(), ErgoDexDataList.NETWORK_ID, ErgoDex.NETWORK_ID);
+
+        openJson(json);
+    }
+
+    public void setTimeSpan(TimeSpan timeSpan){
+        m_chartTimeSpanObject.set(timeSpan);
+        FxTimer.runLater(Duration.ofMillis(109), ()->{
+            save();
+        });
+    }
+
+    public boolean getShowSwap(){
+        return m_showSwap.get();
+    }
+
+    public void setShowSwap(boolean showSwap){
+        m_showSwap.set(showSwap);
+        FxTimer.runLater(Duration.ofMillis(109), ()->{
+            save();
+        });
+    }
+
+    public boolean getShowWallet(){
+        return m_showWallet.get();
+    }
+
+    public void setShowWallet(boolean showWallet){
+        m_showWallet.set(showWallet);
+        FxTimer.runLater(Duration.ofMillis(109), ()->{
+            save();
+        });
+    }
+
+    public String getDefaultWalletId(){
+        return m_defaultWalletId;
+    }
+
+    public void setDefaultWalletId(String id){
+        m_defaultWalletId = id;
+        FxTimer.runLater(Duration.ofMillis(109), ()->{
+            save();
+        });
+    }
+
+    private void openJson(JsonObject json){
+        if(json != null){
+            JsonElement timeSpanElement = json.get("timeSpan");
+            JsonElement showSwapElement = json.get("showSwap");
+            JsonElement showWalletElement = json.get("showWallet");
+            JsonElement defaeultWalletIdElement = json.get("defaultWalletId");
+
+            JsonObject timeSpanJson = timeSpanElement != null && timeSpanElement.isJsonObject() ? timeSpanElement.getAsJsonObject() : null;
+ 
+            TimeSpan timeSpan = timeSpanJson != null ? new TimeSpan(timeSpanJson) : new TimeSpan("30min");
+            boolean showSwap = showSwapElement != null && !showSwapElement.isJsonNull() ? showSwapElement.getAsBoolean() : true;
+            boolean showWallet = showWalletElement != null && !showWalletElement.isJsonNull() ? showWalletElement.getAsBoolean() : true;
+            String defaultWalletId = defaeultWalletIdElement == null ?  DEFAULT_ID : (defaeultWalletIdElement.isJsonNull() ? null : defaeultWalletIdElement.getAsString());
+
+            m_chartTimeSpanObject.set(timeSpan);
+            m_showSwap.set(showSwap);
+            m_showWallet.set(showWallet);
+            m_defaultWalletId = defaultWalletId;
+        }
+    }
+
+    private JsonObject getJsonObject(){
+        JsonObject json = new JsonObject();
+        json.addProperty("defaultWalletId", m_defaultWalletId);
+        json.addProperty("showSwap", m_showSwap.get());
+        json.addProperty("showWallet", m_showWallet.get());
+        json.add("timeSpan", m_chartTimeSpanObject.get().getJsonObject());
+        return json;
+    }
+
+    public void save(){
+        getNetworksData().save("chartData", m_marketData.getId(), ErgoDexDataList.NETWORK_ID, ErgoDex.NETWORK_ID, getJsonObject());
     }
 
     public void addErgoDexListener(){
@@ -608,7 +698,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         if( showSwap){
             m_toggleSwapBtn.setText("⯈");
-            if(m_ergoDexSwapBox == null){
+            if(! m_bodyBox.getChildren().contains(m_ergoDexSwapBox)){
                 m_ergoDexSwapBox = new ErgoDexSwapBox();
                 m_bodyBox.getChildren().add(m_ergoDexSwapBox);
             }
@@ -617,11 +707,11 @@ public class ErgoDexChartTab extends ContentTab {
             
             if(m_ergoDexSwapBox != null){
                 m_ergoDexSwapBox.shutdown();
+                m_ergoDexSwapBox = null;
                 if(m_bodyBox.getChildren().contains(m_ergoDexSwapBox)){
                     m_bodyBox.getChildren().remove(m_ergoDexSwapBox);
                 }
-                m_ergoDexSwapBox = null;
-                //  swapBoxObject.set(null);
+         
             }
         }
     }
@@ -629,7 +719,8 @@ public class ErgoDexChartTab extends ContentTab {
 
     @Override
     public void close(){
-        m_showSwap.set(false);
+        m_ergoDexSwapBox.shutdown();
+
         if(m_invertListener != null){
             isInvertProperty().removeListener(m_invertListener);
         }
@@ -647,7 +738,6 @@ public class ErgoDexChartTab extends ContentTab {
         public final static String WALLET_BOX = "Wallet";
 
         private VBox m_swapScrollContentBox;
-        private SimpleStringProperty m_currentSwapContentBox = new SimpleStringProperty(WALLET_BOX);
         private ScrollPane m_swapBoxScroll;
         private ErgoDexWalletBox m_dexWallet;
 
@@ -657,7 +747,7 @@ public class ErgoDexChartTab extends ContentTab {
             super();
             setMinWidth(SWAP_BOX_MIN_WIDTH);
             VBox.setVgrow(this, Priority.ALWAYS);
-            m_dexWallet = new ErgoDexWalletBox();
+    
             // SimpleObjectProperty<PriceAmount> spfPriceAmountObject = new SimpleObjectProperty<>(null);
             SimpleObjectProperty<PriceAmount> basePriceAmountObject = new SimpleObjectProperty<>(null); 
             SimpleObjectProperty<PriceAmount> quotePriceAmountObject = new SimpleObjectProperty<>(null);
@@ -671,7 +761,7 @@ public class ErgoDexChartTab extends ContentTab {
             
             SimpleStringProperty orderTypeStringObject = new SimpleStringProperty(MARKET_ORDER);
     
-            SimpleBooleanProperty showPoolStats = new SimpleBooleanProperty(true);
+
     
             Runnable updateOrderPriceObject = () ->{
                 if(orderTypeStringObject.get() != null && orderTypeStringObject.get().equals(MARKET_ORDER)){
@@ -681,80 +771,8 @@ public class ErgoDexChartTab extends ContentTab {
             };
     
             updateOrderPriceObject.run();
-    
-    
-            TextField baseQuantityField = new TextField();
-            HBox.setHgrow(baseQuantityField, Priority.ALWAYS);
-            baseQuantityField.setId("formField");
-            baseQuantityField.setEditable(false);
-            baseQuantityField.setAlignment(Pos.CENTER_RIGHT);
-    
-            ImageView baseImgView = new ImageView();
-            baseImgView.setPreserveRatio(true);
-    
-    
-    
-            StackPane baseQuantityFieldBox = new StackPane(baseImgView, baseQuantityField);
-            baseQuantityFieldBox.setId("darkBox");
-            baseQuantityFieldBox.setPadding(new Insets(0,3,0,0));
-            baseQuantityFieldBox.setAlignment(Pos.CENTER_LEFT);
-            HBox.setHgrow(baseQuantityFieldBox, Priority.ALWAYS);
-    
-            HBox baseQuantityBox = new HBox(baseQuantityFieldBox);
-            baseQuantityBox.setPadding(new Insets(0,5,0,3));
-            baseQuantityBox.setAlignment(Pos.CENTER_LEFT);
-            HBox.setHgrow(baseQuantityBox, Priority.ALWAYS);
-    
-    
-            
-    
-    
-            ImageView poolStatsIconView = new ImageView(m_dataList.getErgoDex().getSmallAppIcon());
-            poolStatsIconView.setFitWidth(20);
-            poolStatsIconView.setPreserveRatio(true);
-    
-            Label poolStatsLbl = new Label("Profile");
-            poolStatsLbl.setFont(App.titleFont);
-            poolStatsLbl.setTextFill(App.txtColor);
-            poolStatsLbl.setPadding(new Insets(0, 0, 0, 10));
-    
-            Region poolStatsSpacer = new Region();
-            HBox.setHgrow(poolStatsSpacer, Priority.ALWAYS);
-    
-            
-            
-            BufferedButton poolStatsToggleShowBtn = new BufferedButton("/assets/caret-up-15.png", 15);
-            poolStatsToggleShowBtn.setId("toolBtn");
-            poolStatsToggleShowBtn.setPadding(new Insets(0, 5, 0, 3));
-            poolStatsToggleShowBtn.setOnAction(e->{
-                showPoolStats.set(!showPoolStats.get());
-            });
-            
-    
-            
-            HBox poolStatsTopBar = new HBox(poolStatsIconView, poolStatsLbl, poolStatsSpacer, poolStatsToggleShowBtn);
-            poolStatsTopBar.setAlignment(Pos.CENTER_LEFT);
-            poolStatsTopBar.setPadding(new Insets(5,1, 5, 5));
-            poolStatsTopBar.setId("networkTopBar");
-    
-            
-    
-            VBox poolStatsBox = new VBox();
-    
-            VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
-            
-            
-            showPoolStats.addListener((obs,oldval,newval)->{
-                
-                poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
-            
-                if(newval){
-                    
-                }else{
-                
-                }
-            });
-    
+
+
             Button buyBtn = new Button("Buy");
             buyBtn.setOnAction(e->{
                 isBuyObject.set(true);
@@ -773,11 +791,6 @@ public class ErgoDexChartTab extends ContentTab {
     
             buyBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
             sellBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
-    
-    
-            
-            
-    
     
             
             Button marketOrderBtn = new Button("Market");
@@ -1069,7 +1082,6 @@ public class ErgoDexChartTab extends ContentTab {
     
             updateOrderType.run();
     
-        
     
             
     
@@ -1099,38 +1111,7 @@ public class ErgoDexChartTab extends ContentTab {
             feesTextBox.setAlignment(Pos.TOP_RIGHT);
     
     
-        /*  Runnable updateFeesBtn = () ->{
-                
-                if(isSpfFeesObject.get()){
-                    //ergoRemoveFees
-                    if(ergoQuantityFieldBox.getChildren().contains(feesTextBox)){
-                        ergoQuantityFieldBox.getChildren().remove(feesTextBox);
-                    }
-                    //spfAddFees
-                    if(!spfQuantityFieldBox.getChildren().contains(feesTextBox)){
-                        spfQuantityFieldBox.getChildren().add(feesTextBox);
-                    }
-                }else{
-                    //spfAddFees
-                    if(spfQuantityFieldBox.getChildren().contains(feesTextBox)){
-                        spfQuantityFieldBox.getChildren().remove(feesTextBox);
-                    }
-                    //ergoRemoveFees
-                    if(!ergoQuantityFieldBox.getChildren().contains(feesTextBox)){
-                        ergoQuantityFieldBox.getChildren().add(feesTextBox);
-                    }
-                }
-            };
-    
-            updateFeesBtn.run();
-    
-            ergoQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-                isSpfFeesObject.set(false);
-            });
-            spfQuantityFieldBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-                isSpfFeesObject.set(true);
-            });*/
-    
+
     
     
             isBuyObject.addListener((obs,oldval,newval)->{
@@ -1181,26 +1162,14 @@ public class ErgoDexChartTab extends ContentTab {
             
             m_marketData.getLastUpdated().addListener(m_marketDataUpdateListener);
            
-            Button walletBtn = new Button(WALLET_BOX);
-             walletBtn.setId("selectedBtn");
-
-            HBox swapScrollHeadingBox = new HBox(walletBtn);
-            HBox.setHgrow(swapScrollHeadingBox, Priority.ALWAYS);
-            swapScrollHeadingBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-                m_currentSwapContentBox.set(WALLET_BOX);
-            });
-
-            VBox walletVBox = new VBox();
-            HBox.setHgrow(walletVBox, Priority.ALWAYS);
-
-            m_currentSwapContentBox.addListener((obs,oldVal,newVal)->setSwapContent(newVal != null ? newVal : WALLET_BOX));
-            
+   
+            m_dexWallet = new ErgoDexWalletBox();
             
             m_swapScrollContentBox = new VBox(m_dexWallet);
            
             m_swapBoxScroll = new ScrollPane(m_swapScrollContentBox); 
             m_swapBoxScroll.prefViewportWidthProperty().bind(widthProperty()); 
-            m_swapBoxScroll.prefViewportHeightProperty().bind(heightProperty().subtract(swapScrollHeadingBox.heightProperty()).subtract(marketPaddingBox.heightProperty()).subtract(1));
+            m_swapBoxScroll.prefViewportHeightProperty().bind(heightProperty().subtract(marketPaddingBox.heightProperty()).subtract(1));
         
             m_swapScrollContentBox.setPrefWidth(m_swapBoxScroll.viewportBoundsProperty().get().getWidth());
             m_swapScrollContentBox.setMinHeight(m_swapBoxScroll.viewportBoundsProperty().get().getHeight());
@@ -1212,23 +1181,13 @@ public class ErgoDexChartTab extends ContentTab {
                 m_swapScrollContentBox.setMinHeight(height);
             });
 
-            getChildren().addAll(swapScrollHeadingBox, m_swapBoxScroll, marketPaddingBox);
+            getChildren().addAll( m_swapBoxScroll, marketPaddingBox);
                 
     
              
         }
 
-        private void setSwapContent(String value){
-     
-            switch(value){
-                case WALLET_BOX:
-                    if(!m_swapScrollContentBox.getChildren().contains(m_dexWallet)){
-                        m_swapScrollContentBox.getChildren().clear();
-                        m_swapScrollContentBox.getChildren().add(m_dexWallet);
-                    }
-                    break;
-            }
-        }
+
 
         public void shutdown(){
             if(m_marketDataUpdateListener != null){
@@ -1237,7 +1196,10 @@ public class ErgoDexChartTab extends ContentTab {
         }
 
         public class ErgoDexWalletBox extends VBox {
-            private final String emptyAddressString = "[unlock]";;
+
+           
+
+            private final String emptyAddressString = "[click to unlock]";;
             private final String walletBtnDefaultString = "[select wallet]";
             private SimpleObjectProperty<PriceAmount> m_ergoAmountProperty = new SimpleObjectProperty<>(null);
             private SimpleObjectProperty<PriceAmount> m_baseAmountProperty = new SimpleObjectProperty<>(null);
@@ -1253,7 +1215,6 @@ public class ErgoDexChartTab extends ContentTab {
             private HBox m_walletFieldBox;
     
             private Button m_clearWalletBtn;
-            private VBox m_selectedAddressBox;
     
  
             private MenuButton m_walletAdrMenu = null;
@@ -1261,10 +1222,12 @@ public class ErgoDexChartTab extends ContentTab {
             private Button m_walletCloseBtn;
             private HBox m_walletAdrBox;
             private VBox m_walletBodyVBox;
+            private VBox m_assetsVBox;
+            
             private ErgoWalletControl m_walletControl;
     
             public NoteInterface getErgoNetworkInterface(){
-                return m_dataList.ergoNetworkProperty().get();
+                return m_dataList.ergoInterfaceProperty().get();
             }
     
             public String getLocationId(){
@@ -1272,12 +1235,56 @@ public class ErgoDexChartTab extends ContentTab {
             }
     
             public ErgoDexWalletBox(){
-                int colWidth = 120;
+                int colWidth = 100;
+                int padding = 7;
+
+                
     
-                m_walletControl = new ErgoWalletControl(getLocationId(), m_dataList.ergoNetworkProperty().get());
+                m_walletControl = new ErgoWalletControl(getLocationId(), getErgoNetworkInterface());
+
+                Text headingText = new Text("Wallet");
+                headingText.setFont(App.txtFont);
+                headingText.setFill(App.txtColor);
+
+                headingText.setMouseTransparent(true);
+
+                HBox headingTextBox = new HBox(headingText);
+                HBox.setHgrow(headingTextBox, Priority.ALWAYS);
+                headingTextBox.setAlignment(Pos.CENTER_LEFT);
+
+                Label ergoAmountLabel = new Label();
+                ergoAmountLabel.setAlignment(Pos.CENTER_RIGHT);
+                ergoAmountLabel.setMouseTransparent(true);
+                ergoAmountLabel.textProperty().bind(Bindings.createObjectBinding(()->{
+                    PriceAmount ergoAmount =  m_ergoAmountProperty.get();
+                    return ergoAmount != null ? ergoAmount.getBigDecimalAmount() + " ERG" : "";
+                }, m_ergoAmountProperty));
+
+                ergoAmountLabel.setMaxWidth(100);
+                ergoAmountLabel.setMinWidth(100);
+
+                HBox ergoAmountLabelBox = new HBox(ergoAmountLabel);
+                ergoAmountLabelBox.setAlignment(Pos.CENTER_LEFT);
+                ergoAmountLabelBox.setId("darkBox");
+                ergoAmountLabelBox.setPadding(new Insets(2,2,2,0));
+
+                Button showWalletBtn = new Button();
+                showWalletBtn.setPadding(new Insets(0,7,0,0));
+                showWalletBtn.setMouseTransparent(true);
+                showWalletBtn.textProperty().bind(Bindings.createObjectBinding(()->{
+                    return m_showWallet.get() ? "⏷" : "⏵";
+                },m_showWallet));
+
+
+
+                HBox headingBox = new HBox(showWalletBtn, headingTextBox, ergoAmountLabelBox);
+                headingBox.setId("headingBox");
+                headingBox.setPadding(new Insets(7));
+                headingBox.setOnMouseClicked(e->setShowWallet(!getShowWallet()));
+                headingBox.setAlignment(Pos.CENTER_LEFT);
+
+                getChildren().add(headingBox);
     
-                Label walletLabel = new Label("Wallet");
-                walletLabel.setMinWidth(colWidth);
                
                 m_openWalletBtn = new MenuButton(walletBtnDefaultString);
                 m_openWalletBtn.setId("arrowMenuButton");
@@ -1287,30 +1294,29 @@ public class ErgoDexChartTab extends ContentTab {
                     }
                 });
 
-    
                 m_walletFieldBox = new HBox(m_openWalletBtn);
                 HBox.setHgrow(m_walletFieldBox, Priority.ALWAYS);
                 m_walletFieldBox.setAlignment(Pos.CENTER_LEFT);
-                m_walletFieldBox.setId("bodyBox");
-                m_walletFieldBox.setPadding(new Insets(0, 1, 0, 0));
+                m_walletFieldBox.setId("darkBox");
+                m_walletFieldBox.setPadding(new Insets(2, 0, 2, 0));
                 m_walletFieldBox.setMaxHeight(18);
                 m_openWalletBtn.prefWidthProperty().bind(m_walletFieldBox.widthProperty().subtract(1));
 
              
     
-                HBox selectWalletRowBox = new HBox(walletLabel, m_walletFieldBox);
+                HBox selectWalletRowBox = new HBox( m_walletFieldBox);
                 selectWalletRowBox.setAlignment(Pos.CENTER_LEFT);
+
+                m_walletBodyVBox = new VBox(selectWalletRowBox);
+                m_walletBodyVBox.setId("bodyBox");
+                m_walletBodyVBox.setPadding(new Insets(padding));
+
     
                 m_clearWalletBtn = new Button("☓");
                 m_clearWalletBtn.setId("lblBtn");
                 m_clearWalletBtn.setOnAction(e -> m_walletControl.clearWallet());
     
-    
-                Label addressLabel = new Label("Address");
-                addressLabel.setMinWidth(colWidth);
-    
                 
-
                 m_walletAdrMenu = new MenuButton(emptyAddressString);
             
                 m_walletAdrMenu.showingProperty().addListener((obs,oldval,newval)->{
@@ -1329,10 +1335,11 @@ public class ErgoDexChartTab extends ContentTab {
 
                 m_walletAdrFieldBox = new HBox(m_walletAdrMenu);
                 HBox.setHgrow(m_walletAdrFieldBox, Priority.ALWAYS);
-                m_walletAdrFieldBox.setId("bodyBox");
+                m_walletAdrFieldBox.setId("darkBox");
+                m_walletAdrFieldBox.setPadding(new Insets(2,0,2,0));
                 m_walletAdrMenu.prefWidthProperty().bind(m_walletAdrFieldBox.widthProperty().subtract(1));
     
-                m_walletAdrBox = new HBox(addressLabel, m_walletAdrFieldBox);
+                m_walletAdrBox = new HBox( m_walletAdrFieldBox);
                 HBox.setHgrow(m_walletAdrBox, Priority.ALWAYS);
                 m_walletAdrBox.setAlignment(Pos.CENTER_LEFT);
     
@@ -1344,10 +1351,105 @@ public class ErgoDexChartTab extends ContentTab {
                     m_walletControl.disconnectWallet();
                 });
     
-                getChildren().addAll(selectWalletRowBox, m_walletAdrBox);
+                Label baseAmountLabel = new Label(isInvert() ? m_marketData.getQuoteSymbol() : m_marketData.getBaseSymbol());
+                baseAmountLabel.setMinWidth(colWidth);
+                baseAmountLabel.setMaxWidth(colWidth);
 
-                m_walletBodyVBox = new VBox();
+                TextField baseAmountField = new TextField();
+                HBox.setHgrow(baseAmountField, Priority.ALWAYS);
+                baseAmountField.setId("formField");
+                baseAmountField.setEditable(false);
+                baseAmountField.setAlignment(Pos.CENTER_RIGHT);
+                baseAmountField.textProperty().bind(Bindings.createObjectBinding(()->{
+                    PriceAmount baseAmount = m_baseAmountProperty.get();
+                    return baseAmount != null ? baseAmount.amountProperty().get() + "" : "0";
+                }, m_quoteAmountProperty));
+        
+                ImageView baseImgView = new ImageView();
+                baseImgView.setPreserveRatio(true);
+        
+                StackPane baseAmountFieldBox = new StackPane(baseImgView, baseAmountField);
+                baseAmountFieldBox.setId("darkBox");
+                baseAmountFieldBox.setPadding(new Insets(0,3,0,0));
+                baseAmountFieldBox.setAlignment(Pos.CENTER_LEFT);
+                HBox.setHgrow(baseAmountFieldBox, Priority.ALWAYS);
+        
+                HBox baseAmountBox = new HBox(baseAmountFieldBox);
+                baseAmountBox.setPadding(new Insets(0,5,0,3));
+                baseAmountBox.setAlignment(Pos.CENTER_LEFT);
+                HBox.setHgrow(baseAmountBox, Priority.ALWAYS);
+
+
+                TextField quoteAmountField = new TextField();
+                HBox.setHgrow(quoteAmountField, Priority.ALWAYS);
+                quoteAmountField.setId("formField");
+                quoteAmountField.setEditable(false);
+                quoteAmountField.setAlignment(Pos.CENTER_RIGHT);
+                quoteAmountField.textProperty().bind(Bindings.createObjectBinding(()->{
+                    PriceAmount quoteAmount = m_quoteAmountProperty.get();
+                    return quoteAmount != null ? quoteAmount.amountProperty().get() + "" : "0";
+                }, m_quoteAmountProperty));
+                
+        
+                ImageView quoteImgView = new ImageView();
+                quoteImgView.setPreserveRatio(true);
+        
+                StackPane quoteAmountFieldBox = new StackPane(quoteImgView, quoteAmountField);
+                quoteAmountFieldBox.setId("darkBox");
+                quoteAmountFieldBox.setPadding(new Insets(0,3,0,0));
+                quoteAmountFieldBox.setAlignment(Pos.CENTER_LEFT);
+                HBox.setHgrow(quoteAmountFieldBox, Priority.ALWAYS);
+        
+                HBox quoteAmountBox = new HBox(quoteAmountFieldBox);
+                quoteAmountBox.setPadding(new Insets(0,5,0,3));
+                quoteAmountBox.setAlignment(Pos.CENTER_LEFT);
+                HBox.setHgrow(quoteAmountBox, Priority.ALWAYS);
+
+            
+                m_assetsVBox = new VBox();
+                
+                if(isInvert()){
+                    m_assetsVBox.getChildren().addAll(quoteAmountBox, baseAmountBox);
+                }else{
+                    m_assetsVBox.getChildren().addAll(baseAmountBox, quoteAmountBox);
+                }
+
+                isInvertProperty().addListener((obs,oldval,newVal)->{
+                    m_assetsVBox.getChildren().clear();
+                    if(newVal){
+                        m_assetsVBox.getChildren().addAll(quoteAmountBox, baseAmountBox);
+                    }else{
+                        m_assetsVBox.getChildren().addAll(baseAmountBox, quoteAmountBox);
+                    }
     
+                });
+
+                m_walletControl.walletNameProperty().addListener((obs, oldVal, newVal) -> {
+    
+                    m_openWalletBtn.setText(newVal != null ? newVal : "[select wallet]" );
+
+                    if(newVal != null){
+                      
+
+              
+                        if(!  m_walletFieldBox.getChildren().contains(m_clearWalletBtn)){
+                            m_walletFieldBox.getChildren().add(m_clearWalletBtn);
+                        }
+                        if(!m_walletBodyVBox.getChildren().contains(m_walletAdrBox)){
+                            m_walletBodyVBox.getChildren().add(1, m_walletAdrBox);
+                        }
+                    }else{
+                     
+                        if( m_walletFieldBox.getChildren().contains(m_clearWalletBtn)){
+                            m_walletFieldBox.getChildren().remove(m_clearWalletBtn);
+                        }
+                        if(m_walletBodyVBox.getChildren().contains(m_walletAdrBox)){
+                            m_walletBodyVBox.getChildren().remove(m_walletAdrBox);
+                        }
+                    }
+            
+                });
+
     
                 m_walletControl.currentAddress().addListener((obs,oldval,newval)->{
                     if(newval != null){
@@ -1355,18 +1457,51 @@ public class ErgoDexChartTab extends ContentTab {
                             m_walletAdrFieldBox.getChildren().add( m_walletCloseBtn);
                         }
                         m_walletAdrMenu.setText(newval);
-            
+                       
+                        if(!m_walletBodyVBox.getChildren().contains(m_assetsVBox)){
+                            m_walletBodyVBox.getChildren().add(m_assetsVBox);
+                        }
+
                     }else{
                         if(m_walletAdrFieldBox.getChildren().contains( m_walletCloseBtn)){
                             m_walletAdrFieldBox.getChildren().remove( m_walletCloseBtn);
                         }
                         m_walletAdrMenu.setText(emptyAddressString);
-                        
+
+                        if(m_walletBodyVBox.getChildren().contains(m_assetsVBox)){
+                            m_walletBodyVBox.getChildren().remove(m_assetsVBox);
+                        }  
                     }
                 });
 
+  
+                m_dataList.ergoInterfaceProperty().addListener((obs,oldval,newval)->{
+                    m_walletControl.setErgoNetworkInterface(newval);
+                 
+                    if(oldval != null){
+                        connectToErgoNetwork(false, oldval);
+                    }
+                    if(newval != null){
+                        connectToErgoNetwork(true, newval);
+                    }
+                });
     
-                m_showAssets.addListener((obs,oldval,newval)->{
+                connectToErgoNetwork(true, getErgoNetworkInterface());
+                
+                String defaultWalletId = getDefaultWalletId();
+                if(defaultWalletId != null){
+                    if(defaultWalletId.equals(DEFAULT_ID)){
+                        m_walletControl.getDefaultWallet();
+                    }else{
+                        m_walletControl.setWalletInterface(defaultWalletId);
+                    }
+                }
+               
+                if(getShowWallet()){
+                    getChildren().add(m_walletBodyVBox);
+                }
+
+                m_showWallet.addListener((obs,oldval,newval)->{
                     if(newval){
                         if(!getChildren().contains(m_walletBodyVBox)){
                             getChildren().add(m_walletBodyVBox);
@@ -1378,38 +1513,6 @@ public class ErgoDexChartTab extends ContentTab {
                     }
                 });
                 
-                m_walletControl.walletNameProperty().addListener((obs, oldVal, newVal) -> {
-    
-                    m_openWalletBtn.setText(newVal != null ? newVal : "[select wallet]" );
-
-                    if(newVal != null){
-                      
-                        if(!m_walletAdrFieldBox.getChildren().contains(m_clearWalletBtn)){
-                            m_walletAdrFieldBox.getChildren().add(m_clearWalletBtn);
-                        }
-                    }else{
-                     
-                        if(m_walletAdrFieldBox.getChildren().contains(m_clearWalletBtn)){
-                            m_walletAdrFieldBox.getChildren().remove(m_clearWalletBtn);
-                        }
-                    }
-            
-                });
-    
-                m_dataList.ergoNetworkProperty().addListener((obs,oldval,newval)->{
-                    m_walletControl.setErgoNetworkInterface(newval);
-                    if(oldval != null){
-                        connectToErgoNetwork(false, oldval);
-                    }
-                    if(newval != null){
-                        connectToErgoNetwork(true, newval);
-                    }
-                });
-    
-                connectToErgoNetwork(true, getErgoNetworkInterface());
-
-                m_walletControl.getDefaultWallet();
-            
             }
     
             public void connectToErgoNetwork(boolean connect, NoteInterface ergoNetworkInterface){
@@ -1443,7 +1546,7 @@ public class ErgoDexChartTab extends ContentTab {
                     };
     
                     ergoNetworkInterface.addMsgListener(m_ergoNetworkMsgInterface);
-                    m_walletControl.getDefaultWallet();
+                  
                 }else{
     
                     if(ergoNetworkInterface != null && m_ergoNetworkMsgInterface != null){
@@ -1469,11 +1572,12 @@ public class ErgoDexChartTab extends ContentTab {
                                 String name = json.get("name").getAsString();
                                 String id = json.get("id").getAsString();
     
-                                MenuItem walletItem = new MenuItem(String.format("%-50s", " " + name));
+                                MenuItem walletItem = new MenuItem( " " + name);
     
                                 walletItem.setOnAction(action -> {
                                 
                                     m_walletControl.setWalletInterface(id);
+                                    setDefaultWalletId(id);
                                 });
     
                                 m_openWalletBtn.getItems().add(walletItem);
@@ -1482,9 +1586,16 @@ public class ErgoDexChartTab extends ContentTab {
                         
                     }
 
+                    MenuItem defaultWallet = new MenuItem("[default]");
+                    defaultWallet.setOnAction(e->{
+                        m_walletControl.getDefaultWallet();
+                        setDefaultWalletId(DEFAULT_ID);
+                    });
+
                     MenuItem disableWallet = new MenuItem("[none]");
                     disableWallet.setOnAction(e->{
                         m_walletControl.clearWallet();
+                        setDefaultWalletId(null);
                     });
 
                     SeparatorMenuItem separatorItem = new SeparatorMenuItem();
@@ -1495,7 +1606,7 @@ public class ErgoDexChartTab extends ContentTab {
                         getNetworksData().openNetwork(ErgoNetwork.NETWORK_ID);
                     });
 
-                    m_openWalletBtn.getItems().addAll(disableWallet, separatorItem, openErgoNetworkItem);
+                    m_openWalletBtn.getItems().addAll(defaultWallet, disableWallet, separatorItem, openErgoNetworkItem);
 
                 }else{
                     MenuItem manageNetworkItem = new MenuItem("Manage networks…");
@@ -1550,6 +1661,57 @@ public class ErgoDexChartTab extends ContentTab {
         
     }
 
-   
+    public class ErgoDexStatsBox extends VBox {
+       
+        public ErgoDexStatsBox(){
+
+    
+            ImageView poolStatsIconView = new ImageView(m_dataList.getErgoDex().getSmallAppIcon());
+            poolStatsIconView.setFitWidth(20);
+            poolStatsIconView.setPreserveRatio(true);
+    
+            Label poolStatsLbl = new Label("Profile");
+            poolStatsLbl.setFont(App.titleFont);
+            poolStatsLbl.setTextFill(App.txtColor);
+            poolStatsLbl.setPadding(new Insets(0, 0, 0, 10));
+    
+            Region poolStatsSpacer = new Region();
+            HBox.setHgrow(poolStatsSpacer, Priority.ALWAYS);
+    
+            
+            
+            BufferedButton poolStatsToggleShowBtn = new BufferedButton("/assets/caret-up-15.png", 15);
+            poolStatsToggleShowBtn.setId("toolBtn");
+            poolStatsToggleShowBtn.setPadding(new Insets(0, 5, 0, 3));
+            poolStatsToggleShowBtn.setOnAction(e->{
+                m_showPoolStats.set(!m_showPoolStats.get());
+            });
+            
+    
+            
+            HBox poolStatsTopBar = new HBox(poolStatsIconView, poolStatsLbl, poolStatsSpacer, poolStatsToggleShowBtn);
+            poolStatsTopBar.setAlignment(Pos.CENTER_LEFT);
+            poolStatsTopBar.setPadding(new Insets(5,1, 5, 5));
+            poolStatsTopBar.setId("networkTopBar");
+    
+            
+    
+            VBox poolStatsBox = new VBox();
+    
+            VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
+            
+            
+            m_showPoolStats.addListener((obs,oldval,newval)->{
+                
+                poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
+            
+                if(newval){
+                    
+                }else{
+                
+                }
+            });
+        }
+    }
 
 }

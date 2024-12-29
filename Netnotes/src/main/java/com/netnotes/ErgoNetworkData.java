@@ -32,7 +32,7 @@ public class ErgoNetworkData {
         m_id = FriendlyId.createFriendlyId();
         m_ergoNetwork = ergoNetwork;
         m_locationId = locationId;
-
+        m_authorizedLocations.add(ErgoDex.NAME);
         installNetworks();
         
         
