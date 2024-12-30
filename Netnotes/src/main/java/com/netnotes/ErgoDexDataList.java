@@ -3,18 +3,25 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+
 import com.devskiller.friendly_id.FriendlyId;
+
+import org.reactfx.util.FxTimer;
+import org.reactfx.util.Timer;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -23,10 +30,12 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
@@ -42,10 +51,11 @@ public class ErgoDexDataList  {
 
     public final static String LOADING = "Loading...";
     public final static String NETWORK_ID = "spectrumDataList";
+    public final static int LOAD_DELAY = 3;
     private ErgoDex m_ergodex;
     private String m_locationId;
 
-    private VBox m_gridBox = new VBox();
+    private VBox m_gridBox;
     
     private ArrayList<ErgoDexMarketItem> m_marketsList = new ArrayList<ErgoDexMarketItem>();
 
@@ -55,6 +65,8 @@ public class ErgoDexDataList  {
 
     private ErgpDexSort m_sortMethod = new ErgpDexSort();
     private String m_searchText = null;
+
+
    
 
     private int m_connectionStatus = App.STOPPED;
@@ -82,7 +94,7 @@ public class ErgoDexDataList  {
     private SimpleObjectProperty<NoteInterface> m_ergoNetworkInterfaceProperty = new SimpleObjectProperty<>(null);
     private ScrollPane m_scrollPane;
     private TextField m_updatedField;
-
+    private VBox m_layoutBox;
     private double m_defaultCharSize;
     
     public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
@@ -155,7 +167,7 @@ public class ErgoDexDataList  {
                     switch(code){
                         case App.LIST_CHANGED:
                         case App.LIST_UPDATED:
-                        
+                            m_statusMsg.set(App.STATUS_STARTED);
                             updateMarkets(m_ergodex.marketsList());
                             m_connectionStatus = App.STARTED;
                         
@@ -179,7 +191,8 @@ public class ErgoDexDataList  {
             public void sendMessage(int code, long timestamp, String networkId, String msg){
                 if(code == App.ERROR){
                     m_connectionStatus = App.ERROR;
-                    m_statusMsg.set("Error: " + msg);
+                    m_errMsg = msg;
+                    m_statusMsg.set(App.STATUS_ERROR);
                 }
             }
 
@@ -197,6 +210,8 @@ public class ErgoDexDataList  {
         
     }
 
+    private String m_errMsg = "";
+
     public Image getSmallAppIcon(){ 
         return null;
     }
@@ -204,6 +219,10 @@ public class ErgoDexDataList  {
 
 
     private void setup() {
+        m_layoutBox = new VBox();
+        m_layoutBox.setId("darkBox");
+        m_gridBox = new VBox();
+        HBox.setHgrow(m_gridBox,Priority.ALWAYS);
         updateFont();
         getData();
     }
@@ -290,7 +309,7 @@ public class ErgoDexDataList  {
           
             if(update.get() || m_connectionStatus == App.ERROR){
                 sort();
-               updateGrid();
+                updateGrid();
             }
                    
 
@@ -354,59 +373,72 @@ public class ErgoDexDataList  {
         
     }
 
-    public VBox getGridBox() {
-        VBox gridBox = m_gridBox;
-        
-        gridBox.setId("darkBox");
+
+    public VBox getLayoutBox() {
         
         updateGrid();
 
-        return gridBox;
+        return m_layoutBox;
     }
 
 
-    public void updateGrid(){
-        m_gridBox.getChildren().clear();
-         
-        if (m_marketsList.size() > 0) {
-        
-            if (m_searchText == null) {
-            
-                int numCells = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
-                for (int i = 0; i < numCells; i++) {
-                    ErgoDexMarketItem marketItem = m_marketsList.get(i);
-
-                    HBox rowBox = marketItem.getRowBox();
-                    marketItem.setItemIndex(i);
-                    m_gridBox.getChildren().add(rowBox);
-
-                }
-                    
+    public void update(){
+        m_gridBox.getChildren().clear();  
+        if (m_searchText == null) {
                 
-                
-            } else {
+            int numCells = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
+            for (int i = 0; i < numCells; i++) {
+                ErgoDexMarketItem marketItem = m_marketsList.get(i);
 
-                // List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
-                doSearch( onSuccess -> {
-                    WorkerStateEvent event = onSuccess;
-                    Object sourceObject = event.getSource().getValue();
-
-                    if (sourceObject instanceof ErgoDexMarketItem[]) {
-                        ErgoDexMarketItem[] searchResults = (ErgoDexMarketItem[]) sourceObject;
-                        int numResults = searchResults.length > 100 ? 100 : searchResults.length;
-                        m_gridBox.getChildren().clear();
-                        for (int i = 0; i < numResults; i++) {
-                            ErgoDexMarketItem marketItem = searchResults[i];
-
-                            HBox rowBox = marketItem.getRowBox();
-                            marketItem.setItemIndex(i);
-                            m_gridBox.getChildren().add(rowBox);
-                        }
-                    }
-                }, onFailed -> {
-                });
+                HBox rowBox = marketItem.getRowBox();
+                marketItem.setItemIndex(i);
+                m_gridBox.getChildren().add(rowBox);
 
             }
+                
+            
+            
+        } else {
+
+            // List<SpectrumMarketItem> searchResultsList = m_marketsList.stream().filter(marketItem -> marketItem.getSymbol().contains(m_searchText.toUpperCase())).collect(Collectors.toList());
+            doSearch( onSuccess -> {
+                WorkerStateEvent event = onSuccess;
+                Object sourceObject = event.getSource().getValue();
+
+                if (sourceObject instanceof ErgoDexMarketItem[]) {
+                    ErgoDexMarketItem[] searchResults = (ErgoDexMarketItem[]) sourceObject;
+                    int numResults = searchResults.length > 100 ? 100 : searchResults.length;
+                    m_gridBox.getChildren().clear();
+                    for (int i = 0; i < numResults; i++) {
+                        ErgoDexMarketItem marketItem = searchResults[i];
+
+                        HBox rowBox = marketItem.getRowBox();
+                        marketItem.setItemIndex(i);
+                        m_gridBox.getChildren().add(rowBox);
+                    }
+                }
+            }, onFailed -> {
+            });
+
+        }
+    }
+    private Timer m_timer = null;
+    public void updateGrid(){
+        
+         
+        if (m_marketsList.size() > 0) {
+            update();
+            
+            if(!m_layoutBox.getChildren().contains(m_gridBox)){
+                if(m_timer == null){
+                    m_timer = FxTimer.runLater(Duration.ofSeconds(LOAD_DELAY),()->{
+                        m_layoutBox.getChildren().clear();
+                        m_layoutBox.getChildren().add(m_gridBox);
+                    });
+                }
+            }
+
+           
         } else {
 
             ImageView imgView = new ImageView(m_ergodex.getAppIcon());
@@ -421,29 +453,50 @@ public class ErgoDexDataList  {
             loadingBtn.setGraphic(imgView);
             loadingBtn.setContentDisplay(ContentDisplay.TOP);
 
-            VBox imageBox = new VBox(loadingBtn);
+            ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+            progressBar.setPrefWidth(200);
+
+            HBox progressBarBox = new HBox(progressBar);
+            HBox.setHgrow(progressBarBox,Priority.ALWAYS);
+            progressBarBox.setAlignment(Pos.CENTER);
+            progressBarBox.setPadding(new Insets(20,0,0,0));
+
+            VBox imageBox = new VBox(loadingBtn, progressBarBox);
             imageBox.setId("transparentColor");
             imageBox.setAlignment(Pos.CENTER);
             HBox.setHgrow(imageBox, Priority.ALWAYS);
-            imageBox.prefHeightProperty().bind(m_gridHeight.subtract(30));
+          
 
             Label statusLabel = new Label();
             statusLabel.setId("italicFont");
-            statusLabel.textProperty().bind(statusMsgProperty());
+            statusLabel.textProperty().bind(Bindings.createObjectBinding(()->{
+                switch(m_statusMsg.get()){
+                    case App.STATUS_STARTING:
+                        return "Updating";
+                    case LOADING:
+                        return LOADING;
+                    case App.STATUS_ERROR:
+                        return m_errMsg;
+                }
+                return LOADING;
+            },m_statusMsg));
             
+     
+            
+            progressBarBox.setPadding(new Insets(0,0,0,0));
 
-            HBox statusLabelBox = new HBox(statusLabel);
+            VBox statusLabelBox = new VBox( statusLabel);
             HBox.setHgrow(statusLabelBox, Priority.ALWAYS);
             statusLabelBox.setAlignment(Pos.CENTER);
 
 
-            
+            imageBox.prefHeightProperty().bind(m_gridHeight.subtract(statusLabelBox.heightProperty()));
 
             //imageBox.setPadding(new Insets(0,0,40,0));
 
 
             
-            m_gridBox.getChildren().addAll(imageBox,statusLabelBox);
+            m_layoutBox.getChildren().addAll(imageBox,statusLabelBox);
         }
 
         m_updatedField.setText(Utils.formatDateTimeString( LocalDateTime.now()));
@@ -510,7 +563,7 @@ public class ErgoDexDataList  {
         }
     
         int maxItems = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
-        m_statusMsg.set("Top "+maxItems+" - " + m_sortMethod.getType() + " " + (m_sortMethod.isAsc() ? "(Low to High)" : "(High to Low)"));
+       // m_statusMsg.set("Top "+maxItems+" - " + m_sortMethod.getType() + " " + (m_sortMethod.isAsc() ? "(Low to High)" : "(High to Low)"));
         if(doSave){
             save();
         }

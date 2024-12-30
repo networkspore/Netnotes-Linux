@@ -587,7 +587,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
       
 
-            VBox chartList = m_dexDataList.getGridBox();
+            VBox chartList = m_dexDataList.getLayoutBox();
   
             scrollPane.setContent(chartList);
             
@@ -654,7 +654,12 @@ public class ErgoDex extends Network implements NoteInterface {
         
             scrollPane.prefViewportHeightProperty().bind(heightObject.subtract(footerVBox.heightProperty()));
 
-            chartList.prefWidthProperty().bind(scrollPane.prefViewportWidthProperty().subtract(40));
+            scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+                chartList.setPrefWidth(newval.getWidth() - 40);
+                chartList.setMaxWidth(newval.getWidth() - 40);
+            });
+
+
         }
         private boolean isErgoNetwork(){
             return m_isErgoNetwork;

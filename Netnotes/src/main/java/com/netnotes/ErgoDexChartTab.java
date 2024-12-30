@@ -1242,16 +1242,15 @@ public class ErgoDexChartTab extends ContentTab {
                 headingTextBox.setAlignment(Pos.CENTER_LEFT);
 
                 TextField ergoAmountHeadingField = new TextField();
-                ergoAmountHeadingField.setMouseTransparent(true);
                 ergoAmountHeadingField.textProperty().bind(Bindings.createObjectBinding(()->{
                     String walletName = m_walletControl.walletNameProperty().get();
                     PriceAmount ergoAmount =  m_ergoAmountProperty.get();
                     NoteInterface ergoInterface = m_dataList.ergoInterfaceProperty().get();
-                    return ergoAmount != null ? ergoAmount.getAmountString() : walletName != null ? "🔒 Locked" : ergoInterface != null ? "  🚫  " : "  ⛔  " ;
+                    return ergoAmount != null ? ergoAmount.getAmountString() : walletName != null ? "🔒 Locked" : ergoInterface != null ? "🚫" : "⛔" ;
                 }, m_ergoAmountProperty, m_walletControl.walletNameProperty(), m_dataList.ergoInterfaceProperty()));
                 ergoAmountHeadingField.prefWidthProperty().bind(Bindings.createObjectBinding(()->{
                     double w = Utils.computeTextWidth(App.txtFont, ergoAmountHeadingField.textProperty().get()) + 20;
-                    return w < 50 ? 50 : (w > 200 ? 200 : w);
+                    return w < 30 ? 30 : (w > 200 ? 200 : w);
                 }, ergoAmountHeadingField.textProperty()));
 
 
@@ -1260,7 +1259,7 @@ public class ErgoDexChartTab extends ContentTab {
                 ergText.setFill(App.txtColor);
                 ergText.textProperty().bind(Bindings.createObjectBinding(()->{
                     PriceAmount ergoAmount =  m_ergoAmountProperty.get();
-                    return ergoAmount != null ? ErgoCurrency.FONT_SYMBOL : "";
+                    return ergoAmount != null ? " " + ErgoCurrency.FONT_SYMBOL : "";
                 }, m_ergoAmountProperty));
 
                 HBox ergoAmountHeadingFieldBox = new HBox(ergoAmountHeadingField);
@@ -1269,7 +1268,7 @@ public class ErgoDexChartTab extends ContentTab {
                 HBox ergoAmountLabelBox = new HBox(ergoAmountHeadingFieldBox, ergText);
                 ergoAmountLabelBox.setAlignment(Pos.CENTER_LEFT);
                 ergoAmountLabelBox.setId("darkBox");
-                ergoAmountLabelBox.setPadding(new Insets(2,10,2,0));
+                ergoAmountLabelBox.setPadding(new Insets(2,0,2,0));
 
                 Button showWalletBtn = new Button();
 
@@ -1305,7 +1304,6 @@ public class ErgoDexChartTab extends ContentTab {
 
 
                 m_walletFieldBox = new HBox(m_openWalletBtn);
-                HBox.setHgrow(m_walletFieldBox, Priority.ALWAYS);
                 m_walletFieldBox.setAlignment(Pos.CENTER_LEFT);
                 m_walletFieldBox.setMaxHeight(18);
                 m_walletFieldBox.setId("darkBox");
@@ -1319,8 +1317,8 @@ public class ErgoDexChartTab extends ContentTab {
                 clearWalletBtnBox.setAlignment(Pos.CENTER);
     
                 HBox selectWalletRowBox = new HBox( m_walletFieldBox, clearWalletBtnBox);
-                selectWalletRowBox.setAlignment(Pos.CENTER_LEFT);
-                selectWalletRowBox.setPadding(new Insets(0,0,7,0));
+                selectWalletRowBox.setAlignment(Pos.CENTER);
+                selectWalletRowBox.setPadding(new Insets(7,0,7,0));
 
                 m_walletBodyVBox = new VBox(selectWalletRowBox);
                 m_walletBodyVBox.setId("bodyBox");
@@ -1392,7 +1390,7 @@ public class ErgoDexChartTab extends ContentTab {
                 baseAmountField.setAlignment(Pos.CENTER_RIGHT);
                 baseAmountField.textProperty().bind(Bindings.createObjectBinding(()->{
                     PriceAmount baseAmount = m_baseAmountProperty.get();
-                    return baseAmount != null ? baseAmount.amountProperty().get() + "" : "Unavailable";
+                    return baseAmount != null ? baseAmount.amountProperty().get() + "" : "⸻";
                 }, m_baseAmountProperty));
         
                 ImageView baseImgView = new ImageView(PriceCurrency.getBlankBgIcon(38, m_marketData.getBaseSymbol()));
@@ -1417,7 +1415,7 @@ public class ErgoDexChartTab extends ContentTab {
                 quoteAmountField.setAlignment(Pos.CENTER_RIGHT);
                 quoteAmountField.textProperty().bind(Bindings.createObjectBinding(()->{
                     PriceAmount quoteAmount = m_quoteAmountProperty.get();
-                    return quoteAmount != null ? quoteAmount.amountProperty().get() + "" : "Unavailable";
+                    return quoteAmount != null ? quoteAmount.amountProperty().get() + "" : "⸻";
                 }, m_quoteAmountProperty));
                 
         

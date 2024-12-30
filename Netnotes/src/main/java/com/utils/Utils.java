@@ -547,28 +547,30 @@ public class Utils {
     }
     public static double computeTextWidth(Font font, String text, double wrappingWidth) {
     
-        Text helper = new Text();
-        helper.setFont(font);
-        helper.setText(text);
+        m_helper = new Text();
+        m_helper.setFont(font);
+        m_helper.setText(text);
         // Note that the wrapping width needs to be set to zero before
         // getting the text's real preferred width.
-        helper.setWrappingWidth(0);
-        helper.setLineSpacing(0);
-        double w = Math.min(helper.prefWidth(-1), wrappingWidth);
-        helper.setWrappingWidth((int)Math.ceil(w));
-        double textWidth = Math.ceil(helper.getLayoutBounds().getWidth());
+        m_helper.setWrappingWidth(0);
+        m_helper.setLineSpacing(0);
+        double w = Math.min(m_helper.prefWidth(-1), wrappingWidth);
+        m_helper.setWrappingWidth((int)Math.ceil(w));
+        double textWidth = Math.ceil(m_helper.getLayoutBounds().getWidth());
+        m_helper = null;
         return textWidth;
     }
 
     public static double computeTextWidth(Font font, String text) {
     
-        Text helper = new Text();
-        helper.setFont(font);
-        helper.setText(text);
-  ;
-        return Math.ceil(helper.getLayoutBounds().getWidth());
+        m_helper = new Text();
+        m_helper.setFont(font);
+        m_helper.setText(text);
+        double w =  Math.ceil(m_helper.getLayoutBounds().getWidth());
+        m_helper = null;
+        return w;
     }
-
+    private static Text m_helper;
     private static BufferedImage m_tmpImg = null;
     private static Graphics2D m_tmpG2d = null;
     private static java.awt.Font m_tmpFont = null;
