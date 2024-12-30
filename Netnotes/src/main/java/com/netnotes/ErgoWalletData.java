@@ -503,7 +503,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         case "isOpen":
                             return isOpen();
                         case "getWallet":
-                            return getWallet();
+                            return getWalletJson();
             
                         case "updateFile":
                             return updateFile(note);  
@@ -549,7 +549,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }
 
             public JsonObject getJsonObject(){
-                return getWallet();
+                return getWalletJson();
             }
 
             public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
@@ -651,7 +651,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
   
     @Override
     public JsonObject getJsonObject() {
-        JsonObject jsonObject = getWallet();
+        JsonObject jsonObject = getWalletJson();
         if(m_walletFile != null){
             jsonObject.addProperty("file", m_walletFile.getAbsolutePath());
         }
@@ -659,12 +659,15 @@ public class ErgoWalletData extends Network implements NoteInterface {
         return jsonObject;
     }        
 
-    public JsonObject getWallet() {
+    public JsonObject getWalletJson() {
+        String defaultWalletId = m_ergoWalletsDataList.getDefaulWalletId();
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("name", getName());
         jsonObject.addProperty("id", getNetworkId());
         jsonObject.addProperty("networkType", m_networkType.toString());
-     
+        if(defaultWalletId != null && defaultWalletId.equals(getNetworkId())){
+            jsonObject.addProperty("default", true);
+        }
        return jsonObject;
    }   
    @Override

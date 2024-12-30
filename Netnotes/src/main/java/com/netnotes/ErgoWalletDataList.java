@@ -167,7 +167,7 @@ public class ErgoWalletDataList {
             ErgoWalletData walletData = getWallet(defaultId);
             if(walletData != null){
                 setDefaultWalletId(defaultId);
-                return walletData.getWallet();
+                return walletData.getWalletJson();
             }
         }
         return null;
@@ -187,7 +187,7 @@ public class ErgoWalletDataList {
     public JsonObject getDefault(){
         ErgoWalletData walletData = getWallet(m_defaultWalletId);
 
-        return walletData != null ? walletData.getWallet() : null;
+        return walletData != null ? walletData.getWalletJson() : null;
         
     }
 
@@ -291,7 +291,7 @@ public class ErgoWalletDataList {
         
         for (ErgoWalletData walletData : m_walletDataList) {
             if(name.equals(walletData.getName())){
-                return walletData.getWallet();
+                return walletData.getWalletJson();
             }
         }
         return null;
@@ -301,7 +301,7 @@ public class ErgoWalletDataList {
         
         for (ErgoWalletData walletData : m_walletDataList) {
             if(path.equals(walletData.getWalleFile().getAbsolutePath())){
-                return walletData.getWallet();
+                return walletData.getWalletJson();
             }
         }
         return null;
@@ -457,7 +457,7 @@ public class ErgoWalletDataList {
 
         if(idElement != null && idElement.isJsonPrimitive()){
             ErgoWalletData walletData = getWallet(idElement.getAsString());
-            return walletData.getWallet();
+            return walletData.getWalletJson();
         }
 
         return null;
@@ -619,7 +619,7 @@ public class ErgoWalletDataList {
         JsonArray jsonArray = new JsonArray();
 
         for (ErgoWalletData walletData : m_walletDataList) {
-            JsonObject result =  walletData.getWallet();
+            JsonObject result =  walletData.getWalletJson();
             jsonArray.add(result);
 
         }

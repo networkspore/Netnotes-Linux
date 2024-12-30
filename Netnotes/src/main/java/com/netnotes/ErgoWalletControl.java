@@ -46,7 +46,7 @@ public class ErgoWalletControl {
         return m_currentAddress;
     }
 
-    public SimpleObjectProperty<JsonObject> balanceObject(){
+    public SimpleObjectProperty<JsonObject> balanceProperty(){
         return m_balanceObject;
     }
 

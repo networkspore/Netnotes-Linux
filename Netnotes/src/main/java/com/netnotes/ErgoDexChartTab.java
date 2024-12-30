@@ -59,6 +59,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 import org.reactfx.util.FxTimer;
 
@@ -425,11 +426,11 @@ public class ErgoDexChartTab extends ContentTab {
         delaySave();
     }
 
-    public String getDefaultWalletId(){
+    public String getChartWalletId(){
         return m_defaultWalletId;
     }
 
-    public void setDefaultWalletId(String id){
+    public void setChartWalletId(String id){
         m_defaultWalletId = id;
         delaySave();
     }
@@ -1230,7 +1231,7 @@ public class ErgoDexChartTab extends ContentTab {
 
                 m_walletControl = new ErgoWalletControl(getLocationId(), getErgoNetworkInterface());
 
-                Text headingText = new Text("Ergo Wallet");
+                Text headingText = new Text("Ergo Wallet ");
                 headingText.setFont(App.txtFont);
                 headingText.setFill(App.txtColor);
 
@@ -1240,17 +1241,18 @@ public class ErgoDexChartTab extends ContentTab {
                 HBox.setHgrow(headingTextBox, Priority.ALWAYS);
                 headingTextBox.setAlignment(Pos.CENTER_LEFT);
 
-                Text ergoAmountLabel = new Text();
-                ergoAmountLabel.setFont(App.txtFont);
-                ergoAmountLabel.setFill(App.txtColor);
-                ergoAmountLabel.setMouseTransparent(true);
-                ergoAmountLabel.textProperty().bind(Bindings.createObjectBinding(()->{
+                TextField ergoAmountHeadingField = new TextField();
+                ergoAmountHeadingField.setMouseTransparent(true);
+                ergoAmountHeadingField.textProperty().bind(Bindings.createObjectBinding(()->{
                     String walletName = m_walletControl.walletNameProperty().get();
                     PriceAmount ergoAmount =  m_ergoAmountProperty.get();
                     NoteInterface ergoInterface = m_dataList.ergoInterfaceProperty().get();
                     return ergoAmount != null ? ergoAmount.getAmountString() : walletName != null ? "🔒 Locked" : ergoInterface != null ? "  🚫  " : "  ⛔  " ;
                 }, m_ergoAmountProperty, m_walletControl.walletNameProperty(), m_dataList.ergoInterfaceProperty()));
-
+                ergoAmountHeadingField.prefWidthProperty().bind(Bindings.createObjectBinding(()->{
+                    double w = Utils.computeTextWidth(App.txtFont, ergoAmountHeadingField.textProperty().get()) + 20;
+                    return w < 50 ? 50 : (w > 200 ? 200 : w);
+                }, ergoAmountHeadingField.textProperty()));
 
 
                 Text ergText= new Text("");
@@ -1261,10 +1263,13 @@ public class ErgoDexChartTab extends ContentTab {
                     return ergoAmount != null ? ErgoCurrency.FONT_SYMBOL : "";
                 }, m_ergoAmountProperty));
 
-                HBox ergoAmountLabelBox = new HBox(ergoAmountLabel, ergText);
+                HBox ergoAmountHeadingFieldBox = new HBox(ergoAmountHeadingField);
+                ergoAmountHeadingFieldBox.setPadding(new Insets(2, 0,0,0));
+
+                HBox ergoAmountLabelBox = new HBox(ergoAmountHeadingFieldBox, ergText);
                 ergoAmountLabelBox.setAlignment(Pos.CENTER_LEFT);
                 ergoAmountLabelBox.setId("darkBox");
-                ergoAmountLabelBox.setPadding(new Insets(2,10,2,10));
+                ergoAmountLabelBox.setPadding(new Insets(2,10,2,0));
 
                 Button showWalletBtn = new Button();
 
@@ -1388,7 +1393,7 @@ public class ErgoDexChartTab extends ContentTab {
                 baseAmountField.textProperty().bind(Bindings.createObjectBinding(()->{
                     PriceAmount baseAmount = m_baseAmountProperty.get();
                     return baseAmount != null ? baseAmount.amountProperty().get() + "" : "Unavailable";
-                }, m_quoteAmountProperty));
+                }, m_baseAmountProperty));
         
                 ImageView baseImgView = new ImageView(PriceCurrency.getBlankBgIcon(38, m_marketData.getBaseSymbol()));
                 baseImgView.setPreserveRatio(true);
@@ -1476,6 +1481,21 @@ public class ErgoDexChartTab extends ContentTab {
                     }
             
                 });
+
+                m_walletControl.balanceProperty().addListener((obs,oldval,newval)->{
+                    if(newval != null){
+                        ArrayList<PriceAmount> priceAmountList = AddressesData.getBalanceList(newval,true, ErgoDex.NETWORK_TYPE);
+                        
+                        m_ergoAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, ErgoCurrency.TOKEN_ID));
+                        m_baseAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, m_marketData.getBaseId()));
+                        m_quoteAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, m_marketData.getQuoteId()));
+                    }else{
+                        m_ergoAmountProperty.set(null);
+                        m_baseAmountProperty.set(null);
+                        m_quoteAmountProperty.set(null);
+                    
+                    }
+                });
     
                 m_walletControl.currentAddress().addListener((obs,oldval,newval)->{
                     if(newval != null){
@@ -1537,7 +1557,7 @@ public class ErgoDexChartTab extends ContentTab {
     
                 connectToErgoNetwork(true, getErgoNetworkInterface());
                 
-                String defaultWalletId = getDefaultWalletId();
+                String defaultWalletId = getChartWalletId();
                 if(defaultWalletId != null){
                     if(defaultWalletId.equals(DEFAULT_ID)){
                         m_walletControl.getDefaultWallet();
@@ -1579,8 +1599,15 @@ public class ErgoDexChartTab extends ContentTab {
                         public void sendMessage(int code, long timestamp, String networkId, String msg) {
                             switch(networkId){
                                 case ErgoNetwork.WALLET_NETWORK:
-                                    if(code == App.LIST_ITEM_REMOVED){
-                                        m_walletControl.walletRemoved(msg);
+                                    switch(code){
+                                        case App.LIST_ITEM_REMOVED:
+                                            m_walletControl.walletRemoved(msg);
+                                        break;
+                                        case App.LIST_DEFAULT_CHANGED:
+                                            if(getChartWalletId() != null && getChartWalletId().equals(DEFAULT_ID)){
+                                                m_walletControl.getDefaultWallet();
+                                            }
+                                        break;
                                     }
                         
                                 break;
@@ -1617,39 +1644,48 @@ public class ErgoDexChartTab extends ContentTab {
                         for (JsonElement element : walletIds) {
                             if (element != null && element instanceof JsonObject) {
                                 JsonObject json = element.getAsJsonObject();
-    
-                                String name = json.get("name").getAsString();
-                                String id = json.get("id").getAsString();
-    
-                                MenuItem walletItem = new MenuItem( " " + name);
-    
-                                walletItem.setOnAction(action -> {
-                                
-                                    m_walletControl.setWalletInterface(id);
-                                    setDefaultWalletId(id);
-                                });
-    
-                                m_openWalletBtn.getItems().add(walletItem);
+                                JsonElement nameElement = json.get("name");
+                                JsonElement idElement = json.get("id");
+                      
+
+                             
+                                if(nameElement != null && idElement != null && !nameElement.isJsonNull() && !idElement.isJsonNull()){
+                                    String name = nameElement.getAsString();
+                                    String id = idElement.getAsString();
+
+                                    JsonElement defaultElement = json.get("default");
+                                    boolean isDefault = defaultElement != null && !defaultElement.isJsonNull() ? defaultElement.getAsBoolean() : false;
+
+                                    MenuItem walletItem = new MenuItem( (isDefault ? "* " :"  ") + name);
+        
+                                    walletItem.setOnAction(action -> {
+                                    
+                                        m_walletControl.setWalletInterface(id);
+                                        setChartWalletId(id);
+                                    });
+        
+                                    m_openWalletBtn.getItems().add(walletItem);
+                                }
                             }
                         }
                         
                     }
 
-                    MenuItem defaultWallet = new MenuItem("[ default ]");
+                    MenuItem defaultWallet = new MenuItem("[ default wallet ]");
                     defaultWallet.setOnAction(e->{
                         m_walletControl.getDefaultWallet();
-                        setDefaultWalletId(DEFAULT_ID);
+                        setChartWalletId(DEFAULT_ID);
                     });
 
                     MenuItem disableWallet = new MenuItem("[ disable ]");
                     disableWallet.setOnAction(e->{
                         m_walletControl.clearWallet();
-                        setDefaultWalletId(null);
+                        setChartWalletId(null);
                     });
 
                     SeparatorMenuItem separatorItem = new SeparatorMenuItem();
 
-                    MenuItem openErgoNetworkItem = new MenuItem("Open (Ergo Network)…");
+                    MenuItem openErgoNetworkItem = new MenuItem("Manage wallets…");
                     openErgoNetworkItem.setOnAction(e->{
                         m_openWalletBtn.hide();
                         getNetworksData().openNetwork(ErgoNetwork.NETWORK_ID);
@@ -1658,6 +1694,8 @@ public class ErgoDexChartTab extends ContentTab {
                     m_openWalletBtn.getItems().addAll(defaultWallet, disableWallet, separatorItem, openErgoNetworkItem);
 
                 }else{
+ 
+
                     MenuItem manageNetworkItem = new MenuItem("Manage networks…");
                     manageNetworkItem.setOnAction(e->{
                         m_openWalletBtn.hide();
@@ -1675,24 +1713,31 @@ public class ErgoDexChartTab extends ContentTab {
 
                 if(addressesArray != null){
                     int size = addressesArray.size();
-                    for(int i = 0; i < size ; i++){
-                       
-                        JsonElement addressJsonElement = addressesArray.get(i);
-                        JsonObject addressJson = addressJsonElement != null && !addressJsonElement.isJsonNull() && addressJsonElement.isJsonObject() ? addressJsonElement.getAsJsonObject() : null;
-                        JsonElement addressElement = addressJson != null ? addressJson.get("address") : null;
-                        JsonElement nameElement = addressJson != null ? addressJson.get("name") : null;
-                        String address = addressElement != null ? addressElement.getAsString() : null;
+                    if(size > 0){
+                        for(int i = 0; i < size ; i++){
                         
-                        if(address != null){
-                            MenuItem addressItem = new MenuItem((nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() + ": "  : "" ) + address);
-                            addressItem.setOnAction(e->{
-                                m_walletControl.currentAddress().set(address);
-                                m_walletControl.updateBalance();
-                            });
-                            m_walletAdrMenu.getItems().add(addressItem);
-                       }
-                       
+                            JsonElement addressJsonElement = addressesArray.get(i);
+                            JsonObject addressJson = addressJsonElement != null && !addressJsonElement.isJsonNull() && addressJsonElement.isJsonObject() ? addressJsonElement.getAsJsonObject() : null;
+                            JsonElement addressElement = addressJson != null ? addressJson.get("address") : null;
+                            JsonElement nameElement = addressJson != null ? addressJson.get("name") : null;
+
+
+
+                            String address = addressElement != null ? addressElement.getAsString() : null;
+                          
+                            if(address != null){
+                                MenuItem addressItem = new MenuItem((nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() + ": "  : "" ) + address);
+                                addressItem.setOnAction(e->{
+                                    m_walletControl.currentAddress().set(address);
+                                    m_walletControl.updateBalance();
+                                });
+                                m_walletAdrMenu.getItems().add(addressItem);
+                        }
+                        
+                        }
                     }
+               
+
                 }
             }
 

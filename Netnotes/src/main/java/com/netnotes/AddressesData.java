@@ -150,7 +150,7 @@ public class AddressesData {
 
     public static ArrayList<PriceAmount>  getBalanceList(JsonObject json, boolean confirmed, NetworkType networkType){
 
-        ArrayList<PriceAmount> assetsList = new ArrayList<>();
+        ArrayList<PriceAmount> ballanceList = new ArrayList<>();
 
         JsonElement timeStampElement = json != null ? json.get("timeStamp") : null;
         JsonElement objElement = json != null ? json.get( confirmed ? "confirmed" : "unconfirmed") : null;
@@ -165,7 +165,7 @@ public class AddressesData {
 
             ErgoAmount ergoAmount = new ErgoAmount(nanoErg, networkType);
         
-            assetsList.add(ergoAmount);
+            ballanceList.add(ergoAmount);
             
             JsonElement confirmedArrayElement = objObject.get("tokens");
 
@@ -189,7 +189,7 @@ public class AddressesData {
                     
                     PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(tokenId, name, decimals, tokenType, networkType.toString()));    
                     
-                    assetsList.add(tokenAmount);
+                    ballanceList.add(tokenAmount);
                     
                 }
             }
@@ -197,11 +197,11 @@ public class AddressesData {
              
         } 
 
-        return assetsList;
+        return ballanceList;
     
     }
 
-    public static ArrayList<PriceAmount> getAssetsList(JsonObject jsonObject, NetworkType networkType){
+    public static ArrayList<PriceAmount> getSendAssetsList(JsonObject jsonObject, NetworkType networkType){
         ArrayList<PriceAmount> assetsList = new ArrayList<>();
         for(Map.Entry<String, JsonElement> entry : jsonObject.entrySet()){
             JsonElement element = entry.getValue();
@@ -213,7 +213,7 @@ public class AddressesData {
         return assetsList;
     }
 
-    public static ArrayList<PriceAmount> getAssetsList(JsonArray jsonArray, NetworkType networkType){
+    public static ArrayList<PriceAmount> getSendAssetsListFromArray(JsonArray jsonArray, NetworkType networkType){
         ArrayList<PriceAmount> assetsList = new ArrayList<>();
         for(JsonElement element : jsonArray){
 
@@ -225,7 +225,7 @@ public class AddressesData {
         return assetsList;
     }
 
-    public static ArrayList<PriceAmount> getTokensList(ArrayList<PriceAmount> assetsList){
+    public static ArrayList<PriceAmount> getTokenFromList(ArrayList<PriceAmount> assetsList){
         ArrayList<PriceAmount> tokensList = new ArrayList<>();
         for(PriceAmount priceAmount : assetsList){
             if(!priceAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
@@ -241,7 +241,7 @@ public class AddressesData {
             int size = priceList.size();
             for(int i = 0; i < size ; i++){
                 PriceAmount amount = priceList.get(i);
-                if(amount.getTokenId().equals(tokenId)){
+                if(amount != null && amount.getTokenId().equals(tokenId)){
                     return amount;
                 }
             }
@@ -249,6 +249,9 @@ public class AddressesData {
         
         return null;
     }
+
+    
+
 
     public ExecutorService getExecService(){
         return m_walletData.getNetworksData().getExecService();
@@ -342,9 +345,9 @@ public class AddressesData {
             }
 
             
-            ArrayList<PriceAmount> assetsList = getAssetsList(assetsElement.getAsJsonArray(), m_networkType);
+            ArrayList<PriceAmount> assetsList = getSendAssetsListFromArray(assetsElement.getAsJsonArray(), m_networkType);
             PriceAmount ergoAmount = getPriceAmountFromList(assetsList, ErgoCurrency.TOKEN_ID);
-            ArrayList<PriceAmount> tokensList = getTokensList(assetsList);
+            ArrayList<PriceAmount> tokensList = getTokenFromList(assetsList);
 
             ErgoToken[] tokenArray = new ErgoToken[tokensList.size()];
             for(int i = 0; i < tokensList.size() ; i++){
