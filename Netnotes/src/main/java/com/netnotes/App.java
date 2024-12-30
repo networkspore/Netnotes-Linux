@@ -146,6 +146,8 @@ public class App extends Application {
     public static final  int MAX_ROW_HEIGHT = 20;
     
     //public members
+    public static Font defjaVuTxt;
+    public static Font defjaVuSmall;
     public static Font mainFont;
     public static Font txtFont;
     public static Font titleFont;
@@ -199,6 +201,8 @@ public class App extends Application {
         Font.loadFont(App.class.getResource("/assets/OCRAEXT.TTF").toExternalForm(),16);
         Font.loadFont(App.class.getResource("/assets/DejaVuSansMono.ttf").toExternalForm(),20);
 
+        defjaVuTxt = Font.font("DejaVu Sans Mono, Book", FontWeight.BOLD, 16);
+        defjaVuSmall = Font.font("DejaVu Sans Mono, Book", FontWeight.BOLD, 12);
         mainFont =  Font.font("OCR A Extended", FontWeight.BOLD, 20);
         txtFont = Font.font("OCR A Extended", 18);
         titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 16);

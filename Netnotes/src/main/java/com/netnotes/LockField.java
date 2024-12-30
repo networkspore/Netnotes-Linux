@@ -27,10 +27,11 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 
 public class LockField extends HBox {
-    private final Label m_nameLabel;
+    private final Text m_nameLabel;
     private String m_walletName = "";
     private final HBox m_addressFieldBox;
     private final HBox m_addressBox;
@@ -53,9 +54,11 @@ public class LockField extends HBox {
     public LockField(){
         super();
         setAlignment(Pos.CENTER_LEFT);
-        String lockString = "Address";
+        setPadding(new Insets(5, 2,5,2));
+        String lockString = "Address ";
         String unlockLabelString = "≬";
-        String prompt = "[Unlock]";
+        String prompt = "[ click to unlock ]";
+        double btnWidth =250;
         
         m_lockString = String.format("%-8s",lockString);
         m_label = new Label(m_lockLabelString);
@@ -67,16 +70,15 @@ public class LockField extends HBox {
         m_lockBtn.setId("toolBtn");
         m_lockBtn.setImage(App.closeImg);
         m_lockBtn.getBufferedImageView().setFitWidth(20);
-        m_lockBtn.setPadding(new Insets(0, 1, 0, 1));
 
 
-        m_nameLabel = new Label(lockString);
-        HBox.setHgrow(m_nameLabel, Priority.ALWAYS);
-        m_nameLabel.setMaxWidth(90);
+        m_nameLabel = new Text(lockString);
+        m_nameLabel.setFont(App.txtFont);
+        m_nameLabel.setFill(App.txtColor);
 
         m_unlockBtn = new Button(prompt);
         m_unlockBtn.setPadding(new Insets(2,15,2,15));
-        m_unlockBtn.setAlignment(Pos.CENTER_LEFT);
+        m_unlockBtn.setAlignment(Pos.CENTER);
 
         HBox textBox = new HBox(m_nameLabel);
         textBox.setAlignment(Pos.CENTER_LEFT);
@@ -90,38 +92,10 @@ public class LockField extends HBox {
 
         m_openBtn = new MenuButton();
         m_openBtn.setId("arrowMenuButton");
+        m_openBtn.setPrefWidth(btnWidth);
+        double charWidth = Utils.computeTextWidth(App.txtFont, " ");
 
-        int fontSize = 16;
-        int w = Utils.getCharacterSize(fontSize);
 
-        Binding<String> addressStringBinding = Bindings.createObjectBinding(()->{
-            String addressString = m_addressProperty.get();
-            if(addressString != null && !addressString.equals(m_lockString)){
-                double btnWidth = m_openBtn.widthProperty().get() - 30;
-                int elipsisSize = 3;
-                int adrStrLen = addressString.length();
-
-                if(adrStrLen > 5){
-                    int characters = ((int) (btnWidth / w)) -elipsisSize;
-                    if(characters > 6 && characters < adrStrLen){
-                        
-                        int len = (int) (characters / 2);         
-                        String returnString = addressString.substring(0, len ) + "…" + addressString.substring(adrStrLen- len, adrStrLen) ;
-                    
-                        return returnString;
-                    }else{
-                        return addressString;
-                    }
-                }else{
-                    return addressString;
-                }
-            }else{
-                return addressString;
-            }
-        }
-        , m_addressProperty, m_openBtn.widthProperty());
-
-        m_openBtn.textProperty().bind(addressStringBinding);
 
         Tooltip magnifyTip = new Tooltip("🔍 Magnify");
         magnifyTip.setShowDelay(Duration.millis(100));
@@ -176,12 +150,12 @@ public class LockField extends HBox {
         m_addressFieldBox = new HBox(m_openBtn, m_magnifyBtn, m_copyBtn, m_lockBtn);
         HBox.setHgrow(m_addressFieldBox, Priority.ALWAYS);
         m_addressFieldBox.setId("bodyBox");
-
-        m_openBtn.prefWidthProperty().bind(m_addressFieldBox.widthProperty().subtract(1).subtract(m_magnifyBtn.widthProperty()).subtract(m_copyBtn.widthProperty()).subtract(m_lockBtn.widthProperty()));
+        m_addressFieldBox.setAlignment(Pos.CENTER_LEFT);
 
         m_addressBox = new HBox( m_addressFieldBox, m_sendBtn);
         HBox.setHgrow(m_addressBox, Priority.ALWAYS);
         m_addressBox.setPadding(new Insets(0,0,0,10));
+        m_addressBox.setAlignment(Pos.CENTER_LEFT);
    
            
         m_lockBtn.setOnAction(e->{
@@ -190,7 +164,17 @@ public class LockField extends HBox {
        
         m_topBox = new HBox();
         HBox.setHgrow(m_topBox, Priority.ALWAYS);
+
+
+
  
+        m_addressProperty.addListener((obs,oldval,newval)->{
+            if(newval != null && !newval.equals(m_lockString)){
+                m_openBtn.setText( Utils.formatAddressString(newval, btnWidth, charWidth));
+            }else{
+                m_openBtn.setText(m_lockString);
+            }
+        });
         
         getChildren().addAll(m_label, textBox, m_unlockBtnBox);
 

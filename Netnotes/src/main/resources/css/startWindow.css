@@ -149,9 +149,8 @@
     -fx-background-color: transparent;
     -fx-opacity: .7;
     -fx-font-size: 14;
-    -fx-min-width:20;
+    -fx-min-width:25;
     -fx-alignment: center;
-    -fx-padding: 0 1 0 1;
     -fx-text-fill: white;
     -fx-cursor: hand;
 }
@@ -401,7 +400,7 @@
 #rowBtn {
 
     -fx-text-fill: #777777;
-    -fx-font-size: 14px;
+    -fx-font-size: 16px;
     -fx-font-family: 'OCR A Extended';
     -fx-background-color: transparent;
     -fx-opacity: .8;
@@ -414,6 +413,7 @@
     -fx-text-fill: #FFFFFF;
     -fx-background-color: #33333360;
     -fx-opacity: 1;
+  
 
 }
 

@@ -83,6 +83,7 @@ public class ErgoDexDataList  {
     private ScrollPane m_scrollPane;
     private TextField m_updatedField;
 
+    private double m_defaultCharSize;
     
     public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
         m_currentIndex = new SimpleIntegerProperty(0);
@@ -98,6 +99,7 @@ public class ErgoDexDataList  {
         m_gridHeight = gridHeight;
         m_timeSpanObject = timeSpanObject;
 
+        m_defaultCharSize = Utils.computeTextWidth(App.txtFont, " ");
         
 
         m_isInvert.addListener((obs,oldval,newval)->{
@@ -112,6 +114,9 @@ public class ErgoDexDataList  {
 
     }
 
+    public double defaultCharacterSize(){
+        return m_defaultCharSize;
+    }
 
     public SimpleIntegerProperty currentIndex(){
         return m_currentIndex;

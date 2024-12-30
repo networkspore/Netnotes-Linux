@@ -2365,8 +2365,8 @@ public class ErgoWalletsAppBox extends AppBox {
             }
 
             public void showError(String msg){
-
-                int stringWidth = Utils.getStringWidth(msg);
+               
+                double stringWidth =  Utils.computeTextWidth(App.txtFont, msg);;
 
                 Point2D p = m_sendBtn.localToScene(0.0, 0.0);
                 m_tooltip.setText(msg);

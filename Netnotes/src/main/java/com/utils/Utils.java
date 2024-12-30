@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
@@ -67,6 +66,8 @@ import javafx.event.EventHandler;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.image.Image;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import org.apache.commons.codec.DecoderException;
@@ -230,21 +231,6 @@ public class Utils {
     }
 
 
-    public static JsonObject getNetworkTypeObject() {
-        JsonObject getExplorerObject = new JsonObject();
-
-        getExplorerObject.addProperty(App.CMD, "GET_NETWORK_TYPE");
-
-        return getExplorerObject;
-    }
-
-    public static JsonObject getExplorerInterfaceIdObject() {
-        JsonObject getExplorerObject = new JsonObject();
-
-        getExplorerObject.addProperty(App.CMD, "GET_EXPLORER_INTERFACE_ID");
-
-        return getExplorerObject;
-    }
 
     public static byte[] digestBytesToBytes(byte[] bytes) {
         final Blake2b digest = Blake2b.Digest.newInstance(32);
@@ -459,6 +445,26 @@ public class Utils {
         return priceTotal;
     }
 
+    public static String formatAddressString(String addressString, double width, double characterSize){
+        
+        int elipsisSize = 3;
+        int adrStrLen = addressString.length();
+        
+        if(adrStrLen > 5){
+            int characters = ((int) (width / characterSize)) -elipsisSize;
+            if(characters > 6 && characters < adrStrLen){
+                
+                int len = (int) (characters / 2);         
+                String returnString = addressString.substring(0, len ) + "…" + addressString.substring(adrStrLen- len, adrStrLen) ;
+            
+                return returnString;
+            }else{
+                return addressString;
+            }
+        }else{
+            return addressString;
+        }
+    }
      
     public static String parseMsgForJsonId(String msg){
         if(msg != null){
@@ -538,6 +544,29 @@ public class Utils {
             }
         }
         return truncatedString;
+    }
+    public static double computeTextWidth(Font font, String text, double wrappingWidth) {
+    
+        Text helper = new Text();
+        helper.setFont(font);
+        helper.setText(text);
+        // Note that the wrapping width needs to be set to zero before
+        // getting the text's real preferred width.
+        helper.setWrappingWidth(0);
+        helper.setLineSpacing(0);
+        double w = Math.min(helper.prefWidth(-1), wrappingWidth);
+        helper.setWrappingWidth((int)Math.ceil(w));
+        double textWidth = Math.ceil(helper.getLayoutBounds().getWidth());
+        return textWidth;
+    }
+
+    public static double computeTextWidth(Font font, String text) {
+    
+        Text helper = new Text();
+        helper.setFont(font);
+        helper.setText(text);
+  ;
+        return Math.ceil(helper.getLayoutBounds().getWidth());
     }
 
     private static BufferedImage m_tmpImg = null;
