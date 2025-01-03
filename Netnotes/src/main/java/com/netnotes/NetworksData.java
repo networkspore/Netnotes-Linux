@@ -2,15 +2,21 @@ package com.netnotes;
 
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.FileNameMap;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,11 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
+import javax.crypto.ShortBufferException;
+import javax.crypto.spec.GCMParameterSpec;
 
 import org.reactfx.util.FxTimer;
 
@@ -31,6 +41,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
 
@@ -43,6 +54,9 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -56,6 +70,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
@@ -76,6 +91,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import ove.crypto.digest.Blake2b;
 
 public class NetworksData {
 
@@ -224,9 +240,6 @@ public class NetworksData {
        
         openJson(getData("data",  ".", "main","root"));
        
-        m_appData.appKeyProperty().addListener((obs,oldval,newval)->updateIdDataFile(oldval, newval));
-        
-
 
     }
 
@@ -1280,6 +1293,8 @@ public class NetworksData {
 
         }); 
        
+
+   
     }
 
     
@@ -1314,19 +1329,19 @@ public class NetworksData {
         return assetsDir;
     }
 
-    public File getIdDataFile(){
+    private File getIdDataFile(){
         File dataDir = getDataDir();
 
         File idDataFile = new File(dataDir.getAbsolutePath() + "/data.dat");
         return idDataFile;
     }
 
-    public File createNewDataFile(File dataDir, JsonObject dataFileJson) {
+    private File createNewDataFile(File dataDir, JsonObject dataFileJson) {
         
      
         String friendlyId = FriendlyId.createFriendlyId();
 
-        while(dataFileJson != null && isFriendlyId(friendlyId, dataFileJson)){
+        while(dataFileJson != null && doesFileIdExist(friendlyId, dataFileJson)){
             friendlyId = FriendlyId.createFriendlyId();
         }
         File dataFile = new File(dataDir.getAbsolutePath() + "/" + friendlyId + ".dat");
@@ -1334,10 +1349,10 @@ public class NetworksData {
     }
     
     
-    private boolean isFriendlyId(String friendlyId, JsonObject dataFileJson) {
+    private boolean doesFileIdExist(String fileId, JsonObject dataFileJson) {
         if(dataFileJson != null){
             
-            friendlyId = "/" + friendlyId + ".dat";
+            fileId = "/" + fileId + ".dat";
             JsonElement idsArrayElement = dataFileJson.get("ids");
             if(idsArrayElement != null && idsArrayElement.isJsonArray()){
                 JsonArray idsArray = idsArrayElement.getAsJsonArray();
@@ -1360,7 +1375,7 @@ public class NetworksData {
 
                                     JsonElement fileElement = dataFileObject.get("file");
                                     if(fileElement != null && fileElement.isJsonPrimitive()){
-                                        if(fileElement.getAsString().endsWith(friendlyId)){
+                                        if(fileElement.getAsString().endsWith(fileId)){
                                             return true;
                                         }
                                         
@@ -1375,79 +1390,86 @@ public class NetworksData {
         return false;
     }
 
-    private void updateIdDataFile(SecretKey oldval, SecretKey newval){
-        try {
-              File idDataFile = getIdDataFile();
-              if(idDataFile.isFile()){
-                  try {
-                      JsonObject dataFileJson = Utils.readJsonFile(oldval, idDataFile);
-                      if(dataFileJson != null){
-                          Utils.saveJson(newval, dataFileJson, idDataFile);
+    private void updateDataEncryption(SecretKey oldval, SecretKey newval){
+    
+        File idDataFile = getIdDataFile();
+        if(idDataFile != null && idDataFile.isFile()){
+            try {
+                JsonObject dataFileJson = Utils.readJsonFile(oldval, idDataFile);
+                if(dataFileJson != null){
+                    Utils.saveJson(newval, dataFileJson, idDataFile);
 
-                          JsonElement idsArrayElement = dataFileJson.get("ids");
-                          if(idsArrayElement != null && idsArrayElement.isJsonArray()){
-                              JsonArray idsArray = idsArrayElement.getAsJsonArray();
+                    JsonElement idsArrayElement = dataFileJson.get("ids");
+                    if(idsArrayElement != null && idsArrayElement.isJsonArray()){
+                        JsonArray idsArray = idsArrayElement.getAsJsonArray();
 
-                              for(int i = 0; i < idsArray.size() ; i++){
-                                  JsonElement idFileObjectElement = idsArray.get(i);
+                        for(int i = 0; i < idsArray.size() ; i++){
+                            JsonElement idFileObjectElement = idsArray.get(i);
 
-                                  if(idFileObjectElement != null && idFileObjectElement.isJsonObject()){
-                                      JsonObject idFileObject = idFileObjectElement.getAsJsonObject();
-                                      JsonElement dataElement = idFileObject.get("data");
+                            if(idFileObjectElement != null && idFileObjectElement.isJsonObject()){
+                                JsonObject idFileObject = idFileObjectElement.getAsJsonObject();
+                                JsonElement dataElement = idFileObject.get("data");
 
-                                      if(dataElement != null && dataElement.isJsonArray()){
-                                          JsonArray dataArray = dataElement.getAsJsonArray();
+                                if(dataElement != null && dataElement.isJsonArray()){
+                                    JsonArray dataArray = dataElement.getAsJsonArray();
 
-                                          for(int j = 0; j< dataArray.size(); j++){
-                                              JsonElement dataFileObjectElement = dataArray.get(j);
+                                    for(int j = 0; j< dataArray.size(); j++){
+                                        JsonElement dataFileObjectElement = dataArray.get(j);
 
-                                              if(dataFileObjectElement != null && dataFileObjectElement.isJsonObject()){
-                                                  JsonObject dataFileObject = dataFileObjectElement.getAsJsonObject();
+                                        if(dataFileObjectElement != null && dataFileObjectElement.isJsonObject()){
+                                            JsonObject dataFileObject = dataFileObjectElement.getAsJsonObject();
 
-                                                  JsonElement fileElement = dataFileObject.get("file");
-                                                  if(fileElement != null && fileElement.isJsonPrimitive()){
-                                                      File file = new File(fileElement.getAsString());
-                                                      if(file.isFile()){
-                                                          String fileString = Utils.readStringFile(oldval, file);
-                                                          if(fileString != null){
-                                                              Utils.writeEncryptedString(newval, file, fileString);
-                                                          }
-                                                      }
-                                                  }
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                  } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                          | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-                      try {
-                          Files.writeString(App.logFile.toPath(),"Error updating wallets idDataFile key: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                      } catch (IOException e1) {
-                      
-                      }
-                   
-                  }
+                                            JsonElement fileElement = dataFileObject.get("file");
+                                            if(fileElement != null && fileElement.isJsonPrimitive()){
+                                                File file = new File(fileElement.getAsString());
+                                                if(file.isFile()){
+                                                    if(file.length() < (1024L * 10L)){
+                                                        Utils.updateFileEncryption(oldval, newval, file);
+                                                    }else{
+                                                        File tmpFile = new File(file.getParentFile().getAbsolutePath() + "/" + file.getName() + ".tmp");
+                                                        Utils.updateLargeFileEncryption(oldval, newval, file, tmpFile);
+                                                        if(tmpFile.isFile()){
+                                                            try{
+                                                                Files.delete(tmpFile.toPath());
+                                                            }catch(IOException deleteException){
 
-              }
-          } catch (IOException e) {
-           
-          }
-  }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
+            | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
+                try {
+                Files.writeString(App.logFile.toPath(),"Error updating wallets idDataFile key: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
+
+                }
+
+            }
+
+        }
+     
+    }
 
 
-    public void save(String subId, String id, String subParent, String parent, JsonObject json) {
-        if(id != null && parent != null){
+    public void save(String version, String id, String scope, String type, JsonObject json) {
+        if(id != null && version != null && scope != null && type != null){
            
             try {
-                File idDataFile = getIdDataFile(subId, id, subParent, parent);
+                File idDataFile = getIdDataFile(version, id, scope, type);
                 
                 if(idDataFile != null && idDataFile.isFile() && json == null){
                     idDataFile.delete();
                 }else{
-                    Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                    Utils.saveJson(getAppKey(), json, idDataFile);
                 }
 
                
@@ -1465,9 +1487,30 @@ public class NetworksData {
 
 
 
-    public void removeData(  String subParent, String parent){
-        String id2 =subParent +  parent;
+    public void removeData(  String scope, String type){
+        String id2 =scope +  type;
         removeData(id2);
+    }
+
+    private SecretKey getAppKey(){
+        return getAppData().getSecretKey();
+    }
+
+    private boolean updateAppKey(String newPassword){
+        if(newPassword.length() > 0){
+            try {
+                SecretKey oldAppKey = getAppKey();
+                String hash = Utils.getBcryptHashString(newPassword);
+                getAppData().setAppKey(hash);
+                getAppData().createKey(newPassword);
+                
+                updateDataEncryption(oldAppKey, getAppKey());
+                return true;
+            } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+
+            }
+        }
+        return false;
     }
     
     public void removeData(String id2){
@@ -1476,7 +1519,7 @@ public class NetworksData {
             File idDataFile =  getIdDataFile();
             if(idDataFile.isFile()){
               
-                JsonObject json = Utils.readJsonFile(getAppData().appKeyProperty().get(), idDataFile);
+                JsonObject json = Utils.readJsonFile(getAppKey(), idDataFile);
                 JsonElement idsElement = json.get("ids");
         
                 if(idsElement != null && idsElement.isJsonArray()){
@@ -1519,7 +1562,7 @@ public class NetworksData {
                         idsArray.remove(index);
                         json.remove("ids");
                         json.add("ids",idsArray);
-                        Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                        Utils.saveJson(getAppKey(), json, idDataFile);
                     }
                 }
             }
@@ -1533,11 +1576,11 @@ public class NetworksData {
         }
     }
 
-    public JsonObject getData(String subId, String id, String subParent, String parent){
+    public JsonObject getData(String version, String id, String scope, String type){
         
         try {
-            File idDataFile = getIdDataFile(subId,id, subParent, parent);
-            return idDataFile != null && idDataFile.isFile() ? Utils.readJsonFile(getAppData().appKeyProperty().get(), idDataFile) : null;
+            File idDataFile = getIdDataFile(version,id, scope, type);
+            return idDataFile != null && idDataFile.isFile() ? Utils.readJsonFile(getAppKey(), idDataFile) : null;
         } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
             try {
@@ -1550,17 +1593,49 @@ public class NetworksData {
         return null;
     }
 
+    public Future<?> saveFile(String version, String id, String scope, String type, File inputFile, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
+        try {
+            File dataFile = getIdDataFile(version, id, scope, type);
+            
+            return Utils.encryptFileAndHash(getAppKey(), getExecService(), inputFile, dataFile,  onSucceeded, onFailed, progressIndicator);
 
-    public File getIdDataFile(String subId, String id, String subParent, String parent) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
-        id = id +":" + subId;
-        String id2 = parent + ":" + subParent;
+        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                | IOException e) {
+
+        }
+
+        return null;
+    }
+
+    public Future<?> saveFileByUrl(String version, String id, String scope, String type, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
+        if( version != null && id != null && scope != null && type != null && urlString != null && onSucceeded != null){
+            try {
+                File dataFile = getIdDataFile(version, id, scope, type);
+                
+                return Utils.dowloadAndEncryptFile(urlString, getAppKey(), dataFile, getExecService(), onSucceeded, onFailed, progressIndicator);
+
+            } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
+                | IOException e) {
+
+            }
+
+        }
+        return null;
+    }
+
+
+    public File getIdDataFile(String version, String id1, String scope, String type) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
+        String id = id1 +":" + version;
+        String id2 = type + ":" + scope;
         File idDataFile = getIdDataFile();
     
         File dataDir = idDataFile.getParentFile();
            
         if(idDataFile.isFile()){
             
-            JsonObject json = Utils.readJsonFile(getAppData().appKeyProperty().get(), idDataFile);
+            JsonObject json = Utils.readJsonFile(getAppKey(), idDataFile);
             JsonElement idsElement = json.get("ids");
             json.remove("ids");
             if(idsElement != null && idsElement.isJsonArray()){
@@ -1613,7 +1688,7 @@ public class NetworksData {
                                     json.add("ids", idsArray);
 
                                     
-                                    Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                                    Utils.saveJson(getAppKey(), json, idDataFile);
                                     
                                 
                                     return newFile;
@@ -1642,7 +1717,7 @@ public class NetworksData {
                 
                 json.add("ids", idsArray);
                 
-                Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+                Utils.saveJson(getAppKey(), json, idDataFile);
                     
                 return newFile;
             }
@@ -1670,7 +1745,7 @@ public class NetworksData {
         json.add("ids", idsArray);
 
        
-        Utils.saveJson(getAppData().appKeyProperty().get(), json, idDataFile);
+        Utils.saveJson(getAppKey(), json, idDataFile);
         return newFile;
         
     }
@@ -3152,12 +3227,11 @@ public class NetworksData {
                                 Stage statusStage = App.getStatusStage("Netnotes - Saving...", "Saving...");
                                 statusStage.show();
                                 FxTimer.runLater(Duration.ofMillis(100), () -> {
-                                    final String hash = Utils.getBcryptHashString(newPassword);
-                                    Platform.runLater(()->{
+                                   
+                    
                                         try {
-    
-                                            getAppData().setAppKey(hash);
-                                            getAppData().createKey(newPassword);
+                                            
+                                            updateAppKey(newPassword);
                                         } catch ( Exception e1) {
                                             try {
                                                 Files.writeString(App.logFile.toPath(), "App createPassword: " +  e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -3169,7 +3243,7 @@ public class NetworksData {
                                             a.initOwner(m_appStage);
                                             a.show();
                                         }
-                                    });
+                                
                                     statusStage.close();
     
                                 });

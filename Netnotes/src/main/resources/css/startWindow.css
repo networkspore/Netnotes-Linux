@@ -20,11 +20,26 @@
     -fx-background-color: #33333350;
     -fx-cursor: hand;
     -fx-opacity: .8;
+    -fx-border-color: #111111;
+    -fx-border-style: solid;
+    -fx-border-width: 0 1 1 0;
 }
 
 .button:hover {
     -fx-opacity: 1;
     -fx-background-color: #77777750;
+
+}
+
+#disabledBtn{
+    -fx-background-color: #33333350;
+    -fx-opacity: .5;
+    -fx-cursor: default;
+}   
+
+#disabledBtn:hover {
+    -fx-background-color: #33333350;
+    -fx-opacity: .5;
 }
 
 

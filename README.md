@@ -72,11 +72,15 @@ Connects to the spectrum API to get ergo price information, for base currency an
 Credits
 ===
 Wallet / Node
--
+--
 1. Satergo's encoding/encryption and interfaece, original source found at: https://github.com/Satergo/Satergo
-2. Utilized in tandem, with Satergo for wallet generation, and node client interface https://github.com/ergoplatform/ergo-appkit
+2. Ergo AppKid: A Library for Java/Scala/Kotlin Development of Ergo Applications: https://github.com/ergoplatform/ergo-appkit
 
 Encryption
--
+--
 1. DevSkiller friendly id is used in place of creation of UUID, to allow for more favorable encoding:  https://github.com/Devskiller/friendly-id
 2. Joubin Mohammad Houshyar <alphazero@sensesay.net> Java implentation of BLAKE2B cryptographic digest algorithm:  https://github.com/alphazero/Blake2b
+
+Decoding
+--
+1. JavaFxSVG: A simple library to add SVG support to JavaFX, allowing to use SVG graphics just like any other image type. https://github.com/codecentric/javafxsvg

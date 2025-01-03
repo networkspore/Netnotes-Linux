@@ -75,7 +75,7 @@ public class ErgoDexNumbers {
         return m_lastCloseDirection;
     }
 
-    public void setLastCloseDirection(boolean closeDirection){
+    public void setLastDirection(boolean closeDirection){
         m_lastCloseDirection = closeDirection;
     }
 

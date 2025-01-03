@@ -8,13 +8,15 @@ import javafx.beans.property.SimpleObjectProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.concurrent.ExecutorService;
 
 import com.google.gson.JsonElement;
 
 public class ErgoDexMarketData extends PriceQuote {
 
     private boolean m_isBaseErg = false;
+
+    private PriceCurrency m_baseCurrency = null;
+    private PriceCurrency m_quoteCurrency = null;
 
     private BigDecimal m_baseVolume = BigDecimal.ZERO;
     private BigDecimal m_quoteVolume = BigDecimal.ZERO;
@@ -29,16 +31,13 @@ public class ErgoDexMarketData extends PriceQuote {
     private BigDecimal m_liquidityUSD = BigDecimal.ZERO;
     private String m_tickerId = null;
 
-    private SimpleObjectProperty<PoolStats> m_poolStats = new SimpleObjectProperty<>(null);
-    private SimpleObjectProperty<BigDecimal> m_poolSlippage = new SimpleObjectProperty<>(null);
-
 
     private SimpleObjectProperty<ErgoDexChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
 
     public ErgoDexMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, BigDecimal baseVolume, BigDecimal quoteVolume, int baseDecimals, int quoteDecimals, PoolStats poolStats, BigDecimal poolSlippage, long timeStamp){
         setAmount(amount);
-        setTransactionCurrency(baseSymbol);
-        setQuoteCurrency(quoteSymbol);
+        setBaseSymbol(baseSymbol);
+        setQuoteSymbol(quoteSymbol);
         setBaseId(baseId);
         setQuoteId(quoteId);
         setTimeStamp(timeStamp);
@@ -46,8 +45,6 @@ public class ErgoDexMarketData extends PriceQuote {
         setBaseVolume(baseVolume);
         setQuoteVolume(quoteVolume);
         m_poolId = poolId;
-        m_poolStats.set(poolStats);
-        m_poolSlippage.set(poolSlippage);
     }
 
     public ErgoDexMarketData(JsonObject json, long timeStamp) throws Exception{
@@ -86,6 +83,7 @@ public class ErgoDexMarketData extends PriceQuote {
             int quoteVolumeDecimals = quoteVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
             BigDecimal quoteVolumeBigDecimal = calculateLongToBigDecimal(quoteVolumeValue, quoteVolumeDecimals);
             
+      
 
             JsonObject baseVolumeObject = baseVolumeElement.getAsJsonObject();
             long baseVolumeValue = baseVolumeObject.get("value").getAsLong();
@@ -103,6 +101,8 @@ public class ErgoDexMarketData extends PriceQuote {
             m_isBaseErg = getBaseId().equals(ErgoCurrency.TOKEN_ID);
             m_tickerId = isBaseErg() ? getQuoteId() + "_" + getBaseId() : getId();
             
+            m_baseCurrency = new PriceCurrency(getBaseId(), getBaseSymbol(), getBaseDecimals(), ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
+            m_quoteCurrency = new PriceCurrency(getQuoteId(), getQuoteSymbol(), getQuoteDecimals(), ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
         }else{
             throw new Exception("Missing expected arguments");
         }
@@ -146,6 +146,13 @@ public class ErgoDexMarketData extends PriceQuote {
         return m_quoteVolume;
     }
 
+    public PriceCurrency getBaseCurrency(){
+        return m_baseCurrency;
+    }
+
+    public PriceCurrency getQuoteCurrency(){
+        return m_quoteCurrency;
+    }
 
     public void setQuoteVolume(BigDecimal quoteVolume){
         m_quoteVolume = quoteVolume;
@@ -225,7 +232,7 @@ public class ErgoDexMarketData extends PriceQuote {
         return priceQuote;
     }
 
-    public ErgoDexMarketData clone(){
+   /* public ErgoDexMarketData clone(){
         return clone(false);
     }
 
@@ -240,9 +247,9 @@ public class ErgoDexMarketData extends PriceQuote {
         BigDecimal baseVolume =  invert ? getQuoteVolume() : getBaseVolume();
         BigDecimal quoteVolume = invert ? getBaseVolume() : getQuoteVolume();
 
-        return new ErgoDexMarketData(price,baseSymbol,quoteSymbol,baseId,quoteId, getId(), m_poolId, baseVolume, quoteVolume,m_baseDecimals, m_quoteDecimals,m_poolStats.get(), m_poolSlippage.get(), getTimeStamp());
+        return new ErgoDexMarketData(m_ergoprice,baseSymbol,quoteSymbol,baseId,quoteId, getId(), m_poolId, baseVolume, quoteVolume,m_baseDecimals, m_quoteDecimals, getTimeStamp());
 
-    }
+    } */
     
 
     public String getPoolId(){
@@ -285,52 +292,6 @@ public class ErgoDexMarketData extends PriceQuote {
 
 
 
-     public void updatePoolStats(ExecutorService execService){
-        ErgoDex.getPoolStats(getPoolId(), execService, (onSucceeded)->{
-            Object sourceValue = onSucceeded.getSource().getValue();
-            
-            if(sourceValue != null && sourceValue instanceof JsonObject){
-                
-                try {
-                    m_poolStats.set( new PoolStats((JsonObject) sourceValue));
-                } catch (Exception e) {
-                    m_poolStats.set(null);
-                }
-
-            }
-
-        }, (onFailed)->{
-            m_poolStats.set(null);
-        });
-    }
-
-    public void updatePoolSlipage(ExecutorService execService){
-        ErgoDex.getPoolSlippage(getPoolId(), execService, (onSucceeded)->{
-        Object sourceValue = onSucceeded.getSource().getValue();
-        
-        if(sourceValue != null && sourceValue instanceof JsonObject){
-            JsonObject slippageJson = (JsonObject) sourceValue;
-            JsonElement slippageElement = slippageJson.get("slippagePercent");
-            if(slippageElement != null && slippageElement.isJsonPrimitive()){
-                
-                m_poolSlippage.set(slippageElement.getAsBigDecimal());
-            } else{
-                m_poolSlippage.set(null);
-            }
-
-        }
-        }, (onFailed)->{
-            m_poolSlippage.set(null);
-        });
-    }
-
-    public SimpleObjectProperty<BigDecimal> poolSlippageProperty(){
-        return m_poolSlippage;
-    }
-
-    public SimpleObjectProperty<PoolStats> poolStatsProperty(){
-        return m_poolStats;
-    }
 
      public class SpectrumAsset{
 
@@ -644,5 +605,6 @@ public class ErgoDexMarketData extends PriceQuote {
             return m_window;
         }
     }
-    
+
+  
 }

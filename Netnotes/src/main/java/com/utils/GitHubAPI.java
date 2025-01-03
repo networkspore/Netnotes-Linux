@@ -9,6 +9,7 @@ import com.google.gson.JsonArray;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.scene.control.ProgressIndicator;
 
 
 public class GitHubAPI {
@@ -78,7 +79,7 @@ public class GitHubAPI {
 
 
     public void getAssetsAllLatest(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
-        Utils.getUrlJsonArray(getUrlAll(), (onSucceeded)->{
+        Utils.getUrlJsonArray(getUrlAll(),execService, (onSucceeded)->{
             Object sourceObject = onSucceeded.getSource().getValue();
              if (sourceObject != null && sourceObject instanceof JsonArray) {
                 JsonArray allReleases = (JsonArray) sourceObject;
@@ -118,7 +119,7 @@ public class GitHubAPI {
                                     }
                                 }
                             }
-                            Utils.returnObject((Object) assetArray,execService, onFinished, null); 
+                            Utils.returnObject(assetArray, execService, onFinished, null); 
                         }else{
                             Utils.returnObject(null,execService, onFinished, null);
                         }
@@ -184,7 +185,7 @@ public class GitHubAPI {
                 }else{
                     Utils.returnObject(null,execService, onFinished, null);
                 }
-            }, onFailed, null);
+            }, onFailed, (ProgressIndicator) null);
         }
 
 

@@ -1219,7 +1219,7 @@ public class ErgoDex extends Network implements NoteInterface {
     @Override
     public void stop(){
         setConnectionStatus(App.STOPPED);
-     
+
         m_marketsList.clear();
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
             m_scheduledFuture.cancel(false);

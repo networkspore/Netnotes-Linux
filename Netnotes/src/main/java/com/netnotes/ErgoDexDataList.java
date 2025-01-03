@@ -51,7 +51,7 @@ public class ErgoDexDataList  {
 
     public final static String LOADING = "Loading...";
     public final static String NETWORK_ID = "spectrumDataList";
-    public final static int LOAD_DELAY = 3;
+    public final static int LOAD_DELAY = 3000;
     private ErgoDex m_ergodex;
     private String m_locationId;
 
@@ -431,7 +431,7 @@ public class ErgoDexDataList  {
             
             if(!m_layoutBox.getChildren().contains(m_gridBox)){
                 if(m_timer == null){
-                    m_timer = FxTimer.runLater(Duration.ofSeconds(LOAD_DELAY),()->{
+                    m_timer = FxTimer.runLater(Duration.ofMillis(LOAD_DELAY),()->{
                         m_layoutBox.getChildren().clear();
                         m_layoutBox.getChildren().add(m_gridBox);
                     });
@@ -447,11 +447,12 @@ public class ErgoDexDataList  {
 
             Button loadingBtn = new Button(ErgoDex.NAME);
             loadingBtn.setTextFill(Color.WHITE);
-            loadingBtn.setGraphicTextGap(20);
+            loadingBtn.setGraphicTextGap(30);
             loadingBtn.setId("startImageBtn");
             loadingBtn.setGraphicTextGap(15);
             loadingBtn.setGraphic(imgView);
             loadingBtn.setContentDisplay(ContentDisplay.TOP);
+            loadingBtn.setPadding(new Insets(0,0,30,0));
 
             ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
             progressBar.setPrefWidth(200);
@@ -459,7 +460,6 @@ public class ErgoDexDataList  {
             HBox progressBarBox = new HBox(progressBar);
             HBox.setHgrow(progressBarBox,Priority.ALWAYS);
             progressBarBox.setAlignment(Pos.CENTER);
-            progressBarBox.setPadding(new Insets(20,0,0,0));
 
             VBox imageBox = new VBox(loadingBtn, progressBarBox);
             imageBox.setId("transparentColor");
@@ -467,21 +467,35 @@ public class ErgoDexDataList  {
             HBox.setHgrow(imageBox, Priority.ALWAYS);
           
 
-            Label statusLabel = new Label();
+            Label statusLabel = new Label("Starting...");
             statusLabel.setId("italicFont");
-            statusLabel.textProperty().bind(Bindings.createObjectBinding(()->{
-                switch(m_statusMsg.get()){
-                    case App.STATUS_STARTING:
-                        return "Updating";
-                    case LOADING:
-                        return LOADING;
-                    case App.STATUS_ERROR:
-                        return m_errMsg;
-                }
-                return LOADING;
-            },m_statusMsg));
+       
             
-     
+            m_statusMsg.addListener((obs,oldVal,newval)->{
+                
+                switch(newval){
+                    case LOADING:
+
+                        if(!progressBarBox.getChildren().contains(progressBar)){
+                            progressBarBox.getChildren().add(progressBar);
+                        }
+
+                        statusLabel.setText( LOADING);
+
+                        return;
+                    case App.STATUS_ERROR:
+                        
+                        statusLabel.setText( m_errMsg);
+
+                        if(progressBarBox.getChildren().contains(progressBar)){
+                            progressBarBox.getChildren().remove(progressBar);
+                        }
+                        return;
+                }
+
+                statusLabel.setText( LOADING);
+                
+            });
             
             progressBarBox.setPadding(new Insets(0,0,0,0));
 
@@ -497,6 +511,7 @@ public class ErgoDexDataList  {
 
             
             m_layoutBox.getChildren().addAll(imageBox,statusLabelBox);
+            m_gridBox.setPrefWidth(m_layoutBox.getLayoutBounds().getWidth());
         }
 
         m_updatedField.setText(Utils.formatDateTimeString( LocalDateTime.now()));

@@ -12,6 +12,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.concurrent.WorkerStateEvent;
+import javafx.embed.swing.SwingFXUtils;
 
 import java.security.spec.InvalidKeySpecException;
 import java.security.NoSuchAlgorithmException;
@@ -50,8 +51,9 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 
-
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -66,6 +68,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.imageio.ImageIO;
+
 import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonParseException;
@@ -73,6 +77,7 @@ import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
+import de.codecentric.centerdevice.javafxsvg.SvgImageLoaderFactory;
 
 
 public class App extends Application {
@@ -198,6 +203,10 @@ public class App extends Application {
 
     @Override
     public void start(Stage appStage) {
+        SvgImageLoaderFactory.install();
+
+        
+
         Font.loadFont(App.class.getResource("/assets/OCRAEXT.TTF").toExternalForm(),16);
         Font.loadFont(App.class.getResource("/assets/DejaVuSansMono.ttf").toExternalForm(),20);
 
@@ -207,12 +216,12 @@ public class App extends Application {
         txtFont = Font.font("OCR A Extended", 18);
         titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 16);
         smallFont = Font.font("OCR A Extended", 12);
+
         appStage.setResizable(false);
         appStage.initStyle(StageStyle.UNDECORATED);
         appStage.setTitle("Netnotes");
         appStage.getIcons().add(logo);
 
-    
         try{
             AppData appData = new AppData();
             startApp(appData, appStage);
@@ -276,7 +285,16 @@ public class App extends Application {
 
         HBox titleBox = createTopBar(icon, "Netnotes - Enter Password", closeBtn, appStage);
 
-        Button imageButton = createImageButton(logo, "Netnotes");
+     
+        ImageView btnImageView = new ImageView(logo);
+        btnImageView.setFitHeight(100);
+        btnImageView.setPreserveRatio(true);
+
+        Button imageButton = new Button("Netnotes");
+        imageButton.setGraphic(btnImageView);
+        imageButton.setId("startImageBtn");
+        imageButton.setFont(mainFont);
+        imageButton.setContentDisplay(ContentDisplay.TOP);
 
         HBox imageBox = new HBox(imageButton);
         imageBox.setAlignment(Pos.CENTER);

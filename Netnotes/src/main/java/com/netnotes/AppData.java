@@ -6,23 +6,14 @@ import java.io.FileNotFoundException;
 
 import java.io.IOException;
 import java.net.URL;
-
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
 
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
-import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
-
-import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
-
-import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -35,6 +26,7 @@ import com.utils.Version;
 
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.control.ProgressIndicator;
 
 public class AppData {
    // private static File logFile = new File("netnotes-log.txt");
@@ -52,7 +44,7 @@ public class AppData {
     private File m_appFile = null;
     private HashData m_appHashData = null;
     private Version m_javaVersion = null;
-    private SimpleObjectProperty<SecretKey> m_secretKey = new SimpleObjectProperty<SecretKey>(null);
+    private SecretKey m_secretKey = null;
     private boolean m_updates = false;
    // private Stage m_persistenceStage = null;
 
@@ -141,25 +133,10 @@ public class AppData {
      public void createKey(String password) throws NoSuchAlgorithmException, InvalidKeySpecException {
 
 
-        m_secretKey.set( new SecretKeySpec(createKeyBytes(password), "AES"));
+        m_secretKey = new SecretKeySpec(Utils.createKeyBytes(password), "AES");
 
     }
 
-    public byte[] createKeyBytes(String password) throws NoSuchAlgorithmException, InvalidKeySpecException  {
-
-        byte[] bytes = password.getBytes(StandardCharsets.UTF_8);
-
-    
-
-        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-
-        KeySpec spec = new PBEKeySpec(password.toCharArray(), bytes, 65536, 256);
-        SecretKey tmp = factory.generateSecret(spec);
-        return tmp.getEncoded();
-
-    }
-
-    
 
 
     public void checkForUpdates(ExecutorService execService, SimpleObjectProperty<UpdateInformation> updateInformation){
@@ -200,7 +177,7 @@ public class AppData {
                         }
                     }, (releaseInfoFailed)->{
 
-                    }, null);
+                    },( ProgressIndicator )null);
                     
                  
 
@@ -239,12 +216,12 @@ public class AppData {
         return m_appFile;
     }
 
-    public SimpleObjectProperty<SecretKey> appKeyProperty() {
+    public SecretKey getSecretKey() {
         return m_secretKey;
     }
 
-    public void setAppKey(SecretKey secretKey) {
-        m_secretKey.set(secretKey);
+    public void setSecretKey(SecretKey secretKey) {
+        m_secretKey = secretKey;
     }
 
     public JsonObject getJson() {

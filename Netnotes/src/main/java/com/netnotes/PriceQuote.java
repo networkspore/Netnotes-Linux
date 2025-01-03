@@ -11,6 +11,7 @@ import com.google.gson.JsonElement;
 import com.utils.Utils;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.image.Image;
 
 public class PriceQuote {
 
@@ -24,6 +25,8 @@ public class PriceQuote {
     private boolean m_defaultInvert = false;
     private String m_id = "";
 
+    private String m_baseImageId = null;
+    private String m_quoteImageId = null;
 
     public PriceQuote(){
         m_timestamp = System.currentTimeMillis();
@@ -52,48 +55,64 @@ public class PriceQuote {
 
 
 
-    public PriceQuote(String amountString, String transactionCurrency, String quoteCurrency) {
+    public PriceQuote(String amountString, String transactionSymbol, String quoteSymbol) {
 
-        setPrices(amountString, transactionCurrency, quoteCurrency);
+        setPrices(amountString, transactionSymbol, quoteSymbol);
     }
 
-    public PriceQuote(String amountString, String transactionCurrency, String quoteCurrency, long timestamp) {
+    public PriceQuote(String amountString, String transactionSymbol, String quoteSymbol, long timestamp) {
         m_timestamp = timestamp;
         
-        setPrices(amountString, transactionCurrency, quoteCurrency);
+        setPrices(amountString, transactionSymbol, quoteSymbol);
     }
 
-    public PriceQuote(BigDecimal amount, String transactionCurrency, String quoteCurrency,String baseId, String quoteId, long timestamp) {
+    public PriceQuote(BigDecimal amount, String transactionSymbol, String quoteSymbol,String baseId, String quoteId, long timestamp) {
         m_timestamp = timestamp;
         
-        setPrices(amount, transactionCurrency, quoteCurrency, baseId, quoteId);
+        setPrices(amount, transactionSymbol, quoteSymbol, baseId, quoteId);
     }
-    public PriceQuote(String id, BigDecimal amount, String transactionCurrency, String quoteCurrency,String baseId, String quoteId, long timestamp) {
+    public PriceQuote(String id, BigDecimal amount, String transactionSymbol, String quoteSymbol,String baseId, String quoteId, long timestamp) {
         m_timestamp = timestamp;
         m_id = id;
-        setPrices(amount, transactionCurrency, quoteCurrency, baseId, quoteId);
+        setPrices(amount, transactionSymbol, quoteSymbol, baseId, quoteId);
     }
 
-    private void setPrices(String amountString, String transactionCurrency, String quoteCurrency){
+    private void setPrices(String amountString, String transactionSymbol, String quoteSymbol){
         setStringAmount(amountString);
         m_timestamp = System.currentTimeMillis();
         setAmountString(amountString);
-        m_baseSymbol = transactionCurrency;
-        m_quoteSymbol = quoteCurrency;
+        m_baseSymbol = transactionSymbol;
+        m_quoteSymbol = quoteSymbol;
         m_baseId = m_baseSymbol;
         m_quoteId = m_quoteSymbol;
     }
     
-    public void setPrices(BigDecimal amount, String transactionCurrency, String quoteCurrency, String baseId, String quoteId){
+    public void setPrices(BigDecimal amount, String transactionSymbol, String quoteSymbol, String baseId, String quoteId){
        
         m_timestamp = System.currentTimeMillis();
         BigDecimal amt = amount != null ? amount : BigDecimal.ZERO;
         setAmount(amt);
-        m_baseSymbol = transactionCurrency;
-        m_quoteSymbol = quoteCurrency;
+        m_baseSymbol = transactionSymbol;
+        m_quoteSymbol = quoteSymbol;
         m_baseId = baseId;
         m_quoteId = quoteId;
 
+    }
+
+    public String getBaseImageId(){
+        return m_baseImageId;
+    }
+
+    public void setBaseImageId(String imageId){
+        m_baseImageId = imageId;
+    }
+
+    public String getQuoteImageId(){
+        return m_quoteImageId;
+    }
+    
+    public void setQuoteImageId(String imageId){
+        m_quoteImageId = imageId;
     }
 
     public String getSymbol(){
@@ -130,7 +149,7 @@ public class PriceQuote {
         return m_defaultInvert;
     }
 
-    public String getTransactionCurrencyId(){
+    public String getTransactionSymbolId(){
         return m_baseId;
     }
 
@@ -142,7 +161,7 @@ public class PriceQuote {
 
         return m_baseId != null && m_baseId != "" ?  m_baseId : getBaseSymbol();
     }
-    public String getQuoteCurrencyId(){
+    public String getQuoteSymbolId(){
         return m_quoteId;
     }
 
@@ -202,26 +221,8 @@ public class PriceQuote {
         setStringAmount(amountString);
     }
 
-    public String getTransactionCurrency() {
-        return m_baseSymbol;
-    }
 
-    public String getBaseCurrency(){
-        return m_baseSymbol;
-    }
-
-    public void setTransactionCurrency(String transactionCurrency){
-        m_baseSymbol = transactionCurrency;
-    }
-
-    public String getQuoteCurrency() {
-        return m_quoteSymbol;
-    }
-
-    public void setQuoteCurrency(String quoteCurrency){
-        m_quoteSymbol = quoteCurrency;
-    }
-
+  
     public long howOldMillis() {
         return (Utils.getNowEpochMillis() - m_timestamp);
     }

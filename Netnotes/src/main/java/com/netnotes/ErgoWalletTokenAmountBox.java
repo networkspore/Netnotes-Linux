@@ -457,7 +457,7 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
 
         if(priceQuote != null && m_quoteAmountSymbolText != null && m_quoteAmountField != null){
             String quoteAmountString = stableQuoteAmount != null ? (stableQuoteAmount + "") : (ergQuoteAmount != null ? ergQuoteAmount + "" : "");
-            String quoteTextString = stableQuoteAmount != null ? (stableQuoteSymbol != null ? stableQuoteSymbol : "") : (ergQuoteAmount != null ? (priceQuote != null ? priceQuote.getQuoteCurrency() : "") : "");
+            String quoteTextString = stableQuoteAmount != null ? (stableQuoteSymbol != null ? stableQuoteSymbol : "") : (ergQuoteAmount != null ? (priceQuote != null ? priceQuote.getQuoteSymbol() : "") : "");
             if(!m_quoteAmountField.getText().equals(quoteAmountString)){
                 m_quoteAmountField.setText(quoteAmountString);
             }

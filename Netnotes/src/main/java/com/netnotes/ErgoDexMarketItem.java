@@ -7,8 +7,12 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
 
 import com.devskiller.friendly_id.FriendlyId;
+import com.google.gson.JsonObject;
+import com.netnotes.ErgoDexMarketData.PoolStats;
+
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -96,7 +100,6 @@ public class ErgoDexMarketItem {
     
 
 
-    
 
 
     public ErgoDexMarketItem(ErgoDexMarketData marketData, ErgoDexDataList dataList) {

@@ -34,6 +34,11 @@ public class HashData {
         openJson(json);
     }
 
+    public HashData(String id, byte[] bytes){
+        m_id = id;
+        m_hashBytes = bytes;
+    }
+
     public HashData(String hashId, String name, String hashHex) {
 
         m_id = hashId;

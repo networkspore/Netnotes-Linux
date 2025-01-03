@@ -21,6 +21,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
@@ -725,15 +726,15 @@ public class ErgoDexChartView {
         };
     }
 
-    private static void addPrices(boolean isInvert, ErgoDexPrice[] dataList, SimpleIntegerProperty index, ErgoDexPriceData priceData){
+    private static void addPrices(boolean isInvert,  ErgoDexPrice[] dataList, SimpleIntegerProperty index, ErgoDexPriceData priceData){
         int size = dataList.length;
 
         long epochEnd = priceData.getEpochEnd();
-
+ 
         if(index.get() + 1 < size){         
             try{
                 SimpleObjectProperty<ErgoDexPrice> nextSpectrumPrice = new SimpleObjectProperty<>(isInvert ? dataList[index.get() + 1].getInverted() : dataList[index.get() + 1]);
-          
+
                 while(nextSpectrumPrice.get().getTimeStamp() <= epochEnd && nextSpectrumPrice.get().getTimeStamp() > priceData.getEpochStart()){
                     long timestamp = nextSpectrumPrice.get().getTimeStamp();
                     BigDecimal price = nextSpectrumPrice.get().getPrice();
@@ -768,7 +769,11 @@ public class ErgoDexChartView {
                 }
             }
         }
+
+
     }
+
+
 
     public static ErgoDexNumbers process(ErgoDexPrice[] sDArray , boolean isInvert, long startTimeStamp, TimeSpan timeSpan,  long currentTime) throws ArithmeticException{
         ErgoDexNumbers numbers = new ErgoDexNumbers();
@@ -780,7 +785,7 @@ public class ErgoDexChartView {
 
         int numItems = (int) Math.ceil((currentTime - startTimeStamp) / timeSpanMillis);
 
-       
+    
 
         ErgoDexPriceData[] priceList = new ErgoDexPriceData[numItems];
         SimpleObjectProperty<ErgoDexPrice> lastPriceObject = new SimpleObjectProperty<>(null);
@@ -798,17 +803,27 @@ public class ErgoDexChartView {
 
             ErgoDexPriceData lastPriceData = i == 0 ? null : priceList[i -1];
 
+
+
             ErgoDexPriceData priceData = new ErgoDexPriceData( epochStart, epochEnd, lastPriceData == null ? price : lastPriceData.getClose());
 
-            addPrices(isInvert, sDArray, index, priceData);
+            addPrices(isInvert,  sDArray, index, priceData);
+    
 
             priceList[i] = priceData;
 
             numbers.updateData(priceData);
           
         }
-        ErgoDexPrice sDxm2 = sDArray[sDArray.length-2]; 
-        numbers.setLastCloseDirection(sDxm2.getPrice().compareTo(numbers.getClose()) == -1);
+        ErgoDexPrice lastDexPrice = sDArray[sDArray.length-1];
+        ErgoDexPrice secondLastDexPrice = sDArray[sDArray.length-2];
+
+        BigDecimal lastPrice = isInvert ? lastDexPrice.getInvertedPrice() : lastDexPrice.getPrice();
+        BigDecimal secondLastPrice = isInvert ? secondLastDexPrice.getInvertedPrice() : secondLastDexPrice.getPrice();
+
+        
+
+        numbers.setLastDirection(lastPrice.compareTo(secondLastPrice) == 1);
         numbers.setSpectrumPriceData(priceList);
         numbers.setDataLength(index.get());
         return numbers;
