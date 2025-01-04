@@ -25,10 +25,8 @@ import org.apache.commons.io.FileUtils;
 import org.ergoplatform.appkit.NetworkType;
 import org.reactfx.util.FxTimer;
 
-import com.utils.GitHubAPI;
 import com.utils.Utils;
 import com.utils.Version;
-import com.utils.GitHubAPI.GitHubAsset;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
@@ -39,6 +37,8 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Alert.AlertType;
 
 import com.google.gson.JsonObject;
+import com.GitHubAPI.GitHubAPI;
+import com.GitHubAPI.GitHubAPI.GitHubAsset;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 

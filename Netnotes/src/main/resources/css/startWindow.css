@@ -168,6 +168,9 @@
     -fx-alignment: center;
     -fx-text-fill: white;
     -fx-cursor: hand;
+    -fx-border-style: none;
+    -fx-border-width: 0 0 0 0;
+    -fx-padding: 0;
 }
 #lblBtn:hover{
     -fx-opacity:1;

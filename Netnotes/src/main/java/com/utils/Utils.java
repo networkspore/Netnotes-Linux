@@ -2,6 +2,7 @@ package com.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -15,6 +16,7 @@ import java.nio.channels.FileLock;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
@@ -38,7 +40,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipFile;
 
 import javax.crypto.BadPaddingException;
@@ -50,8 +51,6 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
-import javax.imageio.ImageIO;
-
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -62,6 +61,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.net.URLConnection;
 import java.lang.Double;
@@ -69,7 +69,6 @@ import java.lang.Double;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
@@ -80,7 +79,9 @@ import javafx.stage.Stage;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.input.ReaderInputStream;
 
 import java.io.FilenameFilter;
 import at.favre.lib.crypto.bcrypt.BCrypt;
@@ -88,7 +89,6 @@ import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import ove.crypto.digest.Blake2b;
 import scala.util.Try;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -99,9 +99,10 @@ import com.netnotes.FreeMemory;
 import com.netnotes.HashData;
 import com.netnotes.PriceAmount;
 import com.netnotes.PriceCurrency;
-import com.satergo.extra.AESEncryption;
 
 public class Utils {
+
+    public static final int DEFAULT_BUFFER_SIZE = 2048;
 
     public final static String[] getAsciiStringArray(){
         String[] charStrings = new String[255];
@@ -146,52 +147,6 @@ public class Utils {
         return findPathPrefixInRoots(roots, filePathString);
     }
 
-    public static void submitBoundedTask(Task<Object> task,Semaphore semaphore, ExecutorService executorService, AtomicInteger status, EventHandler<WorkerStateEvent> onResult, EventHandler<WorkerStateEvent> onFailedResult, ProgressIndicator progressIndicator){
-        
-        
-        Task<Object> boundedTask = new Task<Object>() {
-            @Override
-            public Object call() throws InterruptedException {
-                
-                semaphore.acquire();
-                status.set(0);
-                task.setOnFailed(onFailed->{
-                    status.set(2);
-                    semaphore.release();
-                    
-                    Utils.returnObject(onFailed.getSource().getException(), executorService, onResult, onFailedResult);
-                });
-        
-                task.setOnSucceeded(onSucceeded->{
-                    status.set(1);
-                    semaphore.release();
-                    Utils.returnObject(onSucceeded.getSource().getValue(), executorService, onResult, onFailedResult);
-                });
-
-                
-
-                Future<?> future = executorService.submit(task);
-                
-                for(;;){
-                    if(status.get() != 0){
-                        future.cancel(true);
-                        break;
-                    }
-                }
-
-                return null;
-            }
-        };
-
-        boundedTask.setOnFailed(onFailed->{
-            semaphore.release();
-        });
-
-
-        executorService.submit(boundedTask);
-        status.set(-1);
-        
-    }
 
     public static boolean findPathPrefixInRoots(File roots[], String filePathString){
         
@@ -221,22 +176,22 @@ public class Utils {
 
     public static byte[] digestFileBlake2b(File file, int digestLength) throws IOException {
         final Blake2b digest = Blake2b.Digest.newInstance(digestLength);
+        try(
+            FileInputStream fis = new FileInputStream(file);
+        ){
+            int bufferSize = file.length() < DEFAULT_BUFFER_SIZE ? (int) file.length() : DEFAULT_BUFFER_SIZE;
 
-        FileInputStream fis = new FileInputStream(file);
+            byte[] byteArray = new byte[bufferSize];
+            int bytesCount = 0;
 
-        byte[] byteArray = new byte[8 * 1024];
-        int bytesCount = 0;
+            while ((bytesCount = fis.read(byteArray)) != -1) {
+                digest.update(byteArray, 0, bytesCount);
+            };
 
-        while ((bytesCount = fis.read(byteArray)) != -1) {
-            digest.update(byteArray, 0, bytesCount);
-        };
+            byte[] hashBytes = digest.digest();
 
-        fis.close();
-
-        byte[] hashBytes = digest.digest();
-
-        return hashBytes;
-
+            return hashBytes;
+        }
     }
 
 
@@ -767,22 +722,19 @@ public class Utils {
 
         Task<JsonObject> task = new Task<JsonObject>() {
             @Override
-            public JsonObject call() {
-                try{
-                    
+            public JsonObject call() throws IOException {
+           
+                URL url = new URL(urlString);
+                URLConnection con = url.openConnection();
+                con.setRequestProperty("User-Agent", USER_AGENT);
 
-                    InputStream inputStream = null;
+                
+                try(
+                    InputStream inputStream = con.getInputStream();
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ){
                     String outputString = null;
-
-                    URL url = new URL(urlString);
-
-                    URLConnection con = url.openConnection();
-
-                    con.setRequestProperty("User-Agent", USER_AGENT);
-
                     long contentLength = con.getContentLengthLong();
-                    inputStream = con.getInputStream();
 
                     byte[] buffer = new byte[2048];
 
@@ -792,15 +744,15 @@ public class Utils {
                     while ((length = inputStream.read(buffer)) != -1) {
 
                         outputStream.write(buffer, 0, length);
+                        downloaded += (long) length;
 
                         if (progressIndicator != null) {
-                            downloaded += (long) length;
+                            
                             updateProgress(downloaded, contentLength);
                         }
                     }
-
-                    outputStream.close();
-                    if(outputStream.size() > 0){
+             
+                    if(downloaded == contentLength){
                         outputString = outputStream.toString();
 
                         JsonElement jsonElement = new JsonParser().parse(outputString);
@@ -808,11 +760,7 @@ public class Utils {
                         JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
 
                         return jsonObject == null ? null : jsonObject;
-                    }else{
-                        return null;
                     }
-                }catch(Exception err){
-                    
                 }
                 return null;
             }
@@ -829,6 +777,65 @@ public class Utils {
 
         return execService.submit(task);
 
+    }
+
+
+    public static Future<?> getUrlJsonArray(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+
+        Task<JsonArray> task = new Task<JsonArray>() {
+            @Override
+            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
+              
+
+                URL url = new URL(urlString);
+                URLConnection con = url.openConnection();
+                con.setRequestProperty("User-Agent", USER_AGENT);
+
+                
+                try(
+                    InputStream inputStream = con.getInputStream();
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ){
+                    String outputString = null;
+                    long contentLength = con.getContentLengthLong();
+
+                    byte[] buffer = new byte[2048];
+
+                    int length;
+                    long downloaded = 0;
+
+                    while ((length = inputStream.read(buffer)) != -1) {
+
+                        outputStream.write(buffer, 0, length);
+                        downloaded += (long) length;
+
+                        if (progressIndicator != null) {
+                            
+                            updateProgress(downloaded, contentLength);
+                        }
+                    }
+
+                    outputString = outputStream.toString();
+                    
+                    JsonElement jsonElement = new JsonParser().parse(outputString);
+
+                    JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
+
+                    return jsonArray == null ? null : jsonArray;
+                }
+            }
+
+        };
+
+        if (progressIndicator != null) {
+            progressIndicator.progressProperty().bind(task.progressProperty());
+        }
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
     }
 
     public static JsonObject getJsonFromUrlSync(String urlString){
@@ -1134,94 +1141,51 @@ public class Utils {
 
  
 
-    public static void saveJson(SecretKey appKey, JsonObject listJson, File dataFile) throws IOException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
+    public static void saveJson(SecretKey appKey, JsonObject json, File dataFile) throws IOException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
 
-        String tokenString = listJson.toString();
 
-        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-        byte[] iV = new byte[12];
-        secureRandom.nextBytes(iV);
-
-        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-        GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
-
-        cipher.init(Cipher.ENCRYPT_MODE, appKey, parameterSpec);
-
-        byte[] encryptedData = cipher.doFinal(tokenString.getBytes());
-
-        if (dataFile.isFile()) {
-            Files.delete(dataFile.toPath());
-        }
-
-        FileOutputStream outputStream = new FileOutputStream(dataFile);
-        FileChannel fc = outputStream.getChannel();
-
-        ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
-
-        fc.write(byteBuffer);
-
-        int written = 0;
-        int bufferLength = 1024 * 8;
-
-        while (written < encryptedData.length) {
-
-            if (written + bufferLength > encryptedData.length) {
-                byteBuffer = ByteBuffer.wrap(encryptedData, written, encryptedData.length - written);
-            } else {
-                byteBuffer = ByteBuffer.wrap(encryptedData, written, bufferLength);
-            }
-
-            written += fc.write(byteBuffer);
-        }
-
-        outputStream.close();
+        Utils.writeEncryptedString(appKey, dataFile, json.toString());
 
     }
 
     public static void saveEncryptedData(SecretKey appKey, byte[] data, File dataFile) throws IOException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, ShortBufferException {
 
-
-        SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-        byte[] iV = new byte[12];
-        secureRandom.nextBytes(iV);
+        byte[] iV = getIv();
 
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
-        int bufferLength = 1024;
-
         cipher.init(Cipher.ENCRYPT_MODE, appKey, parameterSpec);
         
-        byte[] outputData;
-        ByteBuffer outputBuffer;
 
         if (dataFile.isFile()) {
             Files.delete(dataFile.toPath());
         }
+
         try(
-            FileOutputStream outputStream = new FileOutputStream(dataFile);
-            FileChannel fc = outputStream.getChannel();
+            ByteArrayInputStream byteStream = new ByteArrayInputStream(data);
+            FileOutputStream fileStream = new FileOutputStream(dataFile);
         ){
-            ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
-           
-            fc.write(byteBuffer);
+            fileStream.write(iV);    
+            int bufferSize = data.length < DEFAULT_BUFFER_SIZE ? (int) data.length : DEFAULT_BUFFER_SIZE;
 
-    
-            int encrypted = 0;
-        
-            while(encrypted < data.length){
+            byte[] byteArray = new byte[bufferSize];
+            byte[] output;
 
-                int inputLen = (encrypted + bufferLength) > data.length ? (data.length - encrypted) : bufferLength;
-                
-                outputData = new byte[cipher.getOutputSize(inputLen)];
-                outputBuffer = ByteBuffer.wrap(outputData);
-                byteBuffer = ByteBuffer.wrap(data, encrypted, inputLen);
+            int length = 0;
+            while((length = byteStream.read(byteArray)) != -1){
 
-                cipher.update(byteBuffer, outputBuffer);
-
-                fc.write(outputBuffer); 
-
-                encrypted += inputLen;
+                output = cipher.update(byteArray, 0, length);
+                if(output != null){
+                    fileStream.write(output);
+                }
             }
+
+            output = cipher.doFinal();
+            if(output != null){
+                fileStream.write(output);
+            }
+
+
 
         }
         
@@ -1230,54 +1194,17 @@ public class Utils {
 
 
 
-    public static void saveJsonArray(SecretKey appKey, JsonArray jsonArray, File dataFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-
+    public static Future<?> saveJsonArray(SecretKey appKey, JsonArray jsonArray, File dataFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        if(appKey != null && jsonArray != null && dataFile != null){
        
             Task<Object> task = new Task<Object>() {
                 @Override
                 public Object call() throws IOException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException  {
-            
-                    byte[] bytes = jsonArray.toString().getBytes();
                     
-                    SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-                    byte[] iV = new byte[12];
-                    secureRandom.nextBytes(iV);
-
-                    Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-                    GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
-
-                    cipher.init(Cipher.ENCRYPT_MODE, appKey, parameterSpec);
-
-                    byte[] encryptedData = cipher.doFinal(bytes);
-
-                    try(
-                        RandomAccessFile randomAccessFile = new RandomAccessFile(dataFile, "w");
-                        FileChannel fc = randomAccessFile.getChannel();
-                        FileLock fileLock = fc.lock(0L, Long.MAX_VALUE, false);
-                    ){
-                    //FileOutputStream outputStream = new FileOutputStream(dataFile);
-                        fc.truncate(0);
-
-                        ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
-
-                        fc.write(byteBuffer);
-
-                        int written = 0;
-                        int bufferLength = 1024 * 8;
-
-                        while (written < encryptedData.length) {
-
-                            if (written + bufferLength > encryptedData.length) {
-                                byteBuffer = ByteBuffer.wrap(encryptedData, written, encryptedData.length - written);
-                            } else {
-                                byteBuffer = ByteBuffer.wrap(encryptedData, written, bufferLength);
-                            }
-
-                            written += fc.write(byteBuffer);
-                        }
-
-                        return LocalDateTime.now();
-                    }
+                    String jsonString = jsonArray.toString();
+                    writeEncryptedString(appKey, dataFile, jsonString);
+                    
+                    return true;
                 }
             };
     
@@ -1285,8 +1212,9 @@ public class Utils {
     
             task.setOnSucceeded(onSucceeded);
     
-            execService.submit(task);
-
+            return execService.submit(task);
+        }
+        return null;
     }
 
     public static Future<?> decryptBytesFromFile(SecretKey appKey, File file, ExecutorService execService,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) throws IOException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
@@ -1294,7 +1222,7 @@ public class Utils {
             @Override
             public byte[] call() throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException{
                 
-                return decryptBytesFromFile(appKey, file);
+                return decryptFileToBytes(appKey, file);
 
             }
         };
@@ -1366,9 +1294,7 @@ public class Utils {
         return false;
     }
 
-    public static void updateFileEncryption(SecretKey oldAppKey, SecretKey newAppKey, File file) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException{
-        encryptBytesToFile(newAppKey,  decryptBytesFromFile(oldAppKey, file), file);
-    }
+    
 
     public static Future<?> encryptBytesToFile(SecretKey appKey, byte[] bytes, File outputFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
@@ -1403,29 +1329,75 @@ public class Utils {
 
     
 
-    public static boolean updateLargeFileEncryption(SecretKey oldAppKey, SecretKey newAppKey, File file, File tempFile) {
-        
-        try{
-            boolean decrypted = decryptFileToFile(oldAppKey, file, tempFile);
+    
+    public static boolean updateFileEncryption(SecretKey oldAppKey, SecretKey newAppKey, File file, File tmpFile) throws FileNotFoundException, IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+        if(file != null && file.isFile()){
+       
+            try(
+                FileInputStream inputStream = new FileInputStream(file);
+                FileOutputStream outStream = new FileOutputStream(tmpFile);
+            ){
+                
+                byte[] oldIV = new byte[12];
 
-            if(decrypted && tempFile.isFile()){
-                encryptFile(newAppKey, tempFile, file);
-                if(tempFile.isFile()){
-                    Files.delete(tempFile.toPath());
-                    return true;
+                byte[] newIV = getIv();
+
+                inputStream.read(oldIV);
+                outStream.write(newIV);
+
+                Cipher decryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
+                GCMParameterSpec parameterSpec = new GCMParameterSpec(128, oldIV);
+                decryptCipher.init(Cipher.DECRYPT_MODE, oldAppKey, parameterSpec);
+
+                Cipher encryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
+                GCMParameterSpec newSpec = new GCMParameterSpec(128, newIV);
+                encryptCipher.init(Cipher.ENCRYPT_MODE, newAppKey, newSpec);
+
+                long fileSize = file.length();
+                int bufferSize = fileSize < DEFAULT_BUFFER_SIZE ? (int) fileSize : DEFAULT_BUFFER_SIZE;
+
+                byte[] readBuffer = new byte[bufferSize];
+                byte[] decryptedBuffer;
+                byte[] encryptedBuffer;
+
+                int length = 0;
+
+                while ((length = inputStream.read(readBuffer)) != -1) {
+                    decryptedBuffer = decryptCipher.update(readBuffer, 0, length);
+                    if(decryptedBuffer != null){
+                        encryptedBuffer = encryptCipher.update(decryptedBuffer);
+                        if(encryptedBuffer != null){
+                            outStream.write(encryptedBuffer);
+                        }
+                    }
                 }
-             
-            }else{
-                if(tempFile.isFile()){
-                    Files.delete(tempFile.toPath());
+
+                decryptedBuffer = decryptCipher.doFinal();
+
+                if(decryptedBuffer != null){
+                    encryptedBuffer = encryptCipher.update(decryptedBuffer);
+                    if(encryptedBuffer != null){
+                        outStream.write(encryptedBuffer);
+                    }
                 }
+
+                encryptedBuffer = encryptCipher.doFinal();
+
+                if(encryptedBuffer != null){
+                    outStream.write(encryptedBuffer);
+                }
+                
             }
-        }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
-            
-        }
 
+            Path filePath = file.toPath();
+            Files.delete(filePath);
+            FileUtils.moveFile(tmpFile, file);
+
+            return true;
+        }
         return false;
     }
+
 
 
     public static boolean decryptFileToFile(SecretKey appKey, File encryptedFile, File decryptedFile) throws IOException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
@@ -1476,9 +1448,11 @@ public class Utils {
         }
         return false;
     }
+
+  
     
-    public static byte[] decryptBytesFromFile(SecretKey appKey, File file) throws IOException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
-        if(file != null && file.isFile() && file.length() > 12){
+    public static byte[] decryptFileToBytes(SecretKey appKey, File file) throws IOException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
+        if(file != null && file.isFile()){
             
             try(
                 FileInputStream inputStream = new FileInputStream(file);
@@ -1487,7 +1461,11 @@ public class Utils {
                 
                 byte[] iV = new byte[12];
 
-                inputStream.read(iV);
+                int length = inputStream.read(iV);
+
+                if(length < 12){
+                    return null;
+                }
 
                 Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
                 GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
@@ -1495,11 +1473,11 @@ public class Utils {
                 cipher.init(Cipher.DECRYPT_MODE, appKey, parameterSpec);
 
                 long fileSize = file.length();
-                int bufferSize = fileSize < (8 * 1024) ? (int) fileSize :(8 * 1024);
+                int bufferSize = fileSize < (long) DEFAULT_BUFFER_SIZE ? (int) fileSize : DEFAULT_BUFFER_SIZE;
 
                 byte[] buffer = new byte[bufferSize];
                 byte[] decryptedBuffer;
-                int length = 0;
+               
 
                 while ((length = inputStream.read(buffer)) != -1) {
                     decryptedBuffer = cipher.update(buffer, 0, length);
@@ -1537,6 +1515,56 @@ public class Utils {
         task.setOnSucceeded(onSucceeded);
 
         return execService.submit(task);
+    }
+
+    public static Image downloadImageAndEncryptFile(String urlString, SecretKey appKey, File downloadFile) throws NoSuchAlgorithmException, NoSuchPaddingException, IOException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException{
+        if(downloadFile != null){
+            byte[] iV = Utils.getIv();
+
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
+            cipher.init(Cipher.ENCRYPT_MODE, appKey, parameterSpec);
+
+            URL url = new URL(urlString);
+            URLConnection con = url.openConnection();
+            long contentLength = con.getContentLengthLong();
+            con.setRequestProperty("User-Agent", Utils.USER_AGENT);
+            
+            if(downloadFile.isFile()){
+                Files.delete(downloadFile.toPath());
+            }
+
+            try(
+                InputStream inputStream = con.getInputStream();
+                ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
+                FileOutputStream fileStream = new FileOutputStream(downloadFile);
+            ){
+                int bufferSize = contentLength < 1024 ? (int) contentLength : 1024;
+                
+                byte[] output;
+                byte[] buffer = new byte[bufferSize];
+
+                int length;
+
+                while ((length = inputStream.read(buffer)) != -1) {
+                    byteOutputStream.write(buffer, 0 ,length);
+                    output = cipher.update(buffer, 0, length);
+
+                    if(output != null){
+                        fileStream.write(output);
+                    }
+                }
+
+                output = cipher.doFinal();
+
+                if(output != null){
+                    fileStream.write(output);
+                }
+
+                return new Image(new ByteArrayInputStream(byteOutputStream.toByteArray()));
+            }
+        }
+        return null;
     }
 
     public static Future<?> dowloadAndEncryptFile(String urlString, SecretKey appKey, File downloadFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
@@ -1773,182 +1801,130 @@ public class Utils {
 
     public static JsonObject readJsonFile(SecretKey appKey, File file) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException {
 
-        FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] bytes = decryptFileToBytes(appKey,file);
+        
+        if(bytes != null){
 
-        int bufferSize = 1024;
-        if (bufferSize > channel.size()) {
-            bufferSize = (int) channel.size();
+            JsonElement jsonElement = new JsonParser().parse(new String(bytes));
+
+            return jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
+            
         }
-        ByteBuffer buff = ByteBuffer.allocate(bufferSize);
-
-        while (channel.read(buff) > 0) {
-            out.write(buff.array(), 0, buff.position());
-            buff.clear();
-        }
-
-        channel.close();
-
-        byte[] fileBytes = out.toByteArray();
-
-        byte[] iv = new byte[]{
-            fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3],
-            fileBytes[4], fileBytes[5], fileBytes[6], fileBytes[7],
-            fileBytes[8], fileBytes[9], fileBytes[10], fileBytes[11]
-        };
-
-        buff = ByteBuffer.wrap(fileBytes, 12, fileBytes.length - 12);
-
-        JsonElement jsonElement = new JsonParser().parse(new String(AESEncryption.decryptData(iv, appKey, buff)));
-        if (jsonElement != null && jsonElement.isJsonObject()) {
-            return jsonElement.getAsJsonObject();
-        }
-
         return null;
 
     }
 
+    public static Future<?> readJsonFile(SecretKey appKey, File file, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        if(appKey != null && file != null && file.isFile()  && execService != null){
+            Task<Object> task = new Task<Object>() {
+                @Override
+                public Object call() throws InterruptedException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException{
     
-    
-    public static boolean readJsonArrayFile(SecretKey appKey, File file, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        
-        if(!file.isFile()){
-            return false;
+                    JsonObject json = readJsonFile(appKey, file);
+
+                    return json;
+                }
+            };
+            task.setOnFailed(onFailed);
+
+            task.setOnSucceeded(onSucceeded);
+
+            return execService.submit(task);
         }
-
-        Task<Object> task = new Task<Object>() {
-            @Override
-            public Object call() throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException {
-                
-               
-                byte[] fileBytes;
-                try(
-                    RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r");
-                    FileChannel channel = randomAccessFile.getChannel();
-                    FileLock fileLock = channel.lock(0L, Long.MAX_VALUE, true);
-                ){
-                    ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    
-                    int bufferSize = 1024 * 4;
-                    
-                    if (bufferSize > channel.size()) {
-                        bufferSize = (int) channel.size();
-                    }
-
-                    ByteBuffer buff = ByteBuffer.allocate(bufferSize);
-
-                    while (channel.read(buff) > 0) {
-                        out.write(buff.array(), 0, buff.position());
-                        buff.clear();
-                    }
-                    fileBytes = out.toByteArray();
-               
-
-                byte[] iv = new byte[]{
-                    fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3],
-                    fileBytes[4], fileBytes[5], fileBytes[6], fileBytes[7],
-                    fileBytes[8], fileBytes[9], fileBytes[10], fileBytes[11]
-                };
-
-                buff  = ByteBuffer.wrap(fileBytes, 12, fileBytes.length - 12);
-
-                
-                JsonElement jsonElement = new JsonParser().parse(new String(AESEncryption.decryptData(iv, appKey, buff)));
-                if (jsonElement != null && jsonElement.isJsonArray()) {
-                    return jsonElement.getAsJsonArray();
-                }
-                
-
-                return null;
-                }
-            }
-        };
+        return null;
+    }
     
-        task.setOnFailed(onFailed);
-
-        task.setOnSucceeded(onSucceeded);
-
-        execService.submit(task);
+    
+    public static Future<?> readJsonArrayFile(SecretKey appKey, File file, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         
-        return true;
+        if(appKey != null && file != null){
+            Task<Object> task = new Task<Object>() {
+                @Override
+                public Object call() throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException, InterruptedException {
+                    
+                    byte[] bytes = decryptFileToBytes(appKey, file);
+                    if(bytes != null){
+                        JsonElement jsonElement = new JsonParser().parse(new String(bytes));
+                        if (jsonElement != null && jsonElement.isJsonArray()) {
+                            return jsonElement.getAsJsonArray();
+                        }
+                    }
+
+                    return null;
+                    
+                }
+            };
+        
+            task.setOnFailed(onFailed);
+
+            task.setOnSucceeded(onSucceeded);
+
+            return execService.submit(task);
+        }
+        return null;
     }
 
 
-    public static void writeEncryptedString(SecretKey secretKey, File dataFile, String jsonString) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, IOException {
-        if( secretKey != null && dataFile != null && jsonString != null){
-            SecureRandom secureRandom = SecureRandom.getInstanceStrong();
-            byte[] iV = new byte[12];
-            secureRandom.nextBytes(iV);
+    public static void writeEncryptedString(SecretKey secretKey, File dataFile, String str) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, IOException {
+        if( secretKey != null && dataFile != null && str != null){
+
+            byte[] iV = getIv();
 
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             GCMParameterSpec parameterSpec = new GCMParameterSpec(128, iV);
 
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec);
 
-            byte[] encryptedData = cipher.doFinal(jsonString.getBytes());
-
+            
             if (dataFile.isFile()) {
                 Files.delete(dataFile.toPath());
             }
+  
+            
+            try(
+                ReaderInputStream inputStream = new ReaderInputStream(new StringReader(str), StandardCharsets.UTF_8);
+                FileOutputStream outputStream = new FileOutputStream(dataFile);
+            ){
+                
+                outputStream.write(iV);
 
-            FileOutputStream outputStream = new FileOutputStream(dataFile);
-            FileChannel fc = outputStream.getChannel();
+                //int written = 0;
+                int bufferLength =  1024;
+                int length = 0;
 
-            ByteBuffer byteBuffer = ByteBuffer.wrap(iV);
+                byte[] intputBuffer = new byte[bufferLength];
+                byte[] output;
 
-            fc.write(byteBuffer);
-
-            int written = 0;
-            int bufferLength = 1024 * 8;
-
-            while (written < encryptedData.length) {
-
-                if (written + bufferLength > encryptedData.length) {
-                    byteBuffer = ByteBuffer.wrap(encryptedData, written, encryptedData.length - written);
-                } else {
-                    byteBuffer = ByteBuffer.wrap(encryptedData, written, bufferLength);
+                while ((length = inputStream.read(intputBuffer)) != -1) {
+                    output = cipher.update(intputBuffer, 0, length);
+                    if(output != null){
+                        outputStream.write(output);
+                    }
+                    //written += length;
                 }
 
-                written += fc.write(byteBuffer);
+                output = cipher.doFinal();
+
+                if(output != null){
+                    outputStream.write(output);
+                }
+
+                
             }
 
-            outputStream.close();
+ 
         }
 
     }
 
     public static String readStringFile(SecretKey appKey, File file) throws InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException {
 
-        FileChannel channel = FileChannel.open(file.toPath(), StandardOpenOption.READ);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        int bufferSize = 1024;
-        if (bufferSize > channel.size()) {
-            bufferSize = (int) channel.size();
+        byte[] bytes = decryptFileToBytes(appKey, file);
+        if(bytes != null){
+            return new String(bytes);
+        }else{
+            return null;
         }
-        ByteBuffer buff = ByteBuffer.allocate(bufferSize);
-
-        while (channel.read(buff) > 0) {
-            out.write(buff.array(), 0, buff.position());
-            buff.clear();
-        }
-
-        channel.close();
-
-        byte[] fileBytes = out.toByteArray();
-
-        byte[] iv = new byte[]{
-            fileBytes[0], fileBytes[1], fileBytes[2], fileBytes[3],
-            fileBytes[4], fileBytes[5], fileBytes[6], fileBytes[7],
-            fileBytes[8], fileBytes[9], fileBytes[10], fileBytes[11]
-        };
-
-        buff = ByteBuffer.wrap(fileBytes, 12, fileBytes.length - 12);
-
-        return new String(AESEncryption.decryptData(iv, appKey, buff));
-       
-
-
     }
 
    
@@ -2012,62 +1988,6 @@ public class Utils {
         return execService.submit(task);
     }
     
-    public static Future<?> getUrlJsonArray(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
-
-        Task<JsonArray> task = new Task<JsonArray>() {
-            @Override
-            public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
-                InputStream inputStream = null;
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                String outputString = null;
-
-                URL url = new URL(urlString);
-
-                URLConnection con = url.openConnection();
-
-                con.setRequestProperty("User-Agent", USER_AGENT);
-
-                long contentLength = con.getContentLengthLong();
-                inputStream = con.getInputStream();
-
-                byte[] buffer = new byte[2048];
-
-                int length;
-                long downloaded = 0;
-
-                while ((length = inputStream.read(buffer)) != -1) {
-
-                    outputStream.write(buffer, 0, length);
-
-                    if (progressIndicator != null) {
-                        downloaded += (long) length;
-                        updateProgress(downloaded, contentLength);
-                    }
-                }
-                inputStream.close();
-                outputStream.close();
-                outputString = outputStream.toString();
-                
-                JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
-
-                return jsonArray == null ? null : jsonArray;
-
-            }
-
-        };
-
-        if (progressIndicator != null) {
-            progressIndicator.progressProperty().bind(task.progressProperty());
-        }
-
-        task.setOnFailed(onFailed);
-
-        task.setOnSucceeded(onSucceeded);
-
-        return execService.submit(task);
-    }
 
     public static void getUrlFileHash(String urlString, File outputFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator, AtomicBoolean cancel) {
         

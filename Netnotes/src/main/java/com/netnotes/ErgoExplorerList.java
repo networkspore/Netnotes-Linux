@@ -130,14 +130,18 @@ public class ErgoExplorerList {
 
 
     private void getData(){
-        JsonObject json = m_ergoExplorer.getNetworksData().getData("data", ".", ErgoNetwork.EXPLORER_NETWORK, ErgoNetwork.NETWORK_ID);
-      
-        if(json != null){
+        m_ergoExplorer.getNetworksData().getData("data", ".", ErgoNetwork.EXPLORER_NETWORK, ErgoNetwork.NETWORK_ID, onSucceeded->{
+            Object obj = onSucceeded.getSource().getValue();
+            JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
             
-            openJson(json);
-        }else{
-            addDefault();
-        }
+            if(json != null){
+                openJson(json);
+            }else{
+                addDefault();
+            }
+        });
+      
+        
     }
 
     public void save() {

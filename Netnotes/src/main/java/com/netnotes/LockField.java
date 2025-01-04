@@ -7,8 +7,6 @@ import java.nio.file.StandardOpenOption;
 import com.utils.Utils;
 
 import javafx.animation.PauseTransition;
-import javafx.beans.binding.Binding;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -54,7 +52,8 @@ public class LockField extends HBox {
     public LockField(){
         super();
         setAlignment(Pos.CENTER_LEFT);
-        setPadding(new Insets(5, 2,5,2));
+        
+
         String lockString = "Address ";
         String unlockLabelString = "≬";
         String prompt = "[ click to unlock ]";
@@ -87,6 +86,7 @@ public class LockField extends HBox {
         m_unlockBtnBox = new HBox(m_unlockBtn);
         HBox.setHgrow(m_unlockBtnBox, Priority.ALWAYS);
         m_unlockBtnBox.setAlignment(Pos.CENTER_LEFT);
+        m_unlockBtnBox.setId("bodyBox");
       
         m_unlockBtn.prefWidthProperty().bind(m_unlockBtnBox.widthProperty().subtract(1));
 

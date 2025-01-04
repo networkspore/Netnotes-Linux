@@ -12,7 +12,6 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.concurrent.WorkerStateEvent;
-import javafx.embed.swing.SwingFXUtils;
 
 import java.security.spec.InvalidKeySpecException;
 import java.security.NoSuchAlgorithmException;
@@ -51,9 +50,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -67,8 +64,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import javax.imageio.ImageIO;
 
 import org.reactfx.util.FxTimer;
 
@@ -193,13 +188,10 @@ public class App extends Application {
 
     //private java.awt.SystemTray m_tray;
     //private java.awt.TrayIcon m_trayIcon;
-    private final static long EXECUTION_TIME = 500;
     public final static double STAGE_WIDTH = 450;
     public final static double STAGE_HEIGHT = 250;
     //private Stage m_stage;
     
-    
-    private ScheduledFuture<?> m_lastExecution = null;
 
     @Override
     public void start(Stage appStage) {
@@ -228,7 +220,7 @@ public class App extends Application {
         }catch(JsonParseException | IOException e){
             setupApp(appStage);
         }
-
+    
     }
 
     private Stage m_statusStage = null;
@@ -333,7 +325,8 @@ public class App extends Application {
         passwordScene.setFill(null);
         passwordScene.getStylesheets().add("/css/startWindow.css");
         appStage.setScene(passwordScene);
-        
+
+
         closeBtn.setOnAction(e -> {
             shutdownNow();
         });
@@ -395,8 +388,8 @@ public class App extends Application {
         });
       
 
-           appStage.show();
-      
+        appStage.show();
+        appStage.centerOnScreen();
     }
 
 
@@ -471,17 +464,7 @@ public class App extends Application {
     }
 
     // private static int createTries = 0;
-    private void openNetnotes(AppData appData,  Stage appStage) {
 
-
-        m_networksData = new NetworksData(appData);    
-
-        loadMainStage(appStage);
-        
-
-        
-       
-    }
 
     /*public static HBox createShrinkTopBar(Image iconImage, String titleString, Button maximizeBtn,  Button shrinkBtn, Button closeBtn, Stage theStage, SimpleBooleanProperty isShrunk, AppData appData, ExecutorService execService) {
       
@@ -749,82 +732,46 @@ public class App extends Application {
 
     }
 
-    
-    private VBox m_contentBox;
-    private HBox m_footerBox = new HBox();
-    private HBox m_titleBox = new HBox();
-    private HBox m_menuBox;
-    private ScrollPane m_staticContent;
+
 
     public final static double DEFAULT_STATIC_WIDTH = 500;
     private Button m_stageMaximizeBtn;
 
-    private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH +5);
-    private SimpleDoubleProperty m_menuWidth = new SimpleDoubleProperty(52);
-    private void loadMainStage(Stage appStage) {
-   
+   // private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH +5);
+ 
+
+    private void openNetnotes(AppData appData,  Stage appStage) {
+
         Button closeBtn = new Button();
         m_stageMaximizeBtn = new Button();
 
-        appStage.setTitle("Netnotes");
+            
 
-        //getScene().getWindow().getX()
+        HBox titleBox = createTopBar(icon, m_stageMaximizeBtn, closeBtn, appStage);
 
-        m_titleBox = createTopBar(icon, m_stageMaximizeBtn, closeBtn, appStage);
-
-        
-        //m_headerBox.setPadding(new Insets(0, 2, 2, 2));
-      
-
-        m_staticContent = new ScrollPane();
-       
-       // m_staticContent.setPrefWidth(350);
-        //m_staticContent.setPrefHeight(220);
-
- 
-
-        m_contentBox = new VBox();
-        VBox.setVgrow(m_contentBox, Priority.ALWAYS);
-        HBox.setHgrow(m_contentBox, Priority.ALWAYS);
-
-
-  
-        
-        m_menuBox = new HBox();
-        VBox.setVgrow(m_menuBox, Priority.ALWAYS);
-
-        m_menuBox.setPadding(new Insets(2, 0, 2, 0));
-       // m_menuBox.setId("appMenuBox");
-        m_menuBox.minWidthProperty().bind(m_menuWidth.add(2));
-        m_menuBox.maxWidthProperty().bind(m_menuWidth.add(2));
-        VBox.setVgrow(m_menuBox, Priority.ALWAYS);
-
-
-  
-
-        HBox mainHbox = new HBox(m_menuBox, m_contentBox);
-        VBox.setVgrow(mainHbox, Priority.ALWAYS);
-        HBox.setHgrow(mainHbox, Priority.ALWAYS);
     
 
-
+        HBox m_menuBox = new HBox();
+    
+        VBox contentBox = new VBox();
+        HBox mainHbox = new HBox(m_menuBox, contentBox);
       
-        VBox layout = new VBox(m_titleBox, mainHbox, m_footerBox);
+
+        ScrollPane m_staticContent = new ScrollPane();
+
+        HBox m_footerBox = new HBox();
+        m_footerBox.setAlignment(Pos.CENTER_LEFT);
+
+        VBox layout = new VBox(titleBox, mainHbox, m_footerBox);
         VBox.setVgrow(layout, Priority.ALWAYS);
         layout.setPadding(new Insets(0, 2, 2, 0));
+   
 
-        Scene appScene = new Scene(layout, m_networksData.getStageWidth(), m_networksData.getStageHeight());
-        appScene.setFill(null);
-        appScene.getStylesheets().add("/css/startWindow.css");
 
- 
-        appStage.setScene(appScene);
-        
 
-        appScene.getWindow().centerOnScreen();
+        m_networksData = new NetworksData(appData, appStage, titleBox, mainHbox, m_stageMaximizeBtn, m_menuBox, m_staticContent, contentBox, m_footerBox, layout);    
 
-        m_networksData.createMenu(appStage, m_stageMaximizeBtn, m_menuWidth, m_menuBox, m_staticContent, m_contentBox);
-
+    
         m_networksData.menuTabProperty().addListener((obs,oldval,newval)->{
             if(newval != null){
                 if(!mainHbox.getChildren().contains(m_staticContent)){
@@ -837,50 +784,6 @@ public class App extends Application {
             }
         });
 
-        ResizeHelper.addResizeListener(appStage, 800, 250, Double.MAX_VALUE, Double.MAX_VALUE);
-
-
-        m_staticContent.prefViewportWidthProperty().bind(m_staticContentWidth);
-        m_staticContent.prefViewportHeightProperty().bind(appScene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
-    
-
-        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-        Runnable save = () -> {
-            m_networksData.save();
-        };
-
-        appScene.widthProperty().addListener((obs, oldval, newVal) -> {
-            m_networksData.setStageWidth(newVal.doubleValue());
-      
-            if (m_lastExecution != null && !(m_lastExecution.isDone())) {
-                m_lastExecution.cancel(false);
-            }
-
-            m_lastExecution = executor.schedule(save, EXECUTION_TIME, TimeUnit.MILLISECONDS);
-        });
-        appScene.heightProperty().addListener((obs, oldval, newVal) -> {
-            m_networksData.setStageHeight(newVal.doubleValue());
-
-            if (m_lastExecution != null && !(m_lastExecution.isDone())) {
-                m_lastExecution.cancel(false);
-            }
-
-            m_lastExecution = executor.schedule(save, EXECUTION_TIME, TimeUnit.MILLISECONDS);
-        });
-
-        m_stageMaximizeBtn.setOnAction(maxEvent -> {
-            boolean maximized = appStage.isMaximized();
-            m_networksData.setStageMaximized(!maximized);
-
-            if (!maximized) {
-                m_networksData.setStagePrevWidth(appStage.getWidth());
-                m_networksData.setStagePrevHeight(appStage.getHeight());
-                
-            }
-             
-            appStage.setMaximized(!maximized);
-
-        });
 
         closeBtn.setOnAction(e -> {
             if(m_networksData.getStageMaximized()){
@@ -905,10 +808,9 @@ public class App extends Application {
             closeBtn.fire();
         });
 
-
-    
-
        
+
+
     }
     
 
@@ -973,7 +875,7 @@ public class App extends Application {
     }
 
     
-    public static Stage createPassword(String topTitle, Image windowLogo, Image mainLogo, Button closeBtn, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded) {
+    public static Stage createPassword(String topTitle, Image windowLogo, Image mainLogo, Button closeBtn, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, Runnable onClosing) {
         Stage passwordStage = new Stage();
         passwordStage.initStyle(StageStyle.UNDECORATED);
        
@@ -1122,6 +1024,8 @@ public class App extends Application {
         });
         
         createPassField2.setOnAction((e)->enter2.fire());
+
+        passwordStage.setOnCloseRequest(e->onClosing.run());
 
         return passwordStage;
     }

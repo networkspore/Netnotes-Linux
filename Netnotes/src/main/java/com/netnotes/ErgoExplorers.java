@@ -116,26 +116,30 @@ public class ErgoExplorers  {
     }
 
     public void getData(String subId, String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonObject existingData = m_ergoNetwork.getNetworksData().getData(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
+        m_ergoNetwork.getNetworksData().getData(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, (onFinished)->{
+            Object obj = onFinished.getSource().getValue();
+            JsonObject existingData = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
 
-        if(existingData != null){
+                
+            if(existingData != null){
 
-            Utils.returnObject(existingData, getNetworksData().getExecService(), onSucceeded, onFailed);
+                Utils.returnObject(existingData, getNetworksData().getExecService(), onSucceeded, onFailed);
 
-        }else{
-            Utils.getUrlJson(urlString, getNetworksData().getExecService(), (urlJson)->{
-                Object sourceObject = urlJson.getSource().getValue();
-                if(sourceObject != null && sourceObject instanceof JsonObject){
+            }else{
+                Utils.getUrlJson(urlString, getNetworksData().getExecService(), (urlJson)->{
+                    Object sourceObject = urlJson.getSource().getValue();
+                    if(sourceObject != null && sourceObject instanceof JsonObject){
+                        
+                            JsonObject json = (JsonObject) sourceObject;
+                            getNetworksData().save(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, json);
+                            Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
                     
-                        JsonObject json = (JsonObject) sourceObject;
-                        getNetworksData().save(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, json);
-                        Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
-                 
-                }else{
-                    Utils.returnObject(null,getNetworksData().getExecService(), onSucceeded, onFailed);
-                }
-            }, onFailed);
-        }
+                    }else{
+                        Utils.returnObject(null,getNetworksData().getExecService(), onSucceeded, onFailed);
+                    }
+                }, onFailed);
+            }
+        });
         
     }
 

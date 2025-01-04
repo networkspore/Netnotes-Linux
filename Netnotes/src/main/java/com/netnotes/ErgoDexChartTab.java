@@ -18,7 +18,10 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,9 +34,9 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -51,7 +54,6 @@ import javafx.scene.text.Text;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.io.IOException;
@@ -61,6 +63,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.Semaphore;
 
 import org.reactfx.util.FxTimer;
 
@@ -88,6 +91,9 @@ public class ErgoDexChartTab extends ContentTab {
     private ImageView m_chartImageView;
     private ChangeListener<Boolean> m_invertListener = null;
     private MenuButton m_timeSpanBtn;
+
+    private SimpleDoubleProperty m_rangeWidth;
+    private SimpleDoubleProperty m_rangeHeight;
    
   
     private BufferedImage m_img = null;
@@ -105,8 +111,11 @@ public class ErgoDexChartTab extends ContentTab {
     private ErgoDexSwapBox m_ergoDexSwapBox = null;
     private Button m_toggleSwapBtn;
     private HBox m_bodyBox;
+    private VBox m_layoutBox;
+    private VBox m_chartBox;
+    
 
-    private SimpleBooleanProperty m_showSwap = new SimpleBooleanProperty(true);
+    private boolean m_showSwap = true;
     private SimpleBooleanProperty m_showWallet = new SimpleBooleanProperty(true);
     private SimpleBooleanProperty m_showPoolStats = new SimpleBooleanProperty(true);
         
@@ -114,8 +123,8 @@ public class ErgoDexChartTab extends ContentTab {
     private TimeSpan m_timeSpan = new TimeSpan("30min");
     private String m_defaultWalletId = DEFAULT_ID;
 
-    public static final long DELAY_MILLIS = 200;
-    private Timer m_delayTimer = null;
+
+    
     
 
     public boolean isInvert(){
@@ -136,21 +145,87 @@ public class ErgoDexChartTab extends ContentTab {
 
 
 
-    public ErgoDexChartTab(String id, Image logo, String title,  Pane layoutBox,  ErgoDexDataList dataList, ErgoDexMarketData marketData, ErgoDexMarketItem marketItem){
+    public ErgoDexChartTab(String id, Image logo, String title,  VBox layoutBox,  ErgoDexDataList dataList, ErgoDexMarketData marketData, ErgoDexMarketItem marketItem){
         super(id, ErgoDex.NETWORK_ID, logo, title , layoutBox);
         m_dataList = dataList;
         m_marketData = marketData;
         m_marketItem = marketItem;
-
-
-        getData();
-      
         m_titleProperty = new SimpleStringProperty(title);
-
         m_labelFont = m_dataList.getLabelFont();
         m_labelMetrics = m_dataList.getLabelMetrics();
         m_amStringWidth = m_labelMetrics.stringWidth(" a.m. ");
         m_zeroStringWidth = m_labelMetrics.stringWidth("0");
+        m_spectrumChartView = m_marketData.getSpectrumChartView().get();
+
+        m_rangeWidth = new SimpleDoubleProperty(12);
+        m_rangeHeight = new SimpleDoubleProperty(100);
+       
+        m_layoutBox = layoutBox;
+
+        m_chartBox = new VBox();
+        m_chartBox.setAlignment(Pos.CENTER);
+
+        setLoadingBox();
+
+        getData((onSucceeded)->{
+            Object obj = onSucceeded.getSource().getValue();
+            JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+            openJson(json); 
+
+            initLayout();
+        });
+    }
+
+
+    public void getData(EventHandler<WorkerStateEvent> onSucceeded){
+        getNetworksData().getData("chartData", m_marketData.getId(), ErgoDexDataList.NETWORK_ID, ErgoDex.NETWORK_ID, onSucceeded);
+    }
+
+    private void setLoadingBox(){
+        ImageView imgView = new ImageView(m_dataList.getErgoDex().getAppIcon());
+        imgView.setPreserveRatio(true);
+        imgView.setFitWidth(150);
+
+        Button loadingBtn = new Button(ErgoDex.NAME);
+        loadingBtn.setTextFill(Color.WHITE);
+        loadingBtn.setGraphicTextGap(30);
+        loadingBtn.setId("startImageBtn");
+        loadingBtn.setGraphicTextGap(15);
+        loadingBtn.setGraphic(imgView);
+        loadingBtn.setContentDisplay(ContentDisplay.TOP);
+        loadingBtn.setPadding(new Insets(0,0,30,0));
+
+        ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+        progressBar.setPrefWidth(200);
+
+        HBox progressBarBox = new HBox(progressBar);
+        HBox.setHgrow(progressBarBox,Priority.ALWAYS);
+        progressBarBox.setAlignment(Pos.CENTER);
+
+        VBox imageBox = new VBox(loadingBtn, progressBarBox);
+        imageBox.setId("transparentColor");
+        imageBox.setAlignment(Pos.CENTER);
+        HBox.setHgrow(imageBox, Priority.ALWAYS);
+        
+
+        Label statusLabel = new Label("Starting...");
+        statusLabel.setId("italicFont");
+        
+        progressBarBox.setPadding(new Insets(0,0,0,0));
+
+        VBox statusLabelBox = new VBox( statusLabel);
+        HBox.setHgrow(statusLabelBox, Priority.ALWAYS);
+        statusLabelBox.setAlignment(Pos.CENTER);
+
+        imageBox.prefHeightProperty().bind(m_layoutBox.heightProperty().subtract(statusLabelBox.heightProperty()).subtract(5));
+
+        VBox loadingBox = new VBox(imageBox, statusLabelBox);
+        loadingBox.setAlignment(Pos.CENTER);
+
+        m_layoutBox.getChildren().add(loadingBox);
+    }
+
+    private void initLayout(){
 
         if(!m_marketData.isPool() || m_marketData.getSpectrumChartView().get() == null){
             Alert a = new Alert(AlertType.NONE, "Price history unavailable.", ButtonType.OK);
@@ -159,12 +234,9 @@ public class ErgoDexChartTab extends ContentTab {
             a.showAndWait();
             return;
         }
-        m_spectrumChartView = m_marketData.getSpectrumChartView().get();
+  
 
-        SimpleDoubleProperty rangeWidth = new SimpleDoubleProperty(12);
-        SimpleDoubleProperty rangeHeight = new SimpleDoubleProperty(100);
-
-       // ErgoDex exchange = m_dataList.getErgoDex();
+    // ErgoDex exchange = m_dataList.getErgoDex();
         
         BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
         BufferedButton invertBtn = new BufferedButton( isInvert() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
@@ -220,7 +292,7 @@ public class ErgoDexChartTab extends ContentTab {
         headingBox.setPadding(new Insets(5, 5, 5, 5));
         headingBox.setId("headingBox");
         
-        m_chartRange = new RangeBar(rangeWidth, rangeHeight, getNetworksData().getExecService());
+        m_chartRange = new RangeBar(m_rangeWidth, m_rangeHeight, getNetworksData().getExecService());
         m_chartRange.setId("hand");
 
         m_chartImageView = new ImageView();
@@ -241,7 +313,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         setChartRangeItem.setOnAction((e)->m_chartRange.toggleSettingRange());
 
-     
+    
                     //⯈🗘
         m_toggleSwapBtn = new Button("⯈");
         m_toggleSwapBtn.setTextFill(App.txtColor);
@@ -249,7 +321,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_toggleSwapBtn.setPadding(new Insets(2,2,2,1));
         m_toggleSwapBtn.setId("barBtn");
         //toggleSwapBtn.setMinWidth(20);
-       
+    
 
         Region topRegion = new Region();
         VBox.setVgrow(topRegion, Priority.ALWAYS);
@@ -274,22 +346,23 @@ public class ErgoDexChartTab extends ContentTab {
         
         m_toggleSwapBtn.prefHeightProperty().bind(m_bodyBox.heightProperty());
 
-        layoutBox.getChildren().addAll(headerVBox, bodyPaddingBox);
+        m_chartBox.getChildren().clear();
+        m_chartBox.getChildren().addAll(headerVBox, bodyPaddingBox);
 
 
-        m_showSwap.addListener((obs,oldVal,newVal)->updateShowSwap());
 
-        updateShowSwap();
+      
 
-        m_chartScroll.prefViewportWidthProperty().bind(layoutBox.widthProperty().subtract(45));
-        m_chartScroll.prefViewportHeightProperty().bind(layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
+
+        m_chartScroll.prefViewportWidthProperty().bind(m_layoutBox.widthProperty().subtract(45));
+        m_chartScroll.prefViewportHeightProperty().bind(m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
 
 
         //layoutBox.setPrefWidth(Double.MAX_VALUE);
 
-        rangeHeight.bind(layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(65));
+        m_rangeHeight.bind(m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(65));
 
-      
+    
         
         m_chartRange.bottomVvalueProperty().addListener((obs,oldval,newval)->{
             if(m_chartRange.settingRangeProperty().get()){
@@ -380,17 +453,19 @@ public class ErgoDexChartTab extends ContentTab {
 
         getTabLabel().textProperty().bind(m_titleProperty);
 
-    
-    
-       
+        
+        updateShowSwap(m_showSwap);
+
         createChart();
+    
+    
     }
 
-
-    public void getData(){
-        JsonObject json = getNetworksData().getData("chartData", m_marketData.getId(), ErgoDexDataList.NETWORK_ID, ErgoDex.NETWORK_ID);
-
-        openJson(json);
+    private void completeLoading(){
+        if(!m_layoutBox.getChildren().contains(m_chartBox)){
+            m_layoutBox.getChildren().clear();
+            m_layoutBox.getChildren().add(m_chartBox);
+        }
     }
 
     public void setTimeSpan(TimeSpan timeSpan){
@@ -398,27 +473,20 @@ public class ErgoDexChartTab extends ContentTab {
             m_timeSpan = timeSpan;
             m_timeSpanBtn.setText(m_timeSpan.getName());
             createChart();
-            delaySave();
+            save();
         }
     }
 
     public boolean getShowSwap(){
-        return m_showSwap.get();
+        return m_showSwap;
     }
 
-    public void delaySave(){
-        if(m_delayTimer != null){
-            m_delayTimer = FxTimer.runLater(Duration.ofMillis(DELAY_MILLIS), ()->{
-                m_delayTimer = null;
-                save();
-              
-            });
-        }
-    }
+ 
 
     public void setShowSwap(boolean showSwap){
-        m_showSwap.set(showSwap);
-        delaySave();
+        m_showSwap = showSwap;
+        updateShowSwap(m_showSwap);
+        save();
     }
 
     public boolean getShowWallet(){
@@ -427,7 +495,7 @@ public class ErgoDexChartTab extends ContentTab {
 
     public void setShowWallet(boolean showWallet){
         m_showWallet.set(showWallet);
-        delaySave();
+        save();
     }
 
     public String getChartWalletId(){
@@ -436,7 +504,7 @@ public class ErgoDexChartTab extends ContentTab {
 
     public void setChartWalletId(String id){
         m_defaultWalletId = id;
-        delaySave();
+        save();
     }
 
     private void openJson(JsonObject json){
@@ -454,7 +522,7 @@ public class ErgoDexChartTab extends ContentTab {
             String defaultWalletId = defaeultWalletIdElement == null ?  DEFAULT_ID : (defaeultWalletIdElement.isJsonNull() ? null : defaeultWalletIdElement.getAsString());
 
             m_timeSpan = timeSpan;
-            m_showSwap.set(showSwap);
+            m_showSwap = showSwap;
             m_showWallet.set(showWallet);
             m_defaultWalletId = defaultWalletId;
         }
@@ -463,7 +531,7 @@ public class ErgoDexChartTab extends ContentTab {
     private JsonObject getJsonObject(){
         JsonObject json = new JsonObject();
         json.addProperty("defaultWalletId", m_defaultWalletId);
-        json.addProperty("showSwap", m_showSwap.get());
+        json.addProperty("showSwap", m_showSwap);
         json.addProperty("showWallet", m_showWallet.get());
         json.add("timeSpan", m_timeSpan.getJsonObject());
         return json;
@@ -517,6 +585,8 @@ public class ErgoDexChartTab extends ContentTab {
         
     }
 
+    private Semaphore m_chartSemaphore = new Semaphore(1);
+
     
     public void createChart(){
         Bounds bounds = m_chartScroll.viewportBoundsProperty().get();
@@ -538,76 +608,9 @@ public class ErgoDexChartTab extends ContentTab {
                 Object sourceValue = onSucceeded.getSource().getValue();
                 if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
                     ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
-                    
-                    int size = numbers.dataLength();
-
+                    m_numbers = numbers;
                 
-                    if(size > 0){
-                   
-                        int totalCellWidth = m_cellWidth + m_cellPadding;
-                        
-                        int itemsTotalCellWidth = size * (totalCellWidth);
-
-                        int scaleLabelLength = (numbers.getClose() +"").length();
-
-                        int scaleColWidth =  (scaleLabelLength * m_zeroStringWidth )+ ErgoDexChartView.SCALE_COL_PADDING;
-                        
-                        
-
-                        int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, ErgoDexChartView.MIN_CHART_WIDTH));
-                        
-                        int height = Math.min(ErgoDexChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, ErgoDexChartView.MIN_CHART_HEIGHT));
-
-                        boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
-                    
-                        m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
-                        m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
-                       
-                        m_numbers = numbers;
-    
-                        
-                        ErgoDexChartView.updateBufferedImage(
-                            m_img, 
-                            m_g2d, 
-                            m_labelFont, 
-                            m_labelMetrics, 
-                            numbers,
-                            m_cellWidth, 
-                            m_cellPadding, 
-                            scaleColWidth,
-                            m_amStringWidth,
-                            timeSpan, 
-                            m_chartRange
-                        );
-
-                        /*File saveFile = new File(m_marketData.getCurrentSymbol(false) + ".json");
-                        SpectrumPrice[] data = spectrumChartView.getSpectrumData();
-                        String lastPrices = "";
-                        for(int i = data.length-1 ; i > data.length -6 ; i --){
-                            lastPrices += "\n " + data[i].getPrice().doubleValue() + " ";
-                        }
-                        try {
-                            Files.writeString(saveFile.toPath(), lastPrices + " isPositive: " + numbers.getLastCloseDirection(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            
-                        } catch (IOException e1) {
-                    
-                        }*/
-                       
-                       
-                        m_chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
-                        
-                        if(isNewImg){
-                            setChartScrollRight();
-                            if(viewPortWidth > ErgoDexChartView.MAX_CHART_WIDTH){
-                                m_chartImageView.setFitWidth(viewPortWidth);
-                            }else{
-                                
-                                m_chartImageView.setFitWidth(m_img.getWidth());
-                                
-                            }
-                            
-                        }
-                    }
+                    drawChart(viewPortWidth, viewPortHeight, timeSpan);
                 }
                 
              }, 
@@ -616,66 +619,106 @@ public class ErgoDexChartTab extends ContentTab {
              });
     }
 
+    private void drawChart(int viewPortWidth, int viewPortHeight, TimeSpan timeSpan){
+        int size = m_numbers.dataLength();
+        
+        if(size > 0){
+        
+            int totalCellWidth = m_cellWidth + m_cellPadding;
+            
+            int itemsTotalCellWidth = size * (totalCellWidth);
+
+            int scaleLabelLength = (m_numbers.getClose() +"").length();
+
+            int scaleColWidth =  (scaleLabelLength * m_zeroStringWidth )+ ErgoDexChartView.SCALE_COL_PADDING;
+            
+            
+
+            int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, ErgoDexChartView.MIN_CHART_WIDTH));
+            
+            int height = Math.min(ErgoDexChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, ErgoDexChartView.MIN_CHART_HEIGHT));
+
+      
+ 
+            java.awt.Font labelFont = m_labelFont;
+            FontMetrics labelMetrics = m_labelMetrics;
+            ErgoDexNumbers ergoDexNumbers = m_numbers;
+            int cellWidth = m_cellWidth;
+            int cellPadding = m_cellPadding;
+            int amStringWidth = m_amStringWidth; 
+            RangeBar rangeBar = m_chartRange;
+            boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
+            
+            Task<BufferedImage> task = new Task<BufferedImage>() {
+                @Override
+                public BufferedImage call() throws InterruptedException {
+                    m_chartSemaphore.acquire();
+                    
+                
+                    m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
+                    m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
+        
+                    ErgoDexChartView.updateBufferedImage(
+                        m_img, 
+                        m_g2d, 
+                        labelFont, 
+                        labelMetrics, 
+                        ergoDexNumbers,
+                        cellWidth, 
+                        cellPadding, 
+                        scaleColWidth,
+                        amStringWidth,
+                        timeSpan, 
+                        rangeBar
+                    );
+
+                    return m_img;
+                }
+            };
+            
+            task.setOnFailed((failed)->{
+                m_chartSemaphore.release();
+                setLoadingBox();
+            });
+            task.setOnSucceeded((succeeded)->{
+                m_chartSemaphore.release();
+
+                Object obj = succeeded.getSource().getValue();
+
+                if(obj != null && obj instanceof BufferedImage){
+
+                    m_chartImageView.setImage(SwingFXUtils.toFXImage((BufferedImage) obj, m_wImg));
+                
+                    if(isNewImg){
+                        setChartScrollRight();
+                        if(viewPortWidth > ErgoDexChartView.MAX_CHART_WIDTH){
+                            m_chartImageView.setFitWidth(viewPortWidth);
+                        }else{
+                            
+                            m_chartImageView.setFitWidth(m_img.getWidth());
+                            
+                        }
+                        
+                    }
+        
+                    completeLoading();
+                }else{
+                    setLoadingBox();
+                }
+            });
+
+            getNetworksData().getExecService().submit(task);
+
+        }
+    }
+
     public void updateChart(){
+        Bounds bounds = m_chartScroll.viewportBoundsProperty().get();
+        int viewPortHeight = (int) bounds.getHeight();
+        int viewPortWidth = (int) bounds.getWidth();
         TimeSpan timeSpan = m_timeSpan;
             
-        if(m_numbers != null){
-            ErgoDexNumbers numbers = m_numbers;
-            
-            int size = numbers.dataLength();
-
-        
-            if(size > 0){
-            
-                int totalCellWidth = m_cellWidth + m_cellPadding;
-                
-                int itemsTotalCellWidth = size * (totalCellWidth);
-
-                int scaleLabelLength = (numbers.getClose() +"").length();
-
-                int scaleColWidth =  (scaleLabelLength * m_zeroStringWidth )+ ErgoDexChartView.SCALE_COL_PADDING;
-                
-                Bounds bounds = m_chartScroll.viewportBoundsProperty().get();
-                int viewPortHeight = (int) bounds.getHeight();
-                int viewPortWidth = (int) bounds.getWidth();
-                
-                int width = (itemsTotalCellWidth + scaleColWidth) < 300 ? 300 : itemsTotalCellWidth + scaleColWidth;
-                int height = Math.min(ErgoDexChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, ErgoDexChartView.MIN_CHART_HEIGHT));
-
-                
-
-                boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
-            
-                m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
-                m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
-                
-                
-                ErgoDexChartView.updateBufferedImage(
-                    m_img, 
-                    m_g2d, 
-                    m_labelFont, 
-                    m_labelMetrics, 
-                    numbers,
-                    m_cellWidth, 
-                    m_cellPadding, 
-                    scaleColWidth,
-                    m_amStringWidth,
-                    timeSpan, 
-                    m_chartRange
-                );
-                
-                m_chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
-                if(isNewImg){
-                    setChartScrollRight();
-                    double w = Math.max(viewPortWidth, ErgoDexChartView.MAX_CHART_WIDTH);
-                    if(w > viewPortHeight){
-                        m_chartImageView.setFitWidth(w);
-                    }else{
-                        m_chartImageView.setFitHeight(viewPortHeight);
-                    }
-                }
-            }
-        }
+        drawChart(viewPortWidth, viewPortHeight, timeSpan);
     }
 
     public void setChartScrollRight(){
@@ -683,26 +726,26 @@ public class ErgoDexChartTab extends ContentTab {
         Platform.runLater(()->m_chartScroll.setHvalue(chartScrollHvalue));
     }
 
-    public void updateShowSwap(){
-
-        boolean showSwap = m_showSwap.get();
+    public void updateShowSwap(boolean showSwap){
 
         if( showSwap){
             m_toggleSwapBtn.setText("⯈");
-            if(! m_bodyBox.getChildren().contains(m_ergoDexSwapBox)){
-                m_ergoDexSwapBox = new ErgoDexSwapBox();
+
+            m_ergoDexSwapBox =   m_ergoDexSwapBox == null ?  new ErgoDexSwapBox() : m_ergoDexSwapBox;
+
+            if(! m_bodyBox.getChildren().contains(m_ergoDexSwapBox)){  
                 m_bodyBox.getChildren().add(m_ergoDexSwapBox);
             }
         }else{
             m_toggleSwapBtn.setText("⯇");
             
             if(m_ergoDexSwapBox != null){
-                m_ergoDexSwapBox.shutdown();
-                m_ergoDexSwapBox = null;
+       
                 if(m_bodyBox.getChildren().contains(m_ergoDexSwapBox)){
                     m_bodyBox.getChildren().remove(m_ergoDexSwapBox);
                 }
-         
+                m_ergoDexSwapBox.shutdown();
+                m_ergoDexSwapBox = null;
             }
         }
     }

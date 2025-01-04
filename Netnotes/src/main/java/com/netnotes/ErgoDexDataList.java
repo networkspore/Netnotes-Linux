@@ -16,12 +16,8 @@ import com.devskiller.friendly_id.FriendlyId;
 import org.reactfx.util.FxTimer;
 import org.reactfx.util.Timer;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.utils.Utils;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -59,7 +55,6 @@ public class ErgoDexDataList  {
     
     private ArrayList<ErgoDexMarketItem> m_marketsList = new ArrayList<ErgoDexMarketItem>();
 
-    private ArrayList<String> m_favoriteIds = new ArrayList<>();
 
     private SimpleStringProperty m_statusMsg = new SimpleStringProperty(LOADING);
 
@@ -103,7 +98,7 @@ public class ErgoDexDataList  {
         m_locationId = locationId;
         m_ergodex = ergoDex;
         m_appStage = appStage;
-        setup();
+        
         m_scrollPane = scrollPane;
         m_updatedField = updatedField;
         m_ergoNetworkInterfaceProperty = networkInterface;
@@ -112,18 +107,20 @@ public class ErgoDexDataList  {
         m_timeSpanObject = timeSpanObject;
 
         m_defaultCharSize = Utils.computeTextWidth(App.txtFont, " ");
-        
 
+        m_layoutBox = new VBox();
+        m_layoutBox.setId("darkBox");
+
+        m_gridBox = new VBox();
+        HBox.setHgrow(m_gridBox,Priority.ALWAYS);
+        updateFont();
         m_isInvert.addListener((obs,oldval,newval)->{
             ErgpDexSort sortMethod = getSortMethod();
             sortMethod.setSwapTarget(newval ?  ErgpDexSort.SwapMarket.SWAPPED : ErgpDexSort.SwapMarket.STANDARD);
             sort();
             updateGrid();
         });
-
-
         addDexistener();
-
     }
 
     public double defaultCharacterSize(){
@@ -215,20 +212,7 @@ public class ErgoDexDataList  {
     public Image getSmallAppIcon(){ 
         return null;
     }
-   
 
-
-    private void setup() {
-        m_layoutBox = new VBox();
-        m_layoutBox.setId("darkBox");
-        m_gridBox = new VBox();
-        HBox.setHgrow(m_gridBox,Priority.ALWAYS);
-        updateFont();
-        getData();
-    }
-
-
-    
     public SimpleDoubleProperty gridWidthProperty(){
         return m_gridWidth;
     };
@@ -317,29 +301,6 @@ public class ErgoDexDataList  {
 
 
 
-
-
-    public void addFavorite(String id, boolean doSave) {
- 
-        m_favoriteIds.add(id);
-        if (doSave) {
-            updateGrid();
-            save();
-        }   
-    
-        
-    }
-
-    public void removeFavorite(String symbol, boolean doSave) {
-        m_favoriteIds.remove(symbol);
-
-        if (doSave) {
-            updateGrid();
-            save();
-        }
-        
-    }
-
     public SimpleStringProperty statusMsgProperty() {
         return m_statusMsg;
     }
@@ -365,13 +326,6 @@ public class ErgoDexDataList  {
         return m_ergodex.getNetworksData();
     }
 
- 
-
-    private void getData() {
-        JsonObject json = getNetworksData().getData("data", ".", NETWORK_ID, ErgoDex.NETWORK_ID);
-        openJson(json);
-        
-    }
 
 
     public VBox getLayoutBox() {
@@ -577,11 +531,9 @@ public class ErgoDexDataList  {
 
         }
     
-        int maxItems = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
+        //int maxItems = m_marketsList.size() > 100 ? 100 : m_marketsList.size();
        // m_statusMsg.set("Top "+maxItems+" - " + m_sortMethod.getType() + " " + (m_sortMethod.isAsc() ? "(Low to High)" : "(High to Low)"));
-        if(doSave){
-            save();
-        }
+     
     }
 
     public ErgpDexSort getSortMethod(){
@@ -634,57 +586,11 @@ public class ErgoDexDataList  {
 
    
 
-    public JsonArray getFavoritesJsonArray() {
-        JsonArray jsonArray = new JsonArray();
-        for (String favId : m_favoriteIds) {
-
-            jsonArray.add(favId);
-            
-        }
-        return jsonArray;
-    }
-
-    public JsonObject getJsonObject() {
-        JsonObject jsonObject =  new JsonObject();
-
-        jsonObject.add("favorites", getFavoritesJsonArray());
-        jsonObject.add("sortMethod", m_sortMethod.getJsonObject());
- 
-
-        return jsonObject;
-    }
-
-    private void openJson(JsonObject json) {
-        if (json != null) {
-            JsonElement favoritesElement = json.get("favorites");
-     
-            if (favoritesElement != null && favoritesElement.isJsonArray()) {
-                JsonArray favoriteJsonArray = favoritesElement.getAsJsonArray();
-
-                for (int i = 0; i < favoriteJsonArray.size(); i++) {
-                    JsonElement favoriteElement = favoriteJsonArray.get(i);
-                    if(favoriteElement != null && favoriteElement.isJsonPrimitive()){
-                        String id = favoriteElement.getAsString();
-                        addFavorite(id, false);
-                    }
-                }
-            }
-
-        }
-
-        
-
-    }
 
     public ErgoDex getErgoDex() {
         return m_ergodex;
     }
 
-    public void save(){
-        getNetworksData().save("data", ".", NETWORK_ID, ErgoDex.NETWORK_ID, getJsonObject());
-    }
-
-   
  
 
     public void shutdown(){

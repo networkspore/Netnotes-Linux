@@ -1,7 +1,8 @@
-package com.utils;
+package com.GitHubAPI;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.utils.Utils;
 
 import java.util.concurrent.ExecutorService;
 

@@ -43,13 +43,16 @@ public class ErgoNodesList {
     private void getData() {
         
    
-        JsonObject json = getNetworksData().getData("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID);
+        getNetworksData().getData("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID, onSucceded ->{
+            Object obj = onSucceded.getSource().getValue();
         
-
-        openJson(json);
+            JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+            if(json != null){
             
-        
-
+                openJson(json);
+            }
+        });
+    
     }
 
     public final static String PUBLIC_NODES_LIST_URL = "https://raw.githubusercontent.com/networkspore/Netnotes/main/publicNodes.json";

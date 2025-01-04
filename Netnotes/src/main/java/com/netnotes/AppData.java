@@ -15,12 +15,12 @@ import java.util.concurrent.ExecutorService;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import com.GitHubAPI.GitHubAPI;
+import com.GitHubAPI.GitHubAPI.GitHubAsset;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonParseException;
-import com.utils.GitHubAPI;
-import com.utils.GitHubAPI.GitHubAsset;
 import com.utils.Utils;
 import com.utils.Version;
 

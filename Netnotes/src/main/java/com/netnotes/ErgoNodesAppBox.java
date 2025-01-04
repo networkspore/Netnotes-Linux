@@ -8,12 +8,12 @@ import java.util.Optional;
 import org.apache.commons.io.FilenameUtils;
 import org.ergoplatform.appkit.NetworkType;
 
+import com.GitHubAPI.GitHubAPI;
+import com.GitHubAPI.GitHubAPI.GitHubAsset;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.GitHubAPI;
-import com.utils.GitHubAPI.GitHubAsset;
 import com.utils.Utils;
 
 import javafx.animation.PauseTransition;

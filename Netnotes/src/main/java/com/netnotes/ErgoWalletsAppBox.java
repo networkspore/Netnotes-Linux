@@ -176,6 +176,7 @@ public class ErgoWalletsAppBox extends AppBox {
             }
 
             if (m_walletFieldBox.getChildren().contains(m_disableWalletBtn)) {
+              
                 m_walletFieldBox.getChildren().remove(m_disableWalletBtn);
             }
             if (m_walletFieldBox.getChildren().contains(m_configBtn)) {
@@ -192,8 +193,9 @@ public class ErgoWalletsAppBox extends AppBox {
             if (!m_walletFieldBox.getChildren().contains(m_configBtn)) {
                 m_walletFieldBox.getChildren().add(m_configBtn);
             }
-
+            
             if (!m_walletFieldBox.getChildren().contains(m_disableWalletBtn)) {
+         
                 m_walletFieldBox.getChildren().add(m_disableWalletBtn);
             }
             showWallet.set(true);
@@ -249,9 +251,8 @@ public class ErgoWalletsAppBox extends AppBox {
 
 
         m_lockBox = new LockField();
-        m_lockBox.setPadding(new Insets(2, 5, 2, 0));
+        m_lockBox.setPadding(new Insets(2));
         m_lockBox.setAlignment(Pos.CENTER_LEFT);
-        m_lockBox.setMaxHeight(15);
         HBox.setHgrow(m_lockBox, Priority.ALWAYS);
 
         
@@ -412,7 +413,6 @@ public class ErgoWalletsAppBox extends AppBox {
         m_walletFieldBox.setAlignment(Pos.CENTER_LEFT);
         m_walletFieldBox.setId("bodyBox");
         m_walletFieldBox.setPadding(new Insets(0, 1, 0, 0));
-        m_walletFieldBox.setMaxHeight(18);
         m_openWalletBtn.prefWidthProperty().bind(m_walletFieldBox.widthProperty().subtract(1));
 
         HBox walletMenuBtnPadding = new HBox(walletMenuBtn);

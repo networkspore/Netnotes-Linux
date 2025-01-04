@@ -314,12 +314,17 @@ public class ErgoMarkets {
     }
 
     private void getData(){
-        JsonObject json = getNetworksData().getData("data", ".", ErgoNetwork.MARKET_NETWORK, ErgoNetwork.NETWORK_ID);
-
-        if(json != null){
+        getNetworksData().getData("data", ".", ErgoNetwork.MARKET_NETWORK, ErgoNetwork.NETWORK_ID, onSucceded ->{
+            Object obj = onSucceded.getSource().getValue();
+        
+            JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+            if(json != null){
             
-            openJson(json);
-        }
+                openJson(json);
+            }
+        });
+
+       
     }
 
 

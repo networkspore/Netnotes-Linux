@@ -165,91 +165,93 @@ public class ErgoExplorerData {
 
      public void getBalanceTokenInfo(JsonObject balance, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           if(balance != null){
-               JsonObject cachedTokenInfo = getNetworksData().getData("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
-          
-               Task<Object> task = new Task<Object>() {
-               @Override
-                    public Object call() {
-                         JsonObject infoObject = cachedTokenInfo;
-                         JsonObject balanceJson = balance;
+               getNetworksData().getData("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, (onCachedData)->{
+                    Object obj = onCachedData.getSource().getValue();
+                    JsonObject cachedTokenInfo = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+               
+                    Task<Object> task = new Task<Object>() {
+                    @Override
+                         public Object call() {
+                              JsonObject infoObject = cachedTokenInfo;
+                              JsonObject balanceJson = balance;
 
-                         JsonElement tokenInfoArrayElement = infoObject != null ? infoObject.get("array") : null;
-                         JsonArray tokenInfoArray = tokenInfoArrayElement != null ? tokenInfoArrayElement.getAsJsonArray() : new JsonArray();
-                         int tokenInfoArraySize = tokenInfoArray.size();
+                              JsonElement tokenInfoArrayElement = infoObject != null ? infoObject.get("array") : null;
+                              JsonArray tokenInfoArray = tokenInfoArrayElement != null ? tokenInfoArrayElement.getAsJsonArray() : new JsonArray();
+                              int tokenInfoArraySize = tokenInfoArray.size();
 
-                      
-                         JsonElement confirmedElement = balanceJson.get("confirmed");
-                         JsonObject confirmedObject = confirmedElement != null && confirmedElement.isJsonObject() ? confirmedElement.getAsJsonObject() : null;
-                         if(confirmedObject != null){
                          
-                              JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
-                              JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;     
-                              int tokenSize = confirmedTokenArray != null ? confirmedTokenArray.size() : 0;
-                              if(confirmedTokenArray != null && tokenSize > 0){
-                                   balanceJson.remove("confirmed");
-                                   confirmedObject.remove("tokens");
-                                   JsonArray udpatedTokenArray = new JsonArray();
-                                   String urlString = m_ergoNetworkUrlProperty.getUrlString() + "/api/v1/tokens/";
+                              JsonElement confirmedElement = balanceJson.get("confirmed");
+                              JsonObject confirmedObject = confirmedElement != null && confirmedElement.isJsonObject() ? confirmedElement.getAsJsonObject() : null;
+                              if(confirmedObject != null){
+                              
+                                   JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
+                                   JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;     
+                                   int tokenSize = confirmedTokenArray != null ? confirmedTokenArray.size() : 0;
+                                   if(confirmedTokenArray != null && tokenSize > 0){
+                                        balanceJson.remove("confirmed");
+                                        confirmedObject.remove("tokens");
+                                        JsonArray udpatedTokenArray = new JsonArray();
+                                        String urlString = m_ergoNetworkUrlProperty.getUrlString() + "/api/v1/tokens/";
 
-                                   for (int i = 0; i < tokenSize ; i++) {
-                                        JsonElement tokenElement = confirmedTokenArray.get(i);
+                                        for (int i = 0; i < tokenSize ; i++) {
+                                             JsonElement tokenElement = confirmedTokenArray.get(i);
 
-                                        JsonObject tokenObject = tokenElement.getAsJsonObject();
+                                             JsonObject tokenObject = tokenElement.getAsJsonObject();
 
-                                        JsonElement tokenIdElement = tokenObject.get("tokenId");
-                                        String tokenId = tokenIdElement.getAsString();
+                                             JsonElement tokenIdElement = tokenObject.get("tokenId");
+                                             String tokenId = tokenIdElement.getAsString();
 
-                                        JsonObject infoArrayResult = getTokenInfoFromJsonArray(tokenInfoArray, tokenId);
+                                             JsonObject infoArrayResult = getTokenInfoFromJsonArray(tokenInfoArray, tokenId);
 
-                                        if(infoArrayResult != null){
-                                             tokenObject.add("tokenInfo", infoArrayResult);
-                                        }else{
-                                             JsonObject urlInfoResult = Utils.getJsonFromUrlSync(urlString + tokenId);
-                                             
-                                             if(urlInfoResult != null){
-                                                  tokenObject.add("tokenInfo", urlInfoResult);
-                                                  tokenInfoArray.add(urlInfoResult);
+                                             if(infoArrayResult != null){
+                                                  tokenObject.add("tokenInfo", infoArrayResult);
+                                             }else{
+                                                  JsonObject urlInfoResult = Utils.getJsonFromUrlSync(urlString + tokenId);
+                                                  
+                                                  if(urlInfoResult != null){
+                                                       tokenObject.add("tokenInfo", urlInfoResult);
+                                                       tokenInfoArray.add(urlInfoResult);
+                                                  }
                                              }
+                                             udpatedTokenArray.add(tokenObject);
                                         }
-                                        udpatedTokenArray.add(tokenObject);
-                                   }
-                                   confirmedObject.add("tokens", udpatedTokenArray);
-                                   balanceJson.add("confirmed", confirmedObject);
-                                   if(tokenInfoArray.size() > tokenInfoArraySize){
-                                        JsonObject tokenInfoObject = new JsonObject();
-                                        tokenInfoObject.add("array", tokenInfoArray);
+                                        confirmedObject.add("tokens", udpatedTokenArray);
+                                        balanceJson.add("confirmed", confirmedObject);
+                                        if(tokenInfoArray.size() > tokenInfoArraySize){
+                                             JsonObject tokenInfoObject = new JsonObject();
+                                             tokenInfoObject.add("array", tokenInfoArray);
 
-                                        return new TokenInfoResult(balanceJson, tokenInfoObject);
-                                   }else{
-                                        return new TokenInfoResult(balanceJson, null);
+                                             return new TokenInfoResult(balanceJson, tokenInfoObject);
+                                        }else{
+                                             return new TokenInfoResult(balanceJson, null);
+                                        }
                                    }
+
+                              
                               }
 
-                         
+                              return new TokenInfoResult(balanceJson, null);
                          }
+                    };
 
-                         return new TokenInfoResult(balanceJson, null);
-                    }
-               };
+                    task.setOnFailed(onFailed);
 
-               task.setOnFailed(onFailed);
-
-               task.setOnSucceeded((onFinished)->{
-                    Object result = onFinished.getSource().getValue();
-                    if(result != null && result instanceof TokenInfoResult){
-                         TokenInfoResult tokenInfoResult = (TokenInfoResult) result;
-                         JsonObject saveResult = tokenInfoResult.getTokenInfObject();
-                         if(saveResult != null){
-                              getNetworksData().save("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, saveResult);
+                    task.setOnSucceeded((onFinished)->{
+                         Object result = onFinished.getSource().getValue();
+                         if(result != null && result instanceof TokenInfoResult){
+                              TokenInfoResult tokenInfoResult = (TokenInfoResult) result;
+                              JsonObject saveResult = tokenInfoResult.getTokenInfObject();
+                              if(saveResult != null){
+                                   getNetworksData().save("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, saveResult);
+                              }
+                              Utils.returnObject(tokenInfoResult.getBalanceObject(), getExecService(), onSucceeded, onFailed);
+                         }else{
+                              Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
                          }
-                         Utils.returnObject(tokenInfoResult.getBalanceObject(), getExecService(), onSucceeded, onFailed);
-                    }else{
-                         Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
-                    }
+                    });
+
+                    getExecService().submit(task);
                });
-
-               getExecService().submit(task);
-        
           }else{
                Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
           }

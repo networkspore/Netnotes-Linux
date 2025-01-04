@@ -77,8 +77,12 @@ public class ErgoWalletDataList {
     
 
     private void getData(){
+        getNetworksData().getData("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, (onSucceeded)->{
+            Object obj = onSucceeded.getSource().getValue();
+            JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+            openJson(json); 
+        });
         
-        openJson(getNetworksData().getData("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID));
     }
 
     public void openJson(JsonObject json) {

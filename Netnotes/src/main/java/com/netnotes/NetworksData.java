@@ -2,14 +2,9 @@ package com.netnotes;
 
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.FileNameMap;
-import java.net.URL;
-import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
@@ -26,14 +21,16 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.GCMParameterSpec;
 
 import org.reactfx.util.FxTimer;
 
@@ -41,7 +38,6 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.netnotes.IconButton.IconStyle;
 import com.utils.Utils;
 
@@ -70,7 +66,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
@@ -80,7 +75,6 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
@@ -88,10 +82,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import ove.crypto.digest.Blake2b;
 
 public class NetworksData {
 
@@ -149,7 +141,7 @@ public class NetworksData {
     private AppData m_appData;
 
     private Stage m_appStage = null;
-    private ScrollPane m_subMenuScroll;
+    private ScrollPane m_staticContent;
     private VBox m_subMenuBox = new VBox();
     private HBox m_topBarBox;
     private HBox m_menuContentBox;
@@ -169,15 +161,37 @@ public class NetworksData {
 
     private SimpleDoubleProperty m_widthObject = new SimpleDoubleProperty(App.DEFAULT_STATIC_WIDTH);
     private SimpleDoubleProperty m_heightObject = new SimpleDoubleProperty(200);
+    private SimpleDoubleProperty menuWidth;
 
+    private Semaphore m_dataSemaphore;
+    private Semaphore m_fileSemaphore;
    // private String m_localId;
 
-    public NetworksData(AppData appData) {
-       
-        m_appData = appData;
-      //  m_localId = FriendlyId.createFriendlyId();
+   private SimpleDoubleProperty m_menuWidth;
+   private VBox m_contentBox;
+   private ContentTabs m_contentTabs;
+   private Button m_maximizeBtn;
+   private HBox m_menuBox;
+   private Scene m_scene;
+   private HBox m_footerBox;
+   private HBox m_titleBox;
+   private HBox m_mainHBox;
 
-     //   m_locationsIds.put(m_localId, App.LOCAL);
+    public NetworksData(AppData appData, Stage appStage, HBox titleBox, HBox mainHBox, Button maximizeBtn, HBox menuBox, ScrollPane staticContent, VBox contentBox, HBox footerBox, VBox layoutBox) {
+        m_dataSemaphore = new Semaphore(1);
+        m_fileSemaphore = new Semaphore(1);
+
+        m_titleBox = titleBox;
+        m_mainHBox = mainHBox;
+        m_appData = appData;
+        m_footerBox = footerBox;
+        m_appStage = appStage;
+        m_maximizeBtn = maximizeBtn;
+        m_menuWidth = menuWidth;
+        m_menuBox = menuBox;
+        m_staticContent = staticContent;
+        m_contentBox = contentBox;
+
 
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
 
@@ -185,11 +199,9 @@ public class NetworksData {
             InputStream stream = App.class.getResource("/assets/OCRAEXT.TTF").openStream(); 
         ) {
             
-           
             java.awt.Font ocrFont = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, stream).deriveFont(48f);
             ge.registerFont(ocrFont);
            
-
         } catch (FontFormatException | IOException e) {
            
             try {
@@ -237,14 +249,208 @@ public class NetworksData {
 
         }*/
 
-       
-        openJson(getData("data",  ".", "main","root"));
-       
 
+        getData("data",  ".", "main","root", (onComplete)->{
+            Object obj = onComplete.getSource().getValue();
+            openJson(obj != null && obj instanceof JsonObject ? (JsonObject) obj : null);
+            initLayout(layoutBox);
+        });
+       
+    }
+
+    public Scene getScene(){
+        return m_scene;
+    }
+
+    public Stage getStage(){
+        return m_appStage;
     }
 
 
+    public void initLayout( VBox layout){
 
+        m_menuWidth = new SimpleDoubleProperty(52);
+        m_menuBox.maxWidthProperty().bind(m_menuWidth);
+        m_menuBox.minWidthProperty().bind(m_menuWidth);
+      
+        m_subMenuBox.setAlignment(Pos.TOP_LEFT);
+       
+  
+  
+        m_tabLabel.setPadding(new Insets(2,0,2,5));
+        m_tabLabel.setFont(App.titleFont);
+
+      //  m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
+
+        HBox vBar = new HBox();
+        vBar.setAlignment(Pos.CENTER);
+        vBar.setId("vGradient");
+        vBar.setMinWidth(1);
+        VBox.setVgrow(vBar, Priority.ALWAYS);
+       
+        Region menuVBar = new Region();
+        VBox.setVgrow(menuVBar, Priority.ALWAYS);
+        menuVBar.setPrefWidth(2);
+        menuVBar.setMinWidth(2);
+        menuVBar.setId("vGradient");
+        
+        HBox menuVBarBox = new HBox(menuVBar);
+        VBox.setVgrow(menuVBarBox, Priority.ALWAYS);
+        menuVBarBox.setMinWidth(2);
+        menuVBarBox.setAlignment(Pos.CENTER_LEFT);
+        menuVBarBox.setId("darkBox");
+
+      
+       
+     
+     
+             
+        Region logoGrowRegion = new Region();
+        HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
+
+        BufferedButton minimizeTabBtn = new BufferedButton("/assets/minimize-white-20.png", 16);
+        minimizeTabBtn.setId("toolBtn");
+        minimizeTabBtn.setOnAction(e->{
+            TabInterface tab = m_currentMenuTab.get();
+            if(tab instanceof ManageAppsTab || tab instanceof ManageNetworksTab || tab instanceof SettingsTab){
+               
+                m_currentMenuTab.set(null);
+            }else{
+                tab.setStatus(App.STATUS_MINIMIZED);
+                m_currentMenuTab.set(null);
+            }
+        });
+
+        BufferedButton closeTabBtn = new BufferedButton("/assets/close-outline-white.png", 16);
+        closeTabBtn.setPadding(new Insets(0, 2, 0, 2));
+        closeTabBtn.setId("closeBtn");
+        closeTabBtn.setOnAction(e->{
+            m_currentMenuTab.set(null);
+        });
+
+        m_topBarBox = new HBox(m_tabLabel, logoGrowRegion, minimizeTabBtn, closeTabBtn);
+        HBox.setHgrow(m_topBarBox, Priority.ALWAYS);
+        m_topBarBox.setAlignment(Pos.CENTER_LEFT);
+        m_topBarBox.setId("networkTopBar");
+
+        m_menuContentBox = new HBox();
+        m_menuContentBox.setId("darkBox");
+        
+        Region hBar = new Region();
+        hBar.setPrefWidth(400);
+        hBar.setPrefHeight(2);
+        hBar.setMinHeight(2);
+        hBar.setId("hGradient");
+
+        HBox gBox = new HBox(hBar);
+        gBox.setAlignment(Pos.CENTER);
+        gBox.setPadding(new Insets(0, 0, 10, 0));
+        
+        m_currentMenuTab.addListener((obs,oldval,newval)->{
+
+            if(oldval != null){
+                if(!oldval.getStatus().equals(App.STATUS_MINIMIZED)){
+                    oldval.setStatus(App.STATUS_STOPPED);
+                    //oldval.shutdown();
+                   
+                }
+            }
+
+            m_subMenuBox.getChildren().clear();
+            
+            m_menuContentBox.getChildren().clear();
+
+            if(newval != null){
+                m_tabLabel.setText(newval.getName());
+       
+                m_subMenuBox.getChildren().addAll(m_topBarBox, gBox, (Pane) newval);
+                m_menuContentBox.getChildren().addAll(m_subMenuBox, vBar);
+                m_staticContent.setContent( m_menuContentBox );
+
+         
+               
+            }else{
+                m_staticContent.setContent(null);
+            }
+          
+
+        }); 
+
+        m_scene = new Scene(layout, getStageWidth(), getStageHeight());
+        m_scene.setFill(null);
+        m_scene.getStylesheets().add("/css/startWindow.css");
+
+        m_appStage.setTitle("Netnotes");
+        m_appStage.setScene(m_scene);
+
+        ResizeHelper.addResizeListener(m_appStage, 800, 250, Double.MAX_VALUE, Double.MAX_VALUE);
+
+        
+
+        m_appsMenu = new AppsMenu();
+        m_contentTabs = new ContentTabs();
+
+        m_menuBox.getChildren().addAll( m_appsMenu, menuVBar);
+        
+        m_contentBox.getChildren().add(m_contentTabs);
+
+        m_staticContent.setMinViewportWidth(App.DEFAULT_STATIC_WIDTH +5);
+        m_staticContent.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
+        m_heightObject.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(45));
+
+        m_menuBox.prefHeightProperty().bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(2));
+
+        m_mainHBox.prefWidthProperty().bind(m_scene.widthProperty());
+        m_mainHBox.prefHeightProperty().bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(1));
+
+        m_scene.widthProperty().addListener((obs, oldval, newVal) -> {
+            setStageWidth(newVal.doubleValue());
+      
+            if (m_lastExecution != null && !(m_lastExecution.isDone())) {
+                m_lastExecution.cancel(false);
+            }
+
+            m_lastExecution = getSchedualedExecService().schedule(()->save(), EXECUTION_TIME, TimeUnit.MILLISECONDS);
+        });
+
+        m_scene.heightProperty().addListener((obs, oldval, newVal) -> {
+            setStageHeight(newVal.doubleValue());
+
+            if (m_lastExecution != null && !(m_lastExecution.isDone())) {
+                m_lastExecution.cancel(false);
+            }
+
+            m_lastExecution = getSchedualedExecService().schedule(()->save(), EXECUTION_TIME, TimeUnit.MILLISECONDS);
+        });
+
+
+        m_maximizeBtn.setOnAction(maxEvent -> {
+            boolean maximized = m_appStage.isMaximized();
+            setStageMaximized(!maximized);
+
+            if (!maximized) {
+                setStagePrevWidth(m_appStage.getWidth());
+                setStagePrevHeight(m_appStage.getHeight());
+                
+            }
+             
+            m_appStage.setMaximized(!maximized);
+
+        });
+
+        FxTimer.runLater(Duration.ofMillis(100), ()->{
+            m_appStage.centerOnScreen();
+        });
+       
+    }
+
+    private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
+    private final static long EXECUTION_TIME = 500;
+    private ScheduledFuture<?> m_lastExecution = null;
+
+    public ScheduledExecutorService getSchedualedExecService(){
+        return m_schedualedExecutor;
+    }
 
     public static boolean isAppSupported(String networkId){
         if(networkId != null){
@@ -296,7 +502,7 @@ public class NetworksData {
 
     private void openJson(JsonObject networksObject) {
         if (networksObject != null) {
-
+           
             JsonElement jsonArrayElement = networksObject == null ? null : networksObject.get("apps");
 
             if(jsonArrayElement == null){
@@ -1166,135 +1372,12 @@ public class NetworksData {
 
 
 
-
-    private SimpleDoubleProperty m_menuWidth;
-    private VBox m_contentBox;
-    private ContentTabs m_contentTabs;
-
-    private Button m_maximizeBtn;
-  
     public void toggleMaximized(){
         m_maximizeBtn.fire();
     }
 
     public boolean isStageMaximized(){
         return m_appStage.isMaximized();
-    }
-
-    public void createMenu(Stage appStage, Button maximizeBtn, SimpleDoubleProperty menuWidth, HBox menuBox, ScrollPane subMenuScroll, VBox contentBox){
-        m_maximizeBtn = maximizeBtn;
-        m_menuWidth = menuWidth;
-        m_contentBox = contentBox;
-        m_appStage = appStage;
-        m_subMenuScroll = subMenuScroll;
-      
-        m_subMenuBox.setAlignment(Pos.TOP_LEFT);
-       
-        m_heightObject.bind(contentBox.heightProperty().subtract(45));
-  
-        m_tabLabel.setPadding(new Insets(2,0,2,5));
-        m_tabLabel.setFont(App.titleFont);
-
-      //  m_networkToolTip.setShowDelay(new javafx.util.Duration(100));
-
-        HBox vBar = new HBox();
-        vBar.setAlignment(Pos.CENTER);
-        vBar.setId("vGradient");
-        vBar.setMinWidth(1);
-        VBox.setVgrow(vBar, Priority.ALWAYS);
-       
-        Region menuVBar = new Region();
-        VBox.setVgrow(menuVBar, Priority.ALWAYS);
-        menuVBar.setPrefWidth(2);
-        menuVBar.setMinWidth(2);
-        menuVBar.setId("vGradient");
-        
-        HBox menuVBarBox = new HBox(menuVBar);
-        VBox.setVgrow(menuVBarBox, Priority.ALWAYS);
-        menuVBarBox.setMinWidth(2);
-        menuVBarBox.setAlignment(Pos.CENTER_LEFT);
-        menuVBarBox.setId("darkBox");
-
-        m_appsMenu = new AppsMenu();
-        m_contentTabs = new ContentTabs();
-     
-        menuBox.getChildren().addAll( m_appsMenu, menuVBar);
-        
-        m_contentBox.getChildren().add(m_contentTabs);
-             
-        Region logoGrowRegion = new Region();
-        HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
-
-        BufferedButton minimizeTabBtn = new BufferedButton("/assets/minimize-white-20.png", 16);
-        minimizeTabBtn.setId("toolBtn");
-        minimizeTabBtn.setOnAction(e->{
-            TabInterface tab = m_currentMenuTab.get();
-            if(tab instanceof ManageAppsTab || tab instanceof ManageNetworksTab || tab instanceof SettingsTab){
-               
-                m_currentMenuTab.set(null);
-            }else{
-                tab.setStatus(App.STATUS_MINIMIZED);
-                m_currentMenuTab.set(null);
-            }
-        });
-
-        BufferedButton closeTabBtn = new BufferedButton("/assets/close-outline-white.png", 16);
-        closeTabBtn.setPadding(new Insets(0, 2, 0, 2));
-        closeTabBtn.setId("closeBtn");
-        closeTabBtn.setOnAction(e->{
-            m_currentMenuTab.set(null);
-        });
-
-        m_topBarBox = new HBox(m_tabLabel, logoGrowRegion, minimizeTabBtn, closeTabBtn);
-        HBox.setHgrow(m_topBarBox, Priority.ALWAYS);
-        m_topBarBox.setAlignment(Pos.CENTER_LEFT);
-        m_topBarBox.setId("networkTopBar");
-
-        m_menuContentBox = new HBox();
-        m_menuContentBox.setId("darkBox");
-        
-        Region hBar = new Region();
-        hBar.setPrefWidth(400);
-        hBar.setPrefHeight(2);
-        hBar.setMinHeight(2);
-        hBar.setId("hGradient");
-
-        HBox gBox = new HBox(hBar);
-        gBox.setAlignment(Pos.CENTER);
-        gBox.setPadding(new Insets(0, 0, 10, 0));
-        
-        m_currentMenuTab.addListener((obs,oldval,newval)->{
-
-            if(oldval != null){
-                if(!oldval.getStatus().equals(App.STATUS_MINIMIZED)){
-                    oldval.setStatus(App.STATUS_STOPPED);
-                    //oldval.shutdown();
-                   
-                }
-            }
-
-            m_subMenuBox.getChildren().clear();
-            
-            m_menuContentBox.getChildren().clear();
-
-            if(newval != null){
-                m_tabLabel.setText(newval.getName());
-       
-                m_subMenuBox.getChildren().addAll(m_topBarBox, gBox, (Pane) newval);
-                m_menuContentBox.getChildren().addAll(m_subMenuBox, vBar);
-                m_subMenuScroll.setContent( m_menuContentBox );
-
-         
-               
-            }else{
-                m_subMenuScroll.setContent(null);
-            }
-          
-
-        }); 
-       
-
-   
     }
 
     
@@ -1391,7 +1474,7 @@ public class NetworksData {
     }
 
     private void updateDataEncryption(SecretKey oldval, SecretKey newval){
-    
+        
         File idDataFile = getIdDataFile();
         if(idDataFile != null && idDataFile.isFile()){
             try {
@@ -1423,19 +1506,17 @@ public class NetworksData {
                                             if(fileElement != null && fileElement.isJsonPrimitive()){
                                                 File file = new File(fileElement.getAsString());
                                                 if(file.isFile()){
-                                                    if(file.length() < (1024L * 10L)){
-                                                        Utils.updateFileEncryption(oldval, newval, file);
-                                                    }else{
-                                                        File tmpFile = new File(file.getParentFile().getAbsolutePath() + "/" + file.getName() + ".tmp");
-                                                        Utils.updateLargeFileEncryption(oldval, newval, file, tmpFile);
-                                                        if(tmpFile.isFile()){
-                                                            try{
-                                                                Files.delete(tmpFile.toPath());
-                                                            }catch(IOException deleteException){
+                                                   
+                                                    File tmpFile = new File(file.getParentFile().getAbsolutePath() + "/" + file.getName() + ".tmp");
+                                                    Utils.updateFileEncryption(oldval, newval, file, tmpFile);
+                                                    if(tmpFile.isFile()){
+                                                        try{
+                                                            Files.delete(tmpFile.toPath());
+                                                        }catch(IOException deleteException){
 
-                                                            }
                                                         }
                                                     }
+                                                    
                                                 }
                                             }
                                         }
@@ -1460,62 +1541,68 @@ public class NetworksData {
     }
 
 
-    public void save(String version, String id, String scope, String type, JsonObject json) {
-        if(id != null && version != null && scope != null && type != null){
-           
-            try {
-                File idDataFile = getIdDataFile(version, id, scope, type);
-                
-                if(idDataFile != null && idDataFile.isFile() && json == null){
-                    idDataFile.delete();
-                }else{
-                    Utils.saveJson(getAppKey(), json, idDataFile);
-                }
 
-               
-            } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                    | IOException e) {
-                try {
-                    Files.writeString(App.logFile.toPath(),"Error saving networks data" + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                
-                }
+    public Future<?> removeData(  String scope, String type, EventHandler<WorkerStateEvent> onFinished){
+
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws InterruptedException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException{
+                m_dataSemaphore.acquire();
+                String id2 = type + ":" + scope;
+                removeData(id2);
+                m_dataSemaphore.release();
+                return true;
             }
-        }
-    }
+        };
 
+        task.setOnFailed((onFailed)->{
+            m_dataSemaphore.release();
+            Utils.returnObject(false, getExecService(), onFinished, null);
+        });
 
+        task.setOnSucceeded(onFinished);
 
-    public void removeData(  String scope, String type){
-        String id2 =scope +  type;
-        removeData(id2);
+        return getExecService().submit(task);
     }
 
     private SecretKey getAppKey(){
         return getAppData().getSecretKey();
     }
 
-    private boolean updateAppKey(String newPassword){
-        if(newPassword.length() > 0){
-            try {
-                SecretKey oldAppKey = getAppKey();
-                String hash = Utils.getBcryptHashString(newPassword);
-                getAppData().setAppKey(hash);
-                getAppData().createKey(newPassword);
-                
-                updateDataEncryption(oldAppKey, getAppKey());
-                return true;
-            } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
+    private Future<?> updateAppKey(String newPassword, EventHandler<WorkerStateEvent> onFinished){
 
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws InterruptedException, IOException, NoSuchAlgorithmException, InvalidKeySpecException{
+                if(newPassword.length() > 0){ 
+                    m_dataSemaphore.acquire();
+                    SecretKey oldAppKey = getAppKey();
+                    String hash = Utils.getBcryptHashString(newPassword);
+                    getAppData().setAppKey(hash);
+                    getAppData().createKey(newPassword);
+                    
+                    updateDataEncryption(oldAppKey, getAppKey());
+                    m_dataSemaphore.release();
+                    return true;
+                }
+                return false;
             }
-        }
-        return false;
+        };
+    
+        task.setOnFailed((onFailed)->{
+            m_dataSemaphore.release();
+            Utils.returnObject(false, getExecService(), onFinished, null);
+        });
+
+        task.setOnSucceeded(onFinished);
+
+        return getExecService().submit(task);
+        
     }
     
-    public void removeData(String id2){
+    private void removeData(String id2) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException{
          
-        try {
+      
             File idDataFile =  getIdDataFile();
             if(idDataFile.isFile()){
               
@@ -1566,67 +1653,126 @@ public class NetworksData {
                     }
                 }
             }
-        }catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                    | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
-            try {
-                Files.writeString(App.logFile.toPath(),"Error reading Wallets data Array(getAddressInfo): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-            
-            }
-        }
+     
     }
 
-    public JsonObject getData(String version, String id, String scope, String type){
+   
+
+    public void save(String version, String id, String scope, String type, JsonObject json) {
+        if(id != null && version != null && scope != null && type != null){ 
+            getIdDataFile(version,id,scope,type,(onDataFile)->{
+                Object dataObject = onDataFile.getSource().getValue();
+                if(dataObject != null && dataObject instanceof File){
+                    File idDataFile = (File) dataObject;
+                    
+                    Task<Object> task = new Task<Object>() {
+                        @Override
+                        public Object call() throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException, InterruptedException, ShortBufferException{
+                            
+                            m_fileSemaphore.acquire();
+                            Utils.saveJson(getAppKey(), json, idDataFile);
+                           // Utils.saveEncryptedData(getAppKey(), json.toString().getBytes(), idDataFile);
+                            m_fileSemaphore.release();
+                            return true;
+                        }
+                    };
         
-        try {
-            File idDataFile = getIdDataFile(version,id, scope, type);
-            return idDataFile != null && idDataFile.isFile() ? Utils.readJsonFile(getAppKey(), idDataFile) : null;
-        } catch (InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException
-                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException | IOException e) {
-            try {
-                Files.writeString(App.logFile.toPath(),"Error reading Wallets data Array(getAddressInfo): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e1) {
-            
-            }
-        }
+                    task.setOnFailed((onFailed)->{
+                        m_dataSemaphore.release();
+                        try {
+                            Files.writeString(App.logFile.toPath(),"Error: (getData):" + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e1) {
+                        
+                        }
+                    });
         
-        return null;
+                    task.setOnSucceeded((onComplete)->{
+                       
+                    });
+        
+                    getExecService().submit(task);
+                }
+            });
+           
+        }
     }
 
-    public Future<?> saveFile(String version, String id, String scope, String type, File inputFile, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
-        try {
-            File dataFile = getIdDataFile(version, id, scope, type);
+
+
+    public void getData(String version, String id, String scope, String type, EventHandler<WorkerStateEvent> onComplete){
+        if(id != null && version != null && scope != null && type != null){ 
+            getIdDataFile(version,id,scope,type,(onDataFile)->{
             
-            return Utils.encryptFileAndHash(getAppKey(), getExecService(), inputFile, dataFile,  onSucceeded, onFailed, progressIndicator);
+                Object dataObject = onDataFile.getSource().getValue();
+                if(dataObject != null && dataObject instanceof File){
+                    File idDataFile = (File) dataObject;
 
-        } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                | IOException e) {
-
+                    Task<Object> task = new Task<Object>() {
+                        @Override
+                        public Object call() throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException, InterruptedException, ShortBufferException{
+                            
+                            m_fileSemaphore.acquire();
+                            JsonObject json = Utils.readJsonFile(getAppKey(), idDataFile);
+                            m_fileSemaphore.release();
+                            return json;
+                        }
+                    };
+        
+                    task.setOnFailed((onFailed)->{
+                        m_dataSemaphore.release();
+                        Utils.returnObject(null,getExecService(), onComplete, null);
+                        try {
+                            Files.writeString(App.logFile.toPath(),"Error: (getData):" + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e1) {
+                        
+                        }
+                    });
+        
+                    task.setOnSucceeded(onComplete);
+        
+                    getExecService().submit(task);
+                }
+            });
+           
         }
 
-        return null;
     }
 
-    public Future<?> saveFileByUrl(String version, String id, String scope, String type, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator){
-        if( version != null && id != null && scope != null && type != null && urlString != null && onSucceeded != null){
-            try {
-                File dataFile = getIdDataFile(version, id, scope, type);
+    public Future<?> getIdDataFile(String version, String id, String scope, String type, EventHandler<WorkerStateEvent> onComplete){
+        if(id != null && version != null && scope != null && type != null){ 
+            Task<Object> task = new Task<Object>() {
+                @Override
+                public Object call() throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException, InterruptedException{
+                    
+                    m_dataSemaphore.acquire();
+                    File idDataFile = getIdDataFile(version,id, scope, type);
+                    m_dataSemaphore.release();
+
+                    return idDataFile;
+                }
+            };
+
+            task.setOnFailed((onFailed)->{
+                m_dataSemaphore.release();
+                try {
+                    Files.writeString(App.logFile.toPath(),"Error: (getData):" + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e1) {
                 
-                return Utils.dowloadAndEncryptFile(urlString, getAppKey(), dataFile, getExecService(), onSucceeded, onFailed, progressIndicator);
+                }
+                Utils.returnObject(null, getExecService(), onComplete, null);
+            });
 
-            } catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
-                | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
-                | IOException e) {
+            task.setOnSucceeded(onComplete);
 
-            }
-
+            return getExecService().submit(task);
+           
         }
         return null;
     }
+   
 
 
-    public File getIdDataFile(String version, String id1, String scope, String type) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
+    private File getIdDataFile(String version, String id1, String scope, String type) throws IOException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
         String id = id1 +":" + version;
         String id2 = type + ":" + scope;
         File idDataFile = getIdDataFile();
@@ -2043,7 +2189,7 @@ public class NetworksData {
     }
 
    
-     public void verifyAppKey(Runnable runnable) {
+     public Stage verifyAppKey(Runnable runnable, Runnable closing) {
 
         String title = "Netnotes - Enter Password";
 
@@ -2146,6 +2292,10 @@ public class NetworksData {
             
         }
         );
+
+        passwordStage.setOnCloseRequest(e->closing.run());
+
+        return passwordStage;
     }
 
 
@@ -3172,7 +3322,10 @@ public class NetworksData {
     
     
         private String m_status = App.STATUS_STOPPED;
-        
+        private Stage m_updateStage = null;
+        private Stage m_verifyStage = null;
+        private Button m_closeBtn;
+        private Future<?> m_updateFuture = null;
         public String getStatus(){
             return m_status;
         } 
@@ -3207,58 +3360,51 @@ public class NetworksData {
             passwordTxt.setFill(App.txtColor);
             passwordTxt.setFont(App.txtFont);
     
-    
-    
+            m_closeBtn = new Button();
+
             Button passwordBtn = new Button("(click to update)");
-         
             passwordBtn.setAlignment(Pos.CENTER_LEFT);
             passwordBtn.setId("toolBtn");
             passwordBtn.setOnAction(e -> {
-                Button closeBtn = new Button();
-                verifyAppKey(()->{
-                    Stage passwordStage = App.createPassword("Netnotes - Password", App.logo, App.logo, closeBtn, getExecService(), (onSuccess) -> {
-                        Object sourceObject = onSuccess.getSource().getValue();
-    
-                        if (sourceObject != null && sourceObject instanceof String) {
-                            String newPassword = (String) sourceObject;
-    
-                            if (!newPassword.equals("")) {
-    
-                                Stage statusStage = App.getStatusStage("Netnotes - Saving...", "Saving...");
-                                statusStage.show();
-                                FxTimer.runLater(Duration.ofMillis(100), () -> {
-                                   
-                    
-                                        try {
-                                            
-                                            updateAppKey(newPassword);
-                                        } catch ( Exception e1) {
-                                            try {
-                                                Files.writeString(App.logFile.toPath(), "App createPassword: " +  e1.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                                            } catch (IOException e2) {
-                                            
+                if(m_updateStage == null && m_verifyStage == null){
+                    m_verifyStage = verifyAppKey(()->{
+                        m_updateStage = App.createPassword("Netnotes - Password", App.logo, App.logo, m_closeBtn, getExecService(), (onSuccess) -> {
+                            if(m_updateFuture == null){
+                                Object sourceObject = onSuccess.getSource().getValue();
+            
+                                if (sourceObject != null && sourceObject instanceof String) {
+                                    String newPassword = (String) sourceObject;
+            
+                                    if (!newPassword.equals("")) {
+            
+                                        Stage statusStage = App.getStatusStage("Netnotes - Updating Password...", "Updating Password...");
+                                        statusStage.show();
+                                        
+                                        m_updateFuture = updateAppKey(newPassword, onFinished ->{
+                                            Object finishedObject = onFinished.getSource().getValue();
+                                            statusStage.close();
+                                            m_updateFuture = null;
+                                            if(finishedObject != null && finishedObject instanceof Boolean && (Boolean) finishedObject){
+                                                m_closeBtn.fire();
                                             }
-                                            Alert a = new Alert(AlertType.NONE, "Error: Password not changed.", ButtonType.CLOSE);
-                                            a.setTitle("Error: Password not changed.");
-                                            a.initOwner(m_appStage);
-                                            a.show();
-                                        }
-                                
-                                    statusStage.close();
-    
-                                });
-                            } else {
-                                Alert a = new Alert(AlertType.NONE, "Netnotes: Passwod not change.\n\nCanceled by user.", ButtonType.CLOSE);
-                                a.setTitle("Netnotes: Password not changed");
-                                a.initOwner(m_appStage);
-                                a.show();
+                                        });
+                                            
+                                    } 
+                                }
                             }
-                        }
-                        closeBtn.fire();
+                    
+                        },()->{
+                        
+                            m_updateStage = null;
+                        });
+                        m_updateStage.show();
+                    },()->{
+                        m_verifyStage = null;
                     });
-                    passwordStage.show();
-                });
+                }
             });
+
+            
     
             HBox passwordBox = new HBox(passwordTxt, passwordBtn);
             passwordBox.setAlignment(Pos.CENTER_LEFT);
@@ -3644,7 +3790,7 @@ public class NetworksData {
                     m_currentId.set(tab.getId());
                 });
        
-                tabPane.prefWidthProperty().bind(m_bodyBox.widthProperty());
+                tabPane.prefWidthProperty().bind(m_bodyBox.widthProperty().subtract(1));
                 tabPane.prefHeightProperty().bind(m_contentBox.heightProperty().subtract(m_tabsScroll.heightProperty()).subtract(1));
                 m_currentId.set(id);
             }

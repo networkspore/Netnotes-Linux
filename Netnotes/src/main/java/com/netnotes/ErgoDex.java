@@ -32,6 +32,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -58,6 +59,8 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static String WEB_URL = "https://www.ergodex.io";
     public final static String NETWORK_ID = "ERGO_DEX";
     public final static String API_URL = "https://api.spectrum.fi";
+
+    public final static String IMAGE_LINK = "https://raw.githubusercontent.com/spectrum-finance/token-logos/master/logos/ergo";
 
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
@@ -305,16 +308,48 @@ public class ErgoDex extends Network implements NoteInterface {
         private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
-        private TextField m_lastUpdatedField = new TextField();
+
+        private TextField m_lastUpdatedField;
+
+        private SimpleDoubleProperty m_gridWidth;
+        private SimpleDoubleProperty m_gridHeight;
+
+        private SimpleDoubleProperty m_widthObject;
+        private SimpleDoubleProperty m_heightObject;
+        private ScrollPane scrollPane;
 
         public ErgoDexTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
             super(getNetworkId());
             
-            getData();
             m_appStage = appStage;
             m_menuBtn = menuBtn;
+            
+            m_lastUpdatedField = new TextField(); 
+            
+            m_widthObject = widthObject;
+            m_heightObject = heightObject;
+
+            m_gridWidth = new SimpleDoubleProperty(App.DEFAULT_STATIC_WIDTH);
+            m_gridHeight = new SimpleDoubleProperty(heightObject.get() - 100);
             setPrefWidth(App.DEFAULT_STATIC_WIDTH);
             setMaxWidth(App.DEFAULT_STATIC_WIDTH);
+
+            scrollPane = new ScrollPane();
+            scrollPane.setPadding(new Insets(2));
+            prefHeightProperty().bind(heightObject);
+            
+            getData((onSucceeded)->{
+                Object obj = onSucceeded.getSource().getValue();
+                JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+                openJson(json); 
+                layoutTab();
+            });
+
+        }
+
+        public void layoutTab(){
+           
+            m_dexDataList = new ErgoDexDataList(m_locationId, m_appStage, ErgoDex.this, m_gridWidth,m_gridHeight,m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  scrollPane);
 
 
             ImageView networkMenuBtnImageView = new ImageView(new Image(noNetworkImgString));
@@ -367,7 +402,7 @@ public class ErgoDex extends Network implements NoteInterface {
                         networkMenuBtn.getItems().add(enableNetworkItem);
                     }
                 
-       
+    
                     
                 
                 }
@@ -392,21 +427,16 @@ public class ErgoDex extends Network implements NoteInterface {
 
             addNetworksDataListener();
 
- 
-            double defaultGridWidth = App.DEFAULT_STATIC_WIDTH;
-            double defaultGridHeight = heightObject.get() - 100;      
 
-            prefHeightProperty().bind(heightObject);
 
-            
-            SimpleDoubleProperty gridWidth = new SimpleDoubleProperty(defaultGridWidth);
-            SimpleDoubleProperty gridHeight = new SimpleDoubleProperty(defaultGridHeight);
 
-            ScrollPane scrollPane = new ScrollPane();
-            scrollPane.setPadding(new Insets(2));
+         
 
-            m_dexDataList = new ErgoDexDataList(m_locationId, appStage, ErgoDex.this, gridWidth,gridHeight,m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  scrollPane);
 
+
+        
+
+         
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -415,7 +445,7 @@ public class ErgoDex extends Network implements NoteInterface {
             refreshTip.setShowDelay(new javafx.util.Duration(100));
             refreshTip.setFont(App.txtFont);
 
-         
+        
 
             BufferedMenuButton sortTypeButton = new BufferedMenuButton("/assets/filter.png", App.MENU_BAR_IMAGE_WIDTH);
 
@@ -423,7 +453,7 @@ public class ErgoDex extends Network implements NoteInterface {
             MenuItem sortBaseVolItem = new MenuItem(ErgpDexSort.SortType.BASE_VOL);
             MenuItem sortQuoteVolItem = new MenuItem(ErgpDexSort.SortType.QUOTE_VOL);
             MenuItem sortLastPriceItem = new MenuItem(ErgpDexSort.SortType.LAST_PRICE);
-          
+        
             sortTypeButton.getItems().addAll(sortLiquidityItem, sortBaseVolItem, sortQuoteVolItem, sortLastPriceItem);
 
             Runnable updateSortTypeSelected = () ->{
@@ -451,7 +481,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 m_dexDataList.updateGrid();
             };
 
-           // updateSortTypeSelected.run();
+        // updateSortTypeSelected.run();
 
             sortLiquidityItem.setOnAction(e->{
                 ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
@@ -513,7 +543,7 @@ public class ErgoDex extends Network implements NoteInterface {
             HBox.setHgrow(menuBarRegion, Priority.ALWAYS);
 
             
-           
+        
 
 
             VBox networkMenuBtnBox = new VBox( networkMenuBtn);
@@ -524,7 +554,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
 
             HBox rightSideMenu = new HBox(networkMenuBtnBox);
-           
+        
             rightSideMenu.setId("rightSideMenuBar");
             rightSideMenu.setPadding(new Insets(0, 3, 0, 10));
             rightSideMenu.setAlignment(Pos.CENTER_RIGHT);
@@ -532,7 +562,7 @@ public class ErgoDex extends Network implements NoteInterface {
             Region menuBarRegion1 = new Region();
             menuBarRegion1.setMinWidth(10);
 
-         
+        
             MenuButton timeSpanBtn = new MenuButton();
             timeSpanBtn.setId("arrowMenuButton");
             timeSpanBtn.setMinWidth(100);
@@ -569,7 +599,7 @@ public class ErgoDex extends Network implements NoteInterface {
             }
 
             m_itemTimeSpan.addListener((obs,oldval,newval)->{
-           //     timeSpanLabel.setText(newval.getName() + " ▾");
+        //     timeSpanLabel.setText(newval.getName() + " ▾");
                 save();
             });
 
@@ -585,10 +615,10 @@ public class ErgoDex extends Network implements NoteInterface {
             m_menuBar.setMinHeight(25);
 
 
-      
+    
 
             VBox chartList = m_dexDataList.getLayoutBox();
-  
+
             scrollPane.setContent(chartList);
             
         //    HBox headingsBox = new HBox();
@@ -600,9 +630,9 @@ public class ErgoDex extends Network implements NoteInterface {
             m_bodyPaddingBox = new VBox(menuBarBox, scrollPane);
             m_bodyPaddingBox.setPadding(new Insets(0,5,0,5));
 
-     
+    
 
-      
+    
             m_lastUpdatedField.setEditable(false);
             m_lastUpdatedField.setId("formFieldSmall");
             m_lastUpdatedField.setPrefWidth(230);
@@ -634,32 +664,34 @@ public class ErgoDex extends Network implements NoteInterface {
             
 
             m_bodyPaddingBox.prefWidthProperty().bind(widthProperty().subtract(1));
-            scrollPane.prefViewportWidthProperty().bind(widthObject);
+            scrollPane.prefViewportWidthProperty().bind(m_widthObject);
 
-           // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
+        // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
 
-           scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
-              
+            scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+            
                 double width = newval.getWidth();
-           
-                gridWidth.set( width < 300 ? 300 : width );
-       
+        
+                m_gridWidth.set( width < 300 ? 300 : width );
+    
             
                 
             });
 
-            Binding<Double> scrollHeight = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? scrollPane.viewportBoundsProperty().get().getHeight() : defaultGridHeight, scrollPane.viewportBoundsProperty());
-            gridHeight.bind(scrollHeight);
+            Binding<Double> scrollHeight = Bindings.createObjectBinding(()->{
+                Bounds bounds = scrollPane.viewportBoundsProperty().get();
+                return bounds != null ? bounds.getHeight() : m_gridHeight.get();
+            }, scrollPane.viewportBoundsProperty());
+
+            m_gridHeight.bind(scrollHeight);
 
         
-            scrollPane.prefViewportHeightProperty().bind(heightObject.subtract(footerVBox.heightProperty()));
+            scrollPane.prefViewportHeightProperty().bind(m_heightObject.subtract(footerVBox.heightProperty()));
 
             scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
                 chartList.setPrefWidth(newval.getWidth() - 40);
                 chartList.setMaxWidth(newval.getWidth() - 40);
             });
-
-
         }
         private boolean isErgoNetwork(){
             return m_isErgoNetwork;
@@ -769,8 +801,8 @@ public class ErgoDex extends Network implements NoteInterface {
  
 
 
-        public void getData(){
-            openJson(getNetworksData().getData("data", ".", "tab", ErgoDex.NETWORK_ID));
+        public void getData( EventHandler<WorkerStateEvent> onSucceeded){
+            getNetworksData().getData("data", ".", "tab", ErgoDex.NETWORK_ID, onSucceeded);
         }
 
         public void openJson(JsonObject json){

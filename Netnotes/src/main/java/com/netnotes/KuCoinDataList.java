@@ -77,52 +77,55 @@ public class KuCoinDataList extends Network implements NoteInterface {
     }
 
     private void setup() {
-        getData();
-        updateGridBox();
+        getData(onSucceeded->{
 
-        m_kucoinExchange.getAllTickers(success -> {
-            Object sourceObject = success.getSource().getValue();
-            if (sourceObject != null && sourceObject instanceof JsonObject) {
+    
+            updateGridBox();
 
-                readTickers(getDataJson((JsonObject) sourceObject), onSuccess -> {
-                  
-                    sortByChangeRate(false);
-                    sort();
-                    updateGridBox();
-                    getLastUpdated().set(LocalDateTime.now());
-                }, failed -> {
+            m_kucoinExchange.getAllTickers(success -> {
+                Object sourceObject = success.getSource().getValue();
+                if (sourceObject != null && sourceObject instanceof JsonObject) {
+
+                    readTickers(getDataJson((JsonObject) sourceObject), onSuccess -> {
+                    
+                        sortByChangeRate(false);
+                        sort();
+                        updateGridBox();
+                        getLastUpdated().set(LocalDateTime.now());
+                    }, failed -> {
+                        try {
+                            Files.writeString(logFile.toPath(), "setup failed 1 " + failed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e) {
+
+                        }
+                        m_notConnected = true;
+                        m_statusMsg.set("Not connected");
+                        updateGridBox();
+
+                    });
+
+                } else {
                     try {
-                        Files.writeString(logFile.toPath(), "setup failed 1 " + failed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(logFile.toPath(), "setup failed 2  instance of object is not json", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e) {
 
                     }
                     m_notConnected = true;
                     m_statusMsg.set("Not connected");
                     updateGridBox();
-
-                });
-
-            } else {
+                }
+            }, failed -> {
                 try {
-                    Files.writeString(logFile.toPath(), "setup failed 2  instance of object is not json", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(logFile.toPath(), "setup failed 3 " + failed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
 
                 }
                 m_notConnected = true;
                 m_statusMsg.set("Not connected");
                 updateGridBox();
-            }
-        }, failed -> {
-            try {
-                Files.writeString(logFile.toPath(), "setup failed 3 " + failed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
+            });
 
-            }
-            m_notConnected = true;
-            m_statusMsg.set("Not connected");
-            updateGridBox();
         });
-
       
     }
 
@@ -355,9 +358,9 @@ public class KuCoinDataList extends Network implements NoteInterface {
         }
     }
 
-    private void getData() {
+    private void getData(EventHandler<WorkerStateEvent> onSucceeded) {
 
-        m_kucoinExchange.getNetworksData().getData("data", ".", getNetworkId(), KucoinExchange.NETWORK_ID);
+        m_kucoinExchange.getNetworksData().getData("data", ".", getNetworkId(), KucoinExchange.NETWORK_ID, onSucceeded);
         
 
     }

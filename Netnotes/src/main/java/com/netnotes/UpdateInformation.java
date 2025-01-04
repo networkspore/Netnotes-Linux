@@ -1,7 +1,7 @@
 package com.netnotes;
 
+import com.GitHubAPI.GitHubAPI.GitHubAsset;
 import com.google.gson.JsonObject;
-import com.utils.GitHubAPI.GitHubAsset;
 
 
 public class UpdateInformation {
