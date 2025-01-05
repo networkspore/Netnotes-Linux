@@ -480,20 +480,27 @@ public class ErgoDexChartTab extends ContentTab {
                 }
                 
 
-                m_chartScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+                m_chartScrollHeight.addListener((obs,oldval,newval)->{
                    
-                    if(oldval.getHeight() != newval.getHeight()){
+                    if(m_numbers != null){
 
-                        createChart(); 
-                        
+                        int viewPortHeight = (int) newval.intValue()-5;
+                        int viewPortWidth = (int) m_chartScrollWidth.get();
+                        drawChart(viewPortWidth, viewPortHeight, timeSpan);
+                    }else{
+                        createChart();
                     }
-              
+                    
                 });
             });
         });
 
     
-    
+        getNetworksData().getStage().maximizedProperty().addListener((obs,oldval,newval)->{
+            if(newval){
+                FxTimer.runLater(Duration.ofMillis(200), ()->Platform.runLater(()->m_chartScroll.setVvalue(chartScrollVvalue)));
+            }
+        });
     
     }
 

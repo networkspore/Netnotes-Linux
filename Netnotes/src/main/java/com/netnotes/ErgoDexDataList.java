@@ -56,7 +56,7 @@ public class ErgoDexDataList  {
     private ArrayList<ErgoDexMarketItem> m_marketsList = new ArrayList<ErgoDexMarketItem>();
 
 
-    private SimpleStringProperty m_statusMsg = new SimpleStringProperty(LOADING);
+    private SimpleStringProperty m_statusMsg = new SimpleStringProperty("Starting...");
 
     private ErgpDexSort m_sortMethod = new ErgpDexSort();
     private String m_searchText = null;
@@ -91,6 +91,7 @@ public class ErgoDexDataList  {
     private TextField m_updatedField;
     private VBox m_layoutBox;
     private double m_defaultCharSize;
+    private VBox m_loadingBox;
     
     public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
         m_currentIndex = new SimpleIntegerProperty(0);
@@ -110,10 +111,17 @@ public class ErgoDexDataList  {
 
         m_layoutBox = new VBox();
         m_layoutBox.setId("darkBox");
+        
+        m_loadingBox = new VBox();
+        m_loadingBox.setId("darkBox");
+        m_loadingBox.setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);
+        setLoadingBox();
+       
 
         m_gridBox = new VBox();
         HBox.setHgrow(m_gridBox,Priority.ALWAYS);
         updateFont();
+       
         m_isInvert.addListener((obs,oldval,newval)->{
             ErgpDexSort sortMethod = getSortMethod();
             sortMethod.setSwapTarget(newval ?  ErgpDexSort.SwapMarket.SWAPPED : ErgpDexSort.SwapMarket.STANDARD);
@@ -121,7 +129,83 @@ public class ErgoDexDataList  {
             updateGrid();
         });
         addDexistener();
+    
     }
+
+    public void setLoadingBox(){
+        ImageView imgView = new ImageView(m_ergodex.getAppIcon());
+        imgView.setPreserveRatio(true);
+        imgView.setFitWidth(150);
+
+        Button loadingBtn = new Button(ErgoDex.NAME);
+        loadingBtn.setTextFill(Color.WHITE);
+        loadingBtn.setGraphicTextGap(30);
+        loadingBtn.setId("startImageBtn");
+        loadingBtn.setGraphicTextGap(15);
+        loadingBtn.setGraphic(imgView);
+        loadingBtn.setContentDisplay(ContentDisplay.TOP);
+        loadingBtn.setPadding(new Insets(0,0,30,0));
+
+        ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+        progressBar.setPrefWidth(200);
+
+        HBox progressBarBox = new HBox(progressBar);
+        HBox.setHgrow(progressBarBox,Priority.ALWAYS);
+        progressBarBox.setAlignment(Pos.CENTER);
+
+        VBox imageBox = new VBox(loadingBtn, progressBarBox);
+        imageBox.setId("transparentColor");
+        imageBox.setAlignment(Pos.CENTER);
+        HBox.setHgrow(imageBox, Priority.ALWAYS);
+      
+
+        Label statusLabel = new Label(m_statusMsg.get());
+        statusLabel.setId("italicFont");
+   
+        
+        m_statusMsg.addListener((obs,oldVal,newval)->{
+            
+            switch(newval){
+                case LOADING:
+
+                    if(!progressBarBox.getChildren().contains(progressBar)){
+                        progressBarBox.getChildren().add(progressBar);
+                    }
+
+                    statusLabel.setText( LOADING);
+
+                    return;
+                case App.STATUS_ERROR:
+                    
+                    statusLabel.setText( m_errMsg);
+
+                    if(progressBarBox.getChildren().contains(progressBar)){
+                        progressBarBox.getChildren().remove(progressBar);
+                    }
+                    return;
+            }
+
+            statusLabel.setText( LOADING);
+            
+        });
+        
+        progressBarBox.setPadding(new Insets(0,0,0,0));
+
+        VBox statusLabelBox = new VBox( statusLabel);
+        HBox.setHgrow(statusLabelBox, Priority.ALWAYS);
+        statusLabelBox.setAlignment(Pos.CENTER);
+
+
+        imageBox.prefHeightProperty().bind(m_gridHeight.subtract(statusLabelBox.heightProperty()));
+
+        //imageBox.setPadding(new Insets(0,0,40,0));
+
+        m_loadingBox.getChildren().addAll(imageBox,statusLabelBox);
+        m_layoutBox.getChildren().clear();
+        m_layoutBox.getChildren().add(m_loadingBox);
+    }
+
+
 
     public double defaultCharacterSize(){
         return m_defaultCharSize;
@@ -393,80 +477,7 @@ public class ErgoDexDataList  {
             }
 
            
-        } else {
-
-            ImageView imgView = new ImageView(m_ergodex.getAppIcon());
-            imgView.setPreserveRatio(true);
-            imgView.setFitWidth(150);
-
-            Button loadingBtn = new Button(ErgoDex.NAME);
-            loadingBtn.setTextFill(Color.WHITE);
-            loadingBtn.setGraphicTextGap(30);
-            loadingBtn.setId("startImageBtn");
-            loadingBtn.setGraphicTextGap(15);
-            loadingBtn.setGraphic(imgView);
-            loadingBtn.setContentDisplay(ContentDisplay.TOP);
-            loadingBtn.setPadding(new Insets(0,0,30,0));
-
-            ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
-            progressBar.setPrefWidth(200);
-
-            HBox progressBarBox = new HBox(progressBar);
-            HBox.setHgrow(progressBarBox,Priority.ALWAYS);
-            progressBarBox.setAlignment(Pos.CENTER);
-
-            VBox imageBox = new VBox(loadingBtn, progressBarBox);
-            imageBox.setId("transparentColor");
-            imageBox.setAlignment(Pos.CENTER);
-            HBox.setHgrow(imageBox, Priority.ALWAYS);
-          
-
-            Label statusLabel = new Label("Starting...");
-            statusLabel.setId("italicFont");
-       
-            
-            m_statusMsg.addListener((obs,oldVal,newval)->{
-                
-                switch(newval){
-                    case LOADING:
-
-                        if(!progressBarBox.getChildren().contains(progressBar)){
-                            progressBarBox.getChildren().add(progressBar);
-                        }
-
-                        statusLabel.setText( LOADING);
-
-                        return;
-                    case App.STATUS_ERROR:
-                        
-                        statusLabel.setText( m_errMsg);
-
-                        if(progressBarBox.getChildren().contains(progressBar)){
-                            progressBarBox.getChildren().remove(progressBar);
-                        }
-                        return;
-                }
-
-                statusLabel.setText( LOADING);
-                
-            });
-            
-            progressBarBox.setPadding(new Insets(0,0,0,0));
-
-            VBox statusLabelBox = new VBox( statusLabel);
-            HBox.setHgrow(statusLabelBox, Priority.ALWAYS);
-            statusLabelBox.setAlignment(Pos.CENTER);
-
-
-            imageBox.prefHeightProperty().bind(m_gridHeight.subtract(statusLabelBox.heightProperty()));
-
-            //imageBox.setPadding(new Insets(0,0,40,0));
-
-
-            
-            m_layoutBox.getChildren().addAll(imageBox,statusLabelBox);
-            m_gridBox.setPrefWidth(m_layoutBox.getLayoutBounds().getWidth());
-        }
+        } 
 
         m_updatedField.setText(Utils.formatDateTimeString( LocalDateTime.now()));
     }

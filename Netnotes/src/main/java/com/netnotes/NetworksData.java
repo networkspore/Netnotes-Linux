@@ -416,6 +416,8 @@ public class NetworksData {
         m_appStage.titleProperty().bind(m_titleProperty);
         m_appStage.setScene(m_scene);
 
+        m_appStage.centerOnScreen();
+        
         ResizeHelper.addResizeListener(m_appStage, 720, 480, Double.MAX_VALUE, Double.MAX_VALUE);
 
         
@@ -489,9 +491,7 @@ public class NetworksData {
             }
         });
 
-        FxTimer.runLater(Duration.ofMillis(100), ()->{
-            m_appStage.centerOnScreen();
-        });
+      
 
 
         m_closeBtn.setOnAction(e ->onClosing());
