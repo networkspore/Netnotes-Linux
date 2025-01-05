@@ -98,6 +98,7 @@ public class NetworksData {
     public final static String NETWORKS = "NETWORKS";
 
     public final static int BTN_IMG_SIZE = 30;
+    public final static long EXECUTION_TIME = 500;
 
     public final static NetworkInformation[] SUPPORTED_APPS = new NetworkInformation[]{
    
@@ -524,7 +525,7 @@ public class NetworksData {
     }
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
-    private final static long EXECUTION_TIME = 500;
+    
     private ScheduledFuture<?> m_lastExecution = null;
 
     public ScheduledExecutorService getSchedualedExecService(){

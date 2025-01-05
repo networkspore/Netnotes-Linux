@@ -63,7 +63,9 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import org.reactfx.util.FxTimer;
 
@@ -125,7 +127,7 @@ public class ErgoDexChartTab extends ContentTab {
     private TimeSpan m_timeSpan = new TimeSpan("30min");
     private String m_defaultWalletId = DEFAULT_ID;
 
-
+    private Timer m_lastExecution = null;
     
     
 
@@ -299,7 +301,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         m_chartImageView = new ImageView();
         m_chartImageView.setPreserveRatio(true);
-        m_chartScroll = new ScrollPane(m_chartImageView);        
+        m_chartScroll = new ScrollPane();        
         
         headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(m_timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
         
@@ -408,7 +410,7 @@ public class ErgoDexChartTab extends ContentTab {
             createChart();
         });
 
-        m_chartScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->createChart());
+        
         
         addErgoDexListener();
 
@@ -462,7 +464,25 @@ public class ErgoDexChartTab extends ContentTab {
         
         updateShowSwap(m_showSwap);
 
-        createChart();
+
+        FxTimer.runLater(Duration.ofMillis(200), ()->{
+            completeLoading();
+            FxTimer.runLater(Duration.ofMillis(200), ()->{
+                createChart();
+
+                m_chartScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
+                   
+                    if(oldval.getHeight() != newval.getHeight()){
+
+                        createChart(); 
+                        
+                    }
+              
+                });
+            });
+        });
+
+    
     
     
     }
@@ -471,6 +491,10 @@ public class ErgoDexChartTab extends ContentTab {
         if(!m_layoutBox.getChildren().contains(m_chartBox)){
             m_layoutBox.getChildren().clear();
             m_layoutBox.getChildren().add(m_chartBox);
+
+            m_chartScroll.setContent(m_chartImageView);
+
+            setChartScrollRight();
         }
     }
 
@@ -639,81 +663,43 @@ public class ErgoDexChartTab extends ContentTab {
             int scaleColWidth =  (scaleLabelLength * m_zeroStringWidth )+ ErgoDexChartView.SCALE_COL_PADDING;
             
             
-
             int width =Math.max(viewPortWidth, Math.max(itemsTotalCellWidth + scaleColWidth, ErgoDexChartView.MIN_CHART_WIDTH));
             
             int height = Math.min(ErgoDexChartView.MAX_CHART_HEIGHT, Math.max(viewPortHeight, ErgoDexChartView.MIN_CHART_HEIGHT));
 
-      
- 
-            java.awt.Font labelFont = m_labelFont;
-            FontMetrics labelMetrics = m_labelMetrics;
-            ErgoDexNumbers ergoDexNumbers = m_numbers;
-            int cellWidth = m_cellWidth;
-            int cellPadding = m_cellPadding;
-            int amStringWidth = m_amStringWidth; 
-            RangeBar rangeBar = m_chartRange;
             boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
 
-            Task<BufferedImage> task = new Task<BufferedImage>() {
-                @Override
-                public BufferedImage call() throws InterruptedException {
-                    m_chartSemaphore.acquire();
-                    
-                
-                    m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
-                    m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
+            m_img = isNewImg ? new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB) : m_img;
+            m_g2d = isNewImg ? m_img.createGraphics() : m_g2d;
+
+            ErgoDexChartView.updateBufferedImage(
+                m_img, 
+                m_g2d, 
+                m_labelFont, 
+                m_labelMetrics, 
+                m_numbers,
+                m_cellWidth, 
+                m_cellPadding, 
+                scaleColWidth,
+                m_amStringWidth,
+                timeSpan, 
+                m_chartRange
+            );
+
+            m_chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
         
-                    ErgoDexChartView.updateBufferedImage(
-                        m_img, 
-                        m_g2d, 
-                        labelFont, 
-                        labelMetrics, 
-                        ergoDexNumbers,
-                        cellWidth, 
-                        cellPadding, 
-                        scaleColWidth,
-                        amStringWidth,
-                        timeSpan, 
-                        rangeBar
-                    );
-
-                    return m_img;
-                }
-            };
-            
-            task.setOnFailed((failed)->{
-                m_chartSemaphore.release();
-                setLoadingBox();
-            });
-            task.setOnSucceeded((succeeded)->{
-                m_chartSemaphore.release();
-
-                Object obj = succeeded.getSource().getValue();
-
-                if(obj != null && obj instanceof BufferedImage){
-
-                    m_chartImageView.setImage(SwingFXUtils.toFXImage((BufferedImage) obj, m_wImg));
-                
-                    if(isNewImg){
-                        setChartScrollRight();
-                        if(viewPortWidth > ErgoDexChartView.MAX_CHART_WIDTH){
-                            m_chartImageView.setFitWidth(viewPortWidth);
-                        }else{
-                            
-                            m_chartImageView.setFitWidth(m_img.getWidth());
-                            
-                        }
-                        
-                    }
-        
-                    completeLoading();
+            if(isNewImg){
+                setChartScrollRight();
+                if(viewPortWidth > ErgoDexChartView.MAX_CHART_WIDTH){
+                    m_chartImageView.setFitWidth(viewPortWidth);
                 }else{
-                    setLoadingBox();
+                    
+                    m_chartImageView.setFitWidth(m_img.getWidth());
+                    
                 }
-            });
-
-            getNetworksData().getExecService().submit(task);
+                
+            }
+    
 
         }
     }
