@@ -45,6 +45,7 @@ import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -157,40 +158,43 @@ public class NetworksData {
     private AppsTab m_appsTab = null;*/
 
     private Label m_tabLabel = new Label("");
-    
+    public final static double DEFAULT_STATIC_WIDTH = 500;
 
-    private SimpleDoubleProperty m_widthObject = new SimpleDoubleProperty(App.DEFAULT_STATIC_WIDTH);
-    private SimpleDoubleProperty m_heightObject = new SimpleDoubleProperty(200);
+    private SimpleDoubleProperty m_staticContentWidth;
+    private SimpleDoubleProperty m_staticContentHeight;
+    
+    private SimpleDoubleProperty m_contentWidth;
+    private SimpleDoubleProperty m_contentHeight;
+
     private SimpleDoubleProperty menuWidth;
 
     private Semaphore m_dataSemaphore;
     private Semaphore m_fileSemaphore;
    // private String m_localId;
 
-   private SimpleDoubleProperty m_menuWidth;
-   private VBox m_contentBox;
-   private ContentTabs m_contentTabs;
-   private Button m_maximizeBtn;
-   private HBox m_menuBox;
-   private Scene m_scene;
-   private HBox m_footerBox;
-   private HBox m_titleBox;
-   private HBox m_mainHBox;
+    private SimpleStringProperty m_titleProperty;
+    private SimpleDoubleProperty m_menuWidth;
+    private VBox m_contentBox;
+    private ContentTabs m_contentTabs;
+    private Button m_maximizeBtn;
+    private Button m_closeBtn;
+    private HBox m_menuBox;
+    private Scene m_scene;
+    private HBox m_footerBox;
+    private HBox m_titleBox;
+    private HBox m_mainHBox;
+    private HBox m_staticContentBox;
 
-    public NetworksData(AppData appData, Stage appStage, HBox titleBox, HBox mainHBox, Button maximizeBtn, HBox menuBox, ScrollPane staticContent, VBox contentBox, HBox footerBox, VBox layoutBox) {
+
+    public NetworksData(AppData appData, Stage appStage) {
         m_dataSemaphore = new Semaphore(1);
         m_fileSemaphore = new Semaphore(1);
 
-        m_titleBox = titleBox;
-        m_mainHBox = mainHBox;
+
+
         m_appData = appData;
-        m_footerBox = footerBox;
         m_appStage = appStage;
-        m_maximizeBtn = maximizeBtn;
         m_menuWidth = menuWidth;
-        m_menuBox = menuBox;
-        m_staticContent = staticContent;
-        m_contentBox = contentBox;
 
 
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
@@ -253,9 +257,13 @@ public class NetworksData {
         getData("data",  ".", "main","root", (onComplete)->{
             Object obj = onComplete.getSource().getValue();
             openJson(obj != null && obj instanceof JsonObject ? (JsonObject) obj : null);
-            initLayout(layoutBox);
+            initLayout();
         });
        
+    }
+
+    public ReadOnlyStringProperty titleProperty(){
+        return m_titleProperty;
     }
 
     public Scene getScene(){
@@ -266,16 +274,41 @@ public class NetworksData {
         return m_appStage;
     }
 
+    public void initLayout(){
+        m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH);
+        m_staticContentHeight = new SimpleDoubleProperty(200);
+        
+        m_contentWidth = new SimpleDoubleProperty();
+        m_contentHeight = new SimpleDoubleProperty();
 
-    public void initLayout( VBox layout){
+        m_closeBtn = new Button();
+        m_maximizeBtn = new Button();
+
+        m_menuBox = new HBox();
+    
+        m_contentBox = new VBox();
+
+        m_staticContentBox = new HBox();
+
+        m_mainHBox = new HBox(m_menuBox, m_staticContentBox, m_contentBox);
+    
+        m_staticContent = new ScrollPane();
+
+        m_footerBox = new HBox();
+        m_footerBox.setAlignment(Pos.CENTER_LEFT);
+
+
+        m_titleBox = App.createTopBar(App.icon, m_maximizeBtn, m_closeBtn, m_appStage);
+
+
+        VBox layout = new VBox(m_titleBox, m_mainHBox, m_footerBox);
+
 
         m_menuWidth = new SimpleDoubleProperty(52);
         m_menuBox.maxWidthProperty().bind(m_menuWidth);
         m_menuBox.minWidthProperty().bind(m_menuWidth);
       
         m_subMenuBox.setAlignment(Pos.TOP_LEFT);
-       
-  
   
         m_tabLabel.setPadding(new Insets(2,0,2,5));
         m_tabLabel.setFont(App.titleFont);
@@ -300,11 +333,6 @@ public class NetworksData {
         menuVBarBox.setAlignment(Pos.CENTER_LEFT);
         menuVBarBox.setId("darkBox");
 
-      
-       
-     
-     
-             
         Region logoGrowRegion = new Region();
         HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
 
@@ -376,14 +404,18 @@ public class NetworksData {
 
         }); 
 
+ 
+
         m_scene = new Scene(layout, getStageWidth(), getStageHeight());
         m_scene.setFill(null);
         m_scene.getStylesheets().add("/css/startWindow.css");
 
-        m_appStage.setTitle("Netnotes");
+        m_titleProperty = new SimpleStringProperty("Netnotes");
+
+        m_appStage.titleProperty().bind(m_titleProperty);
         m_appStage.setScene(m_scene);
 
-        ResizeHelper.addResizeListener(m_appStage, 800, 250, Double.MAX_VALUE, Double.MAX_VALUE);
+        ResizeHelper.addResizeListener(m_appStage, 720, 480, Double.MAX_VALUE, Double.MAX_VALUE);
 
         
 
@@ -394,14 +426,20 @@ public class NetworksData {
         
         m_contentBox.getChildren().add(m_contentTabs);
 
-        m_staticContent.setMinViewportWidth(App.DEFAULT_STATIC_WIDTH +5);
+        m_staticContent.setMinViewportWidth(DEFAULT_STATIC_WIDTH +5);
         m_staticContent.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
-        m_heightObject.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(45));
+        
+        m_staticContentHeight.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(45));
 
         m_menuBox.prefHeightProperty().bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(2));
 
         m_mainHBox.prefWidthProperty().bind(m_scene.widthProperty());
         m_mainHBox.prefHeightProperty().bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(1));
+
+
+        
+        m_contentWidth.bind(m_scene.widthProperty().subtract(m_menuBox.widthProperty()).subtract(m_staticContentBox.widthProperty()).subtract(1));
+        m_contentHeight.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(1));
 
         m_scene.widthProperty().addListener((obs, oldval, newVal) -> {
             setStageWidth(newVal.doubleValue());
@@ -438,10 +476,51 @@ public class NetworksData {
 
         });
 
+        menuTabProperty().addListener((obs,oldval,newval)->{
+            if(newval != null){
+                if(!m_staticContentBox.getChildren().contains(m_staticContent)){
+                    m_staticContentBox.getChildren().add(m_staticContent);
+                }
+            }else{
+                if(m_staticContentBox.getChildren().contains(m_staticContent)){
+                    m_staticContentBox.getChildren().remove(m_staticContent);
+                }
+            }
+        });
+
         FxTimer.runLater(Duration.ofMillis(100), ()->{
             m_appStage.centerOnScreen();
         });
+
+
+        m_closeBtn.setOnAction(e ->onClosing());
+
+        m_appStage.setOnCloseRequest(e -> onClosing());
        
+    }
+
+    public ReadOnlyDoubleProperty contentWidthProperty(){
+        return m_contentWidth;
+    }
+    public ReadOnlyDoubleProperty contentHeightProperty(){
+        return m_contentHeight;
+    }
+
+    private void onClosing(){
+        if(getStageMaximized()){
+            m_maximizeBtn.fire();
+            FxTimer.runLater(Duration.ofMillis(150), ()->{
+                save();
+                shutdown();
+            
+                m_appStage.close();
+                App.shutdownNow();
+            });
+        }else{
+            shutdown();
+            m_appStage.close();
+            App.shutdownNow();
+        }
     }
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
@@ -502,7 +581,8 @@ public class NetworksData {
 
     private void openJson(JsonObject networksObject) {
         if (networksObject != null) {
-           
+
+     
             JsonElement jsonArrayElement = networksObject == null ? null : networksObject.get("apps");
 
             if(jsonArrayElement == null){
@@ -584,6 +664,7 @@ public class NetworksData {
                 m_stageIconStyle.set(iconStyle);
                 setStagePrevWidth(Network.DEFAULT_STAGE_WIDTH);
                 setStagePrevHeight(Network.DEFAULT_STAGE_HEIGHT);
+
                 if (!maximized) {
 
                     setStageWidth(stageWidthElement.getAsDouble());
@@ -1140,7 +1221,7 @@ public class NetworksData {
         NoteInterface noteInterface = getNetwork(networkId);
       
         if(noteInterface != null){
-            return noteInterface.getTab(m_appStage, m_heightObject, m_widthObject, m_networkBtn);
+            return noteInterface.getTab(m_appStage, m_staticContentHeight, m_staticContentWidth, m_networkBtn);
         }else{
 
         }
@@ -1249,7 +1330,7 @@ public class NetworksData {
             }
          
 
-            TabInterface tab = noteInterface != null ? noteInterface.getTab(m_appStage, m_heightObject, m_widthObject, m_networkBtn) : null;
+            TabInterface tab = noteInterface != null ? noteInterface.getTab(m_appStage, m_staticContentHeight, m_staticContentWidth, m_networkBtn) : null;
     
             
             m_currentMenuTab.set(tab);
@@ -1280,7 +1361,7 @@ public class NetworksData {
                 currentTab.setStatus(App.STATUS_MINIMIZED);
             }
 
-            TabInterface tab = appNetwork.getTab(m_appStage, m_heightObject, m_widthObject, appNetwork.getButton(BTN_IMG_SIZE));
+            TabInterface tab = appNetwork.getTab(m_appStage, m_staticContentHeight, m_staticContentWidth, appNetwork.getButton(BTN_IMG_SIZE));
             
             m_currentMenuTab.set( tab);
             tab.setStatus(App.STATUS_STARTED);
@@ -2338,14 +2419,15 @@ public class NetworksData {
         }
 
 
+
         public ManageNetworksTab(){
             super(NAME);
            
             
-            prefWidthProperty().bind(m_widthObject);
-            prefHeightProperty().bind(m_heightObject);
+            prefWidthProperty().bind(m_staticContentWidth);
+            prefHeightProperty().bind(m_staticContentHeight);
             setAlignment(Pos.CENTER);
-            minHeightProperty().bind(m_heightObject);
+            minHeightProperty().bind(m_staticContentHeight);
     
            
             m_listBox.setPadding(new Insets(10));
@@ -2663,9 +2745,9 @@ public class NetworksData {
         public ManageAppsTab(){
             super(NAME);
       
-            minHeightProperty().bind(m_heightObject);
-            minWidthProperty().bind(m_widthObject);
-            maxWidthProperty().bind(m_widthObject);
+            minHeightProperty().bind(m_staticContentHeight);
+            minWidthProperty().bind(m_staticContentWidth);
+            maxWidthProperty().bind(m_staticContentWidth);
             setAlignment(Pos.TOP_CENTER);
 
         
@@ -3200,7 +3282,7 @@ public class NetworksData {
             hBar.setId("hGradient");*/
 
             Button manageBtn = new Button("Manage Apps");
-            manageBtn.prefWidthProperty().bind(m_widthObject);
+            manageBtn.prefWidthProperty().bind(m_staticContentWidth);
             manageBtn.setId("rowBtn");
             manageBtn.setOnAction(e->{
                 openStatic(ManageAppsTab.NAME);
@@ -3349,7 +3431,7 @@ public class NetworksData {
     
         public SettingsTab(){
             super(NAME);
-            minHeightProperty().bind(m_heightObject);
+            minHeightProperty().bind(m_staticContentHeight);
     
             Button settingsButton = App.createImageButton(App.logo, "Settings");
     
@@ -3669,7 +3751,7 @@ public class NetworksData {
             getChildren().add(settingsVBox);
     
          
-            prefWidthProperty().bind(m_widthObject);
+            prefWidthProperty().bind(m_staticContentWidth);
     
         }
     
@@ -3702,12 +3784,14 @@ public class NetworksData {
        // private SimpleDoubleProperty m_tabsHeight = new SimpleDoubleProperty(30);
         private StackPane m_bodyBox;
 
-        public ReadOnlyDoubleProperty bodyWidth(){
-            return m_bodyBox.widthProperty();
+        private SimpleDoubleProperty m_bodyHeight;
+
+        public ReadOnlyDoubleProperty bodyWidthProperty(){
+            return m_contentWidth;
         }
 
-        public ReadOnlyDoubleProperty bodyHeight(){
-            return m_bodyBox.heightProperty();
+        public ReadOnlyDoubleProperty bodyHeightProperty(){
+            return m_bodyHeight;
         }
 
        
@@ -3716,13 +3800,16 @@ public class NetworksData {
         private SimpleStringProperty m_currentId = new SimpleStringProperty(null);
         
         public ContentTabs(){
+            m_bodyHeight = new SimpleDoubleProperty();
+            
             m_tabsBox = new HBox();
             m_tabsBox.setAlignment(Pos.CENTER_LEFT);
 
+            
 
             m_tabsScroll = new ScrollPane(m_tabsBox);
-            m_tabsScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
-            m_tabsScroll.setMinHeight(0);
+            m_tabsScroll.prefViewportWidthProperty().bind(m_contentWidth);
+            
             m_tabsScroll.setPrefViewportHeight(TAB_SCROLL_HEIGHT);
             m_tabsScroll.setId("tabsBox");
 
@@ -3742,10 +3829,9 @@ public class NetworksData {
                 }
 
             });
+            m_bodyHeight.bind(m_contentBox.heightProperty().subtract(m_tabsScroll.heightProperty()).subtract(1));
 
             m_bodyBox = new StackPane();
-            HBox.setHgrow(m_bodyBox, Priority.ALWAYS);
-            VBox.setVgrow(m_bodyBox, Priority.ALWAYS);
             
             /* 
             m_bodyScroll = new ScrollPane();
@@ -3790,8 +3876,8 @@ public class NetworksData {
                     m_currentId.set(tab.getId());
                 });
        
-                tabPane.prefWidthProperty().bind(m_bodyBox.widthProperty().subtract(1));
-                tabPane.prefHeightProperty().bind(m_contentBox.heightProperty().subtract(m_tabsScroll.heightProperty()).subtract(1));
+                tabPane.prefWidthProperty().bind(m_contentWidth);
+                tabPane.prefHeightProperty().bind(m_bodyHeight);
                 m_currentId.set(id);
             }
             if(m_itemTabs.size() > 0){

@@ -94,6 +94,8 @@ public class ErgoDexChartTab extends ContentTab {
 
     private SimpleDoubleProperty m_rangeWidth;
     private SimpleDoubleProperty m_rangeHeight;
+    private SimpleDoubleProperty m_chartScrollWidth;
+    private SimpleDoubleProperty m_chartScrollHeight;
    
   
     private BufferedImage m_img = null;
@@ -336,7 +338,9 @@ public class ErgoDexChartTab extends ContentTab {
         swapButtonBox.setAlignment(Pos.CENTER);
         swapButtonBox.setId("darkBox");
 
-        m_bodyBox = new HBox(m_chartRange, m_chartScroll, swapButtonBox);
+        HBox chartRangeBox = new HBox(m_chartRange);
+
+        m_bodyBox = new HBox(chartRangeBox, m_chartScroll, swapButtonBox);
         m_bodyBox.setId("bodyBox");
         m_bodyBox.setAlignment(Pos.TOP_LEFT);
         HBox bodyPaddingBox = new HBox(m_bodyBox);
@@ -350,17 +354,19 @@ public class ErgoDexChartTab extends ContentTab {
         m_chartBox.getChildren().addAll(headerVBox, bodyPaddingBox);
 
 
+        m_chartScrollWidth = new SimpleDoubleProperty();
+        m_chartScrollWidth.bind(getNetworksData().getContentTabs().bodyWidthProperty().subtract(chartRangeBox.widthProperty()).subtract(swapButtonBox.widthProperty()).subtract(1));
 
-      
+        m_chartScrollHeight = new SimpleDoubleProperty();
+        m_chartScrollHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerVBox.heightProperty()).subtract(11));
+
+        //m_layoutBox.widthProperty().subtract(45)
+        m_chartScroll.prefViewportWidthProperty().bind(m_chartScrollWidth);
+        //m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10)
+        m_chartScroll.prefViewportHeightProperty().bind(m_chartScrollHeight);
 
 
-        m_chartScroll.prefViewportWidthProperty().bind(m_layoutBox.widthProperty().subtract(45));
-        m_chartScroll.prefViewportHeightProperty().bind(m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10));
-
-
-        //layoutBox.setPrefWidth(Double.MAX_VALUE);
-
-        m_rangeHeight.bind(m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(65));
+        m_rangeHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerVBox.heightProperty()).subtract(65));
 
     
         
@@ -648,7 +654,7 @@ public class ErgoDexChartTab extends ContentTab {
             int amStringWidth = m_amStringWidth; 
             RangeBar rangeBar = m_chartRange;
             boolean isNewImg = m_img == null || (m_img != null && (m_img.getWidth() != width || m_img.getHeight() != height));
-            
+
             Task<BufferedImage> task = new Task<BufferedImage>() {
                 @Override
                 public BufferedImage call() throws InterruptedException {

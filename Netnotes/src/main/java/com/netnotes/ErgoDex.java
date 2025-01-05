@@ -329,10 +329,10 @@ public class ErgoDex extends Network implements NoteInterface {
             m_widthObject = widthObject;
             m_heightObject = heightObject;
 
-            m_gridWidth = new SimpleDoubleProperty(App.DEFAULT_STATIC_WIDTH);
+            m_gridWidth = new SimpleDoubleProperty(NetworksData.DEFAULT_STATIC_WIDTH);
             m_gridHeight = new SimpleDoubleProperty(heightObject.get() - 100);
-            setPrefWidth(App.DEFAULT_STATIC_WIDTH);
-            setMaxWidth(App.DEFAULT_STATIC_WIDTH);
+            setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);
+            setMaxWidth(NetworksData.DEFAULT_STATIC_WIDTH);
 
             scrollPane = new ScrollPane();
             scrollPane.setPadding(new Insets(2));

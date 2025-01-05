@@ -335,7 +335,7 @@ public class ErgoDexMarketItem {
         StackPane rowImgBox = new StackPane(chartBox, imagesBox, symbolTextPaddingBox);
        
         HBox.setHgrow(rowImgBox,Priority.ALWAYS);
-        rowImgBox.setMinWidth(App.DEFAULT_STATIC_WIDTH-25);
+        rowImgBox.setMinWidth(NetworksData.DEFAULT_STATIC_WIDTH-25);
         rowImgBox.setAlignment(Pos.CENTER_LEFT);
         rowImgBox.setPadding(new Insets(0,0,0,0));
 
@@ -979,8 +979,8 @@ public class ErgoDexMarketItem {
 
 
             VBox layoutBox = new VBox();
-            layoutBox.setPrefWidth(getNetworksData().getContentTabs().bodyWidth().get());
-            layoutBox.setPrefHeight(getNetworksData().getContentTabs().bodyHeight().get());
+            layoutBox.setPrefWidth(getNetworksData().getContentTabs().bodyWidthProperty().get());
+            layoutBox.setPrefHeight(getNetworksData().getContentTabs().bodyHeightProperty().get());
 
             m_chartTab = new ErgoDexChartTab(FriendlyId.createFriendlyId(), 
                 logo, 

@@ -734,87 +734,12 @@ public class App extends Application {
 
 
 
-    public final static double DEFAULT_STATIC_WIDTH = 500;
-    private Button m_stageMaximizeBtn;
-
-   // private SimpleDoubleProperty m_staticContentWidth = new SimpleDoubleProperty(DEFAULT_STATIC_WIDTH +5);
- 
-
     private void openNetnotes(AppData appData,  Stage appStage) {
 
-        Button closeBtn = new Button();
-        m_stageMaximizeBtn = new Button();
-
-            
-
-        HBox titleBox = createTopBar(icon, m_stageMaximizeBtn, closeBtn, appStage);
-
-    
-
-        HBox m_menuBox = new HBox();
-    
-        VBox contentBox = new VBox();
-        HBox mainHbox = new HBox(m_menuBox, contentBox);
-      
-
-        ScrollPane m_staticContent = new ScrollPane();
-
-        HBox m_footerBox = new HBox();
-        m_footerBox.setAlignment(Pos.CENTER_LEFT);
-
-        VBox layout = new VBox(titleBox, mainHbox, m_footerBox);
-        VBox.setVgrow(layout, Priority.ALWAYS);
-        layout.setPadding(new Insets(0, 2, 2, 0));
-   
-
-
-
-        m_networksData = new NetworksData(appData, appStage, titleBox, mainHbox, m_stageMaximizeBtn, m_menuBox, m_staticContent, contentBox, m_footerBox, layout);    
-
-    
-        m_networksData.menuTabProperty().addListener((obs,oldval,newval)->{
-            if(newval != null){
-                if(!mainHbox.getChildren().contains(m_staticContent)){
-                    mainHbox.getChildren().add(1, m_staticContent);
-                }
-            }else{
-                if(mainHbox.getChildren().contains(m_staticContent)){
-                    mainHbox.getChildren().remove(m_staticContent);
-                }
-            }
-        });
-
-
-        closeBtn.setOnAction(e -> {
-            if(m_networksData.getStageMaximized()){
-                m_stageMaximizeBtn.fire();
-        
-                FxTimer.runLater(Duration.ofMillis(150), ()->{
-                    m_networksData.save();
-                    m_networksData.shutdown();
-                
-                    appStage.close();
-                    shutdownNow();
-                });
-            }else{
-                m_networksData.shutdown();
-                appStage.close();
-                shutdownNow();
-            }
-           
-        });
-
-        appStage.setOnCloseRequest(e -> {
-            closeBtn.fire();
-        });
-
-       
-
+        m_networksData = new NetworksData(appData, appStage);    
 
     }
     
-
-
 
     
 
@@ -1607,7 +1532,7 @@ public class App extends Application {
         return imageBtn;
     }
 
-    private static void shutdownNow() {
+    public static void shutdownNow() {
 
         Platform.exit();
         System.exit(0);

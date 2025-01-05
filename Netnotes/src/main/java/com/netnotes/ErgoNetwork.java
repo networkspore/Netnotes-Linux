@@ -281,8 +281,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
             super(NETWORK_ID);
             m_menuBtn = networkBtn;
      
-            setPrefWidth(App.DEFAULT_STATIC_WIDTH);
-            setMaxWidth(App.DEFAULT_STATIC_WIDTH);
+            setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);
+            setMaxWidth(NetworksData.DEFAULT_STATIC_WIDTH);
           
             prefHeightProperty().bind(heightObject);
 
