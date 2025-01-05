@@ -1055,7 +1055,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public void checkLatest(EventHandler<WorkerStateEvent> complete){
         
-        m_gitHubAPI.getAssetsLatest(getNetworksData().getExecService(), (onFinished)->{
+        m_gitHubAPI.getAssetsLatestRelease(getNetworksData().getExecService(), (onFinished)->{
             Object finishedObject = onFinished.getSource().getValue();
             if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
             
@@ -1112,7 +1112,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
             
 
-            m_gitHubAPI.getAssetsLatest(getNetworksData().getExecService(), (onFinished)->{
+            m_gitHubAPI.getAssetsLatestRelease(getNetworksData().getExecService(), (onFinished)->{
                 Object finishedObject = onFinished.getSource().getValue();
                 if(finishedObject != null && finishedObject instanceof GitHubAsset[] && ((GitHubAsset[]) finishedObject).length > 0){
                 

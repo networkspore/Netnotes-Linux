@@ -924,14 +924,14 @@ public class ErgoDex extends Network implements NoteInterface {
     private void getPoolsSummary(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/amm/pools/summary/all";
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
                         
     }
 
     private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/markets";
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
                         
     }
   
@@ -939,7 +939,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/cg/tickers";
 
-        Utils.getUrlJsonArray(urlString, getNetworksData().getExecService(), onSucceeded, onFailed, null);                
+        Utils.getUrlJsonArray(urlString, getNetworksData().getExecService(), onSucceeded, onFailed);                
 
     }
 
@@ -1151,7 +1151,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public void getMemPoolHistory(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/history/mempool";
         
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
 
     }
 
@@ -1188,7 +1188,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public void getOrderHistory(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/history/order";
         
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
 
     }
 
@@ -1208,7 +1208,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public void getAddressesHistory(int offset, int limit, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/history/addresses?offset="+offset + "&limit=" + limit;
         
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
 
     }
 
@@ -1222,7 +1222,7 @@ public class ErgoDex extends Network implements NoteInterface {
             String urlString = API_URL + "/v1/lm/pools/stats";
        
             
-            Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+            Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
     
     }
     
@@ -1234,7 +1234,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from=0&to=" + currentTime;
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
     }
     
     public void getPoolChart(String poolId,long fromTime, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -1242,7 +1242,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from=" + fromTime + "&to=" + currentTime;
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed, null);
+        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
     }
 
  

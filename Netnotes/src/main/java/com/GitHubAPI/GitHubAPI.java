@@ -10,7 +10,6 @@ import com.google.gson.JsonArray;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.scene.control.ProgressIndicator;
 
 
 public class GitHubAPI {
@@ -70,17 +69,17 @@ public class GitHubAPI {
         
     }
 
-    public String getUrlLatest(){
+    public String getUrlLatestRelease(){
         return GITHUB_API_URL + "/repos/" + m_username + "/" + m_project + "/releases/latest";
     }
     
-    public String getUrlAll(){
+    public String getUrlAllReleases(){
         return GITHUB_API_URL + "/repos/" + m_username + "/" + m_project + "/releases";
     }
 
 
-    public void getAssetsAllLatest(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
-        Utils.getUrlJsonArray(getUrlAll(),execService, (onSucceeded)->{
+    public void getAssetsAllLatestRelease(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
+        Utils.getUrlJsonArray(getUrlAllReleases(),execService, (onSucceeded)->{
             Object sourceObject = onSucceeded.getSource().getValue();
              if (sourceObject != null && sourceObject instanceof JsonArray) {
                 JsonArray allReleases = (JsonArray) sourceObject;
@@ -133,12 +132,12 @@ public class GitHubAPI {
             }else{
                 Utils.returnObject(null,execService, onFinished, null);
             }
-        }, onFailed, null);
+        }, onFailed);
     }
 
 
-    public void getAssetsLatest(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
-         Utils.getUrlJson(getUrlLatest(),execService, (onSucceeded) -> {
+    public void getAssetsLatestRelease(ExecutorService execService, EventHandler<WorkerStateEvent> onFinished, EventHandler<WorkerStateEvent> onFailed){
+         Utils.getUrlJson(getUrlLatestRelease(),execService, (onSucceeded) -> {
                 Object sourceObject = onSucceeded.getSource().getValue();
                 if (sourceObject != null && sourceObject instanceof JsonObject) {
                     JsonObject gitHubApiJson = (JsonObject) sourceObject;
@@ -186,7 +185,7 @@ public class GitHubAPI {
                 }else{
                     Utils.returnObject(null,execService, onFinished, null);
                 }
-            }, onFailed, (ProgressIndicator) null);
+            }, onFailed);
         }
 
 

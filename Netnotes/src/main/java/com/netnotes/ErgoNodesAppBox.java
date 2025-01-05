@@ -1489,7 +1489,7 @@ public class ErgoNodesAppBox extends AppBox {
                 Runnable getLatestUrl = () -> {
                     GitHubAPI gitHubAPI = new GitHubAPI("ergoplatform", "ergo");
 
-                    gitHubAPI.getAssetsLatest(m_ergoNetworkInterface.getNetworksData().getExecService(), (onSucceded)->{
+                    gitHubAPI.getAssetsLatestRelease(m_ergoNetworkInterface.getNetworksData().getExecService(), (onSucceded)->{
                         Object assetsObject = onSucceded.getSource().getValue();
                         if(assetsObject != null && assetsObject instanceof GitHubAsset[] && ((GitHubAsset[]) assetsObject).length > 0){
                             GitHubAsset[] assets = (GitHubAsset[]) assetsObject;

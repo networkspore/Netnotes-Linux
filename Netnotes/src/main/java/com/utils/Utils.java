@@ -717,9 +717,8 @@ public class Utils {
     }
     
 
-    public static Future<?> getUrlJson(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator... indicator) {
-        ProgressIndicator progressIndicator = indicator != null && indicator.length > 0 ? indicator[0] : null;
-
+    public static Future<?> getUrlJson(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+  
         Task<JsonObject> task = new Task<JsonObject>() {
             @Override
             public JsonObject call() throws IOException {
@@ -728,49 +727,37 @@ public class Utils {
                 URLConnection con = url.openConnection();
                 con.setRequestProperty("User-Agent", USER_AGENT);
 
-                
+                 String outputString = null;
+
                 try(
                     InputStream inputStream = con.getInputStream();
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                 ){
-                    String outputString = null;
-                    long contentLength = con.getContentLengthLong();
 
                     byte[] buffer = new byte[2048];
 
                     int length;
-                    long downloaded = 0;
 
                     while ((length = inputStream.read(buffer)) != -1) {
 
                         outputStream.write(buffer, 0, length);
-                        downloaded += (long) length;
-
-                        if (progressIndicator != null) {
-                            
-                            updateProgress(downloaded, contentLength);
-                        }
+                      
                     }
              
-                    if(downloaded == contentLength){
-                        outputString = outputStream.toString();
-
-                        JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                        JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
-
-                        return jsonObject == null ? null : jsonObject;
-                    }
+     
+                    outputString = outputStream.toString();
+           
                 }
-                return null;
+    
+                JsonElement jsonElement = outputString != null ? new JsonParser().parse(outputString) : null;
+
+                return jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
+
             }
 
         };
 
-        if (progressIndicator != null) {
-            progressIndicator.progressProperty().bind(task.progressProperty());
-        }
-
+      
         task.setOnFailed(onFailed);
 
         task.setOnSucceeded(onSucceeded);
@@ -780,7 +767,7 @@ public class Utils {
     }
 
 
-    public static Future<?> getUrlJsonArray(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public static Future<?> getUrlJsonArray(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<JsonArray> task = new Task<JsonArray>() {
             @Override
@@ -791,45 +778,33 @@ public class Utils {
                 URLConnection con = url.openConnection();
                 con.setRequestProperty("User-Agent", USER_AGENT);
 
-                
+                String outputString = null;
+                long contentLength = con.getContentLengthLong();
+
                 try(
                     InputStream inputStream = con.getInputStream();
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                 ){
-                    String outputString = null;
-                    long contentLength = con.getContentLengthLong();
-
-                    byte[] buffer = new byte[2048];
+                   
+                    byte[] buffer = new byte[contentLength != -1 && contentLength < DEFAULT_BUFFER_SIZE ? (int) contentLength : DEFAULT_BUFFER_SIZE];
 
                     int length;
-                    long downloaded = 0;
 
                     while ((length = inputStream.read(buffer)) != -1) {
-
                         outputStream.write(buffer, 0, length);
-                        downloaded += (long) length;
-
-                        if (progressIndicator != null) {
-                            
-                            updateProgress(downloaded, contentLength);
-                        }
                     }
 
                     outputString = outputStream.toString();
                     
-                    JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                    JsonArray jsonArray = jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
-
-                    return jsonArray == null ? null : jsonArray;
                 }
+
+                JsonElement jsonElement = outputString != null ? new JsonParser().parse(outputString) : null;
+
+                return jsonElement != null && jsonElement.isJsonArray() ? jsonElement.getAsJsonArray() : null;
+
             }
 
         };
-
-        if (progressIndicator != null) {
-            progressIndicator.progressProperty().bind(task.progressProperty());
-        }
 
         task.setOnFailed(onFailed);
 
@@ -1527,9 +1502,9 @@ public class Utils {
 
             URL url = new URL(urlString);
             URLConnection con = url.openConnection();
-            long contentLength = con.getContentLengthLong();
             con.setRequestProperty("User-Agent", Utils.USER_AGENT);
-            
+            long contentLength = con.getContentLengthLong();
+
             if(downloadFile.isFile()){
                 Files.delete(downloadFile.toPath());
             }
@@ -1539,10 +1514,10 @@ public class Utils {
                 ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream();
                 FileOutputStream fileStream = new FileOutputStream(downloadFile);
             ){
-                int bufferSize = contentLength < 1024 ? (int) contentLength : 1024;
+            
                 
                 byte[] output;
-                byte[] buffer = new byte[bufferSize];
+                byte[] buffer = new byte[contentLength != -1 && contentLength < DEFAULT_BUFFER_SIZE ? (int) contentLength : DEFAULT_BUFFER_SIZE];
 
                 int length;
 
@@ -1579,20 +1554,22 @@ public class Utils {
 
                 URL url = new URL(urlString);
                 URLConnection con = url.openConnection();
-                long contentLength = con.getContentLengthLong();
                 con.setRequestProperty("User-Agent", Utils.USER_AGENT);
-            
+                long contentLength = con.getContentLengthLong();
                 try(
                     InputStream inputStream = con.getInputStream();
                     FileOutputStream fileStream = new FileOutputStream(downloadFile);
                 ){
-                    int bufferSize = contentLength < 1024 ? (int) contentLength : 1024;
+              
                     
                     byte[] output;
-                    byte[] buffer = new byte[bufferSize];
+                    byte[] buffer = new byte[contentLength != -1 && contentLength < DEFAULT_BUFFER_SIZE ? (int) contentLength : DEFAULT_BUFFER_SIZE];
 
                     int length;
                     long downloaded = 0;
+                    if(progressIndicator != null && contentLength != -1){
+                        updateProgress(downloaded, contentLength);
+                    }
 
                     while ((length = inputStream.read(buffer)) != -1) {
 
@@ -1603,7 +1580,7 @@ public class Utils {
                         }
                         downloaded += (long) length;
 
-                        if(progressIndicator != null){
+                        if(progressIndicator != null && contentLength != -1){
                             updateProgress(downloaded, contentLength);
                         }
                     }
@@ -1703,14 +1680,12 @@ public class Utils {
 
                     HashData hashData = new HashData(hashbytes);
         
-                    if( contentLength == copied){
-                        return hashData;
-                    }
+                   
+                    return hashData;
+                    
 
                 }
 
-              
-                return null;
             }
 
         };
@@ -1929,7 +1904,7 @@ public class Utils {
 
    
 
-    public static Future<?> moveFileAndHash(File inputFile, File outputFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
+    public static Future<?> copyFileAndHash(File inputFile, File outputFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed, ProgressIndicator progressIndicator) {
 
         Task<HashData> task = new Task<HashData>() {
             @Override
@@ -1941,37 +1916,31 @@ public class Utils {
                 } else {
                     return null;
                 }
+                final Blake2b digest = Blake2b.Digest.newInstance(32);
 
-                FileOutputStream outputStream = new FileOutputStream(outputFile);
+                try(
+                    FileOutputStream outputStream = new FileOutputStream(outputFile);
+                    FileInputStream inputStream = new FileInputStream(inputFile);
+                ){
+                    byte[] buffer = new byte[contentLength < (long) DEFAULT_BUFFER_SIZE ? (int) contentLength : DEFAULT_BUFFER_SIZE];
 
-                 final Blake2b digest = Blake2b.Digest.newInstance(32);
+                    int length;
+                    long copied = 0;
 
-                FileInputStream inputStream = new FileInputStream(inputFile);
+                    while ((length = inputStream.read(buffer)) != -1) {
 
-                byte[] buffer = new byte[8 * 1024];
+                        outputStream.write(buffer, 0, length);
+                        digest.update(buffer, 0, length);
 
-                int length;
-                long copied = 0;
-
-                while ((length = inputStream.read(buffer)) != -1) {
-
-                    outputStream.write(buffer, 0, length);
-                    digest.update(buffer, 0, length);
-
-                    copied += (long) length;
-                    updateProgress(copied, contentLength);
+                        copied += (long) length;
+                        if(progressIndicator != null){
+                            updateProgress(copied, contentLength);
+                        }
+                    }
 
                 }
-                outputStream.close();
-                inputStream.close();
 
-                byte[] hashbytes = digest.digest();
-
-                HashData hashData = new HashData(hashbytes);
-
-                outputStream.close();
-
-                return contentLength == copied ? hashData : null;
+                return new HashData(digest.digest());
 
             }
 
@@ -2006,13 +1975,15 @@ public class Utils {
                 con.setRequestProperty("User-Agent", USER_AGENT);
                 long contentLength = con.getContentLengthLong();
                
-
+                if(progressIndicator != null){
+                    updateProgress(0, contentLength);
+                }
                try(  
                     FileOutputStream outputStream = new FileOutputStream(outputFile);
                     InputStream inputStream = con.getInputStream();
                 ){                
 
-                    byte[] buffer = new byte[8 * 1024];
+                    byte[] buffer = new byte[contentLength != -1 && contentLength < DEFAULT_BUFFER_SIZE ? (int) contentLength : DEFAULT_BUFFER_SIZE];
 
                     int length = 0;
                     long downloaded = 0;
@@ -2022,15 +1993,16 @@ public class Utils {
                         digest.update(buffer, 0, length);
                     
                         downloaded += (long) length;
-                        updateProgress(downloaded, contentLength);
-                        
+                        if(contentLength != -1 && progressIndicator != null){
+                            updateProgress(downloaded, contentLength);
+                        }
 
                         if(cancel.compareAndSet(true, false)){ 
                            
                             break;
                         }
                     }
-                    if(length == downloaded){
+                    if(contentLength == -1 || (contentLength == downloaded)){
                         byte[] hashbytes = digest.digest();
 
                         return new HashData(hashbytes);

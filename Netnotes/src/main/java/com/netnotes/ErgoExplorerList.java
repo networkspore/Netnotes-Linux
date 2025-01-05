@@ -15,7 +15,7 @@ import com.utils.Utils;
 
 public class ErgoExplorerList {
     private ErgoExplorers m_ergoExplorer = null;
-    private HashMap<String,ErgoExplorerData> m_dataList = new HashMap<>();
+    private HashMap<String,ErgoExplorerData> m_dataHashMap = new HashMap<>();
     
 
     private ChangeListener<LocalDateTime> m_updateListener = null;
@@ -132,8 +132,9 @@ public class ErgoExplorerList {
     private void getData(){
         m_ergoExplorer.getNetworksData().getData("data", ".", ErgoNetwork.EXPLORER_NETWORK, ErgoNetwork.NETWORK_ID, onSucceeded->{
             Object obj = onSucceeded.getSource().getValue();
+
             JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
-            
+           
             if(json != null){
                 openJson(json);
             }else{
@@ -154,12 +155,12 @@ public class ErgoExplorerList {
         
         ErgoPlatformExplorerData ergoExplorerData = new ErgoPlatformExplorerData(this);
         
-        m_dataList.put(ergoExplorerData.getId(), ergoExplorerData);
+        m_dataHashMap.put(ergoExplorerData.getId(), ergoExplorerData);
         save();
     }
 
     public int size(){
-        return m_dataList.size();
+        return m_dataHashMap.size();
     }
 
 
@@ -175,7 +176,7 @@ public class ErgoExplorerList {
                 JsonObject explorerJson = dataItem != null && dataItem.isJsonObject() ? dataItem.getAsJsonObject() : null;
                 
                 if(explorerJson != null){
-                    JsonElement explorerIdElement = explorerJson.get("explorerId");
+                    JsonElement explorerIdElement = explorerJson.get("id");
                     if(explorerIdElement != null && explorerIdElement.isJsonPrimitive()){
                         String explorerId = explorerIdElement.getAsString();
                         if(getErgoExplorerData(explorerId) == null){
@@ -197,7 +198,7 @@ public class ErgoExplorerList {
                             }
                             
                             if(explorerData != null){
-                                m_dataList.put(explorerData.getId(), explorerData);
+                                m_dataHashMap.put(explorerData.getId(), explorerData);
                             }
                             
                         }
@@ -223,7 +224,7 @@ public class ErgoExplorerList {
 
     public void add(ErgoExplorerData ergoExplorerData, boolean doSave) {
         if (ergoExplorerData != null) {
-            m_dataList.put(ergoExplorerData.getId(), ergoExplorerData);
+            m_dataHashMap.put(ergoExplorerData.getId(), ergoExplorerData);
        
             ergoExplorerData.addUpdateListener(m_updateListener);
             if (doSave) {
@@ -246,7 +247,7 @@ public class ErgoExplorerList {
 
     public boolean remove(String id, boolean doSave){
         if (id != null) {
-            ErgoExplorerData explorerData = m_dataList.remove(id);
+            ErgoExplorerData explorerData = m_dataHashMap.remove(id);
             if (explorerData != null) {
                 
                 if(doSave){
@@ -270,9 +271,9 @@ public class ErgoExplorerList {
     }
 
     public ErgoExplorerData getErgoExplorerData(String id) {
-        if (id != null && m_dataList != null) {
+        if (id != null && m_dataHashMap != null) {
        
-            ErgoExplorerData ergoExplorerData = m_dataList.get(id);
+            ErgoExplorerData ergoExplorerData = m_dataHashMap.get(id);
             
             return ergoExplorerData;     
         }
@@ -282,7 +283,7 @@ public class ErgoExplorerList {
      private JsonArray getDataJsonArray() {
         JsonArray jsonArray = new JsonArray();
      
-        for (Map.Entry<String, ErgoExplorerData> entry : m_dataList.entrySet()) {
+        for (Map.Entry<String, ErgoExplorerData> entry : m_dataHashMap.entrySet()) {
             ErgoExplorerData data = entry.getValue();
             JsonObject jsonObj = data.getJsonObject();
             jsonArray.add(jsonObj);
@@ -295,7 +296,7 @@ public class ErgoExplorerList {
 
     public JsonObject getJsonObject() {
         JsonObject json = new JsonObject();
-        if(m_dataList.size() > 0){
+        if(m_dataHashMap.size() > 0){
             json.addProperty("defaultId", getDefaultExplorerId());
             json.add("data", getDataJsonArray());
         }
@@ -307,7 +308,7 @@ public class ErgoExplorerList {
     public JsonArray getExplorers(){
         JsonArray jsonArray = new JsonArray();
 
-        for (Map.Entry<String, ErgoExplorerData> entry : m_dataList.entrySet()) {
+        for (Map.Entry<String, ErgoExplorerData> entry : m_dataHashMap.entrySet()) {
             
             ErgoExplorerData data = entry.getValue();
             JsonObject jsonObj = Utils.getJsonObject("name", data.getName());

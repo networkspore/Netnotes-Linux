@@ -141,7 +141,7 @@ public class AppData {
 
     public void checkForUpdates(ExecutorService execService, SimpleObjectProperty<UpdateInformation> updateInformation){
         GitHubAPI gitHubAPI = new GitHubAPI(App.GITHUB_USER, App.GITHUB_PROJECT);
-         gitHubAPI.getAssetsLatest(execService, (onFinished)->{
+         gitHubAPI.getAssetsLatestRelease(execService, (onFinished)->{
             UpdateInformation tmpInfo = new UpdateInformation();
 
                 Object finishedObject = onFinished.getSource().getValue();
@@ -177,7 +177,7 @@ public class AppData {
                         }
                     }, (releaseInfoFailed)->{
 
-                    },( ProgressIndicator )null);
+                    });
                     
                  
 

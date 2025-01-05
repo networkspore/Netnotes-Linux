@@ -230,6 +230,8 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
     private void initLayout(){
+        TimeSpan timeSpan = m_timeSpan;
+        initChart(timeSpan);
 
         if(!m_marketData.isPool() || m_marketData.getSpectrumChartView().get() == null){
             Alert a = new Alert(AlertType.NONE, "Price history unavailable.", ButtonType.OK);
@@ -420,13 +422,13 @@ public class ErgoDexChartTab extends ContentTab {
         for (int i = 0; i < spans.length; i++) {
 
             String span = spans[i];
-            TimeSpan timeSpan = new TimeSpan(span);
-            String timeSpanName = timeSpan.getName();
+            TimeSpan tS = new TimeSpan(span);
+            String timeSpanName = tS.getName();
             MenuItem menuItm = new MenuItem(timeSpanName);
             menuItm.setId("urlMenuItem");
 
             menuItm.setOnAction(action -> {
-                setTimeSpan(timeSpan);
+                setTimeSpan(tS);
             });
 
             m_timeSpanBtn.getItems().add(menuItm);
@@ -463,12 +465,20 @@ public class ErgoDexChartTab extends ContentTab {
 
         
         updateShowSwap(m_showSwap);
-
+   
 
         FxTimer.runLater(Duration.ofMillis(200), ()->{
             completeLoading();
             FxTimer.runLater(Duration.ofMillis(200), ()->{
-                createChart();
+                if(m_numbers != null){
+                    Bounds bounds = m_chartScroll.getViewportBounds();
+                    int viewPortHeight = (int) bounds.getHeight();
+                    int viewPortWidth = (int) bounds.getWidth();
+                    drawChart(viewPortWidth, viewPortHeight, timeSpan);
+                }else{
+                    createChart();
+                }
+                
 
                 m_chartScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
                    
@@ -615,8 +625,30 @@ public class ErgoDexChartTab extends ContentTab {
         
     }
 
-    private Semaphore m_chartSemaphore = new Semaphore(1);
 
+
+    public void initChart(TimeSpan timeSpan){
+        int maxBars =  (ErgoDexChartView.MAX_CHART_WIDTH / (m_cellWidth + m_cellPadding));
+        long timestamp = System.currentTimeMillis();
+
+        m_spectrumChartView.processData(
+            isInvertProperty().get(), 
+            maxBars, 
+            timeSpan,
+            timestamp,
+            m_dataList.getErgoDex().getExecService(), 
+            (onSucceeded)->{
+            Object sourceValue = onSucceeded.getSource().getValue();
+            if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
+                ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
+                m_numbers = numbers;
+            }
+        
+        }, 
+        (onFailed)->{
+
+        });
+    }
     
     public void createChart(){
         Bounds bounds = m_chartScroll.viewportBoundsProperty().get();
@@ -633,20 +665,20 @@ public class ErgoDexChartTab extends ContentTab {
             maxBars, 
             timeSpan,
             timestamp,
-             m_dataList.getErgoDex().getExecService(), 
-             (onSucceeded)->{
-                Object sourceValue = onSucceeded.getSource().getValue();
-                if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
-                    ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
-                    m_numbers = numbers;
-                
-                    drawChart(viewPortWidth, viewPortHeight, timeSpan);
-                }
-                
-             }, 
-             (onFailed)->{
+            m_dataList.getErgoDex().getExecService(), 
+            (onSucceeded)->{
+            Object sourceValue = onSucceeded.getSource().getValue();
+            if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
+                ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
+                m_numbers = numbers;
+            
+                drawChart(viewPortWidth, viewPortHeight, timeSpan);
+            }
+        
+        }, 
+        (onFailed)->{
 
-             });
+        });
     }
 
     private void drawChart(int viewPortWidth, int viewPortHeight, TimeSpan timeSpan){

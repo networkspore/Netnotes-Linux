@@ -1,5 +1,9 @@
 package com.netnotes;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
@@ -62,7 +66,7 @@ public class ErgoExplorers  {
     public Object sendNote(JsonObject note){
 
         JsonElement cmdElement = note.get(App.CMD);
- 
+       
         switch(cmdElement.getAsString()){
             case "getExplorerById":
                 return m_explorerList.getExplorerById(note);

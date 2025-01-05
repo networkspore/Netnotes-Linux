@@ -78,17 +78,16 @@ public class AddressData extends Network {
        
         JsonObject note = Utils.getCmdObject("getBalance");
         note.addProperty("address", m_addressString);
-
+    
         getErgoNetworkData().getErgoExplorers().sendNote(note, success -> {
             Object sourceObject = success.getSource().getValue();
 
             if (sourceObject != null) {
                 JsonObject jsonObject = (JsonObject) sourceObject;
-                
+                JsonObject balance = parseBalance(jsonObject);
               
-                setBalance(parseBalance(jsonObject));
+                setBalance(balance);
               
-                
             }},
         failed -> {
 

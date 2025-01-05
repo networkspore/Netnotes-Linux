@@ -278,11 +278,24 @@ public class ErgoExplorerData {
 
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
 
+         
+
+
           if(namedUrl != null && namedUrl.getUrlString().length() > 0){
                String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
+
+
                Utils.getUrlJson(urlString,getExecService(), (onBalance)->{
                     Object sourceValue = onBalance.getSource().getValue();
-                    getBalanceTokenInfo(sourceValue != null && sourceValue instanceof JsonObject ? (JsonObject) sourceValue : null, onSucceeded, onFailed);
+                    JsonObject json = sourceValue != null && sourceValue instanceof JsonObject ? (JsonObject) sourceValue : null;
+
+                    try {
+                         Files.writeString(App.logFile.toPath(), "balance: " + json + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+                    
+                    
+                    }
+                    getBalanceTokenInfo(json, onSucceeded, onFailed);
                }, onFailed);
           }
      }
@@ -589,7 +602,6 @@ public class ErgoExplorerData {
 
           json.addProperty("name", getName());
           json.addProperty("id", m_id);
-          json.addProperty("explorerId", m_id);
           
           if(m_ergoNetworkUrlProperty != null){
                json.add("ergoNetworkUrl", m_ergoNetworkUrlProperty.getJsonObject());
