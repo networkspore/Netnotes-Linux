@@ -508,7 +508,7 @@ public class NetworksData {
     }
 
     private void onClosing(){
-        if(getStageMaximized()){
+        if(m_appStage.isMaximized()){
             m_maximizeBtn.fire();
             FxTimer.runLater(Duration.ofMillis(150), ()->{
                 save();
