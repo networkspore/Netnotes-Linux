@@ -7,8 +7,6 @@ import com.google.gson.JsonObject;
 import com.netnotes.NetworksData.ManageNetworksTab;
 import com.utils.Utils;
 
-import org.reactfx.util.Timer;
-
 import javafx.application.Platform;
 import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
@@ -18,7 +16,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
@@ -42,7 +39,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -63,9 +59,6 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 import org.reactfx.util.FxTimer;
 
@@ -79,32 +72,34 @@ public class ErgoDexChartTab extends ContentTab {
     public final static double SWAP_BOX_MIN_WIDTH = 300;
     public final static String DEFAULT_ID = "DEFAULT_ID";
     public final static double BG_ICON_HEIGHT = 38;
+    public final static int CHART_HEIGHT_OFFSET = 5;
 
-    private ScrollPane m_chartScroll;
+    private ScrollPane m_chartScroll = null;
     private int m_cellWidth = 20;
     private int m_cellPadding = 3;
    
-    private ErgoDexChartView m_spectrumChartView;
-    private java.awt.Font m_labelFont;
-    private FontMetrics m_labelMetrics;
-    private int m_amStringWidth;
-    private int m_zeroStringWidth;
-    private RangeBar m_chartRange;
-    private ImageView m_chartImageView;
+    private ErgoDexChartView m_spectrumChartView = null;
+    private java.awt.Font m_labelFont = null;
+    private FontMetrics m_labelMetrics = null;
+    private int m_amStringWidth = 10;
+    private int m_zeroStringWidth = 25;
+    private RangeBar m_chartRange = null;
+    private ImageView m_chartImageView = null;
     private ChangeListener<Boolean> m_invertListener = null;
-    private MenuButton m_timeSpanBtn;
+    private MenuButton m_timeSpanBtn = null;
 
-    private SimpleDoubleProperty m_rangeWidth;
-    private SimpleDoubleProperty m_rangeHeight;
-    private SimpleDoubleProperty m_chartScrollWidth;
-    private SimpleDoubleProperty m_chartScrollHeight;
+    private SimpleDoubleProperty m_rangeWidth = null;
+    private SimpleDoubleProperty m_rangeHeight = null;
+    private SimpleDoubleProperty m_chartScrollWidth = null;
+    private SimpleDoubleProperty m_chartScrollHeight = null;
    
   
     private BufferedImage m_img = null;
     private Graphics2D m_g2d = null;
     private WritableImage m_wImg = null;
     private ErgoDexNumbers m_numbers = null;
-    private NoteMsgInterface m_chartMsgInterface;
+    private NoteMsgInterface m_chartMsgInterface = null;
+    private ChangeListener<Boolean> m_maximizeListener = null;
 
     private final double chartScrollVvalue = 1;
     private final double chartScrollHvalue = 1;
@@ -113,11 +108,11 @@ public class ErgoDexChartTab extends ContentTab {
     private SimpleStringProperty m_titleProperty;
 
     private ErgoDexSwapBox m_ergoDexSwapBox = null;
-    private Button m_toggleSwapBtn;
-    private HBox m_bodyBox;
-    private VBox m_layoutBox;
-    private VBox m_chartBox;
-    
+    private Button m_toggleSwapBtn = null;
+    private HBox m_bodyBox = null;
+    private VBox m_layoutBox = null;
+    private VBox m_chartTabBox = null;
+    private HBox m_chartBox = null;
 
     private boolean m_showSwap = true;
     private SimpleBooleanProperty m_showWallet = new SimpleBooleanProperty(true);
@@ -126,11 +121,8 @@ public class ErgoDexChartTab extends ContentTab {
 
     private TimeSpan m_timeSpan = new TimeSpan("30min");
     private String m_defaultWalletId = DEFAULT_ID;
-
-    private Timer m_lastExecution = null;
     
     
-
     public boolean isInvert(){
         return m_marketItem.isInvert();
     }
@@ -166,9 +158,12 @@ public class ErgoDexChartTab extends ContentTab {
        
         m_layoutBox = layoutBox;
 
-        m_chartBox = new VBox();
+        m_chartTabBox = new VBox();
+        m_chartTabBox.setAlignment(Pos.CENTER);
+        
+        m_chartBox = new HBox();
         m_chartBox.setAlignment(Pos.CENTER);
-
+        m_chartBox.setId("darkBox");
         setLoadingBox();
 
         getData((onSucceeded)->{
@@ -230,8 +225,8 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
     private void initLayout(){
-        TimeSpan timeSpan = m_timeSpan;
-        initChart(timeSpan);
+
+        initChart( m_timeSpan);
 
         if(!m_marketData.isPool() || m_marketData.getSpectrumChartView().get() == null){
             Alert a = new Alert(AlertType.NONE, "Price history unavailable.", ButtonType.OK);
@@ -303,7 +298,8 @@ public class ErgoDexChartTab extends ContentTab {
 
         m_chartImageView = new ImageView();
         m_chartImageView.setPreserveRatio(true);
-        m_chartScroll = new ScrollPane();        
+
+        m_chartScroll = new ScrollPane(m_chartBox);        
         
         headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(m_timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
         
@@ -354,8 +350,8 @@ public class ErgoDexChartTab extends ContentTab {
         
         m_toggleSwapBtn.prefHeightProperty().bind(m_bodyBox.heightProperty());
 
-        m_chartBox.getChildren().clear();
-        m_chartBox.getChildren().addAll(headerVBox, bodyPaddingBox);
+        m_chartTabBox.getChildren().clear();
+        m_chartTabBox.getChildren().addAll(headerVBox, bodyPaddingBox);
 
 
         m_chartScrollWidth = new SimpleDoubleProperty();
@@ -369,6 +365,8 @@ public class ErgoDexChartTab extends ContentTab {
         //m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10)
         m_chartScroll.prefViewportHeightProperty().bind(m_chartScrollHeight);
 
+        m_chartBox.minWidthProperty().bind(m_chartScrollWidth.subtract(1));
+        m_chartBox.minHeightProperty().bind(m_chartScrollHeight.subtract(CHART_HEIGHT_OFFSET));
 
         m_rangeHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerVBox.heightProperty()).subtract(65));
 
@@ -474,7 +472,7 @@ public class ErgoDexChartTab extends ContentTab {
                     Bounds bounds = m_chartScroll.getViewportBounds();
                     int viewPortHeight = (int) bounds.getHeight();
                     int viewPortWidth = (int) bounds.getWidth();
-                    drawChart(viewPortWidth, viewPortHeight, timeSpan);
+                    drawChart(viewPortWidth, viewPortHeight,  m_timeSpan);
                 }else{
                     createChart();
                 }
@@ -484,33 +482,40 @@ public class ErgoDexChartTab extends ContentTab {
                    
                     if(m_numbers != null){
 
-                        int viewPortHeight = (int) newval.intValue()-5;
+                        int viewPortHeight = (int) newval.intValue() - CHART_HEIGHT_OFFSET;
                         int viewPortWidth = (int) m_chartScrollWidth.get();
-                        drawChart(viewPortWidth, viewPortHeight, timeSpan);
+                        drawChart(viewPortWidth, viewPortHeight,  m_timeSpan);
                     }else{
                         createChart();
                     }
                     
                 });
+
+               
             });
         });
 
+        m_maximizeListener = (obs,oldval,newval)->{
+          
+            FxTimer.runLater(Duration.ofMillis(200), ()->drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - CHART_HEIGHT_OFFSET, null));
+        
+        };
+
     
-        getNetworksData().getStage().maximizedProperty().addListener((obs,oldval,newval)->{
-            if(newval){
-                FxTimer.runLater(Duration.ofMillis(200), ()->Platform.runLater(()->m_chartScroll.setVvalue(chartScrollVvalue)));
-            }
-        });
+        getNetworksData().getStage().maximizedProperty().addListener(m_maximizeListener);
     
     }
 
     private void completeLoading(){
-        if(!m_layoutBox.getChildren().contains(m_chartBox)){
+        if(!m_layoutBox.getChildren().contains(m_chartTabBox)){
             m_layoutBox.getChildren().clear();
-            m_layoutBox.getChildren().add(m_chartBox);
+            m_layoutBox.getChildren().add(m_chartTabBox);
 
-            m_chartScroll.setContent(m_chartImageView);
-
+            m_chartBox.getChildren().clear();
+            m_chartBox.setAlignment(Pos.CENTER);
+            ProgressBar chartProgressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+            chartProgressBar.setPrefWidth(100);
+            m_chartBox.getChildren().add(chartProgressBar);
             setChartScrollRight();
         }
     }
@@ -658,10 +663,10 @@ public class ErgoDexChartTab extends ContentTab {
     }
     
     public void createChart(){
-        Bounds bounds = m_chartScroll.viewportBoundsProperty().get();
+
                           
-        int viewPortHeight = (int) bounds.getHeight();
-        int viewPortWidth = (int) bounds.getWidth();
+        int viewPortHeight = (int) m_chartScrollHeight.get() - CHART_HEIGHT_OFFSET;
+        int viewPortWidth = (int) m_chartScrollWidth.get();
         int maxBars =  (ErgoDexChartView.MAX_CHART_WIDTH / (m_cellWidth + m_cellPadding));
 
         TimeSpan timeSpan = m_timeSpan;
@@ -727,18 +732,17 @@ public class ErgoDexChartTab extends ContentTab {
 
             m_chartImageView.setImage(SwingFXUtils.toFXImage(m_img, m_wImg));
         
-            if(isNewImg){
-                setChartScrollRight();
-                if(viewPortWidth > ErgoDexChartView.MAX_CHART_WIDTH){
-                    m_chartImageView.setFitWidth(viewPortWidth);
-                }else{
-                    
-                    m_chartImageView.setFitWidth(m_img.getWidth());
-                    
-                }
-                
+            if(isNewImg){ 
+                m_chartImageView.setFitWidth(m_img.getWidth());   
             }
     
+            if(!m_chartBox.getChildren().contains(m_chartImageView)){
+                m_chartBox.setAlignment(Pos.BOTTOM_RIGHT);
+                m_chartBox.getChildren().add(m_chartImageView);
+            }
+
+            setChartScrollRight();
+
 
         }
     }
@@ -784,6 +788,9 @@ public class ErgoDexChartTab extends ContentTab {
 
     @Override
     public void close(){
+        if(m_maximizeListener != null){
+            getNetworksData().getStage().maximizedProperty().removeListener(m_maximizeListener);
+        }
         m_ergoDexSwapBox.shutdown();
 
         if(m_invertListener != null){

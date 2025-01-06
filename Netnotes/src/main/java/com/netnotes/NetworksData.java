@@ -294,6 +294,7 @@ public class NetworksData {
         m_mainHBox = new HBox(m_menuBox, m_staticContentBox, m_contentBox);
     
         m_staticContent = new ScrollPane();
+        m_staticContent.setId("darkBox");
 
         m_footerBox = new HBox();
         m_footerBox.setAlignment(Pos.CENTER_LEFT);
@@ -429,7 +430,7 @@ public class NetworksData {
         
         m_contentBox.getChildren().add(m_contentTabs);
 
-        m_staticContent.setMinViewportWidth(DEFAULT_STATIC_WIDTH +5);
+        m_staticContent.setMinViewportWidth(DEFAULT_STATIC_WIDTH + 1 );
         m_staticContent.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
         
         m_staticContentHeight.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(45));

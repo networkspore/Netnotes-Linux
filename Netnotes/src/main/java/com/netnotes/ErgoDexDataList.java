@@ -76,7 +76,7 @@ public class ErgoDexDataList  {
 
         
     private java.awt.Font m_headingFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 18);
-    private java.awt.Font m_labelFont = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 12);
+    private java.awt.Font m_labelFont = new java.awt.Font("OCR A Extended", java.awt.Font.BOLD, 16);
     private int m_labelAscent;
     private int m_labelLeading;
     private int m_labelHeight;
@@ -111,7 +111,7 @@ public class ErgoDexDataList  {
 
         m_layoutBox = new VBox();
         m_layoutBox.setId("darkBox");
-        
+
         m_loadingBox = new VBox();
         m_loadingBox.setId("darkBox");
         m_loadingBox.setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);

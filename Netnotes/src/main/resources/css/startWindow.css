@@ -841,6 +841,9 @@
 #redColor {
     -fx-background-color: red;
 }
+#blueColor {
+    -fx-background-color: blue;
+}
 #transparentColor {
     -fx-background-color: transparent;
 }
