@@ -532,9 +532,8 @@ public class AddressesData {
             bodyScroll.prefViewportHeightProperty().bind(bodyBox.heightProperty().subtract(10));
 
             parametersBox.setPrefWidth(bodyBox.widthProperty().get() -1);
-            bodyScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
-                double width = newval.getWidth();
-                parametersBox.setPrefWidth(width-1);
+            bodyScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
+                parametersBox.setPrefWidth(newval.doubleValue()-1);
             });
 
   
@@ -901,8 +900,8 @@ public class AddressesData {
             bodyScroll.prefViewportHeightProperty().bind(bodyBox.heightProperty().subtract(10));
 
             parametersBox.setPrefWidth(bodyBox.widthProperty().get() -1);
-            bodyScroll.viewportBoundsProperty().addListener((obs,oldval,newval)->{
-                double width = newval.getWidth();
+            bodyScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
+                double width = newval.doubleValue();
                 parametersBox.setPrefWidth(width-1);
             });
 

@@ -206,11 +206,8 @@ public class ErgoDexMarketItem {
                 open();
             }
         });
-
-
-
       
-       m_rowChartImgView.setPreserveRatio(false);
+        m_rowChartImgView.setPreserveRatio(false);
      
         HBox chartBox = new HBox(m_rowChartImgView);
         chartBox.setPadding(new Insets(0));

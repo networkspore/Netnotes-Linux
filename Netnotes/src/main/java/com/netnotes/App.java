@@ -95,8 +95,9 @@ public class App extends Application {
     public final static String RESOURCES_FILENAME = "resources.dat";
     public final static File logFile = new File("netnotes-log.txt");
 
+    public final static int VIEWPORT_HEIGHT_OFFSET = 5;
+    public final static int VIEWPORT_WIDTH_OFFSET = 5;
 
-    
     public static final int SUCCESS = 1;
     public static final int ERROR = 2;
 

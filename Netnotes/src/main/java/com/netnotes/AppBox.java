@@ -12,6 +12,7 @@ public class AppBox extends VBox implements SimpleNoteInterface{
 
     public AppBox(){
         super();
+        setId("darkBox");
     }
 
     public AppBox(String appId){

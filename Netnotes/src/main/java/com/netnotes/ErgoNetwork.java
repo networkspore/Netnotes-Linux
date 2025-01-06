@@ -252,7 +252,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     private class ErgoNetworkTab extends AppBox implements TabInterface{
         
-
+        private ScrollPane m_tabScroll;
         private ScrollPane m_walletScroll;
         private ChangeListener<Bounds> m_boundsChange;
 
@@ -261,7 +261,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
         private ErgoTokenMarketAppBox m_ergoTokenMarketAppBox = null;
         private ErgoExplorersAppBox m_ergoExplorerAppBox = null;
         private ErgoNodesAppBox m_ergoNodesAppBox = null;
-        
+        private VBox m_tabScrollContent = null;
         private NoteMsgInterface m_ergoNetworkMsgInterface = null;
         
         private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
@@ -279,13 +279,20 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
         public ErgoNetworkTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button networkBtn){
             super(NETWORK_ID);
+            
             m_menuBtn = networkBtn;
-     
-            setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);
-            setMaxWidth(NetworksData.DEFAULT_STATIC_WIDTH);
-          
-            prefHeightProperty().bind(heightObject);
 
+            m_tabScrollContent = new VBox();
+           
+            m_tabScroll = new ScrollPane(m_tabScrollContent);
+            m_tabScroll.prefViewportHeightProperty().bind(heightObject);
+            m_tabScroll.prefViewportWidthProperty().bind(widthObject);
+
+            m_tabScrollContent.prefWidthProperty().bind(widthObject.subtract(App.VIEWPORT_WIDTH_OFFSET));
+            m_tabScrollContent.minHeightProperty().bind(heightObject.subtract(App.VIEWPORT_HEIGHT_OFFSET));
+
+            getChildren().add(m_tabScroll);
+          
 
             m_ergoWalletsAppBox = new ErgoWalletsAppBox(appStage, m_ergNetData.getLocationId(), getNoteInterface());
             m_ergoExplorerAppBox = new ErgoExplorersAppBox(appStage, m_ergNetData.getLocationId(), getNoteInterface());
@@ -387,9 +394,9 @@ public class ErgoNetwork extends Network implements NoteInterface {
             VBox.setVgrow(appBoxSpacer, Priority.ALWAYS);
         
 
-            getChildren().addAll(m_ergoWalletsAppBox, appBoxSpacer,gBox, m_ergoMarketsAppBox, gBox1, m_ergoTokenMarketAppBox, gBox2, m_ergoNodesAppBox, gBox3, m_ergoExplorerAppBox);
+            m_tabScrollContent.getChildren().addAll(m_ergoWalletsAppBox, appBoxSpacer,gBox, m_ergoMarketsAppBox, gBox1, m_ergoTokenMarketAppBox, gBox2, m_ergoNodesAppBox, gBox3, m_ergoExplorerAppBox);
       
-         
+            
         }
         
         @Override

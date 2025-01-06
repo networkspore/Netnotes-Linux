@@ -72,7 +72,7 @@ public class ErgoDexChartTab extends ContentTab {
     public final static double SWAP_BOX_MIN_WIDTH = 300;
     public final static String DEFAULT_ID = "DEFAULT_ID";
     public final static double BG_ICON_HEIGHT = 38;
-    public final static int CHART_HEIGHT_OFFSET = 5;
+    
 
     private ScrollPane m_chartScroll = null;
     private int m_cellWidth = 20;
@@ -366,7 +366,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_chartScroll.prefViewportHeightProperty().bind(m_chartScrollHeight);
 
         m_chartBox.minWidthProperty().bind(m_chartScrollWidth.subtract(1));
-        m_chartBox.minHeightProperty().bind(m_chartScrollHeight.subtract(CHART_HEIGHT_OFFSET));
+        m_chartBox.minHeightProperty().bind(m_chartScrollHeight.subtract(App.VIEWPORT_HEIGHT_OFFSET));
 
         m_rangeHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerVBox.heightProperty()).subtract(65));
 
@@ -482,7 +482,7 @@ public class ErgoDexChartTab extends ContentTab {
                    
                     if(m_numbers != null){
 
-                        int viewPortHeight = (int) newval.intValue() - CHART_HEIGHT_OFFSET;
+                        int viewPortHeight = (int) newval.intValue() - App.VIEWPORT_HEIGHT_OFFSET;
                         int viewPortWidth = (int) m_chartScrollWidth.get();
                         drawChart(viewPortWidth, viewPortHeight,  m_timeSpan);
                     }else{
@@ -497,7 +497,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         m_maximizeListener = (obs,oldval,newval)->{
           
-            FxTimer.runLater(Duration.ofMillis(200), ()->drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - CHART_HEIGHT_OFFSET, null));
+            FxTimer.runLater(Duration.ofMillis(200), ()->drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - App.VIEWPORT_HEIGHT_OFFSET, null));
         
         };
 
@@ -665,7 +665,7 @@ public class ErgoDexChartTab extends ContentTab {
     public void createChart(){
 
                           
-        int viewPortHeight = (int) m_chartScrollHeight.get() - CHART_HEIGHT_OFFSET;
+        int viewPortHeight = (int) m_chartScrollHeight.get() - App.VIEWPORT_HEIGHT_OFFSET;
         int viewPortWidth = (int) m_chartScrollWidth.get();
         int maxBars =  (ErgoDexChartView.MAX_CHART_WIDTH / (m_cellWidth + m_cellPadding));
 

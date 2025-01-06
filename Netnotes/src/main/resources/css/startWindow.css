@@ -59,6 +59,12 @@
     -fx-background-color: linear-gradient(to bottom, #ffffff15 0%, #000000EE 50%, #11111110 90%);
    
 }
+
+#footerBar {
+    -fx-background-color: linear-gradient(to bottom, #11111115 0%, #00000050 50%, #11111110 90%);
+   
+}
+
 #hand{
     -fx-cursor:hand;
 }

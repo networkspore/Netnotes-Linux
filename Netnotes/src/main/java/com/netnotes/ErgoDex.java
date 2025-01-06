@@ -311,12 +311,12 @@ public class ErgoDex extends Network implements NoteInterface {
 
         private TextField m_lastUpdatedField;
 
-        private SimpleDoubleProperty m_gridWidth;
+
         private SimpleDoubleProperty m_gridHeight;
 
-        private SimpleDoubleProperty m_widthObject;
+        private SimpleDoubleProperty m_tabWidth;
         private SimpleDoubleProperty m_heightObject;
-        private ScrollPane scrollPane;
+        private ScrollPane gridSscrollPane;
 
         public ErgoDexTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
             super(getNetworkId());
@@ -326,16 +326,15 @@ public class ErgoDex extends Network implements NoteInterface {
             
             m_lastUpdatedField = new TextField(); 
             
-            m_widthObject = widthObject;
+            m_tabWidth = widthObject;
             m_heightObject = heightObject;
 
-            m_gridWidth = new SimpleDoubleProperty(NetworksData.DEFAULT_STATIC_WIDTH);
+ 
             m_gridHeight = new SimpleDoubleProperty(heightObject.get() - 100);
             setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);
             setMaxWidth(NetworksData.DEFAULT_STATIC_WIDTH);
 
-            scrollPane = new ScrollPane();
-            scrollPane.setPadding(new Insets(2));
+            gridSscrollPane = new ScrollPane();
             prefHeightProperty().bind(heightObject);
             
             getData((onSucceeded)->{
@@ -349,7 +348,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
         public void layoutTab(){
            
-            m_dexDataList = new ErgoDexDataList(m_locationId, m_appStage, ErgoDex.this, m_gridWidth,m_gridHeight,m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  scrollPane);
+            m_dexDataList = new ErgoDexDataList(m_locationId, m_appStage, ErgoDex.this, m_tabWidth, m_gridHeight, m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  gridSscrollPane);
 
 
             ImageView networkMenuBtnImageView = new ImageView(new Image(noNetworkImgString));
@@ -619,7 +618,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             VBox chartList = m_dexDataList.getLayoutBox();
 
-            scrollPane.setContent(chartList);
+            gridSscrollPane.setContent(chartList);
             
         //    HBox headingsBox = new HBox();
 
@@ -627,7 +626,7 @@ public class ErgoDex extends Network implements NoteInterface {
             HBox.setHgrow(menuBarBox,Priority.ALWAYS);
             menuBarBox.setPadding(new Insets(0,0,10,0));
             
-            m_bodyPaddingBox = new VBox(menuBarBox, scrollPane);
+            m_bodyPaddingBox = new VBox(menuBarBox, gridSscrollPane);
             m_bodyPaddingBox.setPadding(new Insets(0,5,0,5));
 
     
@@ -648,50 +647,30 @@ public class ErgoDex extends Network implements NoteInterface {
             lastUpdatedRegion.setMinWidth(10);
             HBox.setHgrow(lastUpdatedRegion, Priority.ALWAYS);
 
+            HBox footerGradient = new HBox();
+            footerGradient.setId("hGradient");
+            footerGradient.setMinHeight(1);
+            HBox.setHgrow(footerGradient, Priority.ALWAYS);
+
             HBox lastUpdatedBox = new HBox(errorText, lastUpdatedRegion, m_lastUpdatedField);
             lastUpdatedBox.setAlignment(Pos.CENTER_RIGHT);
             HBox.setHgrow(lastUpdatedBox, Priority.ALWAYS);
 
-            VBox footerVBox = new VBox(lastUpdatedBox);
+            VBox footerVBox = new VBox(footerGradient,lastUpdatedBox);
             HBox.setHgrow(footerVBox, Priority.ALWAYS);
-            footerVBox.setPadding(new Insets(0,5,2,5));
-
+            footerVBox.setPadding(new Insets(0,0,0,5));
+            footerVBox.setId("footerBar");
 
 
             getChildren().addAll( m_bodyPaddingBox, footerVBox);
 
-
-            
+         
 
             m_bodyPaddingBox.prefWidthProperty().bind(widthProperty().subtract(1));
-            scrollPane.prefViewportWidthProperty().bind(m_widthObject);
+            gridSscrollPane.prefViewportWidthProperty().bind(m_tabWidth);
+            gridSscrollPane.prefViewportHeightProperty().bind(m_heightObject.subtract(footerVBox.heightProperty()));
 
-        // Binding<Double> scrollWidth = Bindings.createObjectBinding(()->scrollPane.viewportBoundsProperty().get() != null ? (scrollPane.viewportBoundsProperty().get().getWidth() < 300 ? 300 : scrollPane.viewportBoundsProperty().get().getWidth() ) : 300, scrollPane.viewportBoundsProperty());
-
-            scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
-            
-                double width = newval.getWidth();
-        
-                m_gridWidth.set( width < 300 ? 300 : width );
-    
-            
-                
-            });
-
-            Binding<Double> scrollHeight = Bindings.createObjectBinding(()->{
-                Bounds bounds = scrollPane.viewportBoundsProperty().get();
-                return bounds != null ? bounds.getHeight() : m_gridHeight.get();
-            }, scrollPane.viewportBoundsProperty());
-
-            m_gridHeight.bind(scrollHeight);
-
-        
-            scrollPane.prefViewportHeightProperty().bind(m_heightObject.subtract(footerVBox.heightProperty()));
-
-            scrollPane.viewportBoundsProperty().addListener((obs,oldval,newval)->{
-                chartList.setPrefWidth(newval.getWidth() - 40);
-                chartList.setMaxWidth(newval.getWidth() - 40);
-            });
+          
         }
         private boolean isErgoNetwork(){
             return m_isErgoNetwork;

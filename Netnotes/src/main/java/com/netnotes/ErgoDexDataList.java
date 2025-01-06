@@ -103,7 +103,10 @@ public class ErgoDexDataList  {
         m_scrollPane = scrollPane;
         m_updatedField = updatedField;
         m_ergoNetworkInterfaceProperty = networkInterface;
-        m_gridWidth = gridWidth;
+        m_gridWidth = new SimpleDoubleProperty();
+
+        m_gridWidth.bind(gridWidth.subtract(22));
+
         m_gridHeight = gridHeight;
         m_timeSpanObject = timeSpanObject;
 
@@ -114,7 +117,7 @@ public class ErgoDexDataList  {
 
         m_loadingBox = new VBox();
         m_loadingBox.setId("darkBox");
-        m_loadingBox.setPrefWidth(NetworksData.DEFAULT_STATIC_WIDTH);
+        m_loadingBox.prefWidthProperty().bind(m_gridWidth.add(5));
         setLoadingBox();
        
 
@@ -196,7 +199,7 @@ public class ErgoDexDataList  {
         statusLabelBox.setAlignment(Pos.CENTER);
 
 
-        imageBox.prefHeightProperty().bind(m_gridHeight.subtract(statusLabelBox.heightProperty()));
+        imageBox.prefHeightProperty().bind(m_gridHeight);
 
         //imageBox.setPadding(new Insets(0,0,40,0));
 
@@ -355,32 +358,32 @@ public class ErgoDexDataList  {
 
     public void updateMarkets(ArrayList<ErgoDexMarketData> marketsArray) {
         
-            int updateSize = marketsArray.size() ;
-         
-            SimpleBooleanProperty update = new SimpleBooleanProperty(false);
- 
-            for(int i = 0; i< updateSize ; i++){
-                
-                ErgoDexMarketData marketData = marketsArray.get(i);
-          
+        int updateSize = marketsArray.size() ;
+        
+        SimpleBooleanProperty update = new SimpleBooleanProperty(false);
 
+        for(int i = 0; i< updateSize ; i++){
             
-                ErgoDexMarketItem item = getMarketItem(marketData.getId());
-                if(item == null){
-                    ErgoDexMarketItem newItem = new ErgoDexMarketItem( marketData, getSpectrumDataList());
-                    m_marketsList.add(newItem);
-                    newItem.init();
-                    update.set(true);
-                }
-                
-            }
-          
-            if(update.get() || m_connectionStatus == App.ERROR){
-                sort();
-                updateGrid();
-            }
-                   
+            ErgoDexMarketData marketData = marketsArray.get(i);
+        
 
+        
+            ErgoDexMarketItem item = getMarketItem(marketData.getId());
+            if(item == null){
+                ErgoDexMarketItem newItem = new ErgoDexMarketItem( marketData, getSpectrumDataList());
+                m_marketsList.add(newItem);
+                newItem.init();
+                update.set(true);
+            }
+            
+        }
+        
+        if(update.get() || m_connectionStatus == App.ERROR){
+            sort();
+            updateGrid();
+        }
+                
+        m_updatedField.setText(Utils.formatDateTimeString( LocalDateTime.now()));
     }
 
 
@@ -479,7 +482,7 @@ public class ErgoDexDataList  {
            
         } 
 
-        m_updatedField.setText(Utils.formatDateTimeString( LocalDateTime.now()));
+      
     }
 
     public void sort(){

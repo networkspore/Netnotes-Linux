@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -143,7 +144,7 @@ public class NetworksData {
     private AppData m_appData;
 
     private Stage m_appStage = null;
-    private ScrollPane m_staticContent;
+    private StackPane m_staticContent;
     private VBox m_subMenuBox = new VBox();
     private HBox m_topBarBox;
     private HBox m_menuContentBox;
@@ -293,7 +294,7 @@ public class NetworksData {
 
         m_mainHBox = new HBox(m_menuBox, m_staticContentBox, m_contentBox);
     
-        m_staticContent = new ScrollPane();
+        m_staticContent = new StackPane();
         m_staticContent.setId("darkBox");
 
         m_footerBox = new HBox();
@@ -395,12 +396,13 @@ public class NetworksData {
        
                 m_subMenuBox.getChildren().addAll(m_topBarBox, gBox, (Pane) newval);
                 m_menuContentBox.getChildren().addAll(m_subMenuBox, vBar);
-                m_staticContent.setContent( m_menuContentBox );
-
+                if(!m_staticContent.getChildren().contains(m_menuContentBox)){
+                    m_staticContent.getChildren().add( m_menuContentBox );
+                }
          
                
             }else{
-                m_staticContent.setContent(null);
+                m_staticContent.getChildren().clear();
             }
           
 
@@ -430,8 +432,8 @@ public class NetworksData {
         
         m_contentBox.getChildren().add(m_contentTabs);
 
-        m_staticContent.setMinViewportWidth(DEFAULT_STATIC_WIDTH + 1 );
-        m_staticContent.prefViewportHeightProperty().bind(m_appStage.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
+        m_staticContent.setMinWidth(DEFAULT_STATIC_WIDTH + App.VIEWPORT_WIDTH_OFFSET);
+        m_staticContent.prefHeightProperty().bind(m_appStage.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()));
         
         m_staticContentHeight.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(45));
 

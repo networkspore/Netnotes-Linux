@@ -498,7 +498,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
         m_walletBodyBox = new VBox();
         m_walletBodyBox.setPadding(new Insets(0, 0, 0, 5));
-        m_walletBodyBox.setId("networkBox");
+
 
         VBox walletBodyPaddingBox = new VBox();
         HBox.setHgrow(walletBodyPaddingBox, Priority.ALWAYS);
