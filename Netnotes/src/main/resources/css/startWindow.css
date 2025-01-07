@@ -1192,10 +1192,11 @@
 #menuTabBtn {
     -fx-background-color: transparent;
     -fx-opacity: .8;
-    -fx-min-height: 50;
-    -fx-min-width: 50;
-    -fx-max-width: 50;
+    -fx-min-height: 57;
+    -fx-min-width: 57;
+    -fx-max-width: 57;
     -fx-padding: 0 0 0 5;
+    -fx-alignment: center;
 }
 
 #menuTabBtn:hover {   
@@ -1219,10 +1220,11 @@
 #activeMenuBtn {
     -fx-background-color:linear-gradient(to right, #ffffff 0%, #111111 4%, #111111 100%);
     -fx-opacity: .8;
-    -fx-min-height: 50;
-    -fx-min-width: 50;
-    -fx-max-width: 50;
+    -fx-min-height: 57;
+    -fx-min-width: 57;
+    -fx-max-width: 57;
     -fx-padding: 0 0 0 5;
+    -fx-alignment: center;
 }
 #activeMenuBtn:hover {
    
@@ -1317,6 +1319,29 @@
     -fx-background-color: white;
 }
 
+
+
+#arrowMenuButtonSmall{
+    -fx-padding: 0 5 0 10;
+ 
+ }
+ #arrowMenuButtonSmall .label{
+     -fx-font-family: 'OCR A Extended';
+     -fx-font-size: 12;
+     -fx-alignment:center-left;
+     -fx-padding: 0 1 0 1;
+ }
+ #arrowMenuButtonSmall>.arrow-button {
+     -fx-min-height:18;
+     -fx-min-width:25;
+ 
+ }
+ 
+ #arrowMenuButtonSmall>.arrow-button>.arrow {
+     -fx-padding: 0.25em;
+     -fx-background-color: white;
+ }
+ 
 
 .menu-button {
 

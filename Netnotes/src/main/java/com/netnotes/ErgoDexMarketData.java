@@ -34,7 +34,7 @@ public class ErgoDexMarketData extends PriceQuote {
 
     private SimpleObjectProperty<ErgoDexChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
 
-    public ErgoDexMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, BigDecimal baseVolume, BigDecimal quoteVolume, int baseDecimals, int quoteDecimals, PoolStats poolStats, BigDecimal poolSlippage, long timeStamp){
+    public ErgoDexMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, BigDecimal baseVolume, BigDecimal quoteVolume, int baseDecimals, int quoteDecimals, long timeStamp){
         setAmount(amount);
         setBaseSymbol(baseSymbol);
         setQuoteSymbol(quoteSymbol);

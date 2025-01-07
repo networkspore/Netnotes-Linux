@@ -307,10 +307,8 @@ public class NetworksData {
         VBox layout = new VBox(m_titleBox, m_mainHBox, m_footerBox);
 
 
-        m_menuWidth = new SimpleDoubleProperty(52);
-        m_menuBox.maxWidthProperty().bind(m_menuWidth);
-        m_menuBox.minWidthProperty().bind(m_menuWidth);
-      
+        m_menuWidth = new SimpleDoubleProperty(50);
+
         m_subMenuBox.setAlignment(Pos.TOP_LEFT);
   
         m_tabLabel.setPadding(new Insets(2,0,2,5));
@@ -334,7 +332,6 @@ public class NetworksData {
         VBox.setVgrow(menuVBarBox, Priority.ALWAYS);
         menuVBarBox.setMinWidth(2);
         menuVBarBox.setAlignment(Pos.CENTER_LEFT);
-        menuVBarBox.setId("darkBox");
 
         Region logoGrowRegion = new Region();
         HBox.setHgrow(logoGrowRegion, Priority.ALWAYS);
@@ -428,7 +425,7 @@ public class NetworksData {
         m_appsMenu = new AppsMenu();
         m_contentTabs = new ContentTabs();
 
-        m_menuBox.getChildren().addAll( m_appsMenu, menuVBar);
+        m_menuBox.getChildren().addAll( m_appsMenu, menuVBarBox);
         
         m_contentBox.getChildren().add(m_contentTabs);
 
@@ -446,6 +443,10 @@ public class NetworksData {
         
         m_contentWidth.bind(m_scene.widthProperty().subtract(m_menuBox.widthProperty()).subtract(m_staticContentBox.widthProperty()).subtract(1));
         m_contentHeight.bind(m_scene.heightProperty().subtract(m_titleBox.heightProperty()).subtract(m_footerBox.heightProperty()).subtract(1));
+
+        if(getStageMaximized()){
+            m_appStage.setMaximized(true);
+        }
 
         m_scene.widthProperty().addListener((obs, oldval, newVal) -> {
             setStageWidth(newVal.doubleValue());
@@ -479,7 +480,7 @@ public class NetworksData {
             }
              
             m_appStage.setMaximized(!maximized);
-
+            FxTimer.runLater(Duration.ofMillis(200), ()->save());
         });
 
         menuTabProperty().addListener((obs,oldval,newval)->{
@@ -511,7 +512,7 @@ public class NetworksData {
     }
 
     private void onClosing(){
-        if(m_appStage.isMaximized()){
+        /*if(m_appStage.isMaximized()){
             m_maximizeBtn.fire();
             FxTimer.runLater(Duration.ofMillis(150), ()->{
                 save();
@@ -524,7 +525,10 @@ public class NetworksData {
             shutdown();
             m_appStage.close();
             App.shutdownNow();
-        }
+        }*/
+        shutdown();
+        m_appStage.close();
+        App.shutdownNow();
     }
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
@@ -784,7 +788,6 @@ public class NetworksData {
         json.addProperty("height", getStageHeight());
         json.addProperty("prevWidth", getStagePrevWidth());
         json.addProperty("prevHeight", getStagePrevHeight());
-        json.addProperty("iconStyle", m_stageIconStyle.get());
         return json;
     }
 
@@ -3164,10 +3167,10 @@ public class NetworksData {
             socketPaddingBox.setPadding(new Insets(0,0,0,5));
 
             StackPane currentNetworkBox = new StackPane(m_networkBtn, socketPaddingBox, networkMenuBtnBox);
-            currentNetworkBox.setMaxWidth(52);
-            currentNetworkBox.setMaxHeight(52);
-            currentNetworkBox.setMinWidth(52);
-            currentNetworkBox.setMinHeight(52);
+            currentNetworkBox.setMaxWidth(57);
+            currentNetworkBox.setMaxHeight(57);
+            currentNetworkBox.setMinWidth(57);
+            currentNetworkBox.setMinHeight(57);
             currentNetworkBox.setAlignment(Pos.CENTER);
 
             
@@ -3807,7 +3810,7 @@ public class NetworksData {
             setAlignment(Pos.TOP_LEFT);
             setPadding(new Insets(0,2,2,2));
             setId("darkBox");
-            
+
             m_bodyHeight = new SimpleDoubleProperty();
             
             m_tabsBox = new HBox();

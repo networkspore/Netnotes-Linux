@@ -22,6 +22,7 @@ import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
@@ -35,6 +36,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
@@ -120,6 +122,8 @@ public class ErgoDexChartTab extends ContentTab {
         
 
     private TimeSpan m_timeSpan = new TimeSpan("30min");
+    private SimpleObjectProperty<BigDecimal> m_slippageTolerance = new SimpleObjectProperty<>( BigDecimal.valueOf(0.03));
+
     private String m_defaultWalletId = DEFAULT_ID;
     
     
@@ -542,6 +546,7 @@ public class ErgoDexChartTab extends ContentTab {
     private void openJson(JsonObject json){
         if(json != null){
             JsonElement timeSpanElement = json.get("timeSpan");
+            JsonElement slippageToleranceElement = json.get("slippageTolerance");
             JsonElement showSwapElement = json.get("showSwap");
             JsonElement showWalletElement = json.get("showWallet");
             JsonElement defaeultWalletIdElement = json.get("defaultWalletId");
@@ -552,7 +557,9 @@ public class ErgoDexChartTab extends ContentTab {
             boolean showSwap = showSwapElement != null && !showSwapElement.isJsonNull() ? showSwapElement.getAsBoolean() : true;
             boolean showWallet = showWalletElement != null && !showWalletElement.isJsonNull() ? showWalletElement.getAsBoolean() : true;
             String defaultWalletId = defaeultWalletIdElement == null ?  DEFAULT_ID : (defaeultWalletIdElement.isJsonNull() ? null : defaeultWalletIdElement.getAsString());
+            BigDecimal slippageTolerance = slippageToleranceElement != null ? slippageToleranceElement.getAsBigDecimal() : BigDecimal.valueOf(0.03);
 
+            m_slippageTolerance.set(slippageTolerance);
             m_timeSpan = timeSpan;
             m_showSwap = showSwap;
             m_showWallet.set(showWallet);
@@ -565,6 +572,7 @@ public class ErgoDexChartTab extends ContentTab {
         json.addProperty("defaultWalletId", m_defaultWalletId);
         json.addProperty("showSwap", m_showSwap);
         json.addProperty("showWallet", m_showWallet.get());
+        json.addProperty("slippageTolerance", m_slippageTolerance.get());
         json.add("timeSpan", m_timeSpan.getJsonObject());
         return json;
     }
@@ -738,8 +746,10 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
     public void setChartScrollRight(){
-        Platform.runLater(()->m_chartScroll.setVvalue(chartScrollVvalue));
-        Platform.runLater(()->m_chartScroll.setHvalue(chartScrollHvalue));
+        FxTimer.runLater(Duration.ofMillis(100), ()->{
+            Platform.runLater(()->m_chartScroll.setVvalue(chartScrollVvalue));
+            Platform.runLater(()->m_chartScroll.setHvalue(chartScrollHvalue));
+        });
     }
 
     public void updateShowSwap(boolean showSwap){
@@ -814,7 +824,9 @@ public class ErgoDexChartTab extends ContentTab {
         public ErgoDexSwapBox(){
             super();
             setMinWidth(SWAP_BOX_MIN_WIDTH);
+    
             VBox.setVgrow(this, Priority.ALWAYS);
+
             m_executeBtn = new Button("");
             // SimpleObjectProperty<PriceAmount> spfPriceAmountObject = new SimpleObjectProperty<>(null);
            // SimpleObjectProperty<PriceAmount> basePriceAmountObject = new SimpleObjectProperty<>(null); 
@@ -826,14 +838,9 @@ public class ErgoDexChartTab extends ContentTab {
     
 
     
-            Runnable updateOrderPriceObject = () ->{
-                if(m_orderTypeProperty.get() != null && m_orderTypeProperty.get().equals(MARKET_ORDER)){
-                    m_orderPriceProperty.set(isInvert() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice());
-                }
-                
-            };
+            
     
-            updateOrderPriceObject.run();
+            updateOrder();
 
 
             Button sellBtn = new Button("Sell");
@@ -1076,21 +1083,81 @@ public class ErgoDexChartTab extends ContentTab {
             // executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
                 //swap();
             });
+            m_executeBtn.minWidthProperty().bind(Bindings.createObjectBinding(()->{
+                String executeString = m_executeBtn.textProperty().get();
+                return Utils.computeTextWidth(App.txtFont, executeString) + 20;
+            }, m_executeBtn.textProperty()));
 
+            Tooltip slippageToleranceTip = new Tooltip("Slippage tolerance: Transaction will revert if price changes \nunfavorably by this percentage.");
+            slippageToleranceTip.setShowDelay(javafx.util.Duration.millis(100));
+            
+            Text slippageText = new Text(" Slippage:");
+            slippageText.setFont(App.smallFont);
+            slippageText.setFill(App.txtColor);
+            
 
-            HBox executeBox = new HBox(m_executeBtn);
+            MenuButton slippageMenu = new MenuButton();
+            slippageMenu.setId("arrowMenuButtonSmall");
+            slippageMenu.setTooltip(slippageToleranceTip);
+    
+            slippageMenu.textProperty().bind(Bindings.createObjectBinding(()->{
+                BigDecimal slippage = m_slippageTolerance.get();
+                return slippage.multiply(BigDecimal.valueOf(100)).intValue() + "% ";
+            }, m_slippageTolerance));
+
+            MenuItem onePercentItem = new MenuItem(" 1%");
+            onePercentItem.setOnAction(e->{
+                m_slippageTolerance.set(BigDecimal.valueOf(0.01));
+                save();
+            });
+            MenuItem threePercentItem = new MenuItem(" 3%");
+            threePercentItem.setOnAction(e->{
+                m_slippageTolerance.set(BigDecimal.valueOf(0.03));
+                save();
+            });
+            MenuItem sevenPercentItem = new MenuItem( " 7%");
+            sevenPercentItem.setOnAction(e->{
+                m_slippageTolerance.set(BigDecimal.valueOf(0.07));
+                save();
+            });
+            slippageMenu.getItems().addAll(onePercentItem, threePercentItem, sevenPercentItem);
+
+            HBox slippageFieldBox = new HBox(slippageText, slippageMenu);
+            slippageFieldBox.setId("darkBox");
+            slippageFieldBox.setAlignment(Pos.CENTER_LEFT);
+
+            HBox slippageBox = new HBox(slippageFieldBox);
+            slippageBox.setPadding(new Insets(0,10,5,10));
+            Text minAmountText = new Text(" ");
+            minAmountText.setFont(App.smallFont);
+            minAmountText.setFill(App.txtColor);
+
+            TextField minAmountField = new TextField();
+            minAmountField.setPrefWidth(90);
+            minAmountField.setEditable(false);
+            minAmountField.setId("smallPrimaryColor");
+
+            HBox minAmountBox = new HBox(minAmountText, minAmountField);
+
+            VBox slippageVBox = new VBox(slippageBox, minAmountBox);
+            slippageVBox.setPadding(new Insets(10,0,0,0));
+            HBox.setHgrow(slippageVBox, Priority.ALWAYS);
+            slippageVBox.setId("bodyBox2");
+
+            HBox executeBox = new HBox(slippageVBox, m_executeBtn);
             HBox.setHgrow(executeBox,Priority.ALWAYS);
-            executeBox.setAlignment(Pos.CENTER);
+            executeBox.setAlignment(Pos.CENTER_LEFT);
             executeBox.setMinHeight(40);
+
             
     
             HBox executePaddingBox = new HBox(executeBox);
             HBox.setHgrow(executePaddingBox, Priority.ALWAYS);
-            executePaddingBox.setPadding(new Insets(5));
+            executePaddingBox.setPadding(new Insets(0,20, 20, 0));
     
             VBox marketBox = new VBox(isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, executePaddingBox );
             marketBox.setPadding(new Insets(5));
-            marketBox.setId("bodyBox");
+            marketBox.setId("bodyBox2");
     
         
     
@@ -1142,12 +1209,6 @@ public class ErgoDexChartTab extends ContentTab {
                 m_currentAmountCurrency.set(isSell ? baseCurrency : quoteCurrency);                
                 m_currentVolumeCurrency.set(isSell ? quoteCurrency : baseCurrency);
 
-
-                try {
-                    Files.writeString(App.logFile.toPath(), m_currentVolumeCurrency.get() != null ? m_currentVolumeCurrency.get().getSymbol() : " null", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
 
                 String baseSymbol = baseCurrency.getSymbol();
                 m_executeBtn.setText(isSell ? "Sell " + baseSymbol : "Buy " + baseSymbol);
@@ -1203,10 +1264,10 @@ public class ErgoDexChartTab extends ContentTab {
     
             m_marketDataUpdateListener = (obs,oldVal,newVal)->{
                 String orderType = m_orderTypeProperty.get() != null ? m_orderTypeProperty.get() : "";
-                
+      
                 switch(orderType){
                     case MARKET_ORDER:
-                        updateOrderPriceObject.run();
+                        updateOrder();
                         updateVolumeFromAmount();
                         orderPriceStatusField.setText(Utils.formatTimeString(newVal));
                     break;
@@ -1241,6 +1302,19 @@ public class ErgoDexChartTab extends ContentTab {
                 
     
              
+        }
+
+
+        public void updateOrder(){
+            if(m_orderTypeProperty.get() != null && m_orderTypeProperty.get().equals(MARKET_ORDER)){
+                m_orderPriceProperty.set(isInvert() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice());
+            }
+            
+        }
+
+
+        public void updateFees(){
+
         }
 
         public void updateVolumeFromAmount(){

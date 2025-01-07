@@ -929,13 +929,13 @@ public class ErgoDex extends Network implements NoteInterface {
 
     }
 
-    public static void getPoolSlippage(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public void getPoolSlippage(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/slippage";
 
         Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
 
-    public static void getPoolStats(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public void getPoolStats(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/stats";
 
         Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
