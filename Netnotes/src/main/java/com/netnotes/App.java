@@ -737,8 +737,10 @@ public class App extends Application {
 
     private void openNetnotes(AppData appData,  Stage appStage) {
 
-        m_networksData = new NetworksData(appData, appStage);    
+        appStage.setIconified(true);
 
+        m_networksData = new NetworksData(appData, appStage);    
+        appStage.setIconified(false);
     }
     
 

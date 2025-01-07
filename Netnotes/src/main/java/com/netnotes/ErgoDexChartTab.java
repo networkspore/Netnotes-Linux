@@ -221,6 +221,7 @@ public class ErgoDexChartTab extends ContentTab {
         VBox loadingBox = new VBox(imageBox, statusLabelBox);
         loadingBox.setAlignment(Pos.CENTER);
 
+        m_layoutBox.getChildren().clear();
         m_layoutBox.getChildren().add(loadingBox);
     }
 
@@ -290,7 +291,7 @@ public class ErgoDexChartTab extends ContentTab {
         headingBox.prefHeight(40);
         headingBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(headingBox, Priority.ALWAYS);
-        headingBox.setPadding(new Insets(5, 5, 5, 5));
+        headingBox.setPadding(new Insets(1, 0, 1, 0));
         headingBox.setId("headingBox");
         
         m_chartRange = new RangeBar(m_rangeWidth, m_rangeHeight, getNetworksData().getExecService());
@@ -308,21 +309,22 @@ public class ErgoDexChartTab extends ContentTab {
         headingPaddingRegion.setPrefHeight(5);
 
         VBox paddingBox = new VBox(menuBar, headingPaddingRegion, headingBox);
-        paddingBox.setPadding(new Insets(0, 5, 0, 5));
 
         VBox headerVBox = new VBox(paddingBox);
+
         m_chartScroll.setPadding(new Insets(0, 0, 0, 0));
 
         setChartRangeItem.setOnAction((e)->m_chartRange.toggleSettingRange());
 
-    
                     //⯈🗘
         m_toggleSwapBtn = new Button("⯈");
         m_toggleSwapBtn.setTextFill(App.txtColor);
         m_toggleSwapBtn.setFont( Font.font("OCR A Extended", 10));
         m_toggleSwapBtn.setPadding(new Insets(2,2,2,1));
         m_toggleSwapBtn.setId("barBtn");
-        //toggleSwapBtn.setMinWidth(20);
+        m_toggleSwapBtn.setOnAction(e->{
+            setShowSwap(!getShowSwap());
+        });
     
 
         Region topRegion = new Region();
@@ -344,33 +346,30 @@ public class ErgoDexChartTab extends ContentTab {
         m_bodyBox.setId("bodyBox");
         m_bodyBox.setAlignment(Pos.TOP_LEFT);
         HBox bodyPaddingBox = new HBox(m_bodyBox);
-        bodyPaddingBox.setPadding(new Insets(0, 5, 5 ,5));
 
         //Binding<Double> bodyHeightBinding = Bindings.createObjectBinding(()->bodyBox.layoutBoundsProperty().get().getHeight(), bodyBox.layoutBoundsProperty());
-        
+        VBox headerPaddingBox = new VBox(headerVBox);
+        HBox.setHgrow(headerPaddingBox, Priority.ALWAYS);
+
         m_toggleSwapBtn.prefHeightProperty().bind(m_bodyBox.heightProperty());
 
         m_chartTabBox.getChildren().clear();
-        m_chartTabBox.getChildren().addAll(headerVBox, bodyPaddingBox);
+        m_chartTabBox.getChildren().addAll(headerPaddingBox, bodyPaddingBox);
 
 
         m_chartScrollWidth = new SimpleDoubleProperty();
         m_chartScrollWidth.bind(getNetworksData().getContentTabs().bodyWidthProperty().subtract(chartRangeBox.widthProperty()).subtract(swapButtonBox.widthProperty()).subtract(1));
 
         m_chartScrollHeight = new SimpleDoubleProperty();
-        m_chartScrollHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerVBox.heightProperty()).subtract(11));
+        m_chartScrollHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerPaddingBox.heightProperty()).subtract(11));
 
-        //m_layoutBox.widthProperty().subtract(45)
         m_chartScroll.prefViewportWidthProperty().bind(m_chartScrollWidth);
-        //m_layoutBox.heightProperty().subtract(headerVBox.heightProperty()).subtract(10)
         m_chartScroll.prefViewportHeightProperty().bind(m_chartScrollHeight);
 
         m_chartBox.minWidthProperty().bind(m_chartScrollWidth.subtract(1));
         m_chartBox.minHeightProperty().bind(m_chartScrollHeight.subtract(App.VIEWPORT_HEIGHT_OFFSET));
 
-        m_rangeHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerVBox.heightProperty()).subtract(65));
-
-    
+        m_rangeHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerPaddingBox.heightProperty()).subtract(65));
         
         m_chartRange.bottomVvalueProperty().addListener((obs,oldval,newval)->{
             if(m_chartRange.settingRangeProperty().get()){
@@ -385,7 +384,6 @@ public class ErgoDexChartTab extends ContentTab {
             }
         });
 
-
         m_currentControl.addListener((obs,oldval,newval)->{
             if(oldval != null){
                 oldval.cancel();
@@ -398,7 +396,6 @@ public class ErgoDexChartTab extends ContentTab {
 
         });
 
-
         m_chartRange.settingRangeProperty().addListener((obs,oldval,newval)->{
             if(newval){
                 m_currentControl.set(m_chartRange);
@@ -409,8 +406,6 @@ public class ErgoDexChartTab extends ContentTab {
             }
             createChart();
         });
-
-        
         
         addErgoDexListener();
 
@@ -432,9 +427,6 @@ public class ErgoDexChartTab extends ContentTab {
             m_timeSpanBtn.getItems().add(menuItm);
 
         }
-
-
-
 
         m_invertListener = (obs,oldval,newval)->{
             
@@ -469,37 +461,24 @@ public class ErgoDexChartTab extends ContentTab {
             completeLoading();
             FxTimer.runLater(Duration.ofMillis(200), ()->{
                 if(m_numbers != null){
-                    Bounds bounds = m_chartScroll.getViewportBounds();
-                    int viewPortHeight = (int) bounds.getHeight();
-                    int viewPortWidth = (int) bounds.getWidth();
-                    drawChart(viewPortWidth, viewPortHeight,  m_timeSpan);
+                    updateChart(); 
                 }else{
                     createChart();
                 }
-                
 
                 m_chartScrollHeight.addListener((obs,oldval,newval)->{
-                   
                     if(m_numbers != null){
-
-                        int viewPortHeight = (int) newval.intValue() - App.VIEWPORT_HEIGHT_OFFSET;
-                        int viewPortWidth = (int) m_chartScrollWidth.get();
-                        drawChart(viewPortWidth, viewPortHeight,  m_timeSpan);
-                    }else{
-                        createChart();
+                        updateChart();
+                        setChartScrollRight();
                     }
-                    
                 });
-
-               
             });
         });
 
-        m_maximizeListener = (obs,oldval,newval)->{
-          
-            FxTimer.runLater(Duration.ofMillis(200), ()->drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - App.VIEWPORT_HEIGHT_OFFSET, null));
-        
-        };
+        m_maximizeListener = (obs,oldval,newval)->FxTimer.runLater(Duration.ofMillis(200), ()->{
+            updateChart();
+            setChartScrollRight();
+        });
 
     
         getNetworksData().getStage().maximizedProperty().addListener(m_maximizeListener);
@@ -513,6 +492,7 @@ public class ErgoDexChartTab extends ContentTab {
 
             m_chartBox.getChildren().clear();
             m_chartBox.setAlignment(Pos.CENTER);
+
             ProgressBar chartProgressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
             chartProgressBar.setPrefWidth(100);
             m_chartBox.getChildren().add(chartProgressBar);
@@ -737,23 +717,24 @@ public class ErgoDexChartTab extends ContentTab {
             }
     
             if(!m_chartBox.getChildren().contains(m_chartImageView)){
+                m_chartBox.getChildren().clear();
                 m_chartBox.setAlignment(Pos.BOTTOM_RIGHT);
                 m_chartBox.getChildren().add(m_chartImageView);
+                setChartScrollRight();
+        
             }
 
-            setChartScrollRight();
+      
 
 
         }
     }
 
     public void updateChart(){
-        Bounds bounds = m_chartScroll.viewportBoundsProperty().get();
-        int viewPortHeight = (int) bounds.getHeight();
-        int viewPortWidth = (int) bounds.getWidth();
-        TimeSpan timeSpan = m_timeSpan;
-            
-        drawChart(viewPortWidth, viewPortHeight, timeSpan);
+
+        drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - App.VIEWPORT_HEIGHT_OFFSET, m_timeSpan);
+
+
     }
 
     public void setChartScrollRight(){
@@ -766,7 +747,7 @@ public class ErgoDexChartTab extends ContentTab {
         if( showSwap){
             m_toggleSwapBtn.setText("⯈");
 
-            m_ergoDexSwapBox =   m_ergoDexSwapBox == null ?  new ErgoDexSwapBox() : m_ergoDexSwapBox;
+            m_ergoDexSwapBox = m_ergoDexSwapBox == null ?  new ErgoDexSwapBox() : m_ergoDexSwapBox;
 
             if(! m_bodyBox.getChildren().contains(m_ergoDexSwapBox)){  
                 m_bodyBox.getChildren().add(m_ergoDexSwapBox);
@@ -1015,10 +996,7 @@ public class ErgoDexChartTab extends ContentTab {
             });
     
           
-            m_toggleSwapBtn.setOnAction(e->{
-                setShowSwap(!getShowSwap());
-                updateVolumeFromAmount();
-            });
+            
             m_currentAmount.addListener((obs,oldval, newval)->updateVolumeFromAmount());
             
             updateVolumeFromAmount();

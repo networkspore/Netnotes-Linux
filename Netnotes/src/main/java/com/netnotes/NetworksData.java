@@ -3804,6 +3804,10 @@ public class NetworksData {
         private SimpleStringProperty m_currentId = new SimpleStringProperty(null);
         
         public ContentTabs(){
+            setAlignment(Pos.TOP_LEFT);
+            setPadding(new Insets(0,2,2,2));
+            setId("darkBox");
+            
             m_bodyHeight = new SimpleDoubleProperty();
             
             m_tabsBox = new HBox();
@@ -3833,10 +3837,9 @@ public class NetworksData {
                 }
 
             });
-            m_bodyHeight.bind(m_contentBox.heightProperty().subtract(m_tabsScroll.heightProperty()).subtract(1));
+            m_bodyHeight.bind(m_contentHeight.subtract(m_tabsScroll.heightProperty()).subtract(1));
 
             m_bodyBox = new StackPane();
-            
             /* 
             m_bodyScroll = new ScrollPane();
             m_bodyScroll.prefViewportWidthProperty().bind(m_contentBox.widthProperty().subtract(1));
@@ -3855,7 +3858,7 @@ public class NetworksData {
                 }
             });
 
-            setAlignment(Pos.TOP_LEFT);
+     
         }
 
         public ContentTab getTab(String id){
