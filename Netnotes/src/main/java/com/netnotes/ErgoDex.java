@@ -81,8 +81,13 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static long BLOCK_TIME_MILLIS = 2L * 60L * 1000L;
     public final static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     public final static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
-    public final static long MIN_BOX_VALUE = 60000;
+    
+    public final static BigDecimal DEFAULT_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.03);
+    public final static BigDecimal DEFAULT_NITRO = BigDecimal.valueOf(1.2);
 
+    public static BigDecimal MIN_NETWORK_FEE;
+    public static BigDecimal MIN_EXECUTION_FEE;
+    public static BigDecimal MIN_MAX_EXECUTION_FEE;
    // private File m_dataFile = null;
 
 
@@ -107,6 +112,10 @@ public class ErgoDex extends Network implements NoteInterface {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
         m_locationId = locationId;
+
+        MIN_NETWORK_FEE = BigDecimal.valueOf(0.002);
+        MIN_EXECUTION_FEE = MIN_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
+        MIN_MAX_EXECUTION_FEE = MIN_EXECUTION_FEE.multiply(DEFAULT_NITRO);
     }
 
  
@@ -310,7 +319,6 @@ public class ErgoDex extends Network implements NoteInterface {
         private VBox m_bodyPaddingBox;
 
         private TextField m_lastUpdatedField;
-
 
         private SimpleDoubleProperty m_gridHeight;
 

@@ -223,7 +223,7 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
             if(editable){
 
                 String text = amountField.getText();
-                m_sendAmount = Utils.textZero(text) ?BigDecimal.ZERO : new BigDecimal(text);
+                m_sendAmount = Utils.isTextZero(text) ?BigDecimal.ZERO : new BigDecimal(text);
 
             }
             setNotFocused.run();

@@ -1,6 +1,7 @@
 package com.netnotes;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
@@ -42,8 +43,11 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
     public static final String MARKET_NETWORK = "MARKET_NETWORK";
     public static final String TOKEN_MARKET_NETWORK = "TOKEN_MARKET_NETWORK";
+    
+    public static BigDecimal MIN_NETWORK_FEE = BigDecimal.valueOf(0.001);
 
     private NetworkType m_networkType = NetworkType.MAINNET;
+   
 
    // private File logFile = new File("netnotes-log.txt");
     private ErgoNetworkData m_ergNetData = null;

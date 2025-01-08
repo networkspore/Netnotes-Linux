@@ -69,7 +69,7 @@
     -fx-cursor:hand;
 }
 #smallPrimaryColor {
-    -fx-font-size: 12px;
+    -fx-font-size: 14px;
     -fx-font-family: 'OCR A Extended';
     -fx-text-fill: #B2B2B2E6;
 }
@@ -305,7 +305,7 @@
     -fx-background-radius: 10px;
     -fx-background-color:black;
     -fx-opacity: .9;
-    -fx-font-size: 11px;
+    -fx-font-size: 12px;
     -fx-font-family: 'OCR A Extended';
     -fx-padding: 3 10 2 10;
     -fx-cursor: hand;
@@ -499,18 +499,18 @@
 }
 
 #swapBtnStatic {
-    -fx-text-fill: #AFAFAF;
+    -fx-text-fill: #CFCFCF;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
     -fx-background-color: transparent;
-    -fx-opacity: .95;
+    -fx-opacity: 1;
     
 }
 
 
 
 #swapBtn {
-    -fx-text-fill: #777777;
+    -fx-text-fill: #AAAAAA;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
     -fx-background-color: transparent;
@@ -519,7 +519,7 @@
 }
 
 #swapBtn:hover {
-    -fx-text-fill: #888888;
+    -fx-text-fill: #AFAFAF;
 
     -fx-opacity: 1;
 }
@@ -1327,7 +1327,7 @@
  }
  #arrowMenuButtonSmall .label{
      -fx-font-family: 'OCR A Extended';
-     -fx-font-size: 12;
+     -fx-font-size: 14;
      -fx-alignment:center-left;
      -fx-padding: 0 1 0 1;
  }
@@ -1579,6 +1579,8 @@
     -fx-background-color: #33333350;
 
 }
+
+
 
 #borderBox{
     -fx-border-color: #222222;

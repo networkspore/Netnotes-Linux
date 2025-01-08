@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 
@@ -1826,7 +1825,7 @@ public class ErgoWalletsAppBox extends AppBox {
         private ErgoWalletAmountSendBoxes m_amountBoxes;
         private Button m_sendBtn = new Button("Send");
         private Tooltip m_tooltip = new Tooltip();
-      
+        private TextField m_feesField;
    
         public SendAppBox(){
             super();
@@ -1925,10 +1924,10 @@ public class ErgoWalletsAppBox extends AppBox {
 
             String feesFieldId = FriendlyId.createFriendlyId();
 
-            TextField feesField = new TextField("0.001");
-            feesField.setPrefWidth(100);
-            feesField.setUserData(feesFieldId);
-            feesField.textProperty().addListener((obs,oldval,newval)->{
+            m_feesField = new TextField(ErgoNetwork.MIN_NETWORK_FEE + "");
+            m_feesField.setPrefWidth(100);
+            m_feesField.setUserData(feesFieldId);
+            m_feesField.textProperty().addListener((obs,oldval,newval)->{
                 String number = newval.replaceAll("[^0-9.]", "");
       
                 int index = number.indexOf(".");
@@ -1936,7 +1935,12 @@ public class ErgoWalletsAppBox extends AppBox {
                 String rightSide = index != -1 ?  number.substring(index + 1) : "";
                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
                 rightSide = rightSide.length() > ErgoCurrency.FRACTIONAL_PRECISION ? rightSide.substring(0, ErgoCurrency.FRACTIONAL_PRECISION) : rightSide;
-                feesField.setText(leftSide +  rightSide);
+                m_feesField.setText(leftSide +  rightSide);
+            });
+            m_feesField.focusedProperty().addListener((obs,oldval,newval)->{
+                if(!newval){
+                    checkFeeField();
+                }
             });
       
             
@@ -1954,7 +1958,7 @@ public class ErgoWalletsAppBox extends AppBox {
             feeTypeBtn.getItems().add(ergFeeTypeItem);
 
             Runnable setFee = ()->{
-                String feesString = feesField.getText().length() == 0 ? "0" : feesField.getText();
+                String feesString = Utils.isTextZero(m_feesField.getText()) ? "0" : m_feesField.getText();
                 BigDecimal fee = new BigDecimal(feesString);
                 
                 Object feeTypeUserData = feeTypeBtn.getUserData();
@@ -2003,7 +2007,7 @@ public class ErgoWalletsAppBox extends AppBox {
             HBox feeEnterBtnBox = new HBox();
             feeEnterBtnBox.setAlignment(Pos.CENTER_LEFT);
 
-            HBox feesFieldBox = new HBox(feesField, feeEnterBtnBox, feeTypeBtn);
+            HBox feesFieldBox = new HBox(m_feesField, feeEnterBtnBox, feeTypeBtn);
             feesFieldBox.setId("bodyBox");
             feesFieldBox.setAlignment(Pos.CENTER_LEFT);
             feesFieldBox.setPadding(new Insets(2));
@@ -2049,7 +2053,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
             Runnable resetSend = ()->{
                 bodyContentBox.getChildren().clear();
-                feesField.setText("0.001");
+                m_feesField.setText(ErgoNetwork.MIN_NETWORK_FEE + "");
                 toAddress.addressInformationProperty().set(new AddressInformation(""));
                 m_amountBoxes.reset();
                 bodyContentBox.getChildren().add(sendBodyBox);
@@ -2362,6 +2366,20 @@ public class ErgoWalletsAppBox extends AppBox {
             });
     
                 getChildren().add(layoutVBox);
+            }
+
+            public void checkFeeField(){
+      
+                String feeString = m_feesField.getText();
+                if(Utils.isTextZero(feeString)){
+                    m_feesField.setText(ErgoNetwork.MIN_NETWORK_FEE + "");
+                }else{
+                    BigDecimal fee = new BigDecimal(feeString);
+                    if(fee.compareTo(ErgoNetwork.MIN_NETWORK_FEE) == -1){
+                        m_feesField.setText(ErgoNetwork.MIN_NETWORK_FEE + "");
+                    }
+                }
+            
             }
 
             public void showError(String msg){

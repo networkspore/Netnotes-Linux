@@ -208,7 +208,7 @@ public class App extends Application {
         mainFont =  Font.font("OCR A Extended", FontWeight.BOLD, 20);
         txtFont = Font.font("OCR A Extended", 18);
         titleFont = Font.font("OCR A Extended", FontWeight.BOLD, 16);
-        smallFont = Font.font("OCR A Extended", 12);
+        smallFont = Font.font("OCR A Extended", 14);
 
         appStage.setResizable(false);
         appStage.initStyle(StageStyle.UNDECORATED);

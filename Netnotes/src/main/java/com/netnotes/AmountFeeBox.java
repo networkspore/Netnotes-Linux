@@ -100,7 +100,7 @@ public class AmountFeeBox extends HBox {
          
             String text = amountField.getText();
 
-            BigDecimal amount = Utils.textZero(text) ? BigDecimal.ZERO : new BigDecimal(text);
+            BigDecimal amount = Utils.isTextZero(text) ? BigDecimal.ZERO : new BigDecimal(text);
             
    
 

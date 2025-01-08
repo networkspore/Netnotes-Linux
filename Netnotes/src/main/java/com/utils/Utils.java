@@ -2759,7 +2759,7 @@ public class Utils {
         return true;
     }
 
-    public static boolean textZero(String str){
+    public static boolean isTextZero(String str){
         str = str.strip();
         
         if(str.length() == 0){
@@ -2768,7 +2768,8 @@ public class Utils {
 
         int index = str.indexOf(".");
 
-        String leftSide = index != -1 ? str.substring(0, index + 1) : str;
+        String leftSide = index != -1 ? str.substring(0, index) : str;
+        
         String rightSide = index != -1 ? str.substring(index + 1) : "";
         
         for (int i = 0 ; i < leftSide.length() ; i++){
