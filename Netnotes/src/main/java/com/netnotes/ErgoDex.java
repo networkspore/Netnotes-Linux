@@ -616,10 +616,11 @@ public class ErgoDex extends Network implements NoteInterface {
             timeSpanBtnBox.setId("urlMenuButton");
             timeSpanBtnBox.setAlignment(Pos.CENTER_LEFT);
 
-            HBox timespanBtnPaddingBox = new HBox(timeSpanBtnBox);
-            timespanBtnPaddingBox.setPadding(new Insets(0,10, 0,0));
+            Region timeSpanSpacer = new Region();
+            timeSpanSpacer.setMinWidth(5);
 
-            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion, timespanBtnPaddingBox, rightSideMenu);
+
+            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion, timeSpanBtnBox,timeSpanSpacer, rightSideMenu);
             HBox.setHgrow(m_menuBar, Priority.ALWAYS);
             m_menuBar.setAlignment(Pos.CENTER_LEFT);
             m_menuBar.setId("menuBar");

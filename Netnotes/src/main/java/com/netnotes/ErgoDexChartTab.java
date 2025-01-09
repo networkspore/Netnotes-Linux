@@ -281,28 +281,34 @@ public class ErgoDexChartTab extends ContentTab {
         menuButton.getItems().addAll(setChartRangeItem);
 
 
-        Text headingText = new Text(m_marketData.getCurrentSymbol(isInvert()) + "  - ");
-        headingText.setFont(App.txtFont);
-        headingText.setFill(Color.WHITE);
+        Label headingText = new Label(m_marketData.getCurrentSymbol(isInvert()) + "  - ");
 
-        Region headingSpacerL = new Region();
 
+
+      
 
 
         m_timeSpanBtn = new MenuButton(m_timeSpan.getName());
+        m_timeSpanBtn.setId("arrowMenuButton");
         m_timeSpanBtn.setFont(App.txtFont);
         m_timeSpanBtn.setContentDisplay(ContentDisplay.LEFT);
         m_timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
-
+      
         
         Region headingBoxSpacerR = new Region();
         HBox.setHgrow(headingBoxSpacerR,Priority.ALWAYS);
+        Region headingSpacerL = new Region();
+        HBox.setHgrow(headingSpacerL,Priority.ALWAYS);
 
-        HBox headingBox = new HBox(headingSpacerL, headingText, m_timeSpanBtn, headingBoxSpacerR);
+        HBox headingTextTimeBox = new HBox( headingText, m_timeSpanBtn);
+        headingTextTimeBox.setAlignment(Pos.CENTER);
+        headingTextTimeBox.setPadding(new Insets(5, 0, 5, 0));
+
+        HBox headingBox = new HBox(headingSpacerL,headingTextTimeBox, headingBoxSpacerR);
         headingBox.prefHeight(40);
         headingBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(headingBox, Priority.ALWAYS);
-        headingBox.setPadding(new Insets(1, 0, 1, 0));
+
         headingBox.setId("headingBox");
         
         m_chartRange = new RangeBar(m_rangeWidth, m_rangeHeight, getNetworksData().getExecService());
@@ -313,7 +319,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         m_chartScroll = new ScrollPane(m_chartBox);        
         
-        headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(m_timeSpanBtn.widthProperty().divide(2)).subtract(headingText.layoutBoundsProperty().get().getWidth()).divide(2));
+  //      headingSpacerL.prefWidthProperty().bind(headingBox.widthProperty().subtract(m_timeSpanBtn.widthProperty().divide(2)).subtract(headingText.widthProperty()).divide(2));
         
         Region headingPaddingRegion = new Region();
         headingPaddingRegion.setMinHeight(5);
@@ -443,7 +449,8 @@ public class ErgoDexChartTab extends ContentTab {
         m_invertListener = (obs,oldval,newval)->{
             
             invertBtn.setImage( new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
-            headingText.setText(m_marketData.getCurrentSymbol(newval));
+            headingText.setText(m_marketData.getCurrentSymbol(newval) + "  - ");
+
             m_chartRange.reset();
             createChart();
         };
@@ -1147,12 +1154,24 @@ public class ErgoDexChartTab extends ContentTab {
                 boolean isSell = m_isSellProperty.get();
                 boolean invert = isSell ? isInvert() : !isInvert();
             
-                String quoteId = invert ?  m_marketData.getBaseId() : m_marketData.getQuoteId();
-                String baseId = invert ? m_marketData.getQuoteId() : m_marketData.getBaseId();
-                BigDecimal baseAmount = m_currentAmount.get();
+                PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
+            
+           /*     if( m_dexWallet.ergoAmountProperty().get() != null){
+                    BigDecimal minErg = m_swapFeesBox.totalFeesProperty().get().add(ErgoNetwork.MIN_NETWORK_FEE);
     
-            // executeBtn.setText(isBuy ? "Buy " + quoteSymbol : "Sell " + quoteSymbol);
-                //swap();
+                    boolean isErg = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
+                    BigDecimal totalAmount = isErg ? bigAmount.add(minErg) : bigAmount;
+                    boolean isUnavailable = amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1;
+                    isUnavailable = !isUnavailable && !isErg ? m_dexWallet.ergoAmountProperty().get().amountProperty().get().compareTo(minErg) == -1 : isUnavailable;
+                }    */
+    
+                String amountAvailableId = m_amountField.getId();
+
+                if(amountAvailableId.equals("swapBtnAvailable")){
+
+                }else{
+
+                }
             });
             m_executeBtn.minWidthProperty().bind(Bindings.createObjectBinding(()->{
                 String executeString = m_executeBtn.textProperty().get();
@@ -1355,10 +1374,18 @@ public class ErgoDexChartTab extends ContentTab {
             PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
             
             if( m_dexWallet.ergoAmountProperty().get() != null){
-                BigDecimal totalAmount = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID) ? bigAmount.add(m_swapFeesBox.totalFeesProperty().get()).add(ErgoNetwork.MIN_NETWORK_FEE) : bigAmount;
-                if(amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1){
+                BigDecimal minErg = m_swapFeesBox.totalFeesProperty().get().add(ErgoNetwork.MIN_NETWORK_FEE);
+
+                boolean isErg = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
+                BigDecimal totalAmount = isErg ? bigAmount.add(minErg) : bigAmount;
+                boolean isUnavailable = amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1;
+                isUnavailable = !isUnavailable && !isErg ? m_dexWallet.ergoAmountProperty().get().amountProperty().get().compareTo(minErg) == -1 : isUnavailable;
+                
+                if(isUnavailable){
+                    
                     m_amountField.setId("swapBtnUnavailable");
                     m_volumeField.setId("swapBtnUnavailable");
+                
                 }else{
                     m_amountField.setId("swapBtnAvailable");
                     m_volumeField.setId("swapBtnAvailable");
@@ -1593,10 +1620,6 @@ public class ErgoDexChartTab extends ContentTab {
                     m_walletControl.disconnectWallet();
                 });
 
-    
-                Label baseAmountLabel = new Label(isInvert() ? m_marketData.getQuoteSymbol() : m_marketData.getBaseSymbol());
-                baseAmountLabel.setMinWidth(colWidth);
-                baseAmountLabel.setMaxWidth(colWidth);
 
                 TextField baseAmountField = new TextField();
                 HBox.setHgrow(baseAmountField, Priority.ALWAYS);
@@ -1608,9 +1631,15 @@ public class ErgoDexChartTab extends ContentTab {
                     return baseAmount != null ? baseAmount.amountProperty().get() + "" : "⸻";
                 }, m_baseAmountProperty));
         
-                ImageView baseImgView = new ImageView(PriceCurrency.getBlankBgIcon(38, m_marketData.getBaseSymbol()));
+                ImageView baseImgView = new ImageView();
                 baseImgView.setPreserveRatio(true);
+                baseImgView.imageProperty().bind(Bindings.createObjectBinding(()->{
+                    PriceAmount baseAmount = m_baseAmountProperty.get();
+                    String baseSymbol = baseAmount != null ? baseAmount.getCurrency().getSymbol() : "-";
+                    return PriceCurrency.getBlankBgIcon(38, baseSymbol);
+                }, m_baseAmountProperty));
 
+                
         
                 StackPane baseAmountFieldBox = new StackPane(baseImgView, baseAmountField);
                 baseAmountFieldBox.setId("darkBox");
@@ -1634,8 +1663,15 @@ public class ErgoDexChartTab extends ContentTab {
                 }, m_quoteAmountProperty));
                 
         
-                ImageView quoteImgView = new ImageView(PriceCurrency.getBlankBgIcon(38, m_marketData.getQuoteSymbol()));
+                ImageView quoteImgView = new ImageView();
                 quoteImgView.setPreserveRatio(true);
+                quoteImgView.imageProperty().bind(Bindings.createObjectBinding(()->{
+                    PriceAmount quoteAmount =  m_quoteAmountProperty.get();
+                    String quoteSymbol =quoteAmount != null ? quoteAmount.getCurrency().getSymbol() : "-";
+
+                    return PriceCurrency.getBlankBgIcon(38, quoteSymbol);
+                }, m_quoteAmountProperty));
+
 
 
         
@@ -1654,20 +1690,11 @@ public class ErgoDexChartTab extends ContentTab {
                 Region assetSpacer = new Region();
                 assetSpacer.setMinWidth(5);
                 
-                if(isInvert()){
-                    m_assetsVBox.getChildren().addAll(quoteAmountBox, assetSpacer, baseAmountBox);
-                }else{
-                    m_assetsVBox.getChildren().addAll(baseAmountBox, assetSpacer, quoteAmountBox);
-                }
+               
+                m_assetsVBox.getChildren().addAll(baseAmountBox, assetSpacer, quoteAmountBox);
+                
 
-                isInvertProperty().addListener((obs,oldval,newVal)->{
-                    m_assetsVBox.getChildren().clear();
-                    if(newVal){
-                        m_assetsVBox.getChildren().addAll(quoteAmountBox, assetSpacer, baseAmountBox);
-                    }else{
-                        m_assetsVBox.getChildren().addAll(baseAmountBox, assetSpacer, quoteAmountBox);
-                    }
-                });
+                isInvertProperty().addListener((obs,oldval,newVal)->updateBalance());
 
                 m_walletControl.walletNameProperty().addListener((obs, oldVal, newVal) -> {
 
@@ -1694,21 +1721,7 @@ public class ErgoDexChartTab extends ContentTab {
             
                 });
 
-                m_walletControl.balanceProperty().addListener((obs,oldval,newval)->{
-                    if(newval != null){
-                        ArrayList<PriceAmount> priceAmountList = AddressesData.getBalanceList(newval,true, ErgoDex.NETWORK_TYPE);
-                        
-                        m_ergoAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, ErgoCurrency.TOKEN_ID));
-                        m_baseAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, m_marketData.getBaseId()));
-                        m_quoteAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, m_marketData.getQuoteId()));
-                    }else{
-                        m_ergoAmountProperty.set(null);
-                        m_baseAmountProperty.set(null);
-                        m_quoteAmountProperty.set(null);
-                    
-                    }
-                    updateVolumeFromAmount();
-                });
+                m_walletControl.balanceProperty().addListener((obs,oldval,newval)->updateBalance());
     
                 m_walletControl.currentAddress().addListener((obs,oldval,newval)->{
                     if(newval != null){
@@ -1795,6 +1808,33 @@ public class ErgoDexChartTab extends ContentTab {
                     }
                 });
                 
+            }
+
+            public void updateBalance(){
+                JsonObject balanceObject = m_walletControl.balanceProperty().get();
+                boolean isInverted = isInvert();
+                if(balanceObject != null){
+                    ArrayList<PriceAmount> priceAmountList = AddressesData.getBalanceList(balanceObject,true, ErgoDex.NETWORK_TYPE);
+                    
+                    m_ergoAmountProperty.set(AddressesData.getPriceAmountFromList(priceAmountList, ErgoCurrency.TOKEN_ID));
+                    
+                    PriceAmount baseAmount = AddressesData.getPriceAmountFromList(priceAmountList, isInverted ?  m_marketData.getQuoteId() :  m_marketData.getBaseId());
+                    baseAmount = baseAmount == null ?  new PriceAmount(0, isInverted ? m_marketData.getQuoteCurrency() : m_marketData.getBaseCurrency())  : baseAmount;
+
+                    m_baseAmountProperty.set(baseAmount);
+                    
+                    PriceAmount quoteAmount = AddressesData.getPriceAmountFromList(priceAmountList, isInverted ? m_marketData.getBaseId() : m_marketData.getQuoteId());
+            
+                    quoteAmount = quoteAmount == null ?  new PriceAmount(0, isInverted ?  m_marketData.getBaseCurrency() : m_marketData.getQuoteCurrency())  : quoteAmount;
+
+                    m_quoteAmountProperty.set(quoteAmount);
+                }else{
+                    m_ergoAmountProperty.set(null);
+                    m_baseAmountProperty.set(null);
+                    m_quoteAmountProperty.set(null);
+                
+                }
+                updateVolumeFromAmount();
             }
     
             public void connectToErgoNetwork(boolean connect, NoteInterface ergoNetworkInterface){
