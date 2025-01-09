@@ -541,16 +541,15 @@
 }
 
 #swapBtnUnavailable {
-    -fx-text-fill: #cc0000;
+    -fx-text-fill: #feb9e9;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
     -fx-background-color: transparent;
-    -fx-opacity: 1;
+    -fx-opacity: .9;
     
 }
 
 #swapBtnUnavailable:hover {
-    -fx-text-fill: #feb9e9;
     -fx-opacity: 1;
 }
 
@@ -1449,6 +1448,7 @@
    
     -fx-opacity: 1;
 }
+
 
 
 #iconBtnSelected {

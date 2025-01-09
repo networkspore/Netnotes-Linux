@@ -85,9 +85,10 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static BigDecimal DEFAULT_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.03);
     public final static BigDecimal DEFAULT_NITRO = BigDecimal.valueOf(1.2);
 
-    public static BigDecimal MIN_NETWORK_FEE;
-    public static BigDecimal MIN_EXECUTION_FEE;
-    public static BigDecimal MIN_MAX_EXECUTION_FEE;
+    public static BigDecimal NETWORK_MIN_FEE;
+    public static BigDecimal SWAP_MIN_EXECUTION_FEE;
+    public static BigDecimal SWAP_MIN_MAX_EXEC_FEE;
+    public static BigDecimal SWAP_MIN_TOTAL_FEES;
    // private File m_dataFile = null;
 
 
@@ -113,9 +114,10 @@ public class ErgoDex extends Network implements NoteInterface {
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
         m_locationId = locationId;
 
-        MIN_NETWORK_FEE = BigDecimal.valueOf(0.002);
-        MIN_EXECUTION_FEE = MIN_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
-        MIN_MAX_EXECUTION_FEE = MIN_EXECUTION_FEE.multiply(DEFAULT_NITRO);
+        NETWORK_MIN_FEE = BigDecimal.valueOf(0.002);
+        SWAP_MIN_EXECUTION_FEE = NETWORK_MIN_FEE.multiply(BigDecimal.valueOf(3));
+        SWAP_MIN_MAX_EXEC_FEE = SWAP_MIN_EXECUTION_FEE.multiply(DEFAULT_NITRO);
+        SWAP_MIN_TOTAL_FEES = NETWORK_MIN_FEE.add(SWAP_MIN_MAX_EXEC_FEE);
     }
 
  
