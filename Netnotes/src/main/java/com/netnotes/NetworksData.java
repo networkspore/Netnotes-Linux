@@ -3278,6 +3278,7 @@ public class NetworksData {
             VBox scrollContentBox = new VBox(listBoxPadding);
 
             ScrollPane listScroll = new ScrollPane(scrollContentBox);
+            listScroll.minViewportWidthProperty().bind(m_menuWidth);
             listScroll.prefViewportWidthProperty().bind(m_menuWidth);
             listScroll.prefViewportHeightProperty().bind(m_appStage.getScene().heightProperty().subtract(50).subtract(m_settingsBtn.heightProperty()).subtract(currentNetworkBox.heightProperty()));
            // listScroll.setId("appMenuBox");
