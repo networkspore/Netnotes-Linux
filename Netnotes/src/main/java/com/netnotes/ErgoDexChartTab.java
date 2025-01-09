@@ -18,6 +18,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
@@ -432,6 +433,7 @@ public class ErgoDexChartTab extends ContentTab {
 
             menuItm.setOnAction(action -> {
                 setTimeSpan(tS);
+             
             });
 
             m_timeSpanBtn.getItems().add(menuItm);
@@ -504,7 +506,7 @@ public class ErgoDexChartTab extends ContentTab {
             m_chartBox.setAlignment(Pos.CENTER);
 
             ProgressBar chartProgressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
-            chartProgressBar.setPrefWidth(100);
+            chartProgressBar.setPrefWidth(200);
             m_chartBox.getChildren().add(chartProgressBar);
             setChartScrollRight();
         }
@@ -524,7 +526,6 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
  
-
     public void setShowSwap(boolean showSwap){
         m_showSwap = showSwap;
         updateShowSwap(m_showSwap);
@@ -557,6 +558,8 @@ public class ErgoDexChartTab extends ContentTab {
             JsonElement showSwapElement = json.get("showSwap");
             JsonElement showWalletElement = json.get("showWallet");
             JsonElement defaeultWalletIdElement = json.get("defaultWalletId");
+            JsonElement showSwapSettingsElement = json.get("showSwapSettings");
+            JsonElement networkfeeElement = json.get("networkfee");
 
             JsonObject timeSpanJson = timeSpanElement != null && timeSpanElement.isJsonObject() ? timeSpanElement.getAsJsonObject() : null;
  
@@ -565,12 +568,14 @@ public class ErgoDexChartTab extends ContentTab {
             boolean showWallet = showWalletElement != null && !showWalletElement.isJsonNull() ? showWalletElement.getAsBoolean() : true;
             String defaultWalletId = defaeultWalletIdElement == null ?  DEFAULT_ID : (defaeultWalletIdElement.isJsonNull() ? null : defaeultWalletIdElement.getAsString());
             BigDecimal slippageTolerance = slippageToleranceElement != null ? slippageToleranceElement.getAsBigDecimal() : ErgoDex.DEFAULT_SLIPPAGE_TOLERANCE;
-
+            boolean showSwapSettings = showSwapSettingsElement != null ? showSwapSettingsElement.getAsBoolean() : false;
             BigDecimal maxExFee = maxExFeeElement != null ? maxExFeeElement.getAsBigDecimal() :  ErgoDex.MIN_EXECUTION_FEE.multiply(ErgoDex.DEFAULT_NITRO);
-             
+            BigDecimal networkfee = networkfeeElement != null ? networkfeeElement.getAsBigDecimal() : ErgoDex.MIN_NETWORK_FEE;
+
             m_slippageTolerance.set(slippageTolerance);
             m_maxExFee.set(maxExFee.compareTo(ErgoDex.MIN_MAX_EXECUTION_FEE) == -1 ? ErgoDex.MIN_MAX_EXECUTION_FEE : maxExFee);
-
+            m_networkFee.set(networkfee);
+            m_showSwapSettings.set(showSwapSettings);
             m_timeSpan = timeSpan;
             m_showSwap = showSwap;
             m_showWallet.set(showWallet);
@@ -582,9 +587,11 @@ public class ErgoDexChartTab extends ContentTab {
         JsonObject json = new JsonObject();
         json.addProperty("defaultWalletId", m_defaultWalletId);
         json.addProperty("showSwap", m_showSwap);
+        json.addProperty("showSwapSettings", m_showSwapSettings.get());
         json.addProperty("showWallet", m_showWallet.get());
         json.addProperty("slippageTolerance", m_slippageTolerance.get());
-        json.addProperty("maxExeFee", m_maxExFee.get());
+        json.addProperty("maxExFee", m_maxExFee.get());
+        json.addProperty("networkfee", m_networkFee.get());
         json.add("timeSpan", m_timeSpan.getJsonObject());
         return json;
     }
@@ -685,6 +692,7 @@ public class ErgoDexChartTab extends ContentTab {
                 m_numbers = numbers;
             
                 drawChart(viewPortWidth, viewPortHeight, timeSpan);
+                setChartScrollRight();
             }
         
         }, 
@@ -740,7 +748,7 @@ public class ErgoDexChartTab extends ContentTab {
                 m_chartBox.getChildren().clear();
                 m_chartBox.setAlignment(Pos.BOTTOM_RIGHT);
                 m_chartBox.getChildren().add(m_chartImageView);
-                setChartScrollRight();
+                FxTimer.runLater(Duration.ofMillis(100), ()->setChartScrollRight());
         
             }
 
@@ -758,10 +766,10 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
     public void setChartScrollRight(){
-        FxTimer.runLater(Duration.ofMillis(100), ()->{
+        
             Platform.runLater(()->m_chartScroll.setVvalue(chartScrollVvalue));
             Platform.runLater(()->m_chartScroll.setHvalue(chartScrollHvalue));
-        });
+
     }
 
     public void updateShowSwap(boolean showSwap){
@@ -851,7 +859,7 @@ public class ErgoDexChartTab extends ContentTab {
     
           Tooltip slippageToleranceTip = new Tooltip("Slippage tolerance: Transaction will revert if\nprice changes unfavorably by this percentage.");
           slippageToleranceTip.setShowDelay(javafx.util.Duration.millis(100));
-          slippageToleranceTip.setShowDuration(javafx.util.Duration.seconds(15));
+          slippageToleranceTip.setShowDuration(javafx.util.Duration.seconds(20));
           
 
 
@@ -1322,6 +1330,11 @@ public class ErgoDexChartTab extends ContentTab {
             save();
         }
   
+        public void setShowSwapSettings(boolean showSettings){
+            m_showSwapSettings.set(showSettings);
+            save();
+        }
+    
 
         public void updateOrder(){
             if(m_orderTypeProperty.get() != null && m_orderTypeProperty.get().equals(MARKET_ORDER)){
@@ -1962,12 +1975,22 @@ public class ErgoDexChartTab extends ContentTab {
             private Text m_networkFeeText = null;
             private TextField m_networkFeeField = null;
             private HBox m_networkFeeBox = null;
+            private Tooltip m_networkFeeTooltip = null;
+            private Label m_networkFeeInfoLbl = null;
+            private HBox m_networkFeeFieldBox = null;
+            private Button m_networkFeeEnterBtn = null;
+            private EventHandler<ActionEvent> m_networkFeeFieldAction = null;
             private ChangeListener<String> m_networkFeeTextListener = null;
             private ChangeListener<Boolean> m_networkFeeFocusListener = null;
 
             private Text m_maxSwapFeeText = null;
             private TextField m_maxSwapFeeField = null;
+            private Tooltip m_maxSwapTooltip;
+            private Label m_maxSwapInfoLbl;
             private HBox m_maxSwapFeeBox;
+            private HBox m_maxSwapFeeFieldBox;
+            private Button m_maxSwapFeeEnterBtn = null;
+            private EventHandler<ActionEvent> m_maxSwapFieldAction;
             private ChangeListener<String> m_maxSwapFeeTextListener = null;
             private ChangeListener<Boolean> m_maxSwapFeeFocusListener = null;
 
@@ -2004,7 +2027,8 @@ public class ErgoDexChartTab extends ContentTab {
                 feesBox.setPadding(new Insets(5,10,0,20));
                 feesBox.setAlignment(Pos.CENTER_LEFT);
                 feesBox.setId("hand");
-                feesBox.setOnMouseClicked(e-> m_showSwapSettings.set(!m_showSwapSettings.get()));
+                feesBox.setFocusTraversable(true);
+                feesBox.setOnMouseClicked(e-> setShowSwapSettings(!m_showSwapSettings.get()));
 
                 HBox bodyHGradient = new HBox();
                 HBox.setHgrow(bodyHGradient, Priority.ALWAYS);
@@ -2030,11 +2054,24 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeText = new Text(String.format("%-15s", "Network Fee" ));
                         m_networkFeeText.setFont(App.smallFont);
                         m_networkFeeText.setFill(App.txtColor);
+
+                        m_networkFeeEnterBtn = new Button("↵");
+                        m_networkFeeEnterBtn.setFocusTraversable(true);
+                        m_networkFeeEnterBtn.setPadding(Insets.EMPTY);
+                        m_networkFeeEnterBtn.setMinWidth(25);
                 
                         m_networkFeeField = new TextField(m_networkFee.get() + "");
                         HBox.setHgrow(m_networkFeeField, Priority.ALWAYS);
                         m_networkFeeField.setAlignment(Pos.CENTER_RIGHT);
                         m_networkFeeField.setId("smallPrimaryColor");
+
+                        m_networkFeeFieldAction = e->{
+                            if(m_networkFeeEnterBtn != null){
+                                Platform.runLater(()-> m_networkFeeEnterBtn.requestFocus());
+                            }
+                        };
+
+                        m_networkFeeField.setOnAction(m_networkFeeFieldAction);
 
                         m_networkFeeTextListener = (obs,oldval,newval)->{
                             if(m_networkFeeField != null){
@@ -2046,6 +2083,7 @@ public class ErgoDexChartTab extends ContentTab {
                                 rightSide = rightSide.length() > ErgoCurrency.FRACTIONAL_PRECISION ? rightSide.substring(0, ErgoCurrency.FRACTIONAL_PRECISION) : rightSide;
                             
                                 m_networkFeeField.setText(leftSide +  rightSide);
+
                             }
                         };
 
@@ -2067,17 +2105,35 @@ public class ErgoDexChartTab extends ContentTab {
                                         }
                                     }
                                     m_networkFeeField.setText(m_networkFee.get() + "");
+                                    if(m_networkFeeFieldBox.getChildren().contains(m_networkFeeEnterBtn)){
+                                        m_networkFeeFieldBox.getChildren().remove(m_networkFeeEnterBtn);
+                                    }
+                                }else{
+                                    if(!m_networkFeeFieldBox.getChildren().contains(m_networkFeeEnterBtn)){
+                                        m_networkFeeFieldBox.getChildren().add(m_networkFeeEnterBtn);
+                                    }
                                 }
                             }
                         };
+                     
 
                         m_networkFeeField.focusedProperty().addListener(m_networkFeeFocusListener);
 
-                        HBox networkfeesFieldBox = new HBox(m_networkFeeField);
-                        HBox.setHgrow(networkfeesFieldBox, Priority.ALWAYS);
-                        networkfeesFieldBox.setId("darkBox");
+                        
+                        m_networkFeeTooltip = new Tooltip("The fee paid to miners to insentivize them to\ninclude the transaction in a block.\n(Minimum: "+ErgoDex.MIN_NETWORK_FEE+")");
+                        m_networkFeeTooltip.setShowDelay(javafx.util.Duration.millis(100));
+                        m_networkFeeTooltip.setShowDuration(javafx.util.Duration.seconds(20));
 
-                        m_networkFeeBox = new HBox(m_networkFeeText, networkfeesFieldBox);
+                        m_networkFeeInfoLbl = new Label("ⓘ");
+                        m_networkFeeInfoLbl.setId("logoBtn");
+                        m_networkFeeInfoLbl.setTooltip(m_networkFeeTooltip);
+
+                        m_networkFeeFieldBox = new HBox(m_networkFeeField);
+                        HBox.setHgrow(m_networkFeeFieldBox, Priority.ALWAYS);
+                        m_networkFeeFieldBox.setId("darkBox");
+                        m_networkFeeFieldBox.setAlignment(Pos.CENTER_LEFT);
+
+                        m_networkFeeBox = new HBox(m_networkFeeInfoLbl, m_networkFeeText, m_networkFeeFieldBox);
                         HBox.setHgrow(m_networkFeeBox, Priority.ALWAYS);
                         m_networkFeeBox.setAlignment(Pos.CENTER_LEFT);
                         m_networkFeeBox.setPadding(new Insets(0,5, 5, 5));
@@ -2085,11 +2141,24 @@ public class ErgoDexChartTab extends ContentTab {
                         m_maxSwapFeeText = new Text(String.format("%-15s", "DEX Fee"));
                         m_maxSwapFeeText.setFont(App.smallFont);
                         m_maxSwapFeeText.setFill(App.txtColor);
-                
+
+                        m_maxSwapFeeEnterBtn = new Button("↵");
+                        m_maxSwapFeeEnterBtn.setFocusTraversable(true);
+                        m_maxSwapFeeEnterBtn.setPadding(Insets.EMPTY);
+                        m_maxSwapFeeEnterBtn.setMinWidth(25);
+
                         m_maxSwapFeeField = new TextField(m_maxExFee.get() + "");
                         HBox.setHgrow(m_maxSwapFeeField, Priority.ALWAYS);
                         m_maxSwapFeeField.setAlignment(Pos.CENTER_RIGHT);
                         m_maxSwapFeeField.setId("smallPrimaryColor");
+
+                        m_maxSwapFieldAction = e->{
+                            if(m_maxSwapFeeEnterBtn != null){
+                                Platform.runLater(()-> m_maxSwapFeeEnterBtn.requestFocus());
+                            }
+                        };
+
+                        m_maxSwapFeeField.setOnAction(m_maxSwapFieldAction);
                         m_maxSwapFeeTextListener = (obs,oldval,newval)->{
                             if(m_maxSwapFeeField != null){
                                 String number = newval.replaceAll("[^0-9.]", "");
@@ -2120,23 +2189,38 @@ public class ErgoDexChartTab extends ContentTab {
                                         }
                                     }
                                     m_maxSwapFeeField.setText(m_maxExFee.get() + "");
+                                    if(m_maxSwapFeeFieldBox.getChildren().contains(m_maxSwapFeeEnterBtn)){
+                                        m_maxSwapFeeFieldBox.getChildren().remove(m_maxSwapFeeEnterBtn);
+                                    }
+                                }else{
+                                    if(!m_maxSwapFeeFieldBox.getChildren().contains(m_maxSwapFeeEnterBtn)){
+                                        m_maxSwapFeeFieldBox.getChildren().add(m_maxSwapFeeEnterBtn);
+                                    }
                                 }
                             }
                         };
                         m_maxSwapFeeField.focusedProperty().addListener(m_maxSwapFeeFocusListener);
 
+                        m_maxSwapTooltip = new Tooltip("The fee paid to execute the swap. Increasing\nthis value will increase the priority and\nmay decrease slippage. (Minimum: " + ErgoDex.MIN_EXECUTION_FEE.multiply(ErgoDex.DEFAULT_NITRO) +")");
+                        m_maxSwapTooltip.setShowDelay(javafx.util.Duration.millis(100));
+                        m_maxSwapTooltip.setShowDuration(javafx.util.Duration.seconds(20));
 
-                        HBox maxSwapFeeFieldBox = new HBox(m_maxSwapFeeField);
-                        HBox.setHgrow(maxSwapFeeFieldBox, Priority.ALWAYS);
-                        maxSwapFeeFieldBox.setId("darkBox");
+                        m_maxSwapInfoLbl = new Label("ⓘ");
+                        m_maxSwapInfoLbl.setTooltip(m_maxSwapTooltip);
+                        m_maxSwapInfoLbl.setId("logoBtn");
 
-                        m_maxSwapFeeBox = new HBox(m_maxSwapFeeText, maxSwapFeeFieldBox);
+                        m_maxSwapFeeFieldBox = new HBox(m_maxSwapFeeField);
+                        HBox.setHgrow(m_maxSwapFeeFieldBox, Priority.ALWAYS);
+                        m_maxSwapFeeFieldBox.setId("darkBox");
+                        m_maxSwapFeeFieldBox.setAlignment(Pos.CENTER_LEFT);
+
+                        m_maxSwapFeeBox = new HBox(m_maxSwapInfoLbl, m_maxSwapFeeText, m_maxSwapFeeFieldBox);
                         HBox.setHgrow(m_maxSwapFeeBox, Priority.ALWAYS);
                         m_maxSwapFeeBox.setAlignment(Pos.CENTER_LEFT);
                         m_maxSwapFeeBox.setPadding(new Insets(0,5, 5, 5));
 
                         m_settingsExtendedBox = new VBox(m_networkFeeBox, m_maxSwapFeeBox);
-                        m_settingsExtendedBox.setPadding(new Insets(0,0,0,20));
+                        m_settingsExtendedBox.setPadding(new Insets(0,0,0,15));
                         
                     }
 
@@ -2151,25 +2235,39 @@ public class ErgoDexChartTab extends ContentTab {
                         }
 
                         m_settingsExtendedBox.getChildren().clear();
-
+                        m_networkFeeFieldBox.getChildren().clear();
                         m_networkFeeBox.getChildren().clear();
                         m_networkFeeField.textProperty().removeListener(m_networkFeeTextListener);
                         m_networkFeeField.focusedProperty().removeListener(m_networkFeeFocusListener);
+                        m_networkFeeInfoLbl.setTooltip(null);
+                        m_networkFeeField.setOnAction(null);
+
+                        m_networkFeeFieldAction = null;
+                        m_networkFeeTooltip = null;
+                        m_networkFeeInfoLbl = null;
+                        m_networkFeeFieldBox = null;
                         m_networkFeeText = null;
                         m_networkFeeField = null;
                         m_networkFeeBox = null;
                         m_networkFeeTextListener = null;
                         m_networkFeeFocusListener = null;
 
+                        m_maxSwapFeeFieldBox.getChildren().clear();
                         m_maxSwapFeeBox.getChildren().clear();
                         m_maxSwapFeeField.textProperty().removeListener(m_maxSwapFeeTextListener);
                         m_maxSwapFeeField.focusedProperty().removeListener(m_maxSwapFeeFocusListener);
+                        m_maxSwapInfoLbl.setTooltip(null);
+                        m_maxSwapFeeField.setOnAction(null);
 
+                        m_maxSwapFieldAction = null;
                         m_maxSwapFeeText = null;
                         m_maxSwapFeeField = null;
+                        m_maxSwapTooltip = null;
+                        m_maxSwapInfoLbl = null;
                         m_maxSwapFeeBox = null;
                         m_maxSwapFeeTextListener = null;
                         m_maxSwapFeeFocusListener = null;
+                        m_maxSwapFeeFieldBox = null;
 
                         m_settingsExtendedBox = null;
                     }
