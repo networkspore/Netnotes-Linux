@@ -842,7 +842,7 @@ public class ErgoDexChartTab extends ContentTab {
         private Button m_executeBtn;
         private MenuButton m_slippageMenu;
 
-        private ErgoDexSwapFeeBox m_swapSettingsBox; 
+        private ErgoDexSwapFeeBox m_swapFeesBox; 
 
         public ErgoDexSwapBox(){
             super();
@@ -1171,9 +1171,9 @@ public class ErgoDexChartTab extends ContentTab {
             HBox.setHgrow(executePaddingBox, Priority.ALWAYS);
             executePaddingBox.setPadding(new Insets(10,0, 10, 0));
 
-            m_swapSettingsBox = new ErgoDexSwapFeeBox();
+            m_swapFeesBox = new ErgoDexSwapFeeBox();
     
-            VBox marketBox = new VBox( isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, slippageBox, executePaddingBox, m_swapSettingsBox);
+            VBox marketBox = new VBox( isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, slippageBox, executePaddingBox, m_swapFeesBox);
             marketBox.setPadding(new Insets(5));
             marketBox.setId("bodyBox");
     
@@ -1283,7 +1283,7 @@ public class ErgoDexChartTab extends ContentTab {
             
             m_marketData.getLastUpdated().addListener(m_marketDataUpdateListener);
            
-         
+            m_swapFeesBox.totalFeesProperty().addListener((obs,oldval,newval)->updateVolumeFromAmount());
             
             m_swapScrollContentBox = new VBox(m_dexWallet);
            
@@ -1353,8 +1353,10 @@ public class ErgoDexChartTab extends ContentTab {
         
             m_currentVolume.set(volume);
             PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
+            
             if( m_dexWallet.ergoAmountProperty().get() != null){
-                if(amountAvailable == null || amountAvailable.amountProperty().get().compareTo(bigAmount) == -1){
+                BigDecimal totalAmount = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID) ? bigAmount.add(m_swapFeesBox.totalFeesProperty().get()).add(ErgoNetwork.MIN_NETWORK_FEE) : bigAmount;
+                if(amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1){
                     m_amountField.setId("swapBtnUnavailable");
                     m_volumeField.setId("swapBtnUnavailable");
                 }else{
@@ -1372,7 +1374,7 @@ public class ErgoDexChartTab extends ContentTab {
         }
 
         public void shutdown(){
-            m_swapSettingsBox.shutdown();
+            m_swapFeesBox.shutdown();
             if(m_marketDataUpdateListener != null){
                 m_marketData.getLastUpdated().removeListener(m_marketDataUpdateListener);
             }
