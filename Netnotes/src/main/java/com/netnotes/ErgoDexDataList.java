@@ -61,7 +61,7 @@ public class ErgoDexDataList  {
     private ErgpDexSort m_sortMethod = new ErgpDexSort();
     private String m_searchText = null;
 
-
+    private SimpleBooleanProperty m_isInvert;
    
 
     private int m_connectionStatus = App.STOPPED;
@@ -93,13 +93,13 @@ public class ErgoDexDataList  {
     private double m_defaultCharSize;
     private VBox m_loadingBox;
     
-    public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
+    public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleBooleanProperty isInvert, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
         m_currentIndex = new SimpleIntegerProperty(0);
 
         m_locationId = locationId;
         m_ergodex = ergoDex;
         m_appStage = appStage;
-        
+        m_isInvert = isInvert;
         m_scrollPane = scrollPane;
         m_updatedField = updatedField;
         m_ergoNetworkInterfaceProperty = networkInterface;
@@ -130,6 +130,7 @@ public class ErgoDexDataList  {
             sortMethod.setSwapTarget(newval ?  ErgpDexSort.SwapMarket.SWAPPED : ErgpDexSort.SwapMarket.STANDARD);
             sort();
             updateGrid();
+            
         });
         addDexistener();
     
@@ -349,7 +350,7 @@ public class ErgoDexDataList  {
     }
 
     
-    private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty(false);
+ 
 
     public SimpleBooleanProperty isInvertProperty(){
         return m_isInvert;

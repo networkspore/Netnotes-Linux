@@ -280,19 +280,16 @@ public class ErgoDexChartTab extends ContentTab {
             */
         menuButton.getItems().addAll(setChartRangeItem);
 
-
-        Label headingText = new Label(m_marketData.getCurrentSymbol(isInvert()) + "  - ");
-
-
-
-      
+       
+        Text headingText = new Text(m_marketData.getCurrentSymbol(isInvert()));
+        headingText.setFont(App.txtFont);
+        headingText.setFill(App.txtColor);
 
 
-        m_timeSpanBtn = new MenuButton(m_timeSpan.getName());
+        m_timeSpanBtn = new MenuButton(m_timeSpan.getName() + " ");
         m_timeSpanBtn.setId("arrowMenuButton");
-        m_timeSpanBtn.setFont(App.txtFont);
-        m_timeSpanBtn.setContentDisplay(ContentDisplay.LEFT);
-        m_timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
+        
+      
       
         
         Region headingBoxSpacerR = new Region();
@@ -300,11 +297,15 @@ public class ErgoDexChartTab extends ContentTab {
         Region headingSpacerL = new Region();
         HBox.setHgrow(headingSpacerL,Priority.ALWAYS);
 
-        HBox headingTextTimeBox = new HBox( headingText, m_timeSpanBtn);
-        headingTextTimeBox.setAlignment(Pos.CENTER);
-        headingTextTimeBox.setPadding(new Insets(5, 0, 5, 0));
+        Text dashText = new Text("  - ");
+        dashText.setFont(App.txtFont);
+        dashText.setFill(App.txtColor);
 
-        HBox headingBox = new HBox(headingSpacerL,headingTextTimeBox, headingBoxSpacerR);
+        HBox headingCenterBox = new HBox( headingText, dashText, m_timeSpanBtn);
+        headingCenterBox.setAlignment(Pos.CENTER);
+        headingCenterBox.setPadding(new Insets(5, 0, 5, 0));
+
+        HBox headingBox = new HBox(headingSpacerL, headingCenterBox, headingBoxSpacerR);
         headingBox.prefHeight(40);
         headingBox.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(headingBox, Priority.ALWAYS);
@@ -449,7 +450,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_invertListener = (obs,oldval,newval)->{
             
             invertBtn.setImage( new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
-            headingText.setText(m_marketData.getCurrentSymbol(newval) + "  - ");
+            headingText.setText(m_marketData.getCurrentSymbol(newval));
 
             m_chartRange.reset();
             createChart();
@@ -522,7 +523,7 @@ public class ErgoDexChartTab extends ContentTab {
     public void setTimeSpan(TimeSpan timeSpan){
         if(timeSpan != null){
             m_timeSpan = timeSpan;
-            m_timeSpanBtn.setText(m_timeSpan.getName());
+            m_timeSpanBtn.setText(m_timeSpan.getName() + " ");
             createChart();
             save();
         }
@@ -1150,34 +1151,8 @@ public class ErgoDexChartTab extends ContentTab {
             isBuyPaddingBox.setPadding(new Insets(15));
     
             m_executeBtn.setPadding(new Insets(5));
-            m_executeBtn.setOnAction(e->{
-                boolean isSell = m_isSellProperty.get();
-                boolean invert = isSell ? isInvert() : !isInvert();
-            
-                PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
-            
-           /*     if( m_dexWallet.ergoAmountProperty().get() != null){
-                    BigDecimal minErg = m_swapFeesBox.totalFeesProperty().get().add(ErgoNetwork.MIN_NETWORK_FEE);
-    
-                    boolean isErg = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
-                    BigDecimal totalAmount = isErg ? bigAmount.add(minErg) : bigAmount;
-                    boolean isUnavailable = amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1;
-                    isUnavailable = !isUnavailable && !isErg ? m_dexWallet.ergoAmountProperty().get().amountProperty().get().compareTo(minErg) == -1 : isUnavailable;
-                }    */
-    
-                String amountAvailableId = m_amountField.getId();
-
-                if(amountAvailableId.equals("swapBtnAvailable")){
-
-                }else{
-
-                }
-            });
-            m_executeBtn.minWidthProperty().bind(Bindings.createObjectBinding(()->{
-                String executeString = m_executeBtn.textProperty().get();
-                return Utils.computeTextWidth(App.txtFont, executeString) + 20;
-            }, m_executeBtn.textProperty()));
-
+            m_executeBtn.setOnAction(e->executeSwap());
+      
             
 
             HBox executeBox = new HBox(m_executeBtn);
@@ -1324,6 +1299,30 @@ public class ErgoDexChartTab extends ContentTab {
                 
     
              
+        }
+
+        public void executeSwap(){
+            boolean isSell = m_isSellProperty.get();
+            boolean invert = isSell ? isInvert() : !isInvert();
+        
+            PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
+        
+       /*     if( m_dexWallet.ergoAmountProperty().get() != null){
+                BigDecimal minErg = m_swapFeesBox.totalFeesProperty().get().add(ErgoNetwork.MIN_NETWORK_FEE);
+
+                boolean isErg = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
+                BigDecimal totalAmount = isErg ? bigAmount.add(minErg) : bigAmount;
+                boolean isUnavailable = amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1;
+                isUnavailable = !isUnavailable && !isErg ? m_dexWallet.ergoAmountProperty().get().amountProperty().get().compareTo(minErg) == -1 : isUnavailable;
+            }    */
+
+            String amountAvailableId = m_amountField.getId();
+
+            if(amountAvailableId.equals("swapBtnAvailable")){
+
+            }else{
+
+            }
         }
 
         public void setSlippageTolerance(BigDecimal decimal){

@@ -316,6 +316,7 @@ public class ErgoDex extends Network implements NoteInterface {
         private NoteMsgInterface m_networksDataMsgInterface;
 
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
+        private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty(false);
         private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
@@ -351,6 +352,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 Object obj = onSucceeded.getSource().getValue();
                 JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
                 openJson(json); 
+                m_isInvert.addListener((obs,oldval,newval)->save());
                 layoutTab();
             });
 
@@ -358,7 +360,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
         public void layoutTab(){
            
-            m_dexDataList = new ErgoDexDataList(m_locationId, m_appStage, ErgoDex.this, m_tabWidth, m_gridHeight, m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  gridSscrollPane);
+            m_dexDataList = new ErgoDexDataList(m_locationId, m_appStage, ErgoDex.this, m_isInvert, m_tabWidth, m_gridHeight, m_lastUpdatedField,  m_itemTimeSpan, m_ergoNetworkInterface,  gridSscrollPane);
 
 
             ImageView networkMenuBtnImageView = new ImageView(new Image(noNetworkImgString));
@@ -598,7 +600,7 @@ public class ErgoDex extends Network implements NoteInterface {
                         
                         TimeSpan timeSpanItem = (TimeSpan) itemObject;
                         m_itemTimeSpan.set(timeSpanItem);
-                        
+                        save();
                     }
 
                 });
@@ -607,17 +609,13 @@ public class ErgoDex extends Network implements NoteInterface {
 
             }
 
-            m_itemTimeSpan.addListener((obs,oldval,newval)->{
-        //     timeSpanLabel.setText(newval.getName() + " ▾");
-                save();
-            });
 
             HBox timeSpanBtnBox = new HBox(timeSpanBtn);
             timeSpanBtnBox.setId("urlMenuButton");
             timeSpanBtnBox.setAlignment(Pos.CENTER_LEFT);
 
             Region timeSpanSpacer = new Region();
-            timeSpanSpacer.setMinWidth(5);
+            timeSpanSpacer.setMinWidth(10);
 
 
             m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion, timeSpanBtnBox,timeSpanSpacer, rightSideMenu);
@@ -802,10 +800,13 @@ public class ErgoDex extends Network implements NoteInterface {
 
             JsonElement itemTimeSpanElement = json != null ? json.get("itemTimeSpan") : null;
             JsonElement isErgoNetworkElement = json != null ? json.get("isErgoNetwork") : null;
+            JsonElement isInvertElement = json != null ? json.get("isInvert") : null;
             TimeSpan timeSpan = itemTimeSpanElement != null && itemTimeSpanElement.isJsonObject() ? new TimeSpan(itemTimeSpanElement.getAsJsonObject()) : new TimeSpan("1day");
             
             boolean isErgoNetwork = isErgoNetworkElement != null ? isErgoNetworkElement.getAsBoolean() : true;
+            boolean isInvert = isInvertElement != null ? isInvertElement.getAsBoolean() : false;
 
+            m_isInvert.set(isInvert);
             m_itemTimeSpan.set(timeSpan);
             m_isErgoNetwork = isErgoNetwork;
         }
@@ -813,10 +814,11 @@ public class ErgoDex extends Network implements NoteInterface {
         public JsonObject getJsonObject(){
             TimeSpan itemTimeSpan = m_itemTimeSpan == null ? new TimeSpan("1day") : m_itemTimeSpan.get();
 
-            JsonObject networkObj = new JsonObject();
-            networkObj.add("itemTimeSpan", itemTimeSpan.getJsonObject());
-            networkObj.addProperty("isErgoNetworkEnabled", isErgoNetwork());
-            return networkObj;
+            JsonObject json = new JsonObject();
+            json.add("itemTimeSpan", itemTimeSpan.getJsonObject());
+            json.addProperty("isErgoNetworkEnabled", isErgoNetwork());
+            json.addProperty("isInvert", m_isInvert.get());
+            return json;
         }
 
         public void save(){
