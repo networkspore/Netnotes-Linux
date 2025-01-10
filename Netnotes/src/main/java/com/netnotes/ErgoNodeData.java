@@ -27,7 +27,7 @@ import javafx.scene.image.Image;
 
 public class ErgoNodeData extends Network implements NoteInterface {
 
-    public final static String PULIC_NODE_1 = "DEFAULT";
+    public final static String PULIC_NODE_1 = "PUBLIC_NODE_1";
 
     public final static String PUBLIC = "PUBLIC";
     public final static String PRIVATE = "PRIVATE";

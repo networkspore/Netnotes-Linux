@@ -687,6 +687,12 @@ public class AddressesData {
 
         if(dataElement != null && dataElement.isJsonObject())
         {
+            try {
+                Files.writeString(App.logFile.toPath(), note + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+
+            }
+
             JsonObject dataObject = dataElement.getAsJsonObject();
 
             JsonElement networkElement = dataObject.get("network");

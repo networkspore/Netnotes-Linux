@@ -12,6 +12,8 @@ import com.utils.Utils;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 
 
 public class ErgoWalletControl {
@@ -50,7 +52,19 @@ public class ErgoWalletControl {
         return m_balanceObject;
     }
 
+   public boolean sendNote(String cmd, JsonObject noteData, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        JsonObject note = Utils.getCmdObject(cmd);
+        note.addProperty("accessId", m_accessId);
+        note.addProperty("locationId", m_locationId);
+        note.add("data", noteData);
 
+        NoteInterface walletInterface = m_walletInterface;
+        if(walletInterface != null){
+            return walletInterface.sendNote(note, onSucceeded, onFailed);
+        }else{
+            return false;
+        }
+   }
 
 
     public void connectToWallet(){

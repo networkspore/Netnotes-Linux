@@ -457,7 +457,9 @@ public class ErgoWalletData extends Network implements NoteInterface {
                     if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
                         switch(cmd){
                             case "sendAssets":
-                                //m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                                m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                                return true;
+                            case "executeContract":
                                 m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
                                 return true;
                         }       

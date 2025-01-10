@@ -47,10 +47,9 @@ public class ErgoNodesList {
             Object obj = onSucceded.getSource().getValue();
         
             JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
-            if(json != null){
             
-                openJson(json);
-            }
+            openJson(json);
+            
         });
     
     }
@@ -201,8 +200,17 @@ public class ErgoNodesList {
            
             setDefaultNodeId(defaultNodeIdElement != null ?  defaultNodeIdElement.getAsString() : null, false);
         }else{
-            NamedNodeUrl defaultNode = new NamedNodeUrl();
-            addRemoteNode(new ErgoNodeData(ErgoNodeData.PULIC_NODE_1,defaultNode.getName(), ErgoNodeData.LIGHT_CLIENT, FriendlyId.createFriendlyId(), this,  defaultNode), true);
+            NamedNodeUrl defaultUrl = new NamedNodeUrl();
+            ErgoNodeData nodeData = new ErgoNodeData(
+                defaultUrl.getId(),
+                defaultUrl.getName(), 
+                ErgoNodeData.LIGHT_CLIENT,
+                FriendlyId.createFriendlyId(), 
+                this, defaultUrl
+            );
+            
+            addRemoteNode(nodeData, false);
+            m_defaultNodeId = nodeData.getId();
         }
 
 

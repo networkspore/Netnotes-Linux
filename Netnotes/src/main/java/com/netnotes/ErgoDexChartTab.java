@@ -1309,21 +1309,25 @@ public class ErgoDexChartTab extends ContentTab {
 
         public void showError(String msg){
                
-                double stringWidth =  Utils.computeTextWidth(App.txtFont, msg);;
+            double stringWidth =  Utils.computeTextWidth(App.txtFont, msg);;
 
-                Point2D p = m_executeBtn.localToScene(0.0, 0.0);
-                m_errTip.setText(msg);
-                m_errTip.show(m_executeBtn,
-                        p.getX() + m_executeBtn.getScene().getX()
-                                + m_executeBtn.getScene().getWindow().getX() - (stringWidth/2),
-                        (p.getY() + m_executeBtn.getScene().getY()
-                                + m_executeBtn.getScene().getWindow().getY()) - 40);
-                PauseTransition pt = new PauseTransition(javafx.util.Duration.millis(5000));
-                pt.setOnFinished(ptE -> {
-                    m_errTip.hide();
-                });
-                pt.play();
-            }
+            Point2D p = m_executeBtn.localToScene(0.0, 0.0);
+            m_errTip.setText(msg);
+            m_errTip.show(m_executeBtn,
+                    p.getX() + m_executeBtn.getScene().getX()
+                            + m_executeBtn.getScene().getWindow().getX() - (stringWidth/2),
+                    (p.getY() + m_executeBtn.getScene().getY()
+                            + m_executeBtn.getScene().getWindow().getY()) - 40);
+            PauseTransition pt = new PauseTransition(javafx.util.Duration.millis(5000));
+            pt.setOnFinished(ptE -> {
+                m_errTip.hide();
+            });
+            pt.play();
+        }
+
+        public String getLocationId(){
+            return m_dataList.getLocationId();
+        }
 
 
         public void executeSwap(){
@@ -1349,7 +1353,98 @@ public class ErgoDexChartTab extends ContentTab {
                 BigDecimal totalAmountRequired = isErg ? baseAmount.add(minErg) : baseAmount;
                 if(m_dexWallet.ergoAmountProperty().get().getBigDecimalAmount().compareTo(minErg) > -1){
                     if(totalAmountRequired.compareTo(amountAvailable.getBigDecimalAmount()) < 1){
-                        
+                        NoteInterface ergoInterface = m_dataList.ergoInterfaceProperty().get();
+
+                        if(ergoInterface != null){
+                            JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
+                            getDefaultExplorerNote.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
+                            getDefaultExplorerNote.addProperty("locationId", getLocationId());
+                            Object explorerObj = ergoInterface.sendNote(getDefaultExplorerNote);
+
+                            if(explorerObj != null){
+                                JsonObject explorerObject = (JsonObject) explorerObj;
+                                JsonElement namedExplorerElement = explorerObject.get("ergoNetworkUrl");
+                
+                                JsonObject namedExplorerJson = namedExplorerElement.getAsJsonObject();
+                                
+                                ErgoNetworkUrl explorerUrl = null;
+                                String explorerUrlError = null;
+                                try {
+                                    explorerUrl = new ErgoNetworkUrl(namedExplorerJson);
+                                   
+                                } catch (Exception e1) {
+                                    explorerUrlError = e1.toString();                                 
+                 
+                                }
+                                if(explorerUrl != null){
+                                    JsonObject getDefaultNodeNote = Utils.getCmdObject("getDefaultInterface");
+                                    getDefaultNodeNote.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
+                                    getDefaultNodeNote.addProperty("locationId", getLocationId());
+                                
+                                    Object nodeObj = ergoInterface.sendNote(getDefaultNodeNote);
+                                
+                                    NoteInterface nodeInterface = nodeObj != null && nodeObj instanceof NoteInterface ? (NoteInterface) nodeObj : null;
+                                
+                                    if(nodeInterface != null){
+                                        JsonElement namedNodeElement = nodeInterface.getJsonObject().get("namedNode");
+                                        if( namedNodeElement != null && namedNodeElement.isJsonObject()){
+                                            JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
+                                            
+                                            NamedNodeUrl namedNode = null;
+                                            String namedNodeErrorString = null;
+                                            try {
+                                                namedNode = new NamedNodeUrl(namedNodeJson);
+                                            }catch(Exception e1){
+                                                namedNodeErrorString = e1.toString();
+                                            }
+
+                                            if(namedNode != null){
+                                                
+                                                JsonObject nodeJson = new JsonObject();
+                                                nodeJson.addProperty("name", nodeInterface.getName());
+                                                nodeJson.addProperty("url", namedNode.getUrlString());
+                                                nodeJson.addProperty("apiKey", namedNode.getApiKey());
+
+                                                JsonObject explorerJson = new JsonObject();
+                                                explorerJson.addProperty("url", explorerUrl.getUrlString());
+
+                                                JsonObject contractObject = new JsonObject();
+
+                                                JsonObject swapObject = new JsonObject();
+                                                swapObject.add("node", nodeJson);
+                                                swapObject.add("explorer", explorerJson);
+
+                                                
+
+
+                                                if(!m_dexWallet.getErgoWalletControl().sendNote(
+                                                    "executeContract", 
+                                                    swapObject, 
+                                                    onSucceeded->{
+
+                                                    }, onFailed->{
+
+                                                    })){
+                                                        showError("Ergo Network - Ergo Wallet is inaccessible.");
+                                                }
+                                            }else{
+                                                showError("Ergo Network - Node url invalid: " + namedNodeErrorString);
+                                            }
+                                        }else{
+                                            showError("Ergo Network - Node information not found");
+                                        }
+                                    }else{
+                                        showError("Ergo Network - No node selected");
+                                    }
+                                }else{
+                                    showError("Ergo Network - Explorer url invalid: " + explorerUrlError);
+                                }
+                            }else{
+                                showError("Ergo Network - No explorer selected");
+                            }
+                        }else{
+                            showError("Ergo Network is not available");
+                        }
                       
                     }else{
                         showError("Insufficient " + amountAvailable.getCurrency().getSymbol()+ " balance: " + totalAmountRequired + " required)");
@@ -1475,6 +1570,10 @@ public class ErgoDexChartTab extends ContentTab {
             private HBox m_assetsVBox;
             
             private ErgoWalletControl m_walletControl;
+
+            public ErgoWalletControl getErgoWalletControl(){
+                return m_walletControl;
+            }
     
             private NoteInterface getErgoNetworkInterface(){
                 return m_dataList.ergoInterfaceProperty().get();
