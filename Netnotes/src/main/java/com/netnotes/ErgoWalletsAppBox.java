@@ -1824,7 +1824,7 @@ public class ErgoWalletsAppBox extends AppBox {
   
         private ErgoWalletAmountSendBoxes m_amountBoxes;
         private Button m_sendBtn = new Button("Send");
-        private Tooltip m_tooltip = new Tooltip();
+        private Tooltip m_errTip = new Tooltip();
         private TextField m_feesField;
    
         public SendAppBox(){
@@ -2387,15 +2387,15 @@ public class ErgoWalletsAppBox extends AppBox {
                 double stringWidth =  Utils.computeTextWidth(App.txtFont, msg);;
 
                 Point2D p = m_sendBtn.localToScene(0.0, 0.0);
-                m_tooltip.setText(msg);
-                m_tooltip.show(m_sendBtn,
+                m_errTip.setText(msg);
+                m_errTip.show(m_sendBtn,
                         p.getX() + m_sendBtn.getScene().getX()
                                 + m_sendBtn.getScene().getWindow().getX() - (stringWidth/2),
                         (p.getY() + m_sendBtn.getScene().getY()
                                 + m_sendBtn.getScene().getWindow().getY()) - 40);
                 PauseTransition pt = new PauseTransition(Duration.millis(5000));
                 pt.setOnFinished(ptE -> {
-                    m_tooltip.hide();
+                    m_errTip.hide();
                 });
                 pt.play();
             }

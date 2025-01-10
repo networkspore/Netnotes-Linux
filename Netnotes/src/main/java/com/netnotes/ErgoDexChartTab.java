@@ -7,9 +7,11 @@ import com.google.gson.JsonObject;
 import com.netnotes.NetworksData.ManageNetworksTab;
 import com.utils.Utils;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -22,6 +24,7 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
@@ -146,7 +149,7 @@ public class ErgoDexChartTab extends ContentTab {
         return m_marketItem.getScene();
     }
 
-    public SimpleBooleanProperty isInvertProperty(){
+    public ReadOnlyBooleanProperty isInvertProperty(){
         return m_marketItem.isInvertProperty();
     }
 
@@ -504,6 +507,7 @@ public class ErgoDexChartTab extends ContentTab {
         getNetworksData().getStage().maximizedProperty().addListener(m_maximizeListener);
     
     }
+    
 
     private void completeLoading(){
         if(!m_layoutBox.getChildren().contains(m_chartTabBox)){
@@ -659,7 +663,7 @@ public class ErgoDexChartTab extends ContentTab {
         long timestamp = System.currentTimeMillis();
 
         m_spectrumChartView.processData(
-            isInvertProperty().get(), 
+            isInvert(), 
             maxBars, 
             timeSpan,
             timestamp,
@@ -688,7 +692,7 @@ public class ErgoDexChartTab extends ContentTab {
         long timestamp = System.currentTimeMillis();
 
         m_spectrumChartView.processData(
-            isInvertProperty().get(), 
+            isInvert(), 
             maxBars, 
             timeSpan,
             timestamp,
@@ -850,7 +854,9 @@ public class ErgoDexChartTab extends ContentTab {
         private Button m_executeBtn;
         private MenuButton m_slippageMenu;
 
-        private ErgoDexSwapFeeBox m_swapFeesBox; 
+        private ErgoDexSwapFeeBox m_swapFeesBox;
+
+        private Tooltip m_errTip = new Tooltip();
 
         public ErgoDexSwapBox(){
             super();
@@ -1301,27 +1307,58 @@ public class ErgoDexChartTab extends ContentTab {
              
         }
 
+        public void showError(String msg){
+               
+                double stringWidth =  Utils.computeTextWidth(App.txtFont, msg);;
+
+                Point2D p = m_executeBtn.localToScene(0.0, 0.0);
+                m_errTip.setText(msg);
+                m_errTip.show(m_executeBtn,
+                        p.getX() + m_executeBtn.getScene().getX()
+                                + m_executeBtn.getScene().getWindow().getX() - (stringWidth/2),
+                        (p.getY() + m_executeBtn.getScene().getY()
+                                + m_executeBtn.getScene().getWindow().getY()) - 40);
+                PauseTransition pt = new PauseTransition(javafx.util.Duration.millis(5000));
+                pt.setOnFinished(ptE -> {
+                    m_errTip.hide();
+                });
+                pt.play();
+            }
+
+
         public void executeSwap(){
-            boolean isSell = m_isSellProperty.get();
-            boolean invert = isSell ? isInvert() : !isInvert();
-        
             PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
-        
-       /*     if( m_dexWallet.ergoAmountProperty().get() != null){
-                BigDecimal minErg = m_swapFeesBox.totalFeesProperty().get().add(ErgoNetwork.MIN_NETWORK_FEE);
 
-                boolean isErg = amountAvailable != null && amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
-                BigDecimal totalAmount = isErg ? bigAmount.add(minErg) : bigAmount;
-                boolean isUnavailable = amountAvailable == null || amountAvailable.amountProperty().get().compareTo(totalAmount) == -1;
-                isUnavailable = !isUnavailable && !isErg ? m_dexWallet.ergoAmountProperty().get().amountProperty().get().compareTo(minErg) == -1 : isUnavailable;
-            }    */
+            if( m_dexWallet.ergoAmountProperty().get() != null && amountAvailable != null){
+                boolean isSell = m_isSellProperty.get();
+                boolean invert = isInvert();
+            
+                boolean isErg = amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
+                
+                BigDecimal networkFee = m_networkFee.get();
+                BigDecimal minExFee = ErgoDex.SWAP_MIN_EXECUTION_FEE;
+                BigDecimal maxExFee = m_maxExFee.get();
 
-            String amountAvailableId = m_amountField.getId();
+                BigDecimal totalFees = m_swapFeesBox.totalFeesProperty().get();
+             
+                BigDecimal minErg = totalFees.add(ErgoNetwork.MIN_NETWORK_FEE);
 
-            if(amountAvailableId.equals("swapBtnAvailable")){
+                BigDecimal baseAmount = m_currentAmount.get();
+                BigDecimal quoteAmount = m_currentVolume.get();
 
+                BigDecimal totalAmountRequired = isErg ? baseAmount.add(minErg) : baseAmount;
+                if(m_dexWallet.ergoAmountProperty().get().getBigDecimalAmount().compareTo(minErg) > -1){
+                    if(totalAmountRequired.compareTo(amountAvailable.getBigDecimalAmount()) < 1){
+                        
+                      
+                    }else{
+                        showError("Insufficient " + amountAvailable.getCurrency().getSymbol()+ " balance: " + totalAmountRequired + " required)");
+                    }
+                }else{
+                    showError("insufficient Ergo balamce for fees: " + minErg + "ERG required");
+                }
             }else{
-
+                showError("Wallet unavailable");
             }
         }
 
@@ -2028,6 +2065,13 @@ public class ErgoDexChartTab extends ContentTab {
             private ChangeListener<String> m_maxSwapFeeTextListener = null;
             private ChangeListener<Boolean> m_maxSwapFeeFocusListener = null;
 
+            private Tooltip m_minErgoToolTip = null;
+            private Label m_minErgoInfoLbl = null;
+            private Text m_minErgoText = null;
+            private Text m_minErgoAmountText = null;
+            private HBox m_minErgoFieldBox = null;
+            private HBox m_minErgoBox = null;
+
             private VBox m_settingsExtendedBox = null;
             private SimpleObjectProperty<BigDecimal> m_totalFees = new SimpleObjectProperty<>(BigDecimal.ZERO);
 
@@ -2204,7 +2248,7 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeField.focusedProperty().addListener(m_networkFeeFocusListener);
 
                         
-                        m_networkFeeTooltip = new Tooltip("The fee paid to miners to insentivize them to\ninclude the transaction in a block.\n(Minimum: "+ErgoDex.NETWORK_MIN_FEE+")");
+                        m_networkFeeTooltip = new Tooltip("The fee paid to miners to insentivize them to include the transaction in a block. (Minimum: "+ErgoDex.NETWORK_MIN_FEE+" ERG)");
                         m_networkFeeTooltip.setShowDelay(javafx.util.Duration.millis(100));
                         m_networkFeeTooltip.setShowDuration(javafx.util.Duration.seconds(20));
 
@@ -2220,7 +2264,7 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeBox = new HBox(m_networkFeeInfoLbl, m_networkFeeText, m_networkFeeFieldBox);
                         HBox.setHgrow(m_networkFeeBox, Priority.ALWAYS);
                         m_networkFeeBox.setAlignment(Pos.CENTER_LEFT);
-                        m_networkFeeBox.setPadding(new Insets(0,5, 5, 5));
+                        m_networkFeeBox.setPadding(new Insets(0,0, 5,0));
                         
                         m_maxSwapFeeText = new Text(String.format("%-15s", "DEX Fee"));
                         m_maxSwapFeeText.setFont(App.smallFont);
@@ -2285,7 +2329,7 @@ public class ErgoDexChartTab extends ContentTab {
                         };
                         m_maxSwapFeeField.focusedProperty().addListener(m_maxSwapFeeFocusListener);
 
-                        m_maxSwapTooltip = new Tooltip("The fee paid to execute the swap. Increasing\nthis value will increase the priority and\nmay decrease slippage. (Minimum: " + ErgoDex.SWAP_MIN_EXECUTION_FEE.multiply(ErgoDex.DEFAULT_NITRO) +")");
+                        m_maxSwapTooltip = new Tooltip("The fee paid to execute the swap. Increasing\nthis value will increase the priority and\nmay decrease slippage. (Minimum: " + ErgoDex.SWAP_MIN_EXECUTION_FEE.multiply(ErgoDex.DEFAULT_NITRO) +" ERG)");
                         m_maxSwapTooltip.setShowDelay(javafx.util.Duration.millis(100));
                         m_maxSwapTooltip.setShowDuration(javafx.util.Duration.seconds(20));
 
@@ -2301,10 +2345,35 @@ public class ErgoDexChartTab extends ContentTab {
                         m_maxSwapFeeBox = new HBox(m_maxSwapInfoLbl, m_maxSwapFeeText, m_maxSwapFeeFieldBox);
                         HBox.setHgrow(m_maxSwapFeeBox, Priority.ALWAYS);
                         m_maxSwapFeeBox.setAlignment(Pos.CENTER_LEFT);
-                        m_maxSwapFeeBox.setPadding(new Insets(0,5, 5, 5));
+                        m_maxSwapFeeBox.setPadding(new Insets(0,0, 5, 0));
 
-                        m_settingsExtendedBox = new VBox(m_networkFeeBox, m_maxSwapFeeBox);
-                        m_settingsExtendedBox.setPadding(new Insets(0,0,0,15));
+                        m_minErgoToolTip = new Tooltip("The minimum balance required to house tokens. (Warning:\nInactive addresses can become subject to storage/rent.\nBalances going below the minimum threshold can result\nin loss of tokens.)");
+                        m_minErgoToolTip.setShowDelay(javafx.util.Duration.millis(100));
+                        m_minErgoToolTip.setShowDuration(javafx.util.Duration.seconds(20));
+
+                        m_minErgoInfoLbl = new Label("ⓘ");
+                        m_minErgoInfoLbl.setTooltip(m_minErgoToolTip);
+                        m_minErgoInfoLbl.setId("logoBtn");
+
+                        m_minErgoText = new Text(String.format("%-15s", "Min Balance"));
+                        m_minErgoText.setFont(App.smallFont);
+                        m_minErgoText.setFill(App.txtColor);
+
+                        m_minErgoAmountText = new Text(ErgoNetwork.MIN_NETWORK_FEE + " ERG");
+                        m_minErgoAmountText.setFont(App.smallFont);
+                        m_minErgoAmountText.setFill(App.txtColor);
+
+                        m_minErgoFieldBox = new HBox(m_minErgoAmountText);
+                        HBox.setHgrow(m_minErgoFieldBox, Priority.ALWAYS);
+                        m_minErgoFieldBox.setAlignment(Pos.CENTER_RIGHT);
+                        m_minErgoFieldBox.setPadding(new Insets(0,10, 0, 0));
+
+                        m_minErgoBox = new HBox(m_minErgoInfoLbl, m_minErgoText, m_minErgoFieldBox);
+                        m_minErgoBox.setAlignment(Pos.CENTER_LEFT);
+                        HBox.setHgrow(m_minErgoBox, Priority.ALWAYS);
+
+                        m_settingsExtendedBox = new VBox(m_networkFeeBox, m_maxSwapFeeBox, m_minErgoBox);
+                        m_settingsExtendedBox.setPadding(new Insets(0,5,0,20));
                         
                     }
 
@@ -2352,6 +2421,17 @@ public class ErgoDexChartTab extends ContentTab {
                         m_maxSwapFeeTextListener = null;
                         m_maxSwapFeeFocusListener = null;
                         m_maxSwapFeeFieldBox = null;
+
+                        m_minErgoFieldBox.getChildren().clear();
+                        m_minErgoBox.getChildren().clear();
+                        m_minErgoInfoLbl.setTooltip(null);
+
+                        m_minErgoToolTip = null;
+                        m_minErgoInfoLbl = null;
+                        m_minErgoText = null;
+                        m_minErgoAmountText = null;
+                        m_minErgoFieldBox = null;
+                        m_minErgoBox = null;
 
                         m_settingsExtendedBox = null;
                     }

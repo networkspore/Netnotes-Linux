@@ -289,12 +289,6 @@ public class ErgoExplorerData {
                     Object sourceValue = onBalance.getSource().getValue();
                     JsonObject json = sourceValue != null && sourceValue instanceof JsonObject ? (JsonObject) sourceValue : null;
 
-                    try {
-                         Files.writeString(App.logFile.toPath(), "balance: " + json + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e) {
-                    
-                    
-                    }
                     getBalanceTokenInfo(json, onSucceeded, onFailed);
                }, onFailed);
           }

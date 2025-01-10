@@ -258,8 +258,14 @@ public class NetworksData {
 
         getData("data",  ".", "main","root", (onComplete)->{
             Object obj = onComplete.getSource().getValue();
-            openJson(obj != null && obj instanceof JsonObject ? (JsonObject) obj : null);
-            initLayout();
+            JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
+            if(json != null){
+                openJson(json);
+                initLayout();
+            }else{
+                initLayout();
+                openJson(null);
+            }
         });
        
     }

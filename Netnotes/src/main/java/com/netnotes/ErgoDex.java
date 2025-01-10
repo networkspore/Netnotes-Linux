@@ -352,7 +352,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 Object obj = onSucceeded.getSource().getValue();
                 JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
                 openJson(json); 
-                m_isInvert.addListener((obs,oldval,newval)->save());
+          
                 layoutTab();
             });
 
@@ -451,7 +451,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
-
+            /*
             Tooltip refreshTip = new Tooltip("Refresh");
             refreshTip.setShowDelay(new javafx.util.Duration(100));
             refreshTip.setFont(App.txtFont);
@@ -527,15 +527,15 @@ public class ErgoDex extends Network implements NoteInterface {
                 m_dexDataList.sort();
                 m_dexDataList.updateGrid();
             });
-
+            */
             BufferedButton swapTargetButton = new BufferedButton(m_dexDataList.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
             swapTargetButton.setOnAction(e->{
-                m_dexDataList.isInvertProperty().set(!m_dexDataList.isInvertProperty().get());
+                m_isInvert.set(!m_dexDataList.isInvertProperty().get());
             });
 
-            m_dexDataList.isInvertProperty().addListener((obs,oldval,newval)->{
+           m_isInvert.addListener((obs,oldval,newval)->{
                 swapTargetButton.setImage(new Image(newval ? "/assets/targetSwapped.png" : "/assets/targetStandard.png"));
-        
+                save();
             });
             
 
@@ -617,8 +617,8 @@ public class ErgoDex extends Network implements NoteInterface {
             Region timeSpanSpacer = new Region();
             timeSpanSpacer.setMinWidth(10);
 
-
-            m_menuBar = new HBox(sortTypeButton,sortDirectionButton,swapTargetButton, menuBarRegion1, searchField, menuBarRegion, timeSpanBtnBox,timeSpanSpacer, rightSideMenu);
+            //sortTypeButton,sortDirectionButton,
+            m_menuBar = new HBox(swapTargetButton, menuBarRegion1, searchField, menuBarRegion, timeSpanBtnBox,timeSpanSpacer, rightSideMenu);
             HBox.setHgrow(m_menuBar, Priority.ALWAYS);
             m_menuBar.setAlignment(Pos.CENTER_LEFT);
             m_menuBar.setId("menuBar");

@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 import com.devskiller.friendly_id.FriendlyId;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -72,7 +73,7 @@ public class ErgoDexMarketItem {
     private int m_negColor = 0xff9A2A2A;
 
     private SimpleStringProperty m_statusProperty = new SimpleStringProperty();
-    private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty();
+    private SimpleBooleanProperty m_isInvert;
     private BufferedImage m_rowImg = null;
     private SimpleObjectProperty<HBox> m_rowBox = new SimpleObjectProperty<>(null);
 
@@ -100,15 +101,13 @@ public class ErgoDexMarketItem {
         m_dataList = dataList;
         m_marketData = marketData;
 
-       
-
-        m_dataList.isInvertProperty().addListener((obs,oldval,newval)->{
-            boolean invert = newval;
-            
-            m_isInvert.set(m_marketData.getDefaultInvert() ? !invert : invert);
-        });
-
-        m_isInvert.set(m_marketData.getDefaultInvert() ? ! m_dataList.isInvertProperty().get():  m_dataList.isInvertProperty().get());
+        m_isInvert = new SimpleBooleanProperty();
+        if(marketData.getDefaultInvert()){
+            m_isInvert.bind(m_dataList.isInvertProperty().not());
+        }else{
+            m_isInvert.bind(m_dataList.isInvertProperty());
+        }
+   
     }  
     
 
@@ -214,7 +213,7 @@ public class ErgoDexMarketItem {
         chartBox.minWidthProperty().bind(m_dataList.gridWidthProperty().subtract(chartWidthOffset));
 
 
-        String initialValue = m_isInvert.get() ? m_marketData.getInvertedLastPrice() + "" :  m_marketData.getLastPrice() + "";
+        String initialValue = isInvert() ? m_marketData.getInvertedLastPrice() + "" :  m_marketData.getLastPrice() + "";
         initialValue = initialValue.substring(0,Math.min(12, initialValue.length()));
         
        
@@ -224,7 +223,7 @@ public class ErgoDexMarketItem {
         m_priceText.setId("priceText");
         m_priceText.setPrefWidth(100);
         
-        Text symbolText = new Text(m_marketData.getCurrentSymbol(m_isInvert.get()));
+        Text symbolText = new Text(m_marketData.getCurrentSymbol(isInvert()));
         symbolText.setFont(Font.font("DejaVu Sans Mono, Book", FontWeight.NORMAL, 14));
         symbolText.setFill(Color.WHITE);
         
@@ -504,7 +503,7 @@ public class ErgoDexMarketItem {
 
         
         Runnable update = ()->{
-            boolean isInvert = m_isInvert.get();
+            boolean isInvert = isInvert();
             boolean isChart = getPoolId() != null;
             openChartBtn.setId(m_marketData != null ? (isChart ? "availableBtn" : "offlineBtn") : "offlineBtn");
             symbolText.setText(m_marketData.getCurrentSymbol(isInvert));
@@ -523,7 +522,7 @@ public class ErgoDexMarketItem {
             Image bImg = baseImg.get();
             int limitAlpha = 0x40;
             
-            if(m_isInvert.get()){
+            if(isInvert()){
                 if(qImg != null){
                     double halfQWidth = (qImg.getWidth()/2);
                     int qX = (int)((logo.getWidth()/2) - halfQWidth);
@@ -694,7 +693,7 @@ public class ErgoDexMarketItem {
         
             int imgCellWidth = 1;
             int maxBars = width / imgCellWidth;
-            boolean invert = m_isInvert.get();
+            boolean invert = isInvert();
             TimeSpan durationSpan = m_dataList.timeSpanObjectProperty().get();
             long durationMillis = durationSpan.getMillis();
             long colSpanMillis = (durationMillis / maxBars);
@@ -779,7 +778,7 @@ public class ErgoDexMarketItem {
 
     }
 
-    public SimpleBooleanProperty isInvertProperty(){
+    public ReadOnlyBooleanProperty isInvertProperty(){
 
         return m_isInvert;
     }
