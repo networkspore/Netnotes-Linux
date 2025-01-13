@@ -90,10 +90,10 @@ public class ErgoExplorerList {
         return null;
     }
 
-    public JsonObject getDefault(JsonObject note){
+    public NoteInterface getDefault(JsonObject note){
         ErgoExplorerData explorerData = getErgoExplorerData(getDefaultExplorerId());
 
-        return explorerData != null ? explorerData.getJsonObject() : null;
+        return explorerData.getNoteInterface();
     }
 
     public NoteInterface getDefaultInterface(){

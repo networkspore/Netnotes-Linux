@@ -2,6 +2,7 @@ package com.netnotes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.Future;
 
 import com.google.gson.JsonObject;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -60,9 +61,9 @@ public class Network  {
 
     }
 
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        return false;
+        return null;
     }
 
     public Object sendNote(JsonObject note){
@@ -130,7 +131,7 @@ public class Network  {
                 return null;
             }
 
-            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+            public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
                 return Network.this.sendNote(note, onSucceeded, onFailed);
             }
 

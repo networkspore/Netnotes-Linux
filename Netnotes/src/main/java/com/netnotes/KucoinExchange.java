@@ -12,6 +12,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
@@ -800,7 +801,7 @@ public class KucoinExchange extends Network implements NoteInterface {
     }
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         JsonElement subjecElement = note.get(App.CMD);
         JsonElement transactionCurrencyElement = note.get("transactionCurrency");
@@ -814,16 +815,14 @@ public class KucoinExchange extends Network implements NoteInterface {
                       //  String transactionCurrency = transactionCurrencyElement.getAsString();
                       //  String quoteCurrency = quoteCurrencyElement.getAsString();
 
-                        return true;
+                        return null;
                     } else {
-                        return false;
+                        return null;
                     }
 
             }
-        } else {
-            return false;
-        }
-        return true;
+        } 
+        return null;
     }
 
     public boolean isClientReady() {

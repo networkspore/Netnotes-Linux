@@ -3,16 +3,23 @@ package com.netnotes;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import com.devskiller.friendly_id.FriendlyId;
 
+import org.ergoplatform.appkit.ErgoTreeTemplate;
 import org.reactfx.util.FxTimer;
 import org.reactfx.util.Timer;
 
@@ -41,6 +48,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import scorex.util.encode.Base16;
+import sigmastate.Values.ErgoTree;
 
 
 public class ErgoDexDataList  {
@@ -52,7 +61,7 @@ public class ErgoDexDataList  {
     private String m_locationId;
 
     private VBox m_gridBox;
-    
+
     private ArrayList<ErgoDexMarketItem> m_marketsList = new ArrayList<ErgoDexMarketItem>();
 
 
@@ -92,6 +101,8 @@ public class ErgoDexDataList  {
     private VBox m_layoutBox;
     private double m_defaultCharSize;
     private VBox m_loadingBox;
+
+    private ErgoTreeTemplate m_n2TPoolTemplate = null;
     
     public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleBooleanProperty isInvert, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
         m_currentIndex = new SimpleIntegerProperty(0);
@@ -133,8 +144,12 @@ public class ErgoDexDataList  {
             
         });
         addDexistener();
+
+      
     
     }
+
+
 
     public void setLoadingBox(){
         ImageView imgView = new ImageView(m_ergodex.getAppIcon());
@@ -599,7 +614,89 @@ public class ErgoDexDataList  {
         t.start();
     }
 
-   
+    
+    
+    public ErgoTreeTemplate getN2TPoolErgoTreeTemplate(){
+        return m_n2TPoolTemplate;
+    }
+
+    public static Future<?> getTreeTemplateHash(ErgoTreeTemplate treeTemplate, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        Task<String> task = new Task<String>() {
+            @Override
+            public String call() throws Exception{
+                return treeTemplate.getTemplateHashHex();
+            }
+        };
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+    }
+
+    public static Future<?> getErgoTreeTemplateFromResource(String resourceLocation, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        Task<ErgoTreeTemplate> task = new Task<ErgoTreeTemplate>() {
+            @Override
+            public ErgoTreeTemplate call() throws Exception{
+                String hex = Utils.getStringFromResource(resourceLocation);
+     
+                return ErgoTreeTemplate.fromErgoTreeBytes(Base16.decode(hex).get());
+            }
+        };
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+    }
+
+    public void loadPoolContracts(){
+        getErgoTreeTemplateFromResource(
+            "/ergoDex/contracts/pool/N2TPoolSample.hex", 
+            getNetworksData().getExecService(), 
+            (onSucceeded)->{
+                Object sourceValue = onSucceeded.getSource().getValue();
+                if(sourceValue != null && sourceValue instanceof ErgoTreeTemplate){
+                    m_n2TPoolTemplate = (ErgoTreeTemplate) sourceValue;
+                }
+            }, (onFailed)->{
+
+            }
+        );    
+            
+           // String n2tTemplateString = Utils.getStringFromResource("/ergoDex/contracts/pool/N2TPool.template");
+           // byte[] n2tTemplateBytes = Base16.decode(m_n2TPoolTreeHex).get();
+           // Files.write(new File("n2tPool.templage").toPath(), n2tTemplateBytes);
+            
+            
+
+    }
+
+    /*
+     export class N2TAmmPoolsParser implements FromBox<AmmPool> {
+        from(box: ErgoBox): AmmPool | undefined {
+            const r4 = box.additionalRegisters[RegisterId.R4]
+            if (box.assets.length == 3 && r4) {
+                const nft = box.assets[0].tokenId
+                const lp = AssetAmount.fromToken(box.assets[1])
+                const assetX = AssetAmount.native(box.value)
+                const assetY = AssetAmount.fromToken(box.assets[2])
+                const feeNum = deserializeConstant(r4)
+                if (feeNum instanceof Int32Constant) 
+                    return new AmmPool(nft, lp, assetX, assetY, feeNum.value)
+            }
+        return undefined
+        }
+        
+        fromMany(boxes: ErgoBox[]): AmmPool[] {
+            const pools = []
+            for (const box of boxes) {
+                const pool = this.from(box)
+            if (pool) pools.push(pool)
+        }
+        return pools
+    }
+     */
 
 
     public ErgoDex getErgoDex() {

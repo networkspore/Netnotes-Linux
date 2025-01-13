@@ -205,7 +205,6 @@ public class ErgoNodesList {
                 defaultUrl.getId(),
                 defaultUrl.getName(), 
                 ErgoNodeData.LIGHT_CLIENT,
-                FriendlyId.createFriendlyId(), 
                 this, defaultUrl
             );
             
@@ -773,9 +772,8 @@ public class ErgoNodesList {
                     }
                     
                    
-                    String configId = FriendlyId.createFriendlyId();
                     String networkId = getNewId();
-                    ErgoNodeData ergoNodeData = new ErgoNodeData(networkId, nodeUrl.getName(), ErgoNodeData.LIGHT_CLIENT, configId, this, nodeUrl);
+                    ErgoNodeData ergoNodeData = new ErgoNodeData(networkId, nodeUrl.getName(), ErgoNodeData.LIGHT_CLIENT, this, nodeUrl);
 
                    
                     addRemoteNode(ergoNodeData, true);
@@ -865,16 +863,14 @@ public class ErgoNodesList {
                                 
                                 
                                 String id = getNewId();
-                                String configId = FriendlyId.createFriendlyId();
                                 
                                 
                                 try {
-                                    ErgoNodeLocalData localNodeData = new ErgoNodeLocalData(id,configId, appDir, isAppFile, appFile, configFileName, configText, namedNodeUrl, this);
+                                    ErgoNodeLocalData localNodeData = new ErgoNodeLocalData(id, appDir, isAppFile, appFile, configFileName, configText, namedNodeUrl, this);
                                     addNode(localNodeData, true);
                                              
                                     JsonObject returnObject = Utils.getJsonObject("code", App.SUCCESS);
                                     returnObject.addProperty("id",id);
-                                    returnObject.addProperty("configId", configId);
 
                                     return returnObject;
                                 } catch (Exception e1) {

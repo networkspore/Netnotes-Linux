@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.NetworkType;
 
@@ -199,7 +200,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         JsonElement cmdElement = note.get(App.CMD);
         JsonElement networkIdElement = note.get("networkId");
         JsonElement locationIdElement = note.get("locationId");
@@ -231,7 +232,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
         }
        
 
-        return false;
+        return null;
     }
 
 

@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonElement;
 
 import java.util.List;
+import java.util.concurrent.Future;
 
 import com.google.gson.JsonArray;
 
@@ -194,15 +195,27 @@ public class ErgoMarkets {
 
 
   
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonElement cmdElement = note.get(App.CMD);
-        if (cmdElement != null) {
-            String cmd  = cmdElement.getAsString();
-            switch(cmd){
-                default:
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
+        JsonElement idElement = note != null ? note.get("id") : null;
+        
+        if(cmdElement != null){
+
+            switch(cmdElement.getAsString()){
+                
+                default: 
+                    String id = idElement != null ? idElement.getAsString() : getDefaultMarketId();
+                
+                    NoteInterface market = id != null ? getMarket(id) : null;
+                
+                    if(market != null){
+                    
+                        return market.sendNote(note, onSucceeded, onFailed);
+                    }
             }
         }
-        return false;
+
+        return null;
     }
 
 

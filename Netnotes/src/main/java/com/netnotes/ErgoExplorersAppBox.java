@@ -34,7 +34,7 @@ public class ErgoExplorersAppBox extends AppBox {
     private NoteInterface m_ergoNetworkInterface;
     private VBox m_mainBox;
     private SimpleBooleanProperty m_showExplorers = new SimpleBooleanProperty(false);
-    private SimpleObjectProperty<JsonObject> m_defaultExplorer = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<NoteInterface> m_defaultExplorer = new SimpleObjectProperty<>(null);
     private String m_locationId = null;
 
     private ContextMenu m_explorerMenu = new ContextMenu();
@@ -106,14 +106,8 @@ public class ErgoExplorersAppBox extends AppBox {
 
 
         Binding<String> explorerNameBinding = Bindings.createObjectBinding(()->{
-            JsonObject explorer = m_defaultExplorer.get();
-            if(explorer != null){
-                JsonElement name = explorer.get("name");
-                if(name != null && name.isJsonPrimitive()){
-                    return name.getAsString();
-                }
-            }
-            return selectString;
+            NoteInterface defaultExplorer = m_defaultExplorer.get();
+            return defaultExplorer != null ? defaultExplorer.getName() : selectString;
         }, m_defaultExplorer);
 
         openMenuBtn.textProperty().bind(explorerNameBinding);
@@ -207,8 +201,8 @@ public class ErgoExplorersAppBox extends AppBox {
 
 
         Runnable setExplorerInfo = ()->{
-            JsonObject json =  m_defaultExplorer.get();
-
+            NoteInterface explorerInterface =  m_defaultExplorer.get();
+            JsonObject json = explorerInterface != null ? explorerInterface.getJsonObject() : null;
             if(json != null){
 
                 JsonElement networkUrlElement = json.get("ergoNetworkUrl");
@@ -257,9 +251,7 @@ public class ErgoExplorersAppBox extends AppBox {
             }
         });
 
-        m_defaultExplorer.addListener((obs,oldval,newval)->{
-            setExplorerInfo.run();
-        });
+        m_defaultExplorer.addListener((obs,oldval,newval)->setExplorerInfo.run());
 
         setExplorerInfo.run();
 
@@ -297,12 +289,15 @@ public class ErgoExplorersAppBox extends AppBox {
         JsonObject getDefaultObject = Utils.getCmdObject("getDefault");
         getDefaultObject.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
         getDefaultObject.addProperty("locationId", m_locationId);
-        JsonObject obj = (JsonObject) m_ergoNetworkInterface.sendNote(getDefaultObject);
+        Object obj = m_ergoNetworkInterface.sendNote(getDefaultObject);
        
-        m_defaultExplorer.set(obj);
-        if(obj == null){
+        if(obj != null && obj instanceof NoteInterface){
+            m_defaultExplorer.set((NoteInterface) obj);
+        }else{
             m_showExplorers.set(false);
         }
+       
+        
     }
 
     public void updateExplorerMenu(){

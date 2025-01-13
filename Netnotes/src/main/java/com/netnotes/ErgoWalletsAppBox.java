@@ -2105,77 +2105,7 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
                
-                JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
-                getDefaultExplorerNote.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
-                getDefaultExplorerNote.addProperty("locationId", m_locationId);
-                Object explorerObj = m_ergoNetworkInterface.sendNote(getDefaultExplorerNote);
-
-                if(explorerObj == null){
-                    
-                    addSendBox.run();
-                    showError("Error: No explorer selected");
-                    return;
-                }
-
-                JsonObject explorerObject = (JsonObject) explorerObj;
-                JsonElement namedExplorerElement = explorerObject.get("ergoNetworkUrl");
-
-                JsonObject namedExplorerJson = namedExplorerElement.getAsJsonObject();
-                JsonObject explorerJson = new JsonObject();
-
-                try {
-                    ErgoNetworkUrl explorerUrl = new ErgoNetworkUrl(namedExplorerJson);
-                    explorerJson.addProperty("url", explorerUrl.getUrlString());
-                } catch (Exception e1) {
-                    
-                    addSendBox.run();
-                    showError("Error: " + e1.toString());
-                    return;
-                }
-
-                JsonObject getDefaultNodeNote = Utils.getCmdObject("getDefaultInterface");
-                getDefaultNodeNote.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
-                getDefaultNodeNote.addProperty("locationId", m_locationId);
-               
-                Object nodeObj = m_ergoNetworkInterface.sendNote(getDefaultNodeNote);
               
-                NoteInterface nodeInterface = nodeObj != null && nodeObj instanceof NoteInterface ? (NoteInterface) nodeObj : null;
-
-                if(nodeInterface == null){
-                    
-                    addSendBox.run();
-                    showError("Error: No node selected");
-                    return;
-                }
-                
-    
-                JsonElement namedNodeElement = nodeInterface.getJsonObject().get("namedNode");
-
-                if(namedNodeElement == null || (namedNodeElement != null && !namedNodeElement.isJsonObject())){
-                    
-                    addSendBox.run();
-                    showError("Error: Node information not found");
-                    return;
-                }
-
-                JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
-                JsonObject nodeJson = new JsonObject();
-
-                try {
-                    NamedNodeUrl namedNode = new NamedNodeUrl(namedNodeJson);
-                    nodeJson.addProperty("name", nodeInterface.getName());
-                    nodeJson.addProperty("url", namedNode.getUrlString());
-                    nodeJson.addProperty("apiKey", namedNode.getApiKey());
-                } catch (Exception e1) {
-                    
-                    addSendBox.run();
-                    showError("Error: " + e1.toString());
-                    return;
-                }
-
-                sendObject.add("node", nodeJson);
-                sendObject.add("explorer", explorerJson);
-
                 NoteInterface walletInterface = m_selectedWallet.get();
 
                 if(walletInterface == null){
@@ -2184,14 +2114,8 @@ public class ErgoWalletsAppBox extends AppBox {
                     showError("Error: No wallet selected");
                     return;
                 }
-
-                JsonObject walletObject = new JsonObject();
-                walletObject.addProperty("name", walletInterface.getName());
-                walletObject.addProperty("address", m_lockBox.getAddress());
-
-                sendObject.add("wallet", walletObject);
-
-
+                AddressesData.addWalletAddressToDataObject(sendObject, m_lockBox.getAddress(), walletInterface.getName());
+        
                 JsonObject recipientObject = new JsonObject();
                 recipientObject.addProperty("address", addressInformation.getAddress().toString());
                 recipientObject.addProperty("addressType", addressInformation.getAddressType());
@@ -2205,8 +2129,22 @@ public class ErgoWalletsAppBox extends AppBox {
                     showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
                     return;
                 }
-        
-                sendObject.add("fee", feePriceAmount.getAmountObject());                
+
+                if(!AddressesData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
+                    addSendBox.run();
+                    showError("Babblefees not supported at this time");
+                    return;
+                }
+                      
+
+                ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
+                PriceAmount ergoPriceAmount = ergoSendBox.getPriceAmount();
+
+                if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
+                    addSendBox.run();
+                    showError("Wallet balance unavailable");
+                    return;
+                }
 
                 //sendObject.add("feeAmount", feeObject);
                 JsonArray sendAssets = new JsonArray();
@@ -2221,14 +2159,14 @@ public class ErgoWalletsAppBox extends AppBox {
                     
                     PriceAmount sendAmount = sendBox.getSendAmount();
                     if(sendAmount!= null){
-        
-                        sendAssets.add(sendAmount.getAmountObject());
-                    
+                        if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
+                            sendAssets.add(sendAmount.getAmountObject());
+                        }
                     }
                     
                 }
             
-                if(sendObject.size() == 0){
+                if(ergoPriceAmount.getLongAmount() == 0 && sendObject.size() == 0){
                     addSendBox.run();
                     showError("Enter assets to send");
                     return;
@@ -2236,9 +2174,7 @@ public class ErgoWalletsAppBox extends AppBox {
             
                 sendObject.add("assets", sendAssets);
 
-                JsonObject networkJson = Utils.getJsonObject("networkType", m_networkType.toString());
-
-                sendObject.add("network", networkJson);
+                AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
 
                 JsonObject note = Utils.getCmdObject("sendAssets");
                 note.addProperty("accessId", m_lockBox.getLockId());

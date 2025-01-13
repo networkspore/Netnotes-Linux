@@ -136,8 +136,8 @@ public class NetworksData {
 
     private SimpleStringProperty m_stageIconStyle = new SimpleStringProperty(IconStyle.ICON);
 
-    private double m_stageWidth = 780;
-    private double m_stageHeight = 640;
+    private double m_stageWidth = 1024;
+    private double m_stageHeight = 768;
     private double m_stagePrevWidth = 310;
     private double m_stagePrevHeight = 500;
     private boolean m_stageMaximized = false;
@@ -1792,6 +1792,16 @@ public class NetworksData {
     }
 
 
+    public JsonObject getDataBlocking(String version, String id, String scope, String type) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, InterruptedException, IOException{
+        
+            File idDataFile = getIdDataFileBlocking(version, id, scope, type);
+
+            m_fileSemaphore.acquire();
+            JsonObject json = Utils.readJsonFile(getAppKey(), idDataFile);
+            m_fileSemaphore.release();
+            return json;
+    }
+
 
     public void getData(String version, String id, String scope, String type, EventHandler<WorkerStateEvent> onComplete){
         if(id != null && version != null && scope != null && type != null){ 
@@ -1832,17 +1842,20 @@ public class NetworksData {
 
     }
 
+    public File getIdDataFileBlocking(String version, String id, String scope, String type) throws InterruptedException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException{
+        m_dataSemaphore.acquire();
+        File idDataFile = getIdDataFile(version,id, scope, type);
+        m_dataSemaphore.release();
+
+        return idDataFile;
+    }
+
     public Future<?> getIdDataFile(String version, String id, String scope, String type, EventHandler<WorkerStateEvent> onComplete){
         if(id != null && version != null && scope != null && type != null){ 
             Task<Object> task = new Task<Object>() {
                 @Override
                 public Object call() throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, IOException, InterruptedException{
-                    
-                    m_dataSemaphore.acquire();
-                    File idDataFile = getIdDataFile(version,id, scope, type);
-                    m_dataSemaphore.release();
-
-                    return idDataFile;
+                    return getIdDataFileBlocking(version, id, scope, type);                   
                 }
             };
 

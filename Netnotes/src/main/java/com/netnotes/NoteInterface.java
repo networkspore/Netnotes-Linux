@@ -1,6 +1,7 @@
 package com.netnotes;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.Future;
 
 import com.google.gson.JsonObject;
 
@@ -21,7 +22,7 @@ public interface NoteInterface {
     Image getAppIcon();
 
 
-    boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed);
+    Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed);
 
     Object sendNote(JsonObject note);
 

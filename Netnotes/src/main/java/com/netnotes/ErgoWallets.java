@@ -1,6 +1,8 @@
 package com.netnotes;
 
 
+import java.util.concurrent.Future;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -106,7 +108,7 @@ public class ErgoWallets  {
     }
 
 
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         JsonElement cmdElement = note.get(App.CMD);
 
         if (cmdElement != null) {
@@ -118,7 +120,7 @@ public class ErgoWallets  {
         }
        
 
-        return false;
+        return null;
     }
 
     

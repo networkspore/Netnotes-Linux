@@ -5,17 +5,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.utils.Utils;
@@ -103,24 +107,44 @@ public class ErgoExplorerData {
      public NetworksData getNetworksData(){
           return m_explorerList.getErgoExplorer().getNetworksData();
      }
+
+     public Future<?> getBlocks(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+   
+          JsonElement offsetElement = json.get("offset");
+          JsonElement limitElement = json.get("limit");
+          JsonElement sortDirectionElement = json.get("sortDirection");
+          int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
+          int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
+          String sortDirection = sortDirectionElement != null && !sortDirectionElement.isJsonNull() ? sortDirectionElement.getAsString() : null;
+          
+          return getBlocks(offset, limit, sortDirection, onSucceeded, onFailed);
+     }
   
-     public void getLatestBlocks(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+     public Future<?> getBlocks(int limit, int offset, String sortDirection, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           if(namedUrl != null && namedUrl.getUrlString().length() > 0){
                String urlString = namedUrl.getUrlString() + "/api/v1/blocks/";
-               Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+
+               if(limit != -1 || offset != -1 || sortDirection != null){
+                    urlString += "?offset=" + (offset != -1 ? offset : 0) + "&" + "sortDirection=" + (sortDirection != null ? sortDirection : "asc") + ( limit != -1 ? "&limit=" + limit : "");
+               }
+
+               return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
           }
+          return null;
     }
 
     
-     public void getTokenInfo(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+     public Future<?> getTokenInfo(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
           JsonElement tokenIdElement = json != null ? json.get("tokenId") : null;
           String tokenId = tokenIdElement != null && tokenIdElement.isJsonPrimitive() ? tokenIdElement.getAsString() : null;
           if(tokenId != null){
                
-               getTokenInfo(tokenId, onSucceeded, onFailed);
+               return getTokenInfo(tokenId, onSucceeded, onFailed);
           }
+          return null;
      }
+
      /*
      {
           "id": "string",
@@ -132,16 +156,91 @@ public class ErgoExplorerData {
           "decimals": 0
      }
      */
-     public void getTokenInfo(String tokenId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+     public Future<?> getTokenInfo(String tokenId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
           
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           
           String urlString = namedUrl.getUrlString() + "/api/v1/tokens/" + tokenId;
 
-          
-
-          Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+          return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
      
+     }
+
+     public Future<?> getUnspentByTokenId(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+          JsonElement tokenIdElement = json != null ? json.get("tokenId") : null;
+          String tokenId = tokenIdElement != null && tokenIdElement.isJsonPrimitive() ? tokenIdElement.getAsString() : null;
+          if(tokenId != null){
+               JsonElement offsetElement = json.get("offset");
+               JsonElement limitElement = json.get("limit");
+               JsonElement sortDirectionElement = json.get("sortDirection");
+               int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
+               int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
+               String sortDirection = sortDirectionElement != null && !sortDirectionElement.isJsonNull() ? sortDirectionElement.getAsString() : null;
+               return getUnspentByTokenId(tokenId, offset, limit, sortDirection, onSucceeded, onFailed);
+          }
+          return null;
+     }
+
+     public Future<?> getUnspentByTokenId(String tokenId, int offset, int limit, String sortDirection, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          
+          String urlString = namedUrl.getUrlString() + "/api/v1/boxes/unspent/byTokenId/" + tokenId;
+
+          if(limit != -1 || offset != -1 || sortDirection != null){
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + "&" + "sortDirection=" + (sortDirection != null ? sortDirection : "asc") + ( limit != -1 ? "&limit=" + limit : "");
+          }
+
+          return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+     }
+
+     public Future<?> getUnspentByErgoTreeTemplateHash(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+          JsonElement hashElement = json != null ? json.get("hash") : null;
+          String hash = hashElement != null && hashElement.isJsonPrimitive() ? hashElement.getAsString() : null;
+          if(hash != null){
+               JsonElement offsetElement = json.get("offset");
+               JsonElement limitElement = json.get("limit");
+               int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
+               int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
+               return getUnspentByErgoTreeTemplateHash(hash, offset, limit, onSucceeded, onFailed);
+          }
+          return null;
+     }
+
+     public Future<?> getUnspentByErgoTreeTemplateHash(String hash, int offset, int limit, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          
+          String urlString = namedUrl.getUrlString() + "/api/v1/boxes/unspent/byErgoTreeTemplateHash/" + hash;
+
+          if(limit != -1 || offset != -1 ){
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "");
+          }
+
+          return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+     }
+
+     public Future<?> getUnspentByErgoTree(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+          JsonElement ergotreeElement = json != null ? json.get("ergotree") : null;
+          String ergotree = ergotreeElement != null && ergotreeElement.isJsonPrimitive() ? ergotreeElement.getAsString() : null;
+          if(ergotree != null){
+               JsonElement offsetElement = json.get("offset");
+               JsonElement limitElement = json.get("limit");
+               int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
+               int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
+               return getUnspentByErgoTree(ergotree, offset, limit, onSucceeded, onFailed);
+          }
+          return null;
+     }
+
+     public Future<?> getUnspentByErgoTree(String ergotree, int offset, int limit, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          
+          String urlString = namedUrl.getUrlString() + "/api/v1/boxes/unspent/byErgoTree/" + ergotree;
+
+          if(limit != -1 || offset != -1 ){
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "");
+          }
+
+          return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
      }
 
      public class TokenInfoResult {
@@ -162,101 +261,6 @@ public class ErgoExplorerData {
           }
      }
 
-
-     public void getBalanceTokenInfo(JsonObject balance, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-          if(balance != null){
-               getNetworksData().getData("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, (onCachedData)->{
-                    Object obj = onCachedData.getSource().getValue();
-                    JsonObject cachedTokenInfo = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
-               
-                    Task<Object> task = new Task<Object>() {
-                    @Override
-                         public Object call() {
-                              JsonObject infoObject = cachedTokenInfo;
-                              JsonObject balanceJson = balance;
-
-                              JsonElement tokenInfoArrayElement = infoObject != null ? infoObject.get("array") : null;
-                              JsonArray tokenInfoArray = tokenInfoArrayElement != null ? tokenInfoArrayElement.getAsJsonArray() : new JsonArray();
-                              int tokenInfoArraySize = tokenInfoArray.size();
-
-                         
-                              JsonElement confirmedElement = balanceJson.get("confirmed");
-                              JsonObject confirmedObject = confirmedElement != null && confirmedElement.isJsonObject() ? confirmedElement.getAsJsonObject() : null;
-                              if(confirmedObject != null){
-                              
-                                   JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
-                                   JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;     
-                                   int tokenSize = confirmedTokenArray != null ? confirmedTokenArray.size() : 0;
-                                   if(confirmedTokenArray != null && tokenSize > 0){
-                                        balanceJson.remove("confirmed");
-                                        confirmedObject.remove("tokens");
-                                        JsonArray udpatedTokenArray = new JsonArray();
-                                        String urlString = m_ergoNetworkUrlProperty.getUrlString() + "/api/v1/tokens/";
-
-                                        for (int i = 0; i < tokenSize ; i++) {
-                                             JsonElement tokenElement = confirmedTokenArray.get(i);
-
-                                             JsonObject tokenObject = tokenElement.getAsJsonObject();
-
-                                             JsonElement tokenIdElement = tokenObject.get("tokenId");
-                                             String tokenId = tokenIdElement.getAsString();
-
-                                             JsonObject infoArrayResult = getTokenInfoFromJsonArray(tokenInfoArray, tokenId);
-
-                                             if(infoArrayResult != null){
-                                                  tokenObject.add("tokenInfo", infoArrayResult);
-                                             }else{
-                                                  JsonObject urlInfoResult = Utils.getJsonFromUrlSync(urlString + tokenId);
-                                                  
-                                                  if(urlInfoResult != null){
-                                                       tokenObject.add("tokenInfo", urlInfoResult);
-                                                       tokenInfoArray.add(urlInfoResult);
-                                                  }
-                                             }
-                                             udpatedTokenArray.add(tokenObject);
-                                        }
-                                        confirmedObject.add("tokens", udpatedTokenArray);
-                                        balanceJson.add("confirmed", confirmedObject);
-                                        if(tokenInfoArray.size() > tokenInfoArraySize){
-                                             JsonObject tokenInfoObject = new JsonObject();
-                                             tokenInfoObject.add("array", tokenInfoArray);
-
-                                             return new TokenInfoResult(balanceJson, tokenInfoObject);
-                                        }else{
-                                             return new TokenInfoResult(balanceJson, null);
-                                        }
-                                   }
-
-                              
-                              }
-
-                              return new TokenInfoResult(balanceJson, null);
-                         }
-                    };
-
-                    task.setOnFailed(onFailed);
-
-                    task.setOnSucceeded((onFinished)->{
-                         Object result = onFinished.getSource().getValue();
-                         if(result != null && result instanceof TokenInfoResult){
-                              TokenInfoResult tokenInfoResult = (TokenInfoResult) result;
-                              JsonObject saveResult = tokenInfoResult.getTokenInfObject();
-                              if(saveResult != null){
-                                   getNetworksData().save("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, saveResult);
-                              }
-                              Utils.returnObject(tokenInfoResult.getBalanceObject(), getExecService(), onSucceeded, onFailed);
-                         }else{
-                              Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
-                         }
-                    });
-
-                    getExecService().submit(task);
-               });
-          }else{
-               Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
-          }
-     }
-
      
 
      public static JsonObject getTokenInfoFromJsonArray(JsonArray tokenInfoArray, String tokenId){
@@ -274,73 +278,68 @@ public class ErgoExplorerData {
           return null;
      }
 
-     protected void getBalance(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-
-          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
-
-         
-
-
-          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
-               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
-
-
-               Utils.getUrlJson(urlString,getExecService(), (onBalance)->{
-                    Object sourceValue = onBalance.getSource().getValue();
-                    JsonObject json = sourceValue != null && sourceValue instanceof JsonObject ? (JsonObject) sourceValue : null;
-
-                    getBalanceTokenInfo(json, onSucceeded, onFailed);
-               }, onFailed);
-          }
-     }
+     
 
      public ExecutorService getExecService(){
           return getNetworksData().getExecService();
      }
 
-     public void getNetworkState(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+     public Future<?> getNetworkState(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           if(namedUrl != null && namedUrl.getUrlString().length() > 0){
                String urlString = namedUrl.getUrlString() + "/api/v1/networkState";
 
-               Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
-          }else{
-               Utils.returnObject(null, getExecService(), onSucceeded, onFailed);
+               return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
           }
+     
+          
+          return null;
      }
 
 
 
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement cmdElement = note.get(App.CMD);
           if (cmdElement != null && cmdElement.isJsonPrimitive()) {
             
                String subject = cmdElement.getAsString();
 
                switch(subject){
+                    case "getBlocks":
+                         return getBlocks(note, onSucceeded, onFailed);
+
                     case "getTransaction":
-                         getTransaction(note, onSucceeded, onFailed);
-                         return true;
+                         return getTransaction(note, onSucceeded, onFailed);
+                         
                     case "getBalance":
-                         getBalance(note, onSucceeded, onFailed);
-                         return true;
+                         return getBalance(note, onSucceeded, onFailed);
+                         
                     case "getTokenInfo":
-                         getTokenInfo(note, onSucceeded, onFailed);
-                         return true;
+                         return getTokenInfo(note, onSucceeded, onFailed);
+                         
                     case "getNetworkState":
-                         getNetworkState(note, onSucceeded, onFailed);
-                         return true;
+                         return getNetworkState(note, onSucceeded, onFailed);
+                         
                     case "getAddressTransactions":
-                         getAddressTransactions(note, onSucceeded, onFailed);
-                    default:
-                         Utils.returnObject(sendNote(note), getExecService(), onSucceeded, onFailed);
+                         return getAddressTransactions(note, onSucceeded, onFailed);
+                         
+                    case "getUnspentByTokenId":
+                         return getUnspentByTokenId(note, onSucceeded, onFailed);
+
+                    case "getUnspentByErgoTree":
+                         return getUnspentByErgoTree(note, onSucceeded, onFailed);
+
+                    case "getUnspentBytErgoTreeTemplateHash":
+                         return getUnspentByErgoTreeTemplateHash(note, onSucceeded, onFailed);
+
+                    
                }
                      
-               
+               return null;
           }
 
-          return false;
+          return null;
                 
     }
 
@@ -406,11 +405,9 @@ public class ErgoExplorerData {
                     return ErgoExplorerData.this.getImgUrl() != null ? new Image(ErgoExplorerData.this.getImgUrl()) : null;
                }
 
-               public SimpleObjectProperty<LocalDateTime> getLastUpdated(){
-                    return null;
-               }
+           
 
-               public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+               public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
                    return ErgoExplorerData.this.sendNote(note, onSucceeded, onFailed);
                }
 
@@ -427,9 +424,7 @@ public class ErgoExplorerData {
                public TabInterface getTab(Stage appStage, SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject,  Button networkBtn){
                     return null;
                }
-               public String getType(){
-                    return null;
-               }
+         
 
 
                public NetworksData getNetworksData(){
@@ -440,14 +435,7 @@ public class ErgoExplorerData {
                     return null;
                }
 
-               public void addUpdateListener(ChangeListener<LocalDateTime> changeListener){
-               
-               }
-
-               public void removeUpdateListener(){
-                  
-               }
-
+     
                public void shutdown(){}
 
                public SimpleObjectProperty<LocalDateTime> shutdownNowProperty(){
@@ -477,25 +465,128 @@ public class ErgoExplorerData {
                }
           };
     }
-     private void getBalance(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+     private Future<?> getBalance(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement addressElement = note.get("address");
 
           if(addressElement != null && addressElement.isJsonPrimitive()){
-               getBalance(addressElement.getAsString(), onSucceeded, onFailed);
+               return getBalance(addressElement.getAsString(), onSucceeded, onFailed);
           }
+          return null;
+     }
+
+     protected Future<?> getBalance(String address, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+
+          if(namedUrl != null && namedUrl.getUrlString().length() > 0){
+               
+                 Task<JsonObject> task = new Task<JsonObject>() {
+                    @Override
+                    public JsonObject call() throws IOException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, InterruptedException {
+                         String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/balance/total";
+
+                         JsonObject json = Utils.getJsonFromUrlSync(urlString);
+
+                         return json != null ? getBalanceTokenInfoBlocking(json) : null;
+                    }
+
+               };
+
+               
+               task.setOnFailed(onFailed);
+
+               task.setOnSucceeded(onSucceeded);
+
+               return getNetworksData().getExecService().submit(task);
+          
+          }
+          return null;
      }
 
    
+     
 
-     private void getTransaction(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+     public JsonObject getBalanceTokenInfoBlocking(JsonObject balance) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException, InterruptedException, IOException{
+          if(balance != null){
+               JsonObject cachedTokenInfo = getNetworksData().getDataBlocking("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID);
+     
+               JsonObject infoObject = cachedTokenInfo;
+               JsonObject balanceJson = balance;
+
+               JsonElement tokenInfoArrayElement = infoObject != null ? infoObject.get("array") : null;
+               JsonArray tokenInfoArray = tokenInfoArrayElement != null ? tokenInfoArrayElement.getAsJsonArray() : new JsonArray();
+               int tokenInfoArraySize = tokenInfoArray.size();
+
+          
+               JsonElement confirmedElement = balanceJson.get("confirmed");
+               JsonObject confirmedObject = confirmedElement != null && confirmedElement.isJsonObject() ? confirmedElement.getAsJsonObject() : null;
+               if(confirmedObject != null){
+               
+                    JsonElement tokensElement = confirmedObject != null ? confirmedObject.get("tokens") : null;
+                    JsonArray confirmedTokenArray = tokensElement != null && tokensElement.isJsonArray() ? tokensElement.getAsJsonArray() : null;     
+                    int tokenSize = confirmedTokenArray != null ? confirmedTokenArray.size() : 0;
+                    
+                    if(confirmedTokenArray != null && tokenSize > 0){
+                         balanceJson.remove("confirmed");
+                         confirmedObject.remove("tokens");
+                         JsonArray udpatedTokenArray = new JsonArray();
+
+                         String urlString = m_ergoNetworkUrlProperty.getUrlString() + "/api/v1/tokens/";
+
+                         for (int i = 0; i < tokenSize ; i++) {
+                              JsonElement tokenElement = confirmedTokenArray.get(i);
+
+                              JsonObject tokenObject = tokenElement.getAsJsonObject();
+
+                              JsonElement tokenIdElement = tokenObject.get("tokenId");
+                              String tokenId = tokenIdElement.getAsString();
+
+                              JsonObject infoArrayResult = getTokenInfoFromJsonArray(tokenInfoArray, tokenId);
+
+                              if(infoArrayResult != null){
+                                   tokenObject.add("tokenInfo", infoArrayResult);
+                              }else{
+                                   JsonObject urlInfoResult = Utils.getJsonFromUrlSync(urlString + tokenId);
+                                   
+                                   if(urlInfoResult != null){
+                                        tokenObject.add("tokenInfo", urlInfoResult);
+                                        tokenInfoArray.add(urlInfoResult);
+                                   }
+                              }
+                              udpatedTokenArray.add(tokenObject);
+                         }
+                         confirmedObject.add("tokens", udpatedTokenArray);
+                         balanceJson.add("confirmed", confirmedObject);
+                         if(tokenInfoArray.size() > tokenInfoArraySize){
+                              JsonObject tokenInfoObject = new JsonObject();
+                              tokenInfoObject.add("array", tokenInfoArray);
+                              getNetworksData().save("array", "tokenInfo", ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, tokenInfoObject);
+                           
+                         }
+                            
+                    }
+
+               
+               }
+
+               return balanceJson;
+          }           
+          
+          return null;
+
+     }
+
+
+     private Future<?> getTransaction(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement txIdElement = note!=null ? note.get("txId") : null;
 
           if(txIdElement != null && txIdElement.isJsonPrimitive()){
-               getTransaction(txIdElement.getAsString(), onSucceeded, onFailed);
+              return getTransaction(txIdElement.getAsString(), onSucceeded, onFailed);
           }
+          return null;
      }
 
-     protected void getTransaction(String txId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+     protected Future<?> getTransaction(String txId, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           
@@ -503,32 +594,41 @@ public class ErgoExplorerData {
 
                String urlString = namedUrl.getUrlString() + "/api/v1/transactions/" + txId;
      
-               Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
+               return Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
           }
+          return null;
      }
 
-     private void getAddressTransactions(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+     private Future<?> getAddressTransactions(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement addressElement = note.get("address");
-          JsonElement startIndexElement = note.get("startIndex");
-          JsonElement limitElement = note.get("limit");
 
-          int startIndex = startIndexElement != null && startIndexElement.isJsonPrimitive() ? startIndexElement.getAsInt() : 0;
-          int limit = limitElement != null && limitElement.isJsonPrimitive() ? limitElement.getAsInt() : 0;
-
-          if(addressElement != null && addressElement.isJsonPrimitive()){
-               getAddressTransactions(addressElement.getAsString(), startIndex, limit, onSucceeded, onFailed);
+          if(addressElement != null && !addressElement.isJsonNull()){
+               JsonElement startIndexElement = note.get("startIndex");
+               JsonElement limitElement = note.get("limit");
+               JsonElement conciseElement = note.get("concise");
+               JsonElement fromHeightElement = note.get("fromHeight");
+               JsonElement toHeightElement = note.get("toHeight");
+     
+               int startIndex = startIndexElement != null && startIndexElement.isJsonPrimitive() ? startIndexElement.getAsInt() : 0;
+               int limit = limitElement != null && limitElement.isJsonPrimitive() ? limitElement.getAsInt() : 0;
+               boolean concise = conciseElement != null && !conciseElement.isJsonNull() ? conciseElement.getAsBoolean() : false;
+               int fromHeight = fromHeightElement != null && !fromHeightElement.isJsonNull() ? fromHeightElement.getAsInt() : -1;
+               int toHeight = toHeightElement != null && !toHeightElement.isJsonNull() ? toHeightElement.getAsInt() : -1;
+               return getAddressTransactions(addressElement.getAsString(), startIndex, limit, concise, fromHeight, toHeight, onSucceeded, onFailed);
           }
+          return null;
      }
 
-      public void getAddressTransactions(String address,int startIndex, int limit,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+      public Future<?> getAddressTransactions(String address,int startIndex, int limit, boolean concise, int fromHeight, int toHeight,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
          
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           if(namedUrl != null && namedUrl.getUrlString().length() > 0){
 
-               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/transactions?offset=" + (startIndex < 0 ? 0 : startIndex ) + "&limit=" + (limit < 1 ? 500 : (limit > 500 ? 500 : limit));          
+               String urlString = namedUrl.getUrlString() + "/api/v1/addresses/" + address + "/transactions?offset=" + (startIndex < 0 ? 0 : startIndex ) + "&limit=" + (limit < 1 ? 500 : (limit > 500 ? 500 : limit)) + "&concise=" + concise + "&fromHeight=" + (fromHeight > -1 ? fromHeight : 0) + (toHeight > 0 ? "&toHeight=" + toHeight : ""  );          
      
-               Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
+               return Utils.getUrlJson(urlString,getExecService(), onSucceeded, onFailed);
           }
+          return null;
      }
 
      public String getWebsiteTxLink(String txId) {

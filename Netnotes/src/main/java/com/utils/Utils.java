@@ -55,6 +55,7 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -82,12 +83,14 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.input.ReaderInputStream;
+import org.ergoplatform.appkit.ErgoTreeTemplate;
 
 import java.io.FilenameFilter;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 import ove.crypto.digest.Blake2b;
 import scala.util.Try;
+import scorex.util.encode.Base16;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -715,6 +718,32 @@ public class Utils {
     public static int getJsonElementType(JsonElement jsonElement){
         return jsonElement.isJsonNull() ? -1 : jsonElement.isJsonObject() ? 1 : jsonElement.isJsonArray() ? 2 : jsonElement.isJsonPrimitive() ? 3 : 0;
     }
+
+    public static String getUrlOutputStringSync(String urlString) throws IOException{
+        URL url = new URL(urlString);
+        URLConnection con = url.openConnection();
+        con.setRequestProperty("User-Agent", USER_AGENT);
+
+        try(
+            InputStream inputStream = con.getInputStream();
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ){
+
+            byte[] buffer = new byte[2048];
+
+            int length;
+
+            while ((length = inputStream.read(buffer)) != -1) {
+
+                outputStream.write(buffer, 0, length);
+              
+            }
+     
+
+            return outputStream.toString();
+   
+        }
+    }
     
 
     public static Future<?> getUrlJson(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
@@ -723,31 +752,7 @@ public class Utils {
             @Override
             public JsonObject call() throws IOException {
            
-                URL url = new URL(urlString);
-                URLConnection con = url.openConnection();
-                con.setRequestProperty("User-Agent", USER_AGENT);
-
-                 String outputString = null;
-
-                try(
-                    InputStream inputStream = con.getInputStream();
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                ){
-
-                    byte[] buffer = new byte[2048];
-
-                    int length;
-
-                    while ((length = inputStream.read(buffer)) != -1) {
-
-                        outputStream.write(buffer, 0, length);
-                      
-                    }
-             
-     
-                    outputString = outputStream.toString();
-           
-                }
+                String outputString = getUrlOutputStringSync(urlString);
     
                 JsonElement jsonElement = outputString != null ? new JsonParser().parse(outputString) : null;
 
@@ -773,30 +778,7 @@ public class Utils {
             @Override
             public JsonArray call() throws JsonParseException, MalformedURLException, IOException {
               
-
-                URL url = new URL(urlString);
-                URLConnection con = url.openConnection();
-                con.setRequestProperty("User-Agent", USER_AGENT);
-
-                String outputString = null;
-                long contentLength = con.getContentLengthLong();
-
-                try(
-                    InputStream inputStream = con.getInputStream();
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                ){
-                   
-                    byte[] buffer = new byte[contentLength != -1 && contentLength < DEFAULT_BUFFER_SIZE ? (int) contentLength : DEFAULT_BUFFER_SIZE];
-
-                    int length;
-
-                    while ((length = inputStream.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, length);
-                    }
-
-                    outputString = outputStream.toString();
-                    
-                }
+                String outputString = getUrlOutputStringSync(urlString);
 
                 JsonElement jsonElement = outputString != null ? new JsonParser().parse(outputString) : null;
 
@@ -813,50 +795,17 @@ public class Utils {
         return execService.submit(task);
     }
 
-    public static JsonObject getJsonFromUrlSync(String urlString){
+    public static JsonObject getJsonFromUrlSync(String urlString) throws IOException{
                                              
-        try{
-            InputStream inputStream = null;
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            String outputString = null;
+        String outputString = getUrlOutputStringSync(urlString);
 
-            URL url = new URL(urlString);
+        JsonElement jsonElement = outputString != null ? new JsonParser().parse(outputString) : null;
 
-            URLConnection con = url.openConnection();
+        JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
 
-            con.setRequestProperty("User-Agent", USER_AGENT);
-    
-            inputStream = con.getInputStream();
+        return jsonObject == null ? null : jsonObject;
+           
 
-            byte[] buffer = new byte[2048];
-
-            int length;
-
-
-            while ((length = inputStream.read(buffer)) != -1) {
-
-                outputStream.write(buffer, 0, length);
-
-            }
-
-            outputStream.close();
-
-            if(outputStream.size() > 0){
-                outputString = outputStream.toString();
-
-                JsonElement jsonElement = new JsonParser().parse(outputString);
-
-                JsonObject jsonObject = jsonElement != null && jsonElement.isJsonObject() ? jsonElement.getAsJsonObject() : null;
-
-                return jsonObject == null ? null : jsonObject;
-            }else{
-                return null;
-            }
-
-       }catch(Exception err){
-            
-       }
-       return null;
    }
 
     public static String formatedBytes(long bytes, int decimals) {
@@ -1373,7 +1322,28 @@ public class Utils {
         return false;
     }
 
+    public static String getStringFromResource(String resourceLocation) throws IOException{
+        URL location = resourceLocation != null ? App.class.getResource(resourceLocation) : null;
+        if(location != null){
+            try(
+                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                BufferedInputStream inStream = new BufferedInputStream(location.openStream());
+            ){
+                byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+                int length = 0;
 
+                while ((length = inStream.read(buffer)) != -1){
+                    outStream.write(buffer, 0, length);
+                }
+
+                return outStream.toString();
+            }
+        }else{
+            return null;
+        }
+    }
+
+    
 
     public static boolean decryptFileToFile(SecretKey appKey, File encryptedFile, File decryptedFile) throws IOException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
         if(encryptedFile != null && encryptedFile.isFile() && encryptedFile.length() > 12){

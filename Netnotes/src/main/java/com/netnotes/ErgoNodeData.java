@@ -6,6 +6,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.BlockHeader;
 import org.ergoplatform.appkit.BlockchainDataSource;
@@ -55,24 +56,21 @@ public class ErgoNodeData extends Network implements NoteInterface {
     //  public SimpleStringProperty nodeApiAddress;
     private ErgoNodesList m_ergoNodesList;
     private String m_clientType = LIGHT_CLIENT;
-    private String m_configId = null;
 
     public ErgoNodeData(String imgString, String name, String id, String clientType, ErgoNodesList nodesList, JsonObject jsonObj) throws Exception {
         super(new Image(imgString), name,id, nodesList.getNetworksData());
         m_ergoNodesList = nodesList;
         m_clientType = clientType;
-        m_configId = m_configId == null ? FriendlyId.createFriendlyId() : m_configId;
         openJson(jsonObj);
         
       
     }
 
-    public ErgoNodeData(String id,String name, String clientType, String configId, ErgoNodesList ergoNodesList, NamedNodeUrl namedNodeUrl) {
+    public ErgoNodeData(String id,String name, String clientType, ErgoNodesList ergoNodesList, NamedNodeUrl namedNodeUrl) {
         super(new Image(clientType.equals(LOCAL_NODE) ? DEFAULT_LOCAL_IMG  : DEFAULT_IMG  ), name, id, ergoNodesList.getNetworksData());
   
         m_ergoNodesList = ergoNodesList;
         m_clientType = clientType;
-        m_configId = configId != null ? configId : FriendlyId.createFriendlyId();
 
         m_namedNodeUrlProperty.set(namedNodeUrl);
        
@@ -85,9 +83,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     }
 
 
-    public String getConfigId(){
-        return m_configId;
-    }
+
 
     public String getImgUrl(){
         return m_imgUrl;
@@ -262,7 +258,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     }
 
 
-    public void getStatus(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> getStatus(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
     
 
 
@@ -272,7 +268,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
             
             NoteInterface explorerInterface = (NoteInterface) obj;
            
-            explorerInterface.sendNote(Utils.getCmdObject("getNetworkState"), (onState)->{
+            return explorerInterface.sendNote(Utils.getCmdObject("getNetworkState"), (onState)->{
                 Object heightValueObj = onState.getSource().getValue();
 
                 JsonObject stateValueJson = heightValueObj != null && heightValueObj instanceof JsonObject ? (JsonObject) heightValueObj : null;
@@ -290,25 +286,21 @@ public class ErgoNodeData extends Network implements NoteInterface {
                 if(ergoExplorerUrl != null){
 
                     updateParameters(ergoExplorerUrl, networkHeightElement != null ? networkHeightElement.getAsInt() : -1, onSucceeded, onFailed);
-                }else{
-                    Utils.returnObject(null, getExecutorService(), onSucceeded, onFailed);
                 }
 
                 
             }, onFailed);
 
         
-        }else{
-            Utils.returnObject(null, getExecutorService(), onSucceeded, onFailed);
         }
 
-
+        return null;
 
     }
 
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         JsonElement cmdElement = note.get(App.CMD);
         if (cmdElement != null && cmdElement.isJsonPrimitive()) {
@@ -317,18 +309,11 @@ public class ErgoNodeData extends Network implements NoteInterface {
 
                 switch(subject){
                     case "getStatus":
-                        getStatus(onSucceeded, onFailed);
-                        return true;
+                        return getStatus(onSucceeded, onFailed);
     
-                    default:
-                        Object obj = sendNote(note);
-
-                        Utils.returnObject( obj, m_ergoNodesList.getNetworksData().getExecService(), onSucceeded, onFailed);
-
-                        return obj != null;
                 }
         }
-        return false;
+        return null;
     }
 
 

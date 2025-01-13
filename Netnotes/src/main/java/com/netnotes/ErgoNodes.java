@@ -2,6 +2,8 @@ package com.netnotes;
 
 
 
+import java.util.concurrent.Future;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -92,7 +94,7 @@ public class ErgoNodes {
     }
   
 
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
         JsonElement idElement = note != null ? note.get("id") : null;
@@ -113,7 +115,7 @@ public class ErgoNodes {
             }
         }
 
-        return false;
+        return null;
     }
 
   /*

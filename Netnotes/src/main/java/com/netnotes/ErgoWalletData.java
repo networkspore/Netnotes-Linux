@@ -8,6 +8,8 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.ergoplatform.appkit.Address;
 import org.ergoplatform.appkit.NetworkType;
@@ -22,6 +24,7 @@ import com.utils.Utils;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -221,25 +224,24 @@ public class ErgoWalletData extends Network implements NoteInterface {
     
   
 
-
-    private boolean getConfigId(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-
+    private Future<?> getAccessId(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
     
-        long timestamp = System.currentTimeMillis();
-       
+        AtomicBoolean closeThread = new AtomicBoolean(false);   
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() {
+                while(true){
+                    if(closeThread.get()){
+                        break;
+                    }
+                }
+                return null;
+            }
+        };
+        
 
-        getNetworksData().verifyAppKey("Ergo","Wallet Config", "", locationString, timestamp, ()->{
-            
-            Utils.returnObject(getConfigObject(), getExecService(), onSucceeded, onFailed);
         
-        });
-        return true;
-    
-        
-    }
 
-    private void getAccessId(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-        
         int lblCol = 180;
         String authorizeString = "Authorize Wallet Access";
         String title = getName() + " - " + authorizeString;
@@ -370,8 +372,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         closeBtn.setOnAction(e -> {
             
             Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
-                
-            
+            closeThread.set(true);
             passwordStage.close();
 
         });
@@ -379,6 +380,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         passwordStage.setOnCloseRequest(e->{
         
             Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
+            closeThread.set(true);
 
             passwordStage.close();
         });
@@ -393,6 +395,8 @@ public class ErgoWalletData extends Network implements NoteInterface {
         Platform.runLater(()->passwordField.requestFocus());
         
         ResizeHelper.addResizeListener(passwordStage, defaultWidth, defaultHeight, Double.MAX_VALUE, defaultHeight);
+
+        return getNetworksData().getExecService().submit(task);
     }
 
 
@@ -430,7 +434,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         // getAddresses
         JsonElement cmdElement = note.get(App.CMD);
         JsonElement locationIdElement = note.get("locationId");
@@ -444,11 +448,9 @@ public class ErgoWalletData extends Network implements NoteInterface {
                 
             switch(cmd){
                 case "getAccessId":
-                    getAccessId(note, locationString, onSucceeded, onFailed);
-                    return true;
+                    return getAccessId(note, locationString, onSucceeded, onFailed);
+                    
                
-                case "getConfigId":
-                    return getConfigId(note, locationString, onSucceeded, onFailed);
                 
                 default:
                     JsonElement accessIdElement = note.get("accessId");
@@ -457,18 +459,18 @@ public class ErgoWalletData extends Network implements NoteInterface {
                     if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
                         switch(cmd){
                             case "sendAssets":
-                                m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
-                                return true;
+                                return m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                                
                             case "executeContract":
-                                m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
-                                return true;
+                                return m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
+
                         }       
                     }
             }
 
         }
         
-        return false;
+        return null;
     }
 
 
@@ -542,7 +544,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }
 
 
-            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+            public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
                 return ErgoWalletData.this.sendNote(note, onSucceeded, onFailed);
             }
 

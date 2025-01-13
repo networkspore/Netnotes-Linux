@@ -61,13 +61,14 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.io.IOException;
-
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
+import org.apache.commons.io.IOUtils;
 import org.reactfx.util.FxTimer;
 
 public class ErgoDexChartTab extends ContentTab {
@@ -193,6 +194,8 @@ public class ErgoDexChartTab extends ContentTab {
     public void getData(EventHandler<WorkerStateEvent> onSucceeded){
         getNetworksData().getData("chartData", m_marketData.getId(), ErgoDexDataList.NETWORK_ID, ErgoDex.NETWORK_ID, onSucceeded);
     }
+
+    
 
     private void setLoadingBox(){
         ImageView imgView = new ImageView(m_dataList.getErgoDex().getAppIcon());
@@ -1331,123 +1334,100 @@ public class ErgoDexChartTab extends ContentTab {
 
 
         public void executeSwap(){
-            PriceAmount amountAvailable = m_dexWallet == null ? null : m_isSellProperty.get() ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
+            boolean isSell =  m_isSellProperty.get();
+            PriceAmount baseBalance = m_dexWallet == null ? null : isSell ? m_dexWallet.baseAmountProperty().get() : m_dexWallet.quoteAmountProperty().get();
+            PriceAmount quoteBalance = m_dexWallet == null ? null : isSell ?  m_dexWallet.quoteAmountProperty().get() : m_dexWallet.baseAmountProperty().get();
 
-            if( m_dexWallet.ergoAmountProperty().get() != null && amountAvailable != null){
-                boolean isSell = m_isSellProperty.get();
+            if( m_dexWallet.ergoAmountProperty().get() != null && baseBalance != null){
+               
                 boolean invert = isInvert();
-            
-                boolean isErg = amountAvailable.getTokenId().equals(ErgoCurrency.TOKEN_ID);
-                
-                BigDecimal networkFee = m_networkFee.get();
-                BigDecimal minExFee = ErgoDex.SWAP_MIN_EXECUTION_FEE;
-                BigDecimal maxExFee = m_maxExFee.get();
 
+                ErgoAmount ergoAmount = new ErgoAmount(0, ErgoDex.NETWORK_TYPE);
+               
+                PriceCurrency baseCurrency = baseBalance.getCurrency();
+                PriceCurrency quoteCurrency = quoteBalance.getCurrency();
+
+                boolean isErg = baseBalance.getTokenId().equals(ErgoCurrency.TOKEN_ID);
+                
+          
                 BigDecimal totalFees = m_swapFeesBox.totalFeesProperty().get();
-             
                 BigDecimal minErg = totalFees.add(ErgoNetwork.MIN_NETWORK_FEE);
 
                 BigDecimal baseAmount = m_currentAmount.get();
                 BigDecimal quoteAmount = m_currentVolume.get();
 
+                PriceAmount basePriceAmount = new PriceAmount(baseAmount, baseCurrency);
+                PriceAmount quotePriceAmount = new PriceAmount(quoteAmount, quoteCurrency);
+        
+                
+              
                 BigDecimal totalAmountRequired = isErg ? baseAmount.add(minErg) : baseAmount;
+
                 if(m_dexWallet.ergoAmountProperty().get().getBigDecimalAmount().compareTo(minErg) > -1){
-                    if(totalAmountRequired.compareTo(amountAvailable.getBigDecimalAmount()) < 1){
+                    if(totalAmountRequired.compareTo(baseBalance.getBigDecimalAmount()) < 1){
+                        BigDecimal slippageTolerance = m_slippageTolerance.get();
+
+                        PriceAmount minimumQuoteAmount = new PriceAmount(quoteAmount.subtract(quoteAmount.multiply(slippageTolerance)), quoteCurrency);
+
+                        BigDecimal networkFee = m_networkFee.get();
+                        ergoAmount.setBigDecimalAmount(ErgoDex.SWAP_MIN_EXECUTION_FEE);
+                        long minExFee = ergoAmount.getLongAmount();
+                        ergoAmount.setBigDecimalAmount(m_maxExFee.get());
+                        long maxExFee = ergoAmount.getLongAmount();
+            
+                        long minOutput = minimumQuoteAmount.getLongAmount();
+                        long maxOutput = 0;
+                  
                         NoteInterface ergoInterface = m_dataList.ergoInterfaceProperty().get();
 
                         if(ergoInterface != null){
-                            JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
-                            getDefaultExplorerNote.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
-                            getDefaultExplorerNote.addProperty("locationId", getLocationId());
-                            Object explorerObj = ergoInterface.sendNote(getDefaultExplorerNote);
-
-                            if(explorerObj != null){
-                                JsonObject explorerObject = (JsonObject) explorerObj;
-                                JsonElement namedExplorerElement = explorerObject.get("ergoNetworkUrl");
-                
-                                JsonObject namedExplorerJson = namedExplorerElement.getAsJsonObject();
-                                
-                                ErgoNetworkUrl explorerUrl = null;
-                                String explorerUrlError = null;
-                                try {
-                                    explorerUrl = new ErgoNetworkUrl(namedExplorerJson);
-                                   
-                                } catch (Exception e1) {
-                                    explorerUrlError = e1.toString();                                 
-                 
-                                }
-                                if(explorerUrl != null){
-                                    JsonObject getDefaultNodeNote = Utils.getCmdObject("getDefaultInterface");
-                                    getDefaultNodeNote.addProperty("networkId", ErgoNetwork.NODE_NETWORK);
-                                    getDefaultNodeNote.addProperty("locationId", getLocationId());
-                                
-                                    Object nodeObj = ergoInterface.sendNote(getDefaultNodeNote);
-                                
-                                    NoteInterface nodeInterface = nodeObj != null && nodeObj instanceof NoteInterface ? (NoteInterface) nodeObj : null;
-                                
-                                    if(nodeInterface != null){
-                                        JsonElement namedNodeElement = nodeInterface.getJsonObject().get("namedNode");
-                                        if( namedNodeElement != null && namedNodeElement.isJsonObject()){
-                                            JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
-                                            
-                                            NamedNodeUrl namedNode = null;
-                                            String namedNodeErrorString = null;
-                                            try {
-                                                namedNode = new NamedNodeUrl(namedNodeJson);
-                                            }catch(Exception e1){
-                                                namedNodeErrorString = e1.toString();
-                                            }
-
-                                            if(namedNode != null){
-                                                
-                                                JsonObject nodeJson = new JsonObject();
-                                                nodeJson.addProperty("name", nodeInterface.getName());
-                                                nodeJson.addProperty("url", namedNode.getUrlString());
-                                                nodeJson.addProperty("apiKey", namedNode.getApiKey());
-
-                                                JsonObject explorerJson = new JsonObject();
-                                                explorerJson.addProperty("url", explorerUrl.getUrlString());
-
-                                                JsonObject contractObject = new JsonObject();
-
-                                                JsonObject swapObject = new JsonObject();
-                                                swapObject.add("node", nodeJson);
-                                                swapObject.add("explorer", explorerJson);
-
-                                                
-
-
-                                                if(!m_dexWallet.getErgoWalletControl().sendNote(
-                                                    "executeContract", 
-                                                    swapObject, 
-                                                    onSucceeded->{
-
-                                                    }, onFailed->{
-
-                                                    })){
-                                                        showError("Ergo Network - Ergo Wallet is inaccessible.");
-                                                }
-                                            }else{
-                                                showError("Ergo Network - Node url invalid: " + namedNodeErrorString);
-                                            }
-                                        }else{
-                                            showError("Ergo Network - Node information not found");
-                                        }
-                                    }else{
-                                        showError("Ergo Network - No node selected");
-                                    }
-                                }else{
-                                    showError("Ergo Network - Explorer url invalid: " + explorerUrlError);
-                                }
-                            }else{
-                                showError("Ergo Network - No explorer selected");
+                            String contractStr = null;
+                            try{
+                                contractStr = Utils.getStringFromResource("/ergoDex/contracts/SwapSellV3.sc");
+                            }catch(IOException e1){
+                                showError("Error loading contract: " + e1.toString());
+                                return;
                             }
+             
+                            BigDecimal feePerToken = getFeePerToken(minExFee, minOutput);
+                            long adjustedMinExFee = feePerToken.multiply(BigDecimal.valueOf(minOutput)).longValue();
+                            
+                            try {
+                                Files.writeString(App.logFile.toPath(), "feePerToken: " + feePerToken + "\n" + adjustedMinExFee + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e) {
+
+                            }
+            
+                            
+
+                            //minExFee / minOutput(long)
+                            JsonObject exFeePerTokenDenom = new JsonObject();
+                           // exFeePerTokenDenom.addProperty("value", getFeePerDenom(ergoAmount.getLongAmount(), quotePriceAmount.getLongAmount()));
+                            exFeePerTokenDenom.addProperty("type", "long");
+                            exFeePerTokenDenom.addProperty("name", "ExFeePerTokenDenom");
+
+                            JsonObject swapObject = new JsonObject();
+                                        
+                            /*if(!m_dexWallet.getErgoWalletControl().sendNote(
+                                "executeContract", 
+                                swapObject, 
+                                onSucceeded->{
+
+                                }, onFailed->{
+
+                                })){
+                                    showError("Ergo Network - Ergo Wallet is inaccessible.");
+                            }*/
+                    
+                                
+                                
+                          
                         }else{
                             showError("Ergo Network is not available");
                         }
                       
                     }else{
-                        showError("Insufficient " + amountAvailable.getCurrency().getSymbol()+ " balance: " + totalAmountRequired + " required)");
+                        showError("Insufficient " + baseBalance.getCurrency().getSymbol()+ " balance: " + totalAmountRequired + " required)");
                     }
                 }else{
                     showError("insufficient Ergo balamce for fees: " + minErg + "ERG required");
@@ -1455,6 +1435,17 @@ public class ErgoDexChartTab extends ContentTab {
             }else{
                 showError("Wallet unavailable");
             }
+        }
+        
+        public long getMinQuoteAmount(long slippage){
+
+
+            return 0;
+        }
+
+        public BigDecimal getFeePerToken(long minExFee, long minOutput){
+            
+            return BigDecimal.valueOf(minExFee).divide(BigDecimal.valueOf(minOutput), 18, RoundingMode.HALF_UP);
         }
 
         public void setSlippageTolerance(BigDecimal decimal){

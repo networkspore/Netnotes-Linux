@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -89,6 +90,8 @@ public class ErgoDex extends Network implements NoteInterface {
     public static BigDecimal SWAP_MIN_EXECUTION_FEE;
     public static BigDecimal SWAP_MIN_MAX_EXEC_FEE;
     public static BigDecimal SWAP_MIN_TOTAL_FEES;
+    public static final long SWAP_FEE_DENOM = 1000;
+
    // private File m_dataFile = null;
 
 
@@ -98,6 +101,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public static final String TICKER_DATA_ID = "tickerData";
     public static final NetworkType NETWORK_TYPE = NetworkType.MAINNET;
     public static final String MARKETS_LIST = "MARKETS_LIST";
+    
 
     private ArrayList<ErgoDexMarketData> m_marketsList = new ArrayList<>();
 
@@ -114,7 +118,7 @@ public class ErgoDex extends Network implements NoteInterface {
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
         m_locationId = locationId;
 
-        NETWORK_MIN_FEE = BigDecimal.valueOf(0.002);
+        NETWORK_MIN_FEE = ErgoNetwork.MIN_NETWORK_FEE;
         SWAP_MIN_EXECUTION_FEE = NETWORK_MIN_FEE.multiply(BigDecimal.valueOf(3));
         SWAP_MIN_MAX_EXEC_FEE = SWAP_MIN_EXECUTION_FEE.multiply(DEFAULT_NITRO);
         SWAP_MIN_TOTAL_FEES = NETWORK_MIN_FEE.add(SWAP_MIN_MAX_EXEC_FEE);
@@ -230,7 +234,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
 
 
-            public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+            public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
                 return ErgoDex.this.sendNote(note, onSucceeded, onFailed);
             }
 
@@ -841,7 +845,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
 
     @Override
-    public boolean sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         JsonElement subjectElement = note.get(App.CMD);
         JsonElement locationIdElement = note.get("locationId");
       
@@ -863,49 +867,48 @@ public class ErgoDex extends Network implements NoteInterface {
                         return getPoolStats(note, onSucceeded, onFailed);
                     
                     case "getPlatformStats":
-                        getPlatformStats(onSucceeded, onFailed);
-                    return true;
+                        return getPlatformStats(onSucceeded, onFailed);
+
                     case "getLiquidityPoolStats":
-                        getLiquidityPoolStats(onSucceeded, onFailed);
-                    return true;
+                        return getLiquidityPoolStats(onSucceeded, onFailed);
+
                     case "getMarkets":
-                        getMarkets(onSucceeded, onFailed);
-                    return true;
+                        return getMarkets(onSucceeded, onFailed);
+
                     case "getTickers":
-                        getTickers(onSucceeded, onFailed);
+                        return getTickers(onSucceeded, onFailed);
+
                     case "getPoolsSummary":
-                        getPoolsSummary(onSucceeded, onFailed);
+                        return getPoolsSummary(onSucceeded, onFailed);
                 }
             }
         }
-        return false;
+        return null;
 
     }
 
   
-    public boolean getPoolSlippage(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> getPoolSlippage(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         JsonElement poolIdElement = note != null ? note.get("poolId") : null;
         String poolId = poolIdElement != null && !poolIdElement.isJsonNull() ? poolIdElement.getAsString() : null;
         if(poolId != null){
-            getPoolSlippage(poolId, getExecService(), onSucceeded, onFailed);
+            return getPoolSlippage(poolId, getExecService(), onSucceeded, onFailed);
 
-            return true;
         }
 
-        return false;
+        return null;
     }
 
-    public boolean getPoolStats(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> getPoolStats(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         JsonElement poolIdElement = note != null ? note.get("poolId") : null;
         String poolId = poolIdElement != null && !poolIdElement.isJsonNull() ? poolIdElement.getAsString() : null;
         
         if(poolId != null){
-            getPoolStats(poolId, getExecService(), onSucceeded, onFailed);
+            return getPoolStats(poolId, getExecService(), onSucceeded, onFailed);
 
-            return true;
         }
 
-        return false;
+        return null;
     }   
 
    
@@ -916,45 +919,45 @@ public class ErgoDex extends Network implements NoteInterface {
     }
     // /v1/amm/pools/summary/all
 
-    private void getPoolsSummary(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    private Future<?> getPoolsSummary(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/amm/pools/summary/all";
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
+        return Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
                         
     }
 
-    private void getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    private Future<?> getMarkets(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/markets";
-
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
+        
+        return Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
                         
     }
   
       
-    public void getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> getTickers(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/price-tracking/cg/tickers";
 
-        Utils.getUrlJsonArray(urlString, getNetworksData().getExecService(), onSucceeded, onFailed);                
+        return Utils.getUrlJsonArray(urlString, getNetworksData().getExecService(), onSucceeded, onFailed);                
 
     }
 
-    public void getPlatformStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> getPlatformStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
         String urlString = API_URL + "/v1/amm/platform/stats";
 
-        Utils.getUrlJson(urlString, getNetworksData().getExecService(), onSucceeded, onFailed);                
+        return Utils.getUrlJson(urlString, getNetworksData().getExecService(), onSucceeded, onFailed);                
 
     }
 
-    public void getPoolSlippage(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> getPoolSlippage(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/slippage";
 
-        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
+        return Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
 
-    public void getPoolStats(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> getPoolStats(String poolId, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/stats";
 
-        Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
+        return Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
 
     private void getMarketUpdate(JsonArray jsonArray){
@@ -1213,11 +1216,11 @@ public class ErgoDex extends Network implements NoteInterface {
         "compoundedReward": 75,
         "yearProfit": 3700
     */
-    public void getLiquidityPoolStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> getLiquidityPoolStats(EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
             String urlString = API_URL + "/v1/lm/pools/stats";
        
             
-            Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
+            return Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
     
     }
     

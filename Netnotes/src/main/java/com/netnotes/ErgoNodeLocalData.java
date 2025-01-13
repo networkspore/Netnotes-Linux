@@ -108,8 +108,8 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private int m_peerCount;*/
     private JsonObject m_statusJson;
 
-    public ErgoNodeLocalData(String id, String configId, File appDir, boolean isAppFile, File appFile, String configName, String configText, NamedNodeUrl namedNode, ErgoNodesList ergoNodesList) throws Exception {
-        super(id,namedNode.getName(), LOCAL_NODE, configId, ergoNodesList, namedNode);
+    public ErgoNodeLocalData(String id,  File appDir, boolean isAppFile, File appFile, String configName, String configText, NamedNodeUrl namedNode, ErgoNodesList ergoNodesList) throws Exception {
+        super(id,namedNode.getName(), LOCAL_NODE,  ergoNodesList, namedNode);
         m_appDir = appDir;
 
         if(!appDir.isDirectory()){
@@ -155,7 +155,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public ErgoNodeLocalData(String imgString, String id, String name, String clientType, JsonObject json, ErgoNodesList ergoNodesList) throws Exception {
 
-        super(id,name, LOCAL_NODE, FriendlyId.createFriendlyId(), ergoNodesList,(NamedNodeUrl) null);
+        super(id,name, LOCAL_NODE,  ergoNodesList,(NamedNodeUrl) null);
         openJson(json);
         
         init();

@@ -3,6 +3,7 @@ package com.netnotes;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.concurrent.Future;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -52,7 +53,7 @@ public class ErgoWalletControl {
         return m_balanceObject;
     }
 
-   public boolean sendNote(String cmd, JsonObject noteData, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+   public Future<?> sendNote(String cmd, JsonObject noteData, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         JsonObject note = Utils.getCmdObject(cmd);
         note.addProperty("accessId", m_accessId);
         note.addProperty("locationId", m_locationId);
@@ -62,7 +63,7 @@ public class ErgoWalletControl {
         if(walletInterface != null){
             return walletInterface.sendNote(note, onSucceeded, onFailed);
         }else{
-            return false;
+            return null;
         }
    }
 
