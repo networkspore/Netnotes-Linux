@@ -21,6 +21,7 @@ public class ErgoWalletControl {
 
     private String m_locationId;
     private String m_accessId = null;
+    private Future<?> m_accessIdFuture = null;
 
     private NoteInterface m_ergoNetworkInterface;
     private NoteInterface m_walletInterface = null;
@@ -67,14 +68,15 @@ public class ErgoWalletControl {
         }
    }
 
+    
 
     public void connectToWallet(){
         NoteInterface walletInterface = m_walletInterface;
-        if(walletInterface != null){
+        if(walletInterface != null && m_accessIdFuture == null || (m_accessIdFuture != null && m_accessIdFuture.isDone())){
             JsonObject getWalletObject = Utils.getCmdObject("getAccessId");
             getWalletObject.addProperty("locationId", getLocationId());
 
-            walletInterface.sendNote(getWalletObject, onSucceeded->{
+            m_accessIdFuture = walletInterface.sendNote(getWalletObject, onSucceeded->{
                 Object successObject = onSucceeded.getSource().getValue();
 
                 if (successObject != null) {

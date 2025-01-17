@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.ergoplatform.appkit.Address;
@@ -226,18 +227,13 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
     private Future<?> getAccessId(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
     
-        AtomicBoolean closeThread = new AtomicBoolean(false);   
-        Task<Object> task = new Task<Object>() {
-            @Override
-            public Object call() {
-                while(true){
-                    if(closeThread.get()){
-                        break;
-                    }
-                }
-                return null;
-            }
-        };
+        Semaphore activeThreadSemaphore = new Semaphore(1);
+        try{
+            activeThreadSemaphore.acquire();
+        }catch(InterruptedException e){
+
+        }
+      
         
 
         
@@ -372,7 +368,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         closeBtn.setOnAction(e -> {
             
             Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
-            closeThread.set(true);
+            activeThreadSemaphore.release();
             passwordStage.close();
 
         });
@@ -380,7 +376,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         passwordStage.setOnCloseRequest(e->{
         
             Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
-            closeThread.set(true);
+            activeThreadSemaphore.release();
 
             passwordStage.close();
         });
@@ -396,6 +392,14 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
         ResizeHelper.addResizeListener(passwordStage, defaultWidth, defaultHeight, Double.MAX_VALUE, defaultHeight);
 
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws InterruptedException {
+                activeThreadSemaphore.acquire();
+                activeThreadSemaphore.release();
+                return null;
+            }
+        };
         return getNetworksData().getExecService().submit(task);
     }
 

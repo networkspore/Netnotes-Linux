@@ -94,8 +94,7 @@ public class ErgoExplorers  {
 
         JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
         JsonElement idElement = note != null ? note.get("id") : null;
-        
-
+     
         if(cmdElement != null){
             String id = idElement != null ? idElement.getAsString() : m_explorerList.getDefaultExplorerId();
          
@@ -103,7 +102,7 @@ public class ErgoExplorers  {
             ErgoExplorerData explorerData = m_explorerList.getErgoExplorerData(id);
         
             if(explorerData != null){
-               
+                
                 return explorerData.sendNote(note, onSucceeded, onFailed);
             }
         }

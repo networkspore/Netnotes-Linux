@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -215,11 +217,14 @@ public class ErgoExplorerData {
                urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "");
           }
 
+          
+        
           return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
      }
 
      public Future<?> getUnspentByErgoTree(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-          JsonElement ergotreeElement = json != null ? json.get("ergotree") : null;
+          JsonElement ergotreeElement = json != null ? json.get("ergoTree") : null;
+          
           String ergotree = ergotreeElement != null && ergotreeElement.isJsonPrimitive() ? ergotreeElement.getAsString() : null;
           if(ergotree != null){
                JsonElement offsetElement = json.get("offset");
@@ -301,11 +306,8 @@ public class ErgoExplorerData {
 
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           JsonElement cmdElement = note.get(App.CMD);
-          if (cmdElement != null && cmdElement.isJsonPrimitive()) {
-            
-               String subject = cmdElement.getAsString();
-
-               switch(subject){
+          if (cmdElement != null && !cmdElement.isJsonNull()) {
+               switch(cmdElement.getAsString()){
                     case "getBlocks":
                          return getBlocks(note, onSucceeded, onFailed);
 
@@ -330,7 +332,7 @@ public class ErgoExplorerData {
                     case "getUnspentByErgoTree":
                          return getUnspentByErgoTree(note, onSucceeded, onFailed);
 
-                    case "getUnspentBytErgoTreeTemplateHash":
+                    case "getUnspentByErgoTreeTemplateHash":
                          return getUnspentByErgoTreeTemplateHash(note, onSucceeded, onFailed);
 
                     

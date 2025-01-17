@@ -63,8 +63,7 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
     private ChangeListener<PriceQuote> m_priceQuoteHeadingChangeListener = null;
 
     private JsonParametersBox m_currencyParamsBox = null;
-    private Runnable m_updateCurrencyBoxRunnable = null;
-    private ChangeListener<PriceCurrency> m_priceCurrencyChangeListener = null;
+
 
     private VBox m_bodyBox;
 
@@ -75,7 +74,7 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
 
     public ErgoWalletTokenAmountBox(PriceAmount priceAmount, Scene scene) {
         super();
-        int rowPadding = 2;
+      //  int rowPadding = 2;
 
         m_id = FriendlyId.createFriendlyId();
         m_priceAmount = priceAmount;
@@ -204,7 +203,7 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
         if(m_currencyParamsBox == null){
             m_currencyParamsBox = new JsonParametersBox((JsonObject) null, (int) m_colWidth.get() + 20);
             m_currencyParamsBox.setPadding(new Insets(0,0,0,5));
-            m_updateCurrencyBoxRunnable = ()->{
+        
                 PriceCurrency currency = m_priceAmount.getCurrency();
                 
                 JsonObject infoJson = new JsonObject();
@@ -212,10 +211,9 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
                 currencyJson.remove("imageString");
                 infoJson.add("info", currencyJson);
                 m_currencyParamsBox.updateParameters(infoJson);
-            };
-            m_updateCurrencyBoxRunnable.run();
-            m_priceCurrencyChangeListener = (obs,oldval,newval) ->m_updateCurrencyBoxRunnable.run();
-            m_priceAmount.currencyProperty().addListener(m_priceCurrencyChangeListener);
+            
+
+
 
             m_bodyBox.getChildren().add(0, m_currencyParamsBox);
         }
@@ -223,11 +221,8 @@ public class ErgoWalletTokenAmountBox extends HBox implements AmountBoxInterface
 
     public void removeCurrencyBox(){
         if(m_currencyParamsBox != null){
-            if(m_priceCurrencyChangeListener != null){
-                m_priceAmount.currencyProperty().removeListener(m_priceCurrencyChangeListener);
-                m_priceCurrencyChangeListener = null;
-            }
-            m_updateCurrencyBoxRunnable = null;
+           
+
             if(m_bodyBox.getChildren().contains(m_currencyParamsBox)){
                 m_bodyBox.getChildren().remove(m_currencyParamsBox);
             }

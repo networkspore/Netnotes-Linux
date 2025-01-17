@@ -3,9 +3,9 @@ package com.netnotes;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -13,18 +13,14 @@ import com.google.gson.JsonElement;
 
 public class ErgoDexMarketData extends PriceQuote {
 
-    private boolean m_isBaseErg = false;
+    private boolean m_isN2T = false;
 
     private PriceCurrency m_baseCurrency = null;
     private PriceCurrency m_quoteCurrency = null;
 
-    private BigDecimal m_baseVolume = BigDecimal.ZERO;
-    private BigDecimal m_quoteVolume = BigDecimal.ZERO;
-
     private int m_baseDecimals;
     private int m_quoteDecimals;
 
-    private long m_lastPoolData = 0;
 
     private String m_poolId = null;
 
@@ -32,7 +28,14 @@ public class ErgoDexMarketData extends PriceQuote {
     private String m_tickerId = null;
 
 
-    private SimpleObjectProperty<ErgoDexChartView> m_chartViewProperty = new SimpleObjectProperty<>(null);
+
+    private SimpleObjectProperty<PriceAmount> m_baseVolume = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<PriceAmount> m_quoteVolume = new SimpleObjectProperty<>(null);
+
+    private ErgoDexChartView m_chartView = null;
+
+    private ErgoDex m_ergoDex = null;
+
 
     public ErgoDexMarketData(BigDecimal amount, String baseSymbol, String quoteSymbol, String baseId, String quoteId, String id, String poolId, BigDecimal baseVolume, BigDecimal quoteVolume, int baseDecimals, int quoteDecimals, long timeStamp){
         setAmount(amount);
@@ -42,9 +45,16 @@ public class ErgoDexMarketData extends PriceQuote {
         setQuoteId(quoteId);
         setTimeStamp(timeStamp);
         setId(id);
-        setBaseVolume(baseVolume);
-        setQuoteVolume(quoteVolume);
+        PriceCurrency baseCurrency = new PriceCurrency(baseId, baseSymbol, baseDecimals, "", "");
+        PriceCurrency quoteCurrency = new PriceCurrency(quoteId, quoteSymbol, quoteDecimals, "", "");
+        m_baseCurrency = baseCurrency;
+        m_quoteCurrency = quoteCurrency;
+
+        m_baseVolume.set(new PriceAmount(baseVolume, baseCurrency));
+        m_quoteVolume.set( new PriceAmount(baseVolume, quoteCurrency));
+
         m_poolId = poolId;
+        
     }
 
     public ErgoDexMarketData(JsonObject json, long timeStamp) throws Exception{
@@ -81,7 +91,7 @@ public class ErgoDexMarketData extends PriceQuote {
             JsonObject quoteVolumeObject = quoteVolumeElement.getAsJsonObject();
             long quoteVolumeValue = quoteVolumeObject.get("value").getAsLong();
             int quoteVolumeDecimals = quoteVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
-            BigDecimal quoteVolumeBigDecimal = calculateLongToBigDecimal(quoteVolumeValue, quoteVolumeDecimals);
+           // BigDecimal quoteVolumeBigDecimal = calculateLongToBigDecimal(quoteVolumeValue, quoteVolumeDecimals);
             
       
 
@@ -89,60 +99,82 @@ public class ErgoDexMarketData extends PriceQuote {
             long baseVolumeValue = baseVolumeObject.get("value").getAsLong();
             int baseVolumeDecimals = baseVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
             
-            BigDecimal baseVolumeBigDecimal = calculateLongToBigDecimal(baseVolumeValue, baseVolumeDecimals);
+       
           
             setDefaultInvert(!getQuoteId().equals(ErgoDex.SIGUSD_ID));
 
-            setQuoteVolume( quoteVolumeBigDecimal); 
-            setBaseVolume(baseVolumeBigDecimal);
+         //   setQuoteVolume( quoteVolumeBigDecimal); 
+            //setBaseVolume(baseVolumeBigDecimal);
 
             m_baseDecimals = baseVolumeDecimals;
             m_quoteDecimals = quoteVolumeDecimals;
-            m_isBaseErg = getBaseId().equals(ErgoCurrency.TOKEN_ID);
-            m_tickerId = isBaseErg() ? getQuoteId() + "_" + getBaseId() : getId();
+            m_isN2T = getBaseId().equals(ErgoCurrency.TOKEN_ID);
+            m_tickerId = isNative2Token() ? getQuoteId() + "_" + getBaseId() : getId();
             
             m_baseCurrency = new PriceCurrency(getBaseId(), getBaseSymbol(), getBaseDecimals(), ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
             m_quoteCurrency = new PriceCurrency(getQuoteId(), getQuoteSymbol(), getQuoteDecimals(), ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
+        
+            m_baseVolume.set(new PriceAmount(baseVolumeValue, m_baseCurrency));
+            m_quoteVolume.set(new PriceAmount(quoteVolumeValue, m_quoteCurrency));
+
         }else{
             throw new Exception("Missing expected arguments");
         }
-        
+
     }
 
-    public boolean isBaseErg(){
-        return m_isBaseErg;
+    public void setErgoDex(ErgoDex ergoDex){
+        m_ergoDex = ergoDex;
+    }
+
+    public ErgoDex getErgoDex(){
+        return m_ergoDex;
+    }
+   
+
+    public boolean isNative2Token(){
+        return m_isN2T;
     }
 
     public String getTickerId(){
         return m_tickerId;
     }
 
+    public void setBaseVolume(PriceAmount volume){
+        m_baseVolume.set(volume);
+    }
+
+    public void setQuoteVolume(PriceAmount volume){
+        m_quoteVolume.set(volume);
+    }
+
     @Override
     public JsonObject getJsonObject(){
         JsonObject json = super.getJsonObject();
-        json.addProperty("baseVolume", getBaseVolume());
-        json.addProperty("quoteVolume", getQuoteVolume());
+        if(getBaseVolume() != null){
+            json.add("baseVolume", getBaseVolume().getJsonObject());
+        }
+        if(getQuoteVolume() != null){
+            json.add("quoteVolume", getQuoteVolume().getJsonObject());
+        }
         if(getPoolId() != null){
             json.addProperty("poolId", getPoolId());
         }
         return json;
     }
 
-    @Override
-    public JsonObject getInvertedJsonObject(){
-        JsonObject json = super.getInvertedJsonObject();
-        json.addProperty("baseVolume", getQuoteVolume());
-        json.addProperty("quoteVolume", getBaseVolume());
-        if(getPoolId() != null){
-            json.addProperty("poolId", getPoolId());
-        }
-        return json;
+    public PriceAmount getBaseVolume(){
+        return m_baseVolume.get() != null ? m_baseVolume.get() : null;
+    }
+    public PriceAmount getQuoteVolume(){
+        return m_quoteVolume.get() != null ? m_quoteVolume.get() : null;
     }
 
-    public BigDecimal getBaseVolume(){
+    public ReadOnlyObjectProperty<PriceAmount> baseVolumeProperty(){
         return m_baseVolume;
     }
-    public BigDecimal getQuoteVolume(){
+
+    public ReadOnlyObjectProperty<PriceAmount> quoteVolumeProperty(){
         return m_quoteVolume;
     }
 
@@ -154,29 +186,13 @@ public class ErgoDexMarketData extends PriceQuote {
         return m_quoteCurrency;
     }
 
-    public void setQuoteVolume(BigDecimal quoteVolume){
-        m_quoteVolume = quoteVolume;
-    }
-
-    public void setBaseVolume(BigDecimal baseVolume){
-        m_baseVolume = baseVolume;
-    }
 
     public boolean isPool(){
         return m_poolId != null;
     }
     
-    public long getLastPoolData(){
-        return m_lastPoolData;
-    }
 
-    public void setLastPoolData(long value){
-        m_lastPoolData = value;
-    }
 
-    public SimpleObjectProperty<ErgoDexChartView> getSpectrumChartView(){
-        return m_chartViewProperty;
-    }
 
     private SimpleLongProperty m_poolLastWritten = new SimpleLongProperty(0);
 
@@ -373,26 +389,38 @@ public class ErgoDexMarketData extends PriceQuote {
         return swapped ? (getQuoteSymbol() + "-" + getBaseSymbol()) : getSymbol();
     }
 
+    public ErgoDexChartView getChartView(){
+        return m_chartView;
+    }
+
+    public void setChartView(ErgoDexChartView chartView){
+        m_chartView = chartView;
+    }
+   
     public void update(ErgoDexMarketData updateData){
-        setAmount(updateData.getQuote());
        
-        m_baseVolume = updateData.getBaseVolume();
-        m_quoteVolume = updateData.getQuoteVolume();
+       // m_assetX.set(updateData.m_assetX.get());
+      //  m_assetY.set(updateData.m_assetY.get());
+        setBaseVolume(updateData.getBaseVolume());
+        setQuoteVolume(updateData.getQuoteVolume());
         m_liquidityUSD = updateData.getLiquidityUSD();
+        setAmount(updateData.getQuote());
         setTimeStamp(updateData.getTimeStamp());
         
-        if(m_chartViewProperty.get() != null && m_chartViewProperty.get().getConnectionStatus() != App.STOPPED){
-            m_chartViewProperty.get().update();
+        if(m_chartView != null && m_chartView.getConnectionStatus() != App.STOPPED){
+            m_chartView.update();
         }
 
 
         getLastUpdated().set(LocalDateTime.now());
+
+        if(m_ergoDex != null){
+         
+        }
  
     }
 
 
-
-    
     public class PoolStats{
         
         private String m_lockedYTokenId;
@@ -606,5 +634,6 @@ public class ErgoDexMarketData extends PriceQuote {
         }
     }
 
-  
+
+
 }

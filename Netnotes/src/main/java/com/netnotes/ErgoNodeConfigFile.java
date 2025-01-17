@@ -28,7 +28,7 @@ public class ErgoNodeConfigFile{
     public ErgoNodeConfigFile(File file){
         m_file = file;
         try {
-            readFile(file);
+            parseConfigFile(file);
         } catch (IOException e) {
             try {
                 Files.writeString(App.logFile.toPath(), "ConfigFile: " + file.getName() + ": " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -60,7 +60,7 @@ public class ErgoNodeConfigFile{
 
     
 
-    public void readFile(File file) throws IOException{
+    public void parseConfigFile(File file) throws IOException{
         m_inputBuffer.clear();
          try(
             
@@ -68,13 +68,10 @@ public class ErgoNodeConfigFile{
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
         ){
     
-
-            READ_FILE: 
-            while(true) {
-                String line = reader.readLine();
-                if (line == null) {
-                    break;
-                }
+            String line = null;
+   
+            while( (line = reader.readLine()) != null) {
+                
                 line = line.trim();
 
                 int indexOfHash = line.indexOf("#");
@@ -105,13 +102,13 @@ public class ErgoNodeConfigFile{
                      
                         if(numOpen > numClosed){
                             long difference = numOpen - numClosed;
-                            
+                            String nLine = null;
                             while( difference > 0){
                 
-                                String nLine = reader.readLine();
+                                nLine = reader.readLine();
 
                                 if(nLine == null){
-                                    break READ_FILE;
+                                   break;
                                 }
                                 nLine = nLine.trim();
                                 currentItem.getValueLines().add(nLine);
@@ -127,6 +124,9 @@ public class ErgoNodeConfigFile{
                                 long nNumClosed = nLine.chars().filter(c -> c == (indexOfOpenBrace != -1 ? '}' : ']')).count();
                                 
                                 difference += (nNumOpen - nNumClosed);
+                            }
+                            if(nLine == null){
+                                break;
                             }
                             
                         }                                

@@ -714,6 +714,22 @@ public class Utils {
 
     }
 
+    public static void returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded) {
+
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() {
+
+                return object;
+            }
+        };
+
+        task.setOnSucceeded(onSucceeded);
+
+        execService.submit(task);
+
+    }
+
 
     public static int getJsonElementType(JsonElement jsonElement){
         return jsonElement.isJsonNull() ? -1 : jsonElement.isJsonObject() ? 1 : jsonElement.isJsonArray() ? 2 : jsonElement.isJsonPrimitive() ? 3 : 0;
@@ -1343,7 +1359,84 @@ public class Utils {
         }
     }
 
-    
+    public static byte[] getHexBytesFromResource(String resourceLocation) throws IOException{
+        String hex = getStringFromResource(resourceLocation);
+        return Base16.decode(hex).get();
+    }
+
+    public static ErgoTreeTemplate getErgoTemplateFromResource(String resourceLocation) throws IOException{
+        byte[] bytes = getHexBytesFromResource(resourceLocation);
+        return ErgoTreeTemplate.fromErgoTreeBytes(bytes);
+    }
+
+    public static String getErgoTemplateHashFromResource(String resourceLocation) throws IOException{
+        ErgoTreeTemplate ergoTreeTemplate = getErgoTemplateFromResource(resourceLocation);
+        return ergoTreeTemplate.getTemplateHashHex();
+    }
+
+    public static Future<?> getErgoTemplateHashFromResource(String resourceLocation, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception{
+                return Utils.getErgoTemplateHashFromResource(resourceLocation);
+            }
+        };
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+            
+    }
+
+    public static Future<?> getErgoTemplateFromResource(String resourceLocation, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception{
+                return Utils.getErgoTemplateFromResource(resourceLocation);
+            }
+        };
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+            
+    }
+
+    public static Future<?> getHexBytesFromResource(String resourceLocation, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception{
+                return Utils.getHexBytesFromResource(resourceLocation);
+            }
+        };
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+            
+    }
+
+    public static Future<?> getStringFromResource(String resourceLocation, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception{
+                return Utils.getStringFromResource(resourceLocation);
+            }
+        };
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+            
+    }
 
     public static boolean decryptFileToFile(SecretKey appKey, File encryptedFile, File decryptedFile) throws IOException, InvalidKeyException, NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException{
         if(encryptedFile != null && encryptedFile.isFile() && encryptedFile.length() > 12){

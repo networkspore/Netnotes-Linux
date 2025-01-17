@@ -19,6 +19,11 @@ public class ErgoAmount extends PriceAmount {
         m_networkType = networkType;
     }
 
+    public ErgoAmount(long nanoErg, NetworkType networkType, boolean readonly) {
+        super(nanoErg, new ErgoCurrency(networkType), readonly);
+        m_networkType = networkType;
+    }
+
     public ErgoAmount(BigDecimal ergs, NetworkType networkType){
         super(ergs, new ErgoCurrency(networkType));
 

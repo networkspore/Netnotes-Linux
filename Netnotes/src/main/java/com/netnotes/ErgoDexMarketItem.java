@@ -1,7 +1,10 @@
 package com.netnotes;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 
@@ -9,6 +12,7 @@ import com.devskiller.friendly_id.FriendlyId;
 
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -65,9 +69,15 @@ public class ErgoDexMarketItem {
 
     private ErgoDexDataList m_dataList = null;
     private final ErgoDexMarketData m_marketData;
+    
+    private final double regularHeight = 50;
+    private final double focusedHeight = 152;
+    private final int  chartWidthOffset = 200;
+    
+
    // private Stage m_stage = null;
 
-  
+    private double m_currentHeight =regularHeight;
 
     private int m_posColor = 0xff028A0F;
     private int m_negColor = 0xff9A2A2A;
@@ -77,23 +87,24 @@ public class ErgoDexMarketItem {
     private BufferedImage m_rowImg = null;
     private SimpleObjectProperty<HBox> m_rowBox = new SimpleObjectProperty<>(null);
 
-    private SimpleObjectProperty<ErgoDexNumbers> m_numbersObject = new SimpleObjectProperty<>(null);
+    private ErgoDexNumbers m_numbers;
     private ImageView m_rowChartImgView = new ImageView();
     private TextField m_priceText;
     
 
     private ChangeListener<Number> m_widthListener;
     private ChangeListener<TimeSpan> m_timeSpanListener;
-    private ChangeListener<Number> m_currentIndexChangeListener;
+    private ChangeListener<HBox> m_currentBoxChangeListener;
     private ChangeListener<LocalDateTime> m_marketDataUpdated;
     private ChangeListener<String> m_statusChangeListener;
 
-    private NoteMsgInterface listListener = null;
+    private NoteMsgInterface m_chartViewListener = null;
     // private ArrayList<SpectrumMarketInterface> m_msgListeners = new ArrayList<>();
 
     private WritableImage m_rowWImg = null;
     
 
+        
 
 
 
@@ -148,15 +159,11 @@ public class ErgoDexMarketItem {
         return m_itemIndex;
     }
 
-    private final double regularHeight = 50;
-    private final double focusedHeight = 152;
-    private final int  chartWidthOffset = 200;
-    
     public SimpleBooleanProperty rowBoxisShowing(){
         return m_isShowing;
     }
 
-    private double m_currentHeight = regularHeight;
+    
 
     public double getCurrentHeight(){
         return m_currentHeight;
@@ -164,7 +171,22 @@ public class ErgoDexMarketItem {
 
     public void setCurrentHeight(double height){
         m_currentHeight = height;
+          
+        m_rowChartImgView.setFitWidth(calculateCurrentImgWidth());
+        m_rowChartImgView.setFitHeight(height);
     }
+
+    private HBox symbolTextPaddingBox;
+    private HBox priceHBox ;
+    private StackPane rowImgBox;
+    private HBox statsBox;
+    private VBox statsVbox;
+    private TextField openText;
+    private TextField highText;
+    private TextField lowText;
+    private Text percentChangeText;
+    private Insets priceHBoxDefaultPadding;
+    private NumberFormat percentFormat;
 
     public void setupRowBox() {
 
@@ -233,9 +255,9 @@ public class ErgoDexMarketItem {
         HBox openChartBtnBox = new HBox(openChartBtn);
         openChartBtnBox.setPadding(new Insets(3, 0,0,10));
 
-        Insets priceHBoxDefaultPadding = new Insets(0, 10,10,0);
+        priceHBoxDefaultPadding = new Insets(0, 10,10,0);
 
-        HBox priceHBox = new HBox(m_priceText, openChartBtnBox);
+        priceHBox = new HBox(m_priceText, openChartBtnBox);
         HBox.setHgrow(priceHBox, Priority.ALWAYS);
         priceHBox.setAlignment(Pos.TOP_RIGHT);
         priceHBox.setPadding(priceHBoxDefaultPadding);
@@ -247,7 +269,7 @@ public class ErgoDexMarketItem {
         symbolTextBox.setMinHeight(regularHeight);
         symbolTextBox.setAlignment(Pos.CENTER_LEFT);*/
 
-        HBox symbolTextPaddingBox = new HBox(symbolText, priceHBox);
+        symbolTextPaddingBox = new HBox(symbolText, priceHBox);
         symbolTextPaddingBox.setPadding(new Insets(10,0,0,10));
         VBox.setVgrow(symbolTextPaddingBox, Priority.ALWAYS);
         HBox.setHgrow(symbolTextPaddingBox,Priority.ALWAYS);
@@ -328,7 +350,7 @@ public class ErgoDexMarketItem {
         };
        
         
-        StackPane rowImgBox = new StackPane(chartBox, imagesBox, symbolTextPaddingBox);
+        rowImgBox = new StackPane(chartBox, imagesBox, symbolTextPaddingBox);
        
         HBox.setHgrow(rowImgBox,Priority.ALWAYS);
         rowImgBox.setMinWidth(NetworksData.DEFAULT_STATIC_WIDTH-25);
@@ -340,7 +362,7 @@ public class ErgoDexMarketItem {
 
                        
 
-        HBox statsBox = new HBox();
+        statsBox = new HBox();
         statsBox.setId("transparentColor");
         HBox.setHgrow(statsBox, Priority.ALWAYS);
         VBox.setVgrow(statsBox, Priority.ALWAYS);
@@ -363,16 +385,17 @@ public class ErgoDexMarketItem {
         lblLowText.setFont(App.txtFont);
         lblLowText.setFill(Color.web("#777777"));
 
-        Text percentChangeText = new Text("0.00%");
+        percentChangeText = new Text("0.00%");
         percentChangeText.setFont(App.txtFont);
 
         double textWidth = 110;
 
-        TextField openText = new TextField();
+
+        openText = new TextField();
         openText.setPrefWidth(textWidth);
-        TextField highText = new TextField(); 
+        highText = new TextField(); 
         highText.setPrefWidth(textWidth);
-        TextField lowText = new TextField();
+        lowText = new TextField();
         lowText.setPrefWidth(textWidth);
 
         Insets boxPadding = new Insets(5);
@@ -386,11 +409,11 @@ public class ErgoDexMarketItem {
         HBox lowHBox = new HBox(lblLowText, lowText);
         lowHBox.setPadding(boxPadding);
 
-        VBox statsVbox = new VBox( openHbox,changeHBox, highHBox, lowHBox);
+        statsVbox = new VBox( openHbox,changeHBox, highHBox, lowHBox);
         statsVbox.setPadding(new Insets(10,0,0,0));
         VBox.setVgrow(statsVbox, Priority.ALWAYS);
         statsVbox.setId("transparentColor");
-        NumberFormat percentFormat = NumberFormat.getPercentInstance();
+        percentFormat = NumberFormat.getPercentInstance();
         percentFormat.setMaximumFractionDigits(2);
         
 
@@ -411,10 +434,10 @@ public class ErgoDexMarketItem {
        
 
         Runnable addChartViewListener = ()->{
-            ErgoDexChartView chartView = m_marketData.getSpectrumChartView().get();
+            ErgoDexChartView chartView = m_marketData.getChartView();
             
-            if(chartView != null && listListener  == null){
-                listListener = new NoteMsgInterface() {
+            if(chartView != null && m_chartViewListener  == null){
+                m_chartViewListener = new NoteMsgInterface() {
                     public String getId() {
                         return friendlyId;
                     }
@@ -449,7 +472,7 @@ public class ErgoDexMarketItem {
                 
               
 
-                chartView.addMsgListener(listListener);
+                chartView.addMsgListener(m_chartViewListener);
        
             }
         };
@@ -487,13 +510,15 @@ public class ErgoDexMarketItem {
         rowBox.setFocusTraversable(true);
 
         rowBox.addEventFilter(MouseEvent.MOUSE_CLICKED, e->{
-            if(m_dataList.currentIndex().get() != getItemIndex()){
-                m_dataList.currentIndex().set(getItemIndex());
-            }
+            
 
             if(e.getClickCount() == 2){
                 open();
             }
+      
+            
+            m_dataList.currentBoxProperty().set(rowBox);
+            
             
         });
 
@@ -559,61 +584,22 @@ public class ErgoDexMarketItem {
         quoteImg.addListener((obs,oldval,newval)->updateLogo.run());
 
 
-        m_currentIndexChangeListener = (obs,oldval,newval)->{
-            int index = newval.intValue();
+        m_currentBoxChangeListener = (obs,oldval,newval)->{
 
-            boolean isCurrent = index == getItemIndex();
-
+            boolean isCurrent = newval != null && newval.equals(rowBox);
             rowBox.setId(isCurrent ? "headingBox" : "rowBox");
-            setCurrentHeight(isCurrent ? focusedHeight : regularHeight);
-        
+            
+            setCurrent(isCurrent);
+
             imagesBox.setAlignment(isCurrent ? Pos.TOP_LEFT : Pos.CENTER);
-            updateRowImg();
+
+            
         };
 
   
-        m_dataList.currentIndex().addListener(m_currentIndexChangeListener);
+        m_dataList.currentBoxProperty().addListener(m_currentBoxChangeListener);
 
-        Insets selectedInsets = new Insets(0,10,0,0);        
-
-        m_numbersObject.addListener((obs,oldval,newval)->{
-            if(newval != null){
-                symbolTextPaddingBox.getChildren().remove(priceHBox);
-                priceHBox.setPadding(selectedInsets);
-                if(!rowImgBox.getChildren().contains(statsBox)){
-                    rowImgBox.getChildren().add(statsBox);
-                }
-                if(!statsBox.getChildren().contains(statsVbox)){
-                    statsBox.getChildren().add(statsVbox);
-                  
-                    statsVbox.getChildren().add(0,priceHBox);
-                    
-                }
-              
-                
-                openText.setText(String.format("%-12s",newval.getOpen() + "").substring(0,12));
-                highText.setText(String.format("%-12s",  newval.getHigh() + "").substring(0,12) );
-                lowText.setText(String.format("%-12s",newval.getLow() + "").substring(0,12) );
-
-                BigDecimal increase = newval.getPercentIncrease();
-                increase = increase == null ? BigDecimal.ZERO : increase;
-
-                int increaseDirection = BigDecimal.ZERO.compareTo(increase);
-               
-                
-                percentChangeText.setText(increaseDirection == 0 ? " 0.00%" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
-                percentChangeText.setFill(increaseDirection == 0 ? App.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
-            
-            }else{
-                priceHBox.setPadding(priceHBoxDefaultPadding);
-                rowImgBox.getChildren().remove(statsBox);
-
-                statsVbox.getChildren().remove(priceHBox);
-                symbolTextPaddingBox.getChildren().add(priceHBox);
-                statsBox.getChildren().clear();
-                
-            }
-        });
+       
 
         
 
@@ -636,21 +622,8 @@ public class ErgoDexMarketItem {
             addChartViewListener.run();
         }
 
-        ChangeListener<ErgoDexChartView> chartViewChangeListener = (obs,oldval,newval)->{
-            if(oldval != null && listListener != null){
-                oldval.removeMsgListener(listListener);
-                listListener = null;
-            }
-            updateRowImg();
-            
-            if(newval != null){
-               addChartViewListener.run();
-            }
-            
-        };
-        
-        m_marketData.getSpectrumChartView().addListener(chartViewChangeListener);
-        
+
+
 
 
         m_statusChangeListener = (obs,oldval,newval)->{
@@ -665,84 +638,164 @@ public class ErgoDexMarketItem {
         m_rowBox.set(rowBox);
     }
 
+  
+
     public void init(){
         if(m_marketData.isPool()){
-            boolean isSet = m_marketData.getSpectrumChartView().get() == null;            
-            ErgoDexChartView chartView = isSet ? new ErgoDexChartView(m_marketData, m_dataList.getErgoDex()) : m_marketData.getSpectrumChartView().get();
+            boolean isNotSet = m_marketData.getChartView() == null;            
+            ErgoDexChartView chartView = isNotSet ? new ErgoDexChartView(m_marketData, m_dataList.getErgoDex(), m_dataList) : m_marketData.getChartView();
 
-            if(isSet){
-                m_marketData.getSpectrumChartView().set(chartView);
-                
+            if(isNotSet){
+                m_marketData.setChartView(chartView);
+               
+                updateRowImg();
+
             }
 
         }
         setupRowBox();
     }
 
+    private boolean m_isCurrent = false;
+
+    public boolean isCurrent(){
+        return m_isCurrent;
+    }
+
+    public int calculateCurrentImgWidth(){
+        return (int) m_dataList.gridWidthProperty().get() - (isCurrent() ? chartWidthOffset : 0);
+    }
+
+    public void setCurrent(boolean isCurrent){
+        m_isCurrent = isCurrent;
+
+        setCurrentHeight(isCurrent ? focusedHeight : regularHeight);
+
+        Insets selectedInsets = new Insets(0,10,0,0);        
+       
+
+        ErgoDexNumbers numbers = m_numbers;
+
+
+
+        if(isCurrent){
+            symbolTextPaddingBox.getChildren().remove(priceHBox);
+            priceHBox.setPadding(selectedInsets);
+            if(!rowImgBox.getChildren().contains(statsBox)){
+                rowImgBox.getChildren().add(statsBox);
+            }
+            if(!statsBox.getChildren().contains(statsVbox)){
+                statsBox.getChildren().add(statsVbox);
+                
+                statsVbox.getChildren().add(0,priceHBox);
+                
+            }
+
+ 
+
+
+            String openString = numbers != null ? numbers.getOpen().toPlainString() : "0";
+            String highString = numbers != null ? numbers.getHigh().toPlainString() : "0";
+            String lowString =  numbers != null ? numbers.getLow().toPlainString() : "0";
+
+            openText.setText(String.format("%-12s", openString).substring(0,12));
+            highText.setText(String.format("%-12s", highString).substring(0,12) );
+            lowText.setText(String.format("%-12s", lowString).substring(0,12) );
+
+            BigDecimal increase = numbers != null ? numbers.getPercentIncrease() : BigDecimal.ZERO;
+
+            increase = increase == null ? BigDecimal.ZERO : increase;
+
+            int increaseDirection = BigDecimal.ZERO.compareTo(increase);
+            
+            
+            percentChangeText.setText(increaseDirection == 0 ? " 0.00%" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
+            percentChangeText.setFill(increaseDirection == 0 ? App.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
+        
+        }else{
+            priceHBox.setPadding(priceHBoxDefaultPadding);
+            rowImgBox.getChildren().remove(statsBox);
+            statsVbox.getChildren().remove(priceHBox);
+
+            if(!symbolTextPaddingBox.getChildren().contains(priceHBox)){
+                symbolTextPaddingBox.getChildren().add(priceHBox);
+            }
+            statsBox.getChildren().clear();
+            
+        }
+        
+         
+    }
+
 
     public void updateRowImg(){
-        ErgoDexChartView chartView =  m_marketData.getSpectrumChartView().get();
-        int height = (int) m_currentHeight;
-        boolean isCurrent = height > (int) regularHeight;
-        // int w = ;
+        ErgoDexChartView chartView =  m_marketData.getChartView();
 
-        int width = (int) m_dataList.gridWidthProperty().get() - (isCurrent ? chartWidthOffset : 0); //w < chartWidthOffset ? chartWidthOffset : w  ;
 
         if(chartView != null ){
             if(chartView.getConnectionStatus() != App.ERROR ){
-        
-            int imgCellWidth = 1;
-            int maxBars = width / imgCellWidth;
-            boolean invert = isInvert();
-            TimeSpan durationSpan = m_dataList.timeSpanObjectProperty().get();
-            long durationMillis = durationSpan.getMillis();
-            long colSpanMillis = (durationMillis / maxBars);
-            TimeSpan colSpan = new TimeSpan(colSpanMillis, "custom","id1");
-            
-    
-            long currentTime = (long) (Math.ceil(System.currentTimeMillis() / colSpanMillis)* colSpanMillis) + colSpanMillis;
 
-            long startTimeStamp = currentTime - durationSpan.getMillis();
+                int width = calculateCurrentImgWidth();
+                int height = (int) m_currentHeight;
 
-            
-            chartView.processData(invert, startTimeStamp, colSpan, currentTime, m_dataList.getErgoDex().getExecService(), (onSucceeded)->{
-                Object sourceValue = onSucceeded.getSource().getValue();
-                if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
-                    ErgoDexNumbers numbers =(ErgoDexNumbers) sourceValue;
-                    
-            
-                    
+                int imgCellWidth = 1;
+                int maxBars = width / imgCellWidth;
 
-                    m_numbersObject.set( isCurrent ? numbers : null);
-                    
-                    boolean isNewImage = (m_rowImg == null) ||  (m_rowImg != null &&(m_rowImg.getWidth() != width || m_rowImg.getHeight() != height));
-                    m_rowImg = isNewImage ? new BufferedImage(width , height, BufferedImage.TYPE_INT_ARGB) : m_rowImg; 
-                    
-                    
-                    chartView.updateRowChart(numbers, colSpan, imgCellWidth, m_rowImg, m_posColor, m_negColor);
-                    
-                    m_rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, m_rowWImg));
-                    m_rowChartImgView.setFitWidth(m_rowImg.getWidth());
-                    m_rowChartImgView.setFitHeight(m_rowImg.getHeight());
-
-                    String priceString = String.format("%-12s", numbers.getClose() + "").substring(0,12).trim();
-                    
-                    m_priceText.setPrefWidth(isCurrent ? 130 : 100);
-                    m_priceText.setText(priceString);
-            
-                    
-            
-                }
-
-            }, (onFailed)->{
+                boolean invert = isInvert();
+                TimeSpan durationSpan = m_dataList.timeSpanObjectProperty().get();
+                long durationMillis = durationSpan.getMillis();
+                long colSpanMillis = (durationMillis / maxBars);
+                TimeSpan colSpan = new TimeSpan(colSpanMillis, "custom","id1");
                 
-                m_rowChartImgView.setFitWidth(width);
-                m_rowChartImgView.setFitHeight(height);
-            });
+        
+                long currentTime = (long) (Math.ceil(System.currentTimeMillis() / colSpanMillis)* colSpanMillis) + colSpanMillis;
+
+                long startTimeStamp = currentTime - durationSpan.getMillis();
+
+                
+                chartView.processData(invert, startTimeStamp, colSpan, currentTime, m_dataList.getErgoDex().getExecService(), (onSucceeded)->{
+                    Object sourceValue = onSucceeded.getSource().getValue();
+                    if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
+                        ErgoDexNumbers numbers =(ErgoDexNumbers) sourceValue;
+                        
+                
+                        
+                        setNumbers(numbers);
+                        
+                        boolean isNewImage = (m_rowImg == null) ||  (m_rowImg != null &&(m_rowImg.getWidth() != width || m_rowImg.getHeight() != height));
+                        m_rowImg = isNewImage ? new BufferedImage(width , height, BufferedImage.TYPE_INT_ARGB) : m_rowImg; 
+                        
+                        
+                        chartView.updateRowChart(numbers, colSpan, imgCellWidth, m_rowImg, m_posColor, m_negColor);
+                        
+                        m_rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, m_rowWImg));
+                        m_rowChartImgView.setFitWidth(m_rowImg.getWidth());
+                        m_rowChartImgView.setFitHeight(m_rowImg.getHeight());
+                     
+                        String priceString = String.format("%-12s", numbers.getClose() + "").substring(0,12).trim();
+                        
+                        m_priceText.setPrefWidth(isCurrent() ? 130 : 100);
+                        m_priceText.setText(priceString);
+                
+                        
+                
+                    }
+
+                }, (onFailed)->{
+                    try {
+                        Files.writeString(App.logFile.toPath(), "(ErgoDexMarketItem) updateRowImg onFailed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+               
+                    }
+                    m_rowChartImgView.setFitWidth(width);
+                    m_rowChartImgView.setFitHeight(height);
+                });
             }else{
-                    
-            m_rowChartImgView.setFitWidth(width);
-            m_rowChartImgView.setFitHeight(height);
+                try {
+                    Files.writeString(App.logFile.toPath(), "(ErgoDexMarketItem) updateRowImg error: " + chartView.getErrorString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+              
+                }
             }
 
             
@@ -750,27 +803,35 @@ public class ErgoDexMarketItem {
             
         }
     }
+
+    public void setNumbers(ErgoDexNumbers numbers){
+        m_numbers = numbers;
+        setCurrent(m_isCurrent);
+    }
+
  
 
     public void shutdown(){
-        ErgoDexChartView chartView = m_marketData.getSpectrumChartView().get();
-        
+        ErgoDexChartView chartView = m_marketData.getChartView();
+        if(m_currentBoxChangeListener != null){
+            m_dataList.currentBoxProperty().removeListener(m_currentBoxChangeListener);
+        }
         if(m_chartTab != null){
             m_chartTab.close();
             m_chartTab = null;
         }
 
         if(chartView != null){ 
-            if(listListener != null){
-                chartView.removeMsgListener(listListener);
-                listListener = null;
+            if(m_chartViewListener != null){
+                chartView.removeMsgListener(m_chartViewListener);
+                m_chartViewListener = null;
             }
            
         }
 
         m_dataList.gridWidthProperty().removeListener(m_widthListener);
         m_dataList.timeSpanObjectProperty().removeListener(m_timeSpanListener);
-        m_dataList.currentIndex().removeListener(m_currentIndexChangeListener);
+        m_dataList.currentBoxProperty().removeListener(m_currentBoxChangeListener);
 
         m_marketData.getLastUpdated().removeListener(m_marketDataUpdated);
    
@@ -1052,10 +1113,10 @@ public class ErgoDexMarketItem {
         return m_marketData.getLastPrice();
     }
     public BigDecimal getBaseVolume(){
-        return m_marketData.getBaseVolume();
+        return m_marketData.getBaseVolume() != null ? m_marketData.getBaseVolume().getBigDecimalAmount() : BigDecimal.ZERO;
     }
     public BigDecimal getQuoteVolume(){
-        return m_marketData.getQuoteVolume();
+        return m_marketData.getQuoteVolume() != null ? m_marketData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
     }
 
   

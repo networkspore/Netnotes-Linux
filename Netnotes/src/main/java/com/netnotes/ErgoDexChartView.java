@@ -16,12 +16,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonElement;
 import com.utils.Utils;
 
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
@@ -93,23 +95,29 @@ public class ErgoDexChartView {
 
 
     private ErgoDexMarketData m_marketData;
-    private ErgoDex m_spectrumFinance;
+    private ErgoDex m_ergoDex;
 
     private static Font m_arial = new Font("Arial", Font.PLAIN, 12);
 
 
     private ErgoDexPrice[] m_data = null; 
     
-    
-
+    private SimpleObjectProperty<ErgoPoolBoxData> m_ergoPoolBoxData = new SimpleObjectProperty<>(null);
+    private boolean m_enableChainData = false;
+    private int m_chainDataBusy = 0;
+    private Future<?> m_isGettingChainData = null;
    // private volatile int m_tries = 0;
 
     private ArrayList<NoteMsgInterface> m_msgListeners = new ArrayList<>();
 
-    public ErgoDexChartView(ErgoDexMarketData marketData, ErgoDex spectrumFinance) {
+    private ErgoDexDataList m_dataList;
+
+    public ErgoDexChartView(ErgoDexMarketData marketData, ErgoDex ergoDex, ErgoDexDataList dataList) {
         m_marketData = marketData;
-        m_spectrumFinance = spectrumFinance;
+        m_ergoDex = ergoDex;
+        m_dataList = dataList;
     }
+
  
     public long addPrices(ErgoDexPrice[] prices){
         
@@ -235,22 +243,32 @@ public class ErgoDexChartView {
         }
     }
 
+    public ErgoDexPrice getLastDexPrice(){
+        if(m_data == null){
+            return null;
+        }
+        int dataLength = m_data.length ;
+        return  m_data[dataLength -1];
+    }
+
+
+
     public void getPoolData(){
         
         String poolId = m_marketData.getPoolId();
         long currentTime = Utils.getNowEpochMillis();
 
 
-        m_spectrumFinance.getPoolChart(poolId, currentTime, (onSucceeded)->{
+        m_isGettingChainData = m_ergoDex.getPoolChart(poolId, currentTime, (onSucceeded)->{
             Object succededObject = onSucceeded.getSource().getValue();
             if(succededObject != null && succededObject instanceof JsonArray){
                 JsonArray json = (JsonArray) succededObject;
-                getSpectrumPriceArray(m_spectrumFinance.getExecService(), json, (onSpectrumData)->{
+                getDexPriceArray(m_ergoDex.getExecService(), json, (onSpectrumData)->{
                     Object sourceObject = onSpectrumData.getSource().getValue();
                     if(sourceObject != null && sourceObject instanceof ErgoDexPrice[]){
                         m_data = (ErgoDexPrice[]) sourceObject;
                         if(m_data.length > 2){
-                            m_lastTimeStamp = m_data[m_data.length -1].getTimeStamp();
+                            m_lastTimeStamp = getLastDexPrice().getTimeStamp();
                       
 
                   
@@ -281,63 +299,64 @@ public class ErgoDexChartView {
         
     }
 
-    
 
+
+    public String getErrorString(){
+        return m_errorString;
+    }
+   
+
+    
     public void update(){
-        
-        long currentTime = System.currentTimeMillis();
-        /*if(m_marketData.getQuoteSymbol().equals("SigUSD")){
-            try {
-                Files.writeString(App.logFile.toPath(),"received " + currentTime, StandardOpenOption.CREATE,StandardOpenOption.APPEND);
-            } catch (IOException e) {
-        
-            }
-        } */
-        
-        if(m_connectionStatus != App.STOPPED && m_lastTimeStamp > 0){
+        String poolId = m_marketData.getPoolId();
+        NoteInterface noteInterface = m_dataList.ergoInterfaceProperty().get();
 
-            String poolId = m_marketData.getPoolId();
-            
-    
-            m_spectrumFinance.getPoolChart(poolId, m_lastTimeStamp + 1, currentTime, (onSucceeded)->{
+        if(m_enableChainData && m_data != null && m_data.length > 3 && isChainDataNotBusy()){
+
+            updateChainData(getLastDexPrice(), poolId, noteInterface);
+        
+        }else{
+
+           
+        
+            long currentTime = System.currentTimeMillis();
+            m_ergoDex.getPoolChart(poolId, m_lastTimeStamp + 1, currentTime, (onSucceeded)->{
                 Object succededObject = onSucceeded.getSource().getValue();
                 if(succededObject != null && succededObject instanceof JsonArray){
                     JsonArray json = (JsonArray) succededObject;
-                   
-                        
-                        getSpectrumPriceArray(m_spectrumFinance.getExecService(), json, (onSpectrumData)->{
+
+                        getDexPriceArray(m_ergoDex.getExecService(), json, (onSpectrumData)->{
                             Object sourceObject = onSpectrumData.getSource().getValue();
                             if(sourceObject != null && sourceObject instanceof ErgoDexPrice[]){
                                 ErgoDexPrice[] prices = (ErgoDexPrice[]) sourceObject;
-                               
-                               
-                                
+                            
+                                m_errorString = "";
                                 if(prices.length > 0){
                                     long lastTimeStamp = addPrices(prices); 
                                     m_lastTimeStamp = lastTimeStamp;
-
+                                    
 
                                     sendMessage(lastTimeStamp > 0 ? App.LIST_UPDATED : App.LIST_CHECKED, m_lastTimeStamp, poolId, prices.length);
                                     
                                 }else{
 
                                     sendMessage(App.LIST_CHECKED, m_lastTimeStamp,poolId, prices.length);
-                                   
+                                
                                 }
-                             
+                            
                             }
                         }, (onFailed)->{
                             
                             Throwable throwable = onFailed.getSource().getException();
                             m_errorString =  throwable.toString();
-                              
+                            
                             sendMessage(App.ERROR, currentTime, poolId, m_errorString);
                         });
                     
-    
+
                 
                 }
-              
+            
             }, (onFailed)->{
                 
                 Throwable throwable = onFailed.getSource().getException();
@@ -345,47 +364,152 @@ public class ErgoDexChartView {
 
 
                 sendMessage(App.ERROR, currentTime, poolId, m_errorString);
-             });
+            });
+
+            if(!isChainDataNotBusy()){
+                m_chainDataBusy += 1;
+                try {
+                    Files.writeString(App.logFile.toPath(), "(ErgoDexChartView) Pool: " + poolId + " chainDataBusy: " + m_chainDataBusy + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+ 
+                }
+            }
         }
-       // m_data.setPriceData(updateLastItem(m_data.getPriceData(), new SpectrumPrice(m_marketData.getLastPrice(), m_marketData.getTimeStamp())));
-        /*if(m_data != null){
+    }
     
-            int size = m_data.length;
-                
-            if(size > 2){
-                SpectrumPrice secondLastPrice =m_data[size-2];
-                SpectrumPrice lastPrice = m_data[size -1];
-                
-                if(lastPrice.getTimeStamp() < timeStamp){
-                    if(secondLastPrice.getPrice().equals(lastPrice.getPrice()) && lastPrice.getPrice().equals(price)){
-                        m_data[size-1] = new SpectrumPrice(price, timeStamp);
-                        m_dataListChanged.set(timeStamp);
-                    }else{
+
+
+    public void enableCHainData(boolean enable){
+        NoteInterface noteInterface = m_dataList.ergoInterfaceProperty().get();
+        if(m_enableChainData == false && enable && m_data != null && m_data.length > 3 && noteInterface != null){
+            updateChainData(getLastDexPrice(),m_marketData.getPoolId(), noteInterface);
+        }
+        m_enableChainData = enable;
+        
+    }
+
+    public boolean isEnableChangeData(){
+        return m_enableChainData;
+    }
+
+    public boolean isChainDataNotBusy(){
+        return m_isGettingChainData == null || (m_isGettingChainData != null && m_isGettingChainData.isDone() || m_isGettingChainData.isCancelled());
+    }
+
+    public void updateChainData(ErgoDexPrice dexPrice, String poolId, NoteInterface ergoInterface){
+        
+
+        if(ergoInterface != null && poolId != null){
+            m_isGettingChainData = ErgoPoolBoxData.getPoolBoxDataByPoolId(ergoInterface, poolId , m_dataList.getLocationId(), onComplate->{
+                Object sourceValue = onComplate.getSource().getValue();
+                processBoxData(sourceValue, dexPrice.getPrice().scale(), onPoolBoxData->{
+                    Object onPoolBoxDataObject = onPoolBoxData.getSource().getValue();
+                    if(onPoolBoxDataObject != null && onPoolBoxDataObject instanceof ErgoPoolBoxData){
+                        ErgoPoolBoxData poolBoxData = (ErgoPoolBoxData) onPoolBoxDataObject;
+                        m_ergoPoolBoxData.set(poolBoxData);
+
+                        m_errorString = "";
+                        m_chainDataBusy = 0;
+                        
+                        if(dexPrice.getPrice().compareTo(poolBoxData.getPrice()) != 0){
+                            long lastTimeStamp = addPrices(new ErgoDexPrice[]{poolBoxData.getErgoDexPrice()}); 
+                            m_lastTimeStamp = lastTimeStamp;
+                            
+
+                            sendMessage(lastTimeStamp > 0 ? App.LIST_UPDATED : App.LIST_CHECKED, m_lastTimeStamp, poolId, 1);
+                            
+                        }else{
+
+                            sendMessage(App.LIST_CHECKED, m_lastTimeStamp, poolId, 1);
+                        
+                        }
                     
-                       addPrice(new SpectrumPrice(price, timeStamp), size);
+                    }else{
+                 
+                        m_errorString = "returned null";
 
+                        try {
+                            Files.writeString(App.logFile.toPath(), "(ErgoDexChartView) Pool: " + poolId + " processBoxData: " + m_errorString + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        } catch (IOException e) {
+        
+                        }
+                            
+                        sendMessage(App.ERROR, System.currentTimeMillis(), poolId, m_errorString);
+                    }
+                }, onDataError->{
+                    Throwable throwable = onDataError.getSource().getException();
+                    m_errorString =  throwable.toString();
 
+                    try {
+                        Files.writeString(App.logFile.toPath(), "(ErgoDexChartView) Pool: " + poolId + " updateChainData: " + m_errorString + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
+     
+                    }
+                        
+                    sendMessage(App.ERROR, System.currentTimeMillis(), poolId, m_errorString);
+                });
+
+            }, onError->{
+                Throwable throwable = onError.getSource().getException();
+                m_errorString =  throwable.toString();
+
+                try {
+                    Files.writeString(App.logFile.toPath(), "(ErgoDexChartView) Pool: " + poolId + " getPoolBoxData: " + m_errorString + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+    
+                }
+                    
+                sendMessage(App.ERROR, System.currentTimeMillis(), poolId, m_errorString);
+            });
+        }
+    }
+
+    
+    public Future<?> processBoxData(Object sourceValue, int scale, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception{
+            
+                if(sourceValue != null && sourceValue instanceof JsonObject){
+                    JsonObject explorerJson = (JsonObject) sourceValue;
+                    JsonElement itemsElement = explorerJson.get("items");
+                    
+                    if(itemsElement != null && itemsElement.isJsonArray()){
+                        JsonArray itemsArray = itemsElement.getAsJsonArray();
+                        if(itemsArray.size() > 0){
+                            JsonElement boxElement = itemsArray.get(0);
+                            if(!boxElement.isJsonNull() && boxElement.isJsonObject()){
+                                return new ErgoPoolBoxData(boxElement.getAsJsonObject(), m_marketData.isNative2Token(), scale);
+                            }
+                        }
                     }
                 }
-            }else{
-                addPrice(new SpectrumPrice(price, timeStamp), size);
-            }
-        }*/
-       
+                
+                return null;
+                
+            };
+        };
+
+        task.setOnFailed(onError);
+
+        task.setOnSucceeded(onComplete);
+
+        return getExecService().submit(task);
+    }
+
+    public ExecutorService getExecService(){
+        return m_ergoDex.getExecService();
     }
 
 
-  
 
-
-
-    public void getSpectrumPriceArray(ExecutorService execService, JsonArray jsonArray, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public void getDexPriceArray(ExecutorService execService, JsonArray jsonArray, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
 
         Task<Object> task = new Task<Object>() {
             @Override
             public Object call() throws Exception{
 
-                return getSpectrumPriceArray(jsonArray);
+                return getDexPriceArray(jsonArray);
             }
         };
 
@@ -397,7 +521,7 @@ public class ErgoDexChartView {
     }
 
 
-    public ErgoDexPrice[] getSpectrumPriceArray(JsonArray jsonArray) throws Exception{
+    public ErgoDexPrice[] getDexPriceArray(JsonArray jsonArray) throws Exception{
  
 
         int size = jsonArray.size();
@@ -412,7 +536,7 @@ public class ErgoDexChartView {
         return data; 
     }
 
-    public ErgoDexPrice[] getSpectrumData(){
+    public ErgoDexPrice[] getErgoDexPriceData(){
         return m_data;
     }
 
@@ -1067,9 +1191,9 @@ public class ErgoDexChartView {
         return json;
     }
   
-    public BigDecimal getCurrentPrice(boolean isInvert) {
+    /*public BigDecimal getCurrentPrice(boolean isInvert) {
         return isInvert ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice();
-    }
+    }*/
 
     public void setBackgroundColor(Color color) {
         m_backgroundColor = color;
@@ -1113,7 +1237,7 @@ public class ErgoDexChartView {
     public static int SCALE_COL_PADDING = 40;
     
     
-    public static void updateBufferedImage(BufferedImage img, Graphics2D g2d, Font labelFont, FontMetrics labelMetrics, ErgoDexNumbers numbers, int cellWidth, int cellPadding, int scaleColWidth,  int amStringWidth, TimeSpan timeSpan,  RangeBar rangeBar) {
+    public static void updateBufferedImage(BufferedImage img, Graphics2D g2d, Font labelFont, FontMetrics labelMetrics, ErgoDexNumbers numbers, int cellWidth, int cellPadding, int scaleColWidth,  int amStringWidth, TimeSpan timeSpan,  RangeBar rangeBar, LocalDateTime now) {
         
         if(img == null ){
             return;
@@ -1135,7 +1259,7 @@ public class ErgoDexChartView {
 
         rangeActive = isAuto || (rangeActive && !isRangeSetting);
         
-        LocalDateTime now = LocalDateTime.now();
+  
 
         BigDecimal currentPrice = numbers.getClose();
         

@@ -83,14 +83,16 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static long DATA_TIMEOUT_SPAN = (15*1000)-100;
     public final static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
     
+    public final static BigDecimal MIN_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.01);
     public final static BigDecimal DEFAULT_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.03);
     public final static BigDecimal DEFAULT_NITRO = BigDecimal.valueOf(1.2);
 
-    public static BigDecimal NETWORK_MIN_FEE;
-    public static BigDecimal SWAP_MIN_EXECUTION_FEE;
-    public static BigDecimal SWAP_MIN_MAX_EXEC_FEE;
-    public static BigDecimal SWAP_MIN_TOTAL_FEES;
+    public static ErgoAmount NETWORK_MIN_FEE;
+    public static ErgoAmount SWAP_MIN_EXECUTION_FEE;
+    public static ErgoAmount SWAP_MIN_MAX_EXEC_FEE;
+    public static ErgoAmount SWAP_MIN_TOTAL_FEES;
     public static final long SWAP_FEE_DENOM = 1000;
+    public static final int POOL_FEE_MAX_DECIMALS = 3;
 
    // private File m_dataFile = null;
 
@@ -118,13 +120,22 @@ public class ErgoDex extends Network implements NoteInterface {
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
         m_locationId = locationId;
 
-        NETWORK_MIN_FEE = ErgoNetwork.MIN_NETWORK_FEE;
-        SWAP_MIN_EXECUTION_FEE = NETWORK_MIN_FEE.multiply(BigDecimal.valueOf(3));
-        SWAP_MIN_MAX_EXEC_FEE = SWAP_MIN_EXECUTION_FEE.multiply(DEFAULT_NITRO);
-        SWAP_MIN_TOTAL_FEES = NETWORK_MIN_FEE.add(SWAP_MIN_MAX_EXEC_FEE);
+        NETWORK_MIN_FEE = new ErgoAmount( ErgoNetwork.MIN_NETWORK_FEE, NETWORK_TYPE);
+        SWAP_MIN_EXECUTION_FEE = new ErgoAmount(NETWORK_MIN_FEE.getBigDecimalAmount().multiply(BigDecimal.valueOf(3)), NETWORK_TYPE);
+        SWAP_MIN_MAX_EXEC_FEE = new ErgoAmount(SWAP_MIN_EXECUTION_FEE.getBigDecimalAmount().multiply(DEFAULT_NITRO), NETWORK_TYPE);
+        SWAP_MIN_TOTAL_FEES = new ErgoAmount(NETWORK_MIN_FEE.getBigDecimalAmount().add(SWAP_MIN_MAX_EXEC_FEE.getBigDecimalAmount()), NETWORK_TYPE);
     }
 
- 
+    /*
+     public ErgoDexPrice getLastDexPrice(){
+        if(m_data == null){
+            return null;
+        }
+        int dataLength = m_data.length ;
+        return  m_data[dataLength -1];
+    }
+
+     */
 
 
 
@@ -299,6 +310,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
     private ErgoDexTab m_ergoDexTab = null;
 
+
     @Override
     public TabInterface getTab(Stage appStage,  SimpleDoubleProperty heightObject, SimpleDoubleProperty widthObject, Button menuBtn){
         if(m_ergoDexTab != null){
@@ -315,8 +327,8 @@ public class ErgoDex extends Network implements NoteInterface {
         private String noNetworkImgString = "/assets/globe-outline-white-30.png";
 
         private boolean m_isErgoNetwork = true;
-        private SimpleObjectProperty<NoteInterface> m_ergoNetworkInterface = new SimpleObjectProperty<>(null);
         
+        private SimpleObjectProperty<NoteInterface> m_ergoNetworkInterface = new SimpleObjectProperty<>(null);
         private NoteMsgInterface m_networksDataMsgInterface;
 
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
@@ -982,9 +994,11 @@ public class ErgoDex extends Network implements NoteInterface {
 
                     if(marketIndex != -1){
                         ErgoDexMarketData lastData = tmpMarketsList.get(marketIndex);
-                        BigDecimal quoteVolume = lastData.getQuoteVolume();
+                        BigDecimal quoteVolume =lastData.getQuoteVolume() != null ? lastData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
+          
+                        BigDecimal newVolume = marketData.getQuoteVolume() != null ? marketData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
 
-                        if(marketData.getQuoteVolume().compareTo(quoteVolume) > 0){
+                        if(newVolume.compareTo(quoteVolume) > 0){
                             tmpMarketsList.set(marketIndex, marketData);
                         }
                     }else{
@@ -1081,6 +1095,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 for(int i = 0; i < size; i++){
                     ErgoDexMarketData marketData = data.get(i);
                     if(marketData != null){
+                        marketData.setErgoDex(this);
                         m_marketsList.add(marketData);    
                     }
                 }
@@ -1097,6 +1112,7 @@ public class ErgoDex extends Network implements NoteInterface {
                     marketData.update(newMarketData);
                 }else{
                     changed.set(true);
+                    newMarketData.setErgoDex(this);
                     m_marketsList.add(newMarketData);
                    
                 }
@@ -1227,20 +1243,20 @@ public class ErgoDex extends Network implements NoteInterface {
 
    
 
-    public void getPoolChart(String poolId, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> getPoolChart(String poolId, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
 
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from=0&to=" + currentTime;
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
+        return Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
     }
     
-    public void getPoolChart(String poolId,long fromTime, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+    public Future<?> getPoolChart(String poolId,long fromTime, long currentTime, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
 
         String urlString = API_URL + "/v1/amm/pool/" + poolId + "/chart?from=" + fromTime + "&to=" + currentTime;
 
-        Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
+        return Utils.getUrlJsonArray(urlString, getExecService(), onSucceeded, onFailed);
     }
 
  

@@ -14,6 +14,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.utils.Utils;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 
@@ -22,48 +23,62 @@ public class PriceAmount  {
 
 
     private final SimpleObjectProperty<BigDecimal> m_amount = new SimpleObjectProperty<>();
-    private final SimpleObjectProperty<PriceCurrency> m_currency = new SimpleObjectProperty<>();
+    private final PriceCurrency m_currency;
     
-    private long m_created = System.currentTimeMillis();
+    private final long m_created;
     private SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(System.currentTimeMillis());
-    private String m_marketId = null;
+
+    private boolean m_readonly = false;
 
     public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency){
-        m_currency.set(priceCurrency);
-
+        m_currency = priceCurrency;
         m_amount.set(amount);
+        m_created = System.currentTimeMillis();
     }
 
     public PriceAmount(long amount, PriceCurrency currency) {
-        this(BigDecimal.ZERO, currency);
+        m_currency = currency;
 
-        setLongAmount(amount);
+        BigDecimal bigDecimal = calculateLongToBigDecimal(amount);
+        m_amount.set(bigDecimal);
+        m_created = System.currentTimeMillis();
+    }
+
+    public PriceAmount(long amount, PriceCurrency currency, boolean readonly) {
+        m_currency = currency;
+
+        BigDecimal bigDecimal = calculateLongToBigDecimal(amount);
+        m_amount.set(bigDecimal);
+        m_created = System.currentTimeMillis();
+        m_readonly = readonly;
     }
 
 
-    public String getMarketId(){
-        return m_marketId;
+
+    public PriceAmount(ErgoBoxAsset asset, String networkType, boolean readonly){
+        m_currency = new PriceCurrency(asset.getTokenId(), asset.getName(), asset.getDecimals(), asset.getType(), networkType);
+        BigDecimal bigDecimal = calculateLongToBigDecimal(asset.getAmount());
+        m_amount.set(bigDecimal);
+        m_created = System.currentTimeMillis();
+        m_readonly = readonly;
     }
 
-    public void setMarketId(String networkId){
-        m_marketId = networkId;
-    }
 
     public PriceAmount(double amount, PriceCurrency currency) {
-        m_currency.set( currency);
+        m_currency = currency;
         setDoubleAmount(amount);
-      
+        m_created = System.currentTimeMillis();
     }
 
     public PriceAmount(long amount, PriceCurrency currency, long timeStamp){
-        m_currency.set( currency);
-        setLongAmount(amount);
+        m_currency = currency;
+        BigDecimal bigDecimal = calculateLongToBigDecimal(amount);
+        m_amount.set(bigDecimal);
         m_timeStampProperty.set(timeStamp);
- 
+        m_created = timeStamp;
     }
 
     public PriceAmount(JsonObject json) throws Exception{
-        
         
         JsonElement amountElement = json.get("amount");
         JsonElement timeStampElement = json.get("timeStamp");
@@ -97,8 +112,9 @@ public class PriceAmount  {
         PriceCurrency importCurrency = new PriceCurrency(tokenId,name,decimals,tokenType, networkType);
 
 
-        setCurrency( importCurrency);
-        setLongAmount(amountElement.getAsLong());
+        m_currency = importCurrency;
+        BigDecimal bigDecimal = calculateLongToBigDecimal(amountElement.getAsLong());
+        m_amount.set(bigDecimal);
         m_created = timeStampElement.getAsLong();
        
         
@@ -175,43 +191,44 @@ public class PriceAmount  {
         return m_amount.get();
     }
 
-    public void setBigDecimalAmount(BigDecimal amount) {
+    /*public void setBigDecimalAmount(BigDecimal amount) {
 
         m_amount.set(amount);
         m_timeStampProperty.set(System.currentTimeMillis());
+    } */
+
+    public boolean isReadonly(){
+        return m_readonly;
     }
 
     public void setBigDecimalAmount(BigDecimal amount, long timestamp) {
-
-        m_amount.set(amount);
-        m_timeStampProperty.set(timestamp);
+        if(!m_readonly){
+            m_amount.set(amount);
+            m_timeStampProperty.set(timestamp);
+        }
     }
 
     public void addBigDecimalAmount(BigDecimal amount){
-        BigDecimal a = m_amount.get() != null ? m_amount.get() : BigDecimal.ZERO;
-        BigDecimal newVal = a.add(amount);
+        if(!isReadonly()){
+            BigDecimal a = m_amount.get() != null ? m_amount.get() : BigDecimal.ZERO;
+            BigDecimal newVal = a.add(amount);
 
-        m_amount.set(newVal);
-        
+            m_amount.set(newVal);
+        }
     }
 
-    public void setCurrency(PriceCurrency currency){
-        m_currency.set(currency);
-    }
 
     public PriceCurrency getCurrency(){
-        return m_currency.get();
-    }
-
-    public SimpleObjectProperty<PriceCurrency> currencyProperty(){
         return m_currency;
     }
 
+    
+
     public String getTokenId(){
-        return m_currency.get().getTokenId();
+        return m_currency.getTokenId();
     }
     
-    public SimpleObjectProperty<BigDecimal> amountProperty(){
+    public ReadOnlyObjectProperty<BigDecimal> amountProperty(){
         return m_amount;
     }
 
@@ -248,20 +265,26 @@ public class PriceAmount  {
     }
 
     public void setLongAmount(long amount) {
+        if(!isReadonly()){
         setLongAmount(amount,  System.currentTimeMillis());
+        }
     }
 
     public void setLongAmount(long longAmount, long timeStamp) {
-        BigDecimal amount = calculateLongToBigDecimal(longAmount);
+        if(!isReadonly()){
+            BigDecimal amount = calculateLongToBigDecimal(longAmount);
 
 
-        m_amount.set(amount);
-        m_timeStampProperty.set(timeStamp);
+            m_amount.set(amount);
+            m_timeStampProperty.set(timeStamp);
+        }
     }
 
     public void addLongAmount(long longAmount){
-        BigDecimal bigAmount = calculateLongToBigDecimal(longAmount);
-        addBigDecimalAmount(bigAmount);
+        if(!isReadonly()){
+            BigDecimal bigAmount = calculateLongToBigDecimal(longAmount);
+            addBigDecimalAmount(bigAmount);
+        }
     }
 
     public long getLongAmount() {
@@ -275,8 +298,10 @@ public class PriceAmount  {
     }
 
     public void setDoubleAmount(double doubleAmount) {
-        BigDecimal amount = BigDecimal.valueOf(doubleAmount);
-        m_amount.set(amount);
+        if(!isReadonly()){
+            BigDecimal amount = BigDecimal.valueOf(doubleAmount);
+            m_amount.set(amount);
+        }
     }
 
 
@@ -286,15 +311,15 @@ public class PriceAmount  {
     }
 
     public String getAmountString(){
-        
-        return m_amount.get() + "";
+        BigDecimal amount = m_amount.get();
+        return amount == null ? "0" : amount.toPlainString();
     }
 
     @Override
     public String toString() {
         
 
-        return getAmountString() + m_currency != null ? " " + getCurrency().getSymbol() : "";
+        return getAmountString() + (m_currency != null ? " " + getCurrency().getSymbol() : "");
     }
 
     public JsonObject getJsonObject(){

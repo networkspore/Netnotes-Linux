@@ -10,8 +10,8 @@ import com.google.gson.JsonElement;
 
 import com.utils.Utils;
 
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.scene.image.Image;
 
 public class PriceQuote {
 
@@ -185,7 +185,7 @@ public class PriceQuote {
         return m_quoteDecimal.get();
     }
 
-    public SimpleObjectProperty<BigDecimal> bigDecimalQuoteProperty(){
+    public ReadOnlyObjectProperty<BigDecimal> bigDecimalQuoteProperty(){
         return m_quoteDecimal;
     }
 
@@ -272,17 +272,7 @@ public class PriceQuote {
         return json;
     }
 
-    public JsonObject getInvertedJsonObject(){
-        JsonObject json = new JsonObject();
-        json.addProperty("id", getId());
-        json.addProperty("baseId",  getQuoteId());
-        json.addProperty("baseSymbol", getQuoteSymbol() );
-        json.addProperty("quoteId",getBaseId());
-        json.addProperty("quoteSymbol",getBaseSymbol());
-        json.addProperty("amount", getInvertedQuote());
-        json.addProperty("timeStamp", getTimeStamp());
-        return json;
-    }
+
 
  
     public String toString(boolean invert) {

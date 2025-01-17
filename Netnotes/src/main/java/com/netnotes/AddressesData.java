@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -178,19 +179,10 @@ public class AddressesData {
                 for (JsonElement tokenElement : confirmedTokenArray) {
                     JsonObject tokenObject = tokenElement.getAsJsonObject();
 
-                    JsonElement tokenIdElement = tokenObject.get("tokenId");
-                    JsonElement amountElement = tokenObject.get("amount");
-                    JsonElement decimalsElement = tokenObject.get("decimals");
-                    JsonElement nameElement = tokenObject.get("name");
-                    JsonElement tokenTypeElement = tokenObject.get("tokenType");
-                    
-                    String tokenId = tokenIdElement.getAsString();
-                    long amount = amountElement.getAsLong();
-                    int decimals = decimalsElement.getAsInt();
-                    String name = nameElement.getAsString();
-                    String tokenType = tokenTypeElement.getAsString();
-                    
-                    PriceAmount tokenAmount = new PriceAmount(amount, new PriceCurrency(tokenId, name, decimals, tokenType, networkType.toString()));    
+                    ErgoBoxAsset asset = new ErgoBoxAsset(tokenObject);
+
+
+                    PriceAmount tokenAmount = new PriceAmount(asset, networkType.toString(), true);    
                     
                     ballanceList.add(tokenAmount);
                     
@@ -615,12 +607,16 @@ public class AddressesData {
                 Utils.returnObject(errorJson, getExecService(), onSucceeded, onFailed);
             };
 
-            AtomicBoolean closeThread = new AtomicBoolean(false); 
-      
+            Semaphore activeThreadSemaphore = new Semaphore(1); 
+            try {
+                activeThreadSemaphore.acquire();
+            } catch (InterruptedException e1) {
+        
+            }
 
             closeBtn.setOnAction(e -> {
                 sendCanceledJson.run();
-                closeThread.set(true);
+                activeThreadSemaphore.release();
                 passwordStage.close();
                 
             });
@@ -629,7 +625,7 @@ public class AddressesData {
 
             passwordStage.setOnCloseRequest(e->{
                 sendCanceledJson.run();
-                closeThread.set(true);
+                activeThreadSemaphore.release();
                 passwordStage.close();
             });
 
@@ -648,12 +644,9 @@ public class AddressesData {
             
             Task<Object> task = new Task<Object>() {
                 @Override
-                public Object call() {
-                    while(true){
-                        if(closeThread.get()){
-                            break;
-                        }
-                    }
+                public Object call() throws InterruptedException {
+                    activeThreadSemaphore.acquire();
+                    activeThreadSemaphore.release();
                     return null;
                 }
             };
@@ -820,7 +813,7 @@ public class AddressesData {
     }
     
     public Future<?> executeContract(JsonObject note,String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-        AtomicBoolean closeThread = new AtomicBoolean(false); 
+        
         JsonElement dataElement = note.get("data");
         int lblCol = 120;
         int rowHeight = 22;
@@ -869,6 +862,12 @@ public class AddressesData {
                 return null;
             }
 
+            Semaphore activeThreadSemaphore = new Semaphore(1);
+            try{
+                activeThreadSemaphore.acquire();
+            }catch(InterruptedException e){
+                
+            }
 
 
             String smartContract = getContractString(dataObject);
@@ -1232,7 +1231,7 @@ public class AddressesData {
              
                 Utils.returnObject(Utils.getMsgObject(App.ERROR, "Transaction cancelled"), getExecService(), onSucceeded, onFailed);
                   
-                closeThread.set(true);
+                activeThreadSemaphore.release();
                 passwordStage.close();
 
             });
@@ -1243,7 +1242,7 @@ public class AddressesData {
             
                 Utils.returnObject(Utils.getMsgObject(App.ERROR, "Transaction cancelled"), getExecService(), onSucceeded, onFailed);
              
-                closeThread.set(true);
+                activeThreadSemaphore.release();
                 passwordStage.close();
             });
 
@@ -1260,12 +1259,9 @@ public class AddressesData {
         
             Task<Object> task = new Task<Object>() {
                 @Override
-                public Object call() {
-                    while(true){
-                        if(closeThread.get()){
-                            break;
-                        }
-                    }
+                public Object call() throws InterruptedException {
+                    activeThreadSemaphore.acquire();
+                    activeThreadSemaphore.release();
                     return null;
                 }
             };

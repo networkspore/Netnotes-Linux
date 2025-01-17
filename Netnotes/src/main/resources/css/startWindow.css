@@ -1449,7 +1449,18 @@
     -fx-opacity: 1;
 }
 
+#smallIconBtnSelected {
+    -fx-text-fill: white;
+    -fx-font-size: 12px;
+    -fx-font-family: 'OCR A Extended';
+    -fx-opacity: .8;
+    -fx-background-color: #77777790;
 
+} 
+
+#smallIconBtnSelected:hover {
+    -fx-opacity: 1;
+}
 
 #iconBtnSelected {
     -fx-text-fill: white;

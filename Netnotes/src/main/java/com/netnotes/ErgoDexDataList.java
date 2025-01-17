@@ -18,6 +18,11 @@ import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 import com.devskiller.friendly_id.FriendlyId;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import org.ergoplatform.appkit.ErgoTreeTemplate;
 import org.reactfx.util.FxTimer;
@@ -49,7 +54,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import scorex.util.encode.Base16;
-import sigmastate.Values.ErgoTree;
 
 
 public class ErgoDexDataList  {
@@ -81,7 +85,7 @@ public class ErgoDexDataList  {
     private SimpleDoubleProperty m_gridWidth;
     private SimpleDoubleProperty m_gridHeight;
     private SimpleObjectProperty<TimeSpan> m_timeSpanObject;
-    private SimpleIntegerProperty m_currentIndex;
+    private SimpleObjectProperty<HBox> m_currentBox;
 
         
     private java.awt.Font m_headingFont = new java.awt.Font("OCR A Extended", java.awt.Font.PLAIN, 18);
@@ -102,10 +106,9 @@ public class ErgoDexDataList  {
     private double m_defaultCharSize;
     private VBox m_loadingBox;
 
-    private ErgoTreeTemplate m_n2TPoolTemplate = null;
     
     public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleBooleanProperty isInvert, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
-        m_currentIndex = new SimpleIntegerProperty(0);
+        m_currentBox = new SimpleObjectProperty<>(null);
 
         m_locationId = locationId;
         m_ergodex = ergoDex;
@@ -146,7 +149,6 @@ public class ErgoDexDataList  {
         addDexistener();
 
       
-    
     }
 
 
@@ -230,8 +232,8 @@ public class ErgoDexDataList  {
         return m_defaultCharSize;
     }
 
-    public SimpleIntegerProperty currentIndex(){
-        return m_currentIndex;
+    public SimpleObjectProperty<HBox> currentBoxProperty(){
+        return m_currentBox;
     }
 
     public ScrollPane getScrollPane(){
@@ -615,61 +617,70 @@ public class ErgoDexDataList  {
     }
 
     
+ 
+
+
+
+ 
+
+    /*public void loadPoolTest(){
+        Utils.getStringFromResource("/ergoDex/contracts/pool/N2TPoolSample.hex",getNetworksData().getExecService(), (onSucceded)->{
+            Object sourceValue = onSucceded.getSource().getValue();
+            if(sourceValue != null && sourceValue instanceof String){
+                String n2TSampleHex = (String) sourceValue;
+                
+                getUnspentByErgoTree(n2TSampleHex, (onResult)->{
+                    Object onResultValue = onResult.getSource().getValue();
+                    if(onResultValue != null && onResultValue instanceof JsonObject){
+                        JsonObject json = (JsonObject) onResultValue;
+                     
+                        JsonElement itemsElement = json.get("items");
+                        if(itemsElement != null && itemsElement.isJsonArray()){
+                            getBoxesFromJsonArrayElement(itemsElement, getNetworksData().getExecService(), (onBoxes)->{
+
+                            }, onBoxesFailed->{
+
+                            });
+                        }
+                    }
+                }, (onFailed)->{
+                    try {
+                        Files.writeString(App.logFile.toPath(), "failed: " + onFailed.getSource().getException().toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e) {
     
-    public ErgoTreeTemplate getN2TPoolErgoTreeTemplate(){
-        return m_n2TPoolTemplate;
-    }
-
-    public static Future<?> getTreeTemplateHash(ErgoTreeTemplate treeTemplate, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-        Task<String> task = new Task<String>() {
-            @Override
-            public String call() throws Exception{
-                return treeTemplate.getTemplateHashHex();
+                    }
+                });
+                
             }
-        };
-        task.setOnFailed(onFailed);
+        }, onFailed->{
 
-        task.setOnSucceeded(onSucceeded);
+        });
+    }*/
 
-        return execService.submit(task);
-    }
-
-    public static Future<?> getErgoTreeTemplateFromResource(String resourceLocation, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-        Task<ErgoTreeTemplate> task = new Task<ErgoTreeTemplate>() {
+    public static Future<?> getBoxesFromJsonArrayElement(JsonElement jsonArrayElement, ExecutorService execService,  EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        Task<Object> task = new Task<Object>() {
             @Override
-            public ErgoTreeTemplate call() throws Exception{
-                String hex = Utils.getStringFromResource(resourceLocation);
-     
-                return ErgoTreeTemplate.fromErgoTreeBytes(Base16.decode(hex).get());
-            }
-        };
-        task.setOnFailed(onFailed);
+            public Object call() throws Exception{
+                
+                JsonArray boxArray = jsonArrayElement.getAsJsonArray();
+                int size = boxArray.size();
 
-        task.setOnSucceeded(onSucceeded);
-
-        return execService.submit(task);
-    }
-
-    public void loadPoolContracts(){
-        getErgoTreeTemplateFromResource(
-            "/ergoDex/contracts/pool/N2TPoolSample.hex", 
-            getNetworksData().getExecService(), 
-            (onSucceeded)->{
-                Object sourceValue = onSucceeded.getSource().getValue();
-                if(sourceValue != null && sourceValue instanceof ErgoTreeTemplate){
-                    m_n2TPoolTemplate = (ErgoTreeTemplate) sourceValue;
+                ErgoDexBoxInfo[] dexPools = new ErgoDexBoxInfo[size];
+                for(int i = 0; i< size ; i++){
+                    JsonElement jsonElement = boxArray.get(i);
+                    ErgoBox box = jsonElement != null && !jsonElement.isJsonNull() && jsonElement.isJsonObject() ? new ErgoBox(jsonElement.getAsJsonObject()) : null;
+                    
+                    dexPools[i] = new ErgoDexBoxInfo(box);
                 }
-            }, (onFailed)->{
 
+                return null;
             }
-        );    
-            
-           // String n2tTemplateString = Utils.getStringFromResource("/ergoDex/contracts/pool/N2TPool.template");
-           // byte[] n2tTemplateBytes = Base16.decode(m_n2TPoolTreeHex).get();
-           // Files.write(new File("n2tPool.templage").toPath(), n2tTemplateBytes);
-            
-            
+        };
+        task.setOnFailed(onFailed);
 
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
     }
 
     /*

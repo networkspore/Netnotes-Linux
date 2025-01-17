@@ -425,6 +425,13 @@ public class Network  {
         shutdownNowProperty().set(LocalDateTime.now());
         
         removeUpdateListener();
+        removeAllMsgListeners();
+    }
+
+    public void removeAllMsgListeners(){
+        while(m_msgListeners.size() > 0){
+            removeMsgListener(m_msgListeners.get(0));
+        }
     }
 
     private SimpleObjectProperty<JsonObject> m_cmdProperty = new SimpleObjectProperty<JsonObject>(null);
