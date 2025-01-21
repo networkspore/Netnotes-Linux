@@ -76,7 +76,7 @@ public class ErgoDexChartView {
 
 
     private long m_lastTimeStamp = 0;
-
+    private long m_lastChecked = -1;
 
     //private double m_lastClose = 0;
     private static int m_labelSpacingSize = 150;
@@ -104,7 +104,7 @@ public class ErgoDexChartView {
     
     private SimpleObjectProperty<ErgoPoolBoxData> m_ergoPoolBoxData = new SimpleObjectProperty<>(null);
     private boolean m_enableChainData = false;
-    private int m_chainDataBusy = 0;
+    // private int m_chainDataBusy = 0;
     private Future<?> m_isGettingChainData = null;
    // private volatile int m_tries = 0;
 
@@ -159,6 +159,19 @@ public class ErgoDexChartView {
         
         return -1;
     }
+
+    public ReadOnlyObjectProperty<ErgoPoolBoxData> ergoPoolBoxData(){
+        return m_ergoPoolBoxData;
+    }
+
+    public ErgoPoolBoxData getErgoPoolBoxData(){
+        return m_ergoPoolBoxData.get();
+    }
+
+    public boolean isErgoPoolBoxData(){
+        return getErgoPoolBoxData() != null;
+    }
+
     public void addMsgListener(NoteMsgInterface item) {
         if (!m_msgListeners.contains(item)) {
             setConnectionStatus(App.STARTED);
@@ -310,21 +323,19 @@ public class ErgoDexChartView {
     public void update(){
         String poolId = m_marketData.getPoolId();
         NoteInterface noteInterface = m_dataList.ergoInterfaceProperty().get();
-
-        if(m_enableChainData && m_data != null && m_data.length > 3 && isChainDataNotBusy()){
+    
+        if(m_enableChainData && m_data != null && m_data.length > 0 && isChainDataNotBusy() && ((System.currentTimeMillis() - m_lastChecked) < 20000)){
 
             updateChainData(getLastDexPrice(), poolId, noteInterface);
         
         }else{
-
-           
         
             long currentTime = System.currentTimeMillis();
             m_ergoDex.getPoolChart(poolId, m_lastTimeStamp + 1, currentTime, (onSucceeded)->{
                 Object succededObject = onSucceeded.getSource().getValue();
                 if(succededObject != null && succededObject instanceof JsonArray){
                     JsonArray json = (JsonArray) succededObject;
-
+                        m_lastChecked = System.currentTimeMillis();
                         getDexPriceArray(m_ergoDex.getExecService(), json, (onSpectrumData)->{
                             Object sourceObject = onSpectrumData.getSource().getValue();
                             if(sourceObject != null && sourceObject instanceof ErgoDexPrice[]){
@@ -332,6 +343,7 @@ public class ErgoDexChartView {
                             
                                 m_errorString = "";
                                 if(prices.length > 0){
+                                    
                                     long lastTimeStamp = addPrices(prices); 
                                     m_lastTimeStamp = lastTimeStamp;
                                     
@@ -353,8 +365,6 @@ public class ErgoDexChartView {
                             sendMessage(App.ERROR, currentTime, poolId, m_errorString);
                         });
                     
-
-                
                 }
             
             }, (onFailed)->{
@@ -362,18 +372,10 @@ public class ErgoDexChartView {
                 Throwable throwable = onFailed.getSource().getException();
                 m_errorString = throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
 
-
                 sendMessage(App.ERROR, currentTime, poolId, m_errorString);
             });
 
-            if(!isChainDataNotBusy()){
-                m_chainDataBusy += 1;
-                try {
-                    Files.writeString(App.logFile.toPath(), "(ErgoDexChartView) Pool: " + poolId + " chainDataBusy: " + m_chainDataBusy + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
- 
-                }
-            }
+            
         }
     }
     
@@ -400,19 +402,23 @@ public class ErgoDexChartView {
         
 
         if(ergoInterface != null && poolId != null){
+            
+            long timeStamp = System.currentTimeMillis();
+            boolean isNative2Token = m_marketData.isNative2Token();
+            
             m_isGettingChainData = ErgoPoolBoxData.getPoolBoxDataByPoolId(ergoInterface, poolId , m_dataList.getLocationId(), onComplate->{
                 Object sourceValue = onComplate.getSource().getValue();
-                processBoxData(sourceValue, dexPrice.getPrice().scale(), onPoolBoxData->{
+                
+                processPoolBoxData(sourceValue, dexPrice.getPrice().scale(), timeStamp, isNative2Token, 1, getExecService(), onPoolBoxData->{
                     Object onPoolBoxDataObject = onPoolBoxData.getSource().getValue();
-                    if(onPoolBoxDataObject != null && onPoolBoxDataObject instanceof ErgoPoolBoxData){
-                        ErgoPoolBoxData poolBoxData = (ErgoPoolBoxData) onPoolBoxDataObject;
-                        m_ergoPoolBoxData.set(poolBoxData);
-
-                        m_errorString = "";
-                        m_chainDataBusy = 0;
+                    if(onPoolBoxDataObject != null && onPoolBoxDataObject instanceof ErgoPoolBoxData[]){
+                        m_lastChecked = System.currentTimeMillis();
+                        ErgoPoolBoxData[] poolBoxData = (ErgoPoolBoxData[]) onPoolBoxDataObject;
+                        ErgoPoolBoxData poolData = poolBoxData[0];
+                        m_ergoPoolBoxData.set(poolData);
                         
-                        if(dexPrice.getPrice().compareTo(poolBoxData.getPrice()) != 0){
-                            long lastTimeStamp = addPrices(new ErgoDexPrice[]{poolBoxData.getErgoDexPrice()}); 
+                        if(dexPrice.getPrice().compareTo(poolData.getPrice()) != 0 && poolData.getTimestamp() > dexPrice.getTimeStamp()){
+                            long lastTimeStamp = addPrices(new ErgoDexPrice[]{ poolData.getErgoDexPrice() }); 
                             m_lastTimeStamp = lastTimeStamp;
                             
 
@@ -452,20 +458,13 @@ public class ErgoDexChartView {
             }, onError->{
                 Throwable throwable = onError.getSource().getException();
                 m_errorString =  throwable.toString();
-
-                try {
-                    Files.writeString(App.logFile.toPath(), "(ErgoDexChartView) Pool: " + poolId + " getPoolBoxData: " + m_errorString + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-    
-                }
-                    
                 sendMessage(App.ERROR, System.currentTimeMillis(), poolId, m_errorString);
             });
         }
     }
 
     
-    public Future<?> processBoxData(Object sourceValue, int scale, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
+    public static Future<?> processPoolBoxData(Object sourceValue, int scale, long timeStamp, boolean isNative2Token, int limit, ExecutorService execService, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
         Task<Object> task = new Task<Object>() {
             @Override
             public Object call() throws Exception{
@@ -476,11 +475,19 @@ public class ErgoDexChartView {
                     
                     if(itemsElement != null && itemsElement.isJsonArray()){
                         JsonArray itemsArray = itemsElement.getAsJsonArray();
-                        if(itemsArray.size() > 0){
-                            JsonElement boxElement = itemsArray.get(0);
-                            if(!boxElement.isJsonNull() && boxElement.isJsonObject()){
-                                return new ErgoPoolBoxData(boxElement.getAsJsonObject(), m_marketData.isNative2Token(), scale);
+                        int size = itemsArray.size();
+                        int length = Math.min(size, limit);
+                        if(size > 0){
+                            ErgoPoolBoxData[] data = new ErgoPoolBoxData[length];
+                            for(int i = 0; i < length; i ++){
+                                JsonElement boxElement = itemsArray.get(i);
+                                if(!boxElement.isJsonNull() && boxElement.isJsonObject()){
+                                    
+                                    data[i] = new ErgoPoolBoxData(boxElement.getAsJsonObject(), isNative2Token, scale, timeStamp);
+                                }
                             }
+
+                            return data;
                         }
                     }
                 }
@@ -494,7 +501,7 @@ public class ErgoDexChartView {
 
         task.setOnSucceeded(onComplete);
 
-        return getExecService().submit(task);
+        return execService.submit(task);
     }
 
     public ExecutorService getExecService(){

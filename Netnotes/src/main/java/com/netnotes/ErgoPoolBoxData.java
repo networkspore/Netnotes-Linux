@@ -2,7 +2,6 @@ package com.netnotes;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import com.google.gson.JsonElement;
@@ -20,12 +19,15 @@ public class ErgoPoolBoxData{
     private long m_feeNum = -1;
     private BigDecimal m_price;
     private long m_timeStamp = 0;
+    private int m_scale = 0;
 
-    public ErgoPoolBoxData(JsonObject json, boolean isNative2Token, int scale) throws NullPointerException{
-        this(new ErgoBox(json), isNative2Token, scale);
+    public ErgoPoolBoxData(JsonObject json, boolean isNative2Token, int scale, long timeStamp) throws NullPointerException{
+        this(new ErgoBox(json), isNative2Token, scale, timeStamp);
     }
     
-    public ErgoPoolBoxData(ErgoBox box, boolean isNative, int scale) throws NullPointerException{
+    public ErgoPoolBoxData(ErgoBox box, boolean isNative, int scale, long timeStamp) throws NullPointerException{
+        m_scale = scale;
+
         ErgoBoxRegister r4Register = box.getAdditionalRegisters().get("R4");
         if(r4Register == null){
             throw new NullPointerException("R4 box is null");
@@ -38,7 +40,7 @@ public class ErgoPoolBoxData{
             throw new NullPointerException("Box assets < 3");
         }
 
-        m_timeStamp = System.currentTimeMillis();
+        m_timeStamp = timeStamp;
 
         if(isNative){
             if(box.getAssets().length == 3 ){
@@ -75,6 +77,10 @@ public class ErgoPoolBoxData{
 
         m_price =  bigY.divide(bigX, scale, RoundingMode.HALF_UP);
     
+    }
+
+    public int getScale(){
+        return m_scale;
     }
 
     public long getTimestamp(){

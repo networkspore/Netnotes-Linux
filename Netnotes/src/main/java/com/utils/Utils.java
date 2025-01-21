@@ -64,6 +64,7 @@ import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.net.URLConnection;
 import java.lang.Double;
 
@@ -695,8 +696,22 @@ public class Utils {
         execService.submit(task);
     }
 
+    public static Future<?> returnException(String errorString, ExecutorService execService, EventHandler<WorkerStateEvent> onFailed) {
 
-    public static void returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception {
+                throw new Exception(errorString);
+            }
+        };
+
+        task.setOnFailed(onFailed);
+
+        return execService.submit(task);
+
+    }
+
+    public static Future<?> returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<Object> task = new Task<Object>() {
             @Override
@@ -710,7 +725,7 @@ public class Utils {
 
         task.setOnSucceeded(onSucceeded);
 
-        execService.submit(task);
+        return execService.submit(task);
 
     }
 
@@ -787,6 +802,29 @@ public class Utils {
 
     }
 
+    public static BigInteger[] decimalToFractional(BigDecimal decimal){
+        String number = decimal.toPlainString();
+        int index = number.indexOf(".");
+        String leftSide = index != -1 ? number.substring(0, index) : number;
+        String rightSide = index != -1 ?  number.substring(index + 1) : "";
+        int numDecimals = rightSide.length();
+        BigInteger denominator = BigInteger.valueOf(10).pow(numDecimals);
+        BigInteger numerator = new BigInteger(leftSide).multiply(denominator).add(new BigInteger(rightSide));
+        return new BigInteger[]{numerator, denominator};
+     }
+
+    public static String formatStringToNumber(String number, int decimals){
+        number = number.replaceAll("[^0-9.]", "");
+        int index = number.indexOf(".");
+        String leftSide = index != -1 ? number.substring(0, index + 1) : number;
+        leftSide = leftSide.equals(".") ? "0." : leftSide;
+        String rightSide = index != -1 ?  number.substring(index + 1) : "";
+        rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
+        rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
+
+        return leftSide + rightSide;
+    
+    }
 
     public static Future<?> getUrlJsonArray(String urlString, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 

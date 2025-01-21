@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Future;
 
+import org.ergoplatform.appkit.NetworkType;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -176,8 +178,6 @@ public class ErgoWalletControl {
         }
         return null;
     }
-
-    
     
     public void updateBalance(){
         String accessId = m_accessId;
@@ -197,6 +197,21 @@ public class ErgoWalletControl {
         }else{
             m_balanceObject.set(null);
         }
+    }
+
+    public NetworkType getNetworkType(){
+        String accessId = m_accessId;
+        NoteInterface walletInterface = m_walletInterface;
+
+        JsonObject note = Utils.getCmdObject("getNetworkType");
+        note.addProperty("locationId", getLocationId());
+        note.addProperty("accessId", accessId);
+        Object obj = walletInterface.sendNote(note);
+
+        if(obj != null && obj instanceof NetworkType){
+            return (NetworkType) obj;
+        }
+        return null;
     }
 
    
@@ -300,8 +315,14 @@ public class ErgoWalletControl {
         m_accessId = null;
     }
 
+    public boolean isUnlocked(){
+        return m_accessId != null;
+    }
 
-   
+    public boolean isSelected(){
+        return walletNameProperty().get() != null;
+    }
+
     public void shutdown(){
         clearWallet();
     }

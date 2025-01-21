@@ -107,7 +107,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
                 }
                 if(m_warningBoolean){
                 
-                    String warningText = "Notice: Addresses must maintain a minimum ~" + minFee + " ERG when containing tokens.";
+                    String warningText = "Notice: Addresses must maintain a minimum " + minFee + " ERG when containing tokens.";
                     if(!m_warningTextArea.getText().equals(warningText)){
                         m_warningTextArea.setText(warningText);
                     }

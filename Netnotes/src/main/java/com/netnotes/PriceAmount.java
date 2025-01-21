@@ -3,6 +3,7 @@ package com.netnotes;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
@@ -28,54 +29,54 @@ public class PriceAmount  {
     private final long m_created;
     private SimpleLongProperty m_timeStampProperty = new SimpleLongProperty(System.currentTimeMillis());
 
-    private boolean m_readonly = false;
+    private final boolean m_readonly;
 
     public PriceAmount(BigDecimal amount, PriceCurrency priceCurrency){
         m_currency = priceCurrency;
         m_amount.set(amount);
         m_created = System.currentTimeMillis();
+        m_readonly = false;
     }
 
     public PriceAmount(long amount, PriceCurrency currency) {
-        m_currency = currency;
-
-        BigDecimal bigDecimal = calculateLongToBigDecimal(amount);
-        m_amount.set(bigDecimal);
-        m_created = System.currentTimeMillis();
+        this(amount, currency, false); 
     }
 
     public PriceAmount(long amount, PriceCurrency currency, boolean readonly) {
         m_currency = currency;
-
-        BigDecimal bigDecimal = calculateLongToBigDecimal(amount);
+        BigDecimal bigDecimal = calculateLongToBigDecimal(amount, currency.getDecimals());
         m_amount.set(bigDecimal);
         m_created = System.currentTimeMillis();
         m_readonly = readonly;
     }
 
-
+    public PriceAmount(ErgoBoxAsset asset, boolean readonly){
+        this(asset, NetworkType.MAINNET.toString(), readonly);
+    }
 
     public PriceAmount(ErgoBoxAsset asset, String networkType, boolean readonly){
-        m_currency = new PriceCurrency(asset.getTokenId(), asset.getName(), asset.getDecimals(), asset.getType(), networkType);
-        BigDecimal bigDecimal = calculateLongToBigDecimal(asset.getAmount());
-        m_amount.set(bigDecimal);
-        m_created = System.currentTimeMillis();
-        m_readonly = readonly;
+        this(asset.getAmount(), new PriceCurrency(asset.getTokenId(), asset.getName(), asset.getDecimals(), asset.getType(), networkType), readonly);
+      
     }
 
 
     public PriceAmount(double amount, PriceCurrency currency) {
-        m_currency = currency;
-        setDoubleAmount(amount);
-        m_created = System.currentTimeMillis();
+        this(BigDecimal.valueOf(amount), currency);
     }
 
     public PriceAmount(long amount, PriceCurrency currency, long timeStamp){
+        this(amount, currency, timeStamp, false);
+    }
+
+    public PriceAmount(long amount, PriceCurrency currency, long timeStamp, boolean readonly){
+        this(calculateLongToBigDecimal(amount, currency.getDecimals()), currency, timeStamp, readonly);
+    }
+
+    public PriceAmount(BigDecimal amount, PriceCurrency currency, long timeStamp, boolean readonly){
         m_currency = currency;
-        BigDecimal bigDecimal = calculateLongToBigDecimal(amount);
-        m_amount.set(bigDecimal);
-        m_timeStampProperty.set(timeStamp);
-        m_created = timeStamp;
+        m_amount.set(amount);
+        m_created = System.currentTimeMillis();
+        m_readonly = readonly;
     }
 
     public PriceAmount(JsonObject json) throws Exception{
@@ -83,7 +84,7 @@ public class PriceAmount  {
         JsonElement amountElement = json.get("amount");
         JsonElement timeStampElement = json.get("timeStamp");
         JsonElement currencyObjectElement = json.get("currency");
-
+        JsonElement readonlyElement = json.get("readOnly");
         if(amountElement == null || timeStampElement == null  || currencyObjectElement == null || (currencyObjectElement != null && !currencyObjectElement.isJsonObject())){
             try {
                 Files.writeString(App.logFile.toPath(), "\npriceAmount: " + json.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -99,6 +100,7 @@ public class PriceAmount  {
         JsonElement decimalsElement = currencyObject.get("decimals");
         JsonElement tokenTypeElement = currencyObject.get("tokenType");
         JsonElement networkTypeElement = currencyObject.get("networkType");
+        
 
         String tokenId = tokenIdElement != null && tokenIdElement.isJsonPrimitive() ? tokenIdElement.getAsString() : null;
         int decimals = decimalsElement != null && decimalsElement.isJsonPrimitive() ? decimalsElement.getAsInt() : -1;
@@ -113,10 +115,10 @@ public class PriceAmount  {
 
 
         m_currency = importCurrency;
-        BigDecimal bigDecimal = calculateLongToBigDecimal(amountElement.getAsLong());
+        BigDecimal bigDecimal = calculateLongToBigDecimal(amountElement.getAsLong(), decimals);
         m_amount.set(bigDecimal);
         m_created = timeStampElement.getAsLong();
-       
+        m_readonly = readonlyElement != null && !readonlyElement.isJsonNull() ? readonlyElement.getAsBoolean() : false;
         
     }
     
@@ -164,7 +166,9 @@ public class PriceAmount  {
         
     }
    
-
+    public String getSymbol(){
+        return m_currency.getSymbol();
+    }
 
     public long getTimeStamp(){
         return m_timeStampProperty.get();
@@ -240,20 +244,12 @@ public class PriceAmount  {
     }
 
 
-    public BigDecimal calculateLongToBigDecimal(long amount){
-        BigDecimal a = m_amount.get() != null ? m_amount.get() : BigDecimal.ZERO;
-        PriceCurrency c = getCurrency() != null ? getCurrency() : null;
-       
-        if(a == null || c == null){
-            try {
-                Files.writeString(App.logFile.toPath(), "calculatelong to big decimal error", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-
-            }
+    public static BigDecimal calculateLongToBigDecimal(long amount, int decimals){
+        
+        if(amount == 0){
             return BigDecimal.ZERO;
         }
        
-        int decimals = c.getFractionalPrecision();
         BigDecimal bigAmount = BigDecimal.valueOf(amount);
 
         if(decimals != 0){
@@ -266,13 +262,13 @@ public class PriceAmount  {
 
     public void setLongAmount(long amount) {
         if(!isReadonly()){
-        setLongAmount(amount,  System.currentTimeMillis());
+            setLongAmount(amount,  System.currentTimeMillis());
         }
     }
 
     public void setLongAmount(long longAmount, long timeStamp) {
         if(!isReadonly()){
-            BigDecimal amount = calculateLongToBigDecimal(longAmount);
+            BigDecimal amount = calculateLongToBigDecimal(longAmount, getDecimals());
 
 
             m_amount.set(amount);
@@ -282,19 +278,27 @@ public class PriceAmount  {
 
     public void addLongAmount(long longAmount){
         if(!isReadonly()){
-            BigDecimal bigAmount = calculateLongToBigDecimal(longAmount);
+            BigDecimal bigAmount = calculateLongToBigDecimal(longAmount, getDecimals());
             addBigDecimalAmount(bigAmount);
         }
     }
 
+    public int getDecimals(){
+        return getCurrency().getDecimals();
+    }
+
     public long getLongAmount() {
-        if(m_amount.get() == null || m_currency == null){
+        return calculateBigDecimalToLong(m_amount.get(), getCurrency().getDecimals());
+    }
+
+    public static long calculateBigDecimalToLong(BigDecimal amount, int decimals){
+        if(amount == null || amount.equals(BigDecimal.ZERO) || decimals == -1){
             return 0;
         }
-        int decimals = getCurrency().getFractionalPrecision();
+
         BigDecimal pow = BigDecimal.valueOf(10).pow(decimals);
 
-        return m_amount.get().multiply(pow).longValue();
+        return amount.multiply(pow).longValue();
     }
 
     public void setDoubleAmount(double doubleAmount) {

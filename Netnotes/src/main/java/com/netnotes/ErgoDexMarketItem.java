@@ -656,6 +656,10 @@ public class ErgoDexMarketItem {
         setupRowBox();
     }
 
+    public ErgoDexDataList getErgoDexDataList(){
+        return m_dataList;
+    }
+
     private boolean m_isCurrent = false;
 
     public boolean isCurrent(){

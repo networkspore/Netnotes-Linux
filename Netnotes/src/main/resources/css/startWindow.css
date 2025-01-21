@@ -498,7 +498,7 @@
     -fx-opacity: 1;
 }
 
-#swapBtnStatic {
+#swapFieldStatic {
     -fx-text-fill: #CFCFCF;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
@@ -509,7 +509,7 @@
 
 
 
-#swapBtn {
+#swapField {
     -fx-text-fill: #AAAAAA;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
@@ -518,14 +518,14 @@
     
 }
 
-#swapBtn:hover {
+#swapField:hover {
     -fx-text-fill: #AFAFAF;
 
     -fx-opacity: 1;
 }
 
 
-#swapBtnAvailable {
+#swapFieldAvailable {
     -fx-text-fill: #cdd4da;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
@@ -534,13 +534,13 @@
     
 }
 
-#swapBtnAvailable:hover {
+#swapFieldAvailable:hover {
     -fx-text-fill: #FFFFFF;
 
     -fx-opacity: 1;
 }
 
-#swapBtnUnavailable {
+#swapFieldUnavailable {
     -fx-text-fill: #feb9e9;
     -fx-font-size: 20px;
     -fx-font-family: 'OCR A Extended';
@@ -549,7 +549,7 @@
     
 }
 
-#swapBtnUnavailable:hover {
+#swapFieldUnavailable:hover {
     -fx-opacity: 1;
 }
 

@@ -61,12 +61,15 @@ public class ErgoDexMarketData extends PriceQuote {
         super();
         JsonElement idElement = json.get("id");
         JsonElement lastPriceElement = json.get("lastPrice");
-        JsonElement baseSymbolElement = json.get("baseSymbol"); 
-        JsonElement quoteSymbolElement =  json.get("quoteSymbol");
+
         JsonElement baseIdElement = json.get("baseId");
+        JsonElement baseSymbolElement = json.get("baseSymbol"); 
+        JsonElement baseVolumeElement = json.get("baseVolume");
+
         JsonElement quoteIdElement = json.get("quoteId");
-        JsonElement quoteVolumeElement = json.get("baseVolume");
-        JsonElement baseVolumeElement = json.get("quoteVolume");
+        JsonElement quoteSymbolElement =  json.get("quoteSymbol");
+        JsonElement quoteVolumeElement =  json.get("quoteVolume");
+        
 
         
         if(
@@ -79,19 +82,27 @@ public class ErgoDexMarketData extends PriceQuote {
             baseVolumeElement != null &&  baseVolumeElement.isJsonObject() &&
             quoteVolumeElement != null && quoteVolumeElement.isJsonObject()
         ){
+            String id = idElement.getAsString(); 
+            BigDecimal lastPrice = lastPriceElement.getAsBigDecimal();
+            String baseSymbol = baseSymbolElement.getAsString();
+            String quoteSymbol = quoteSymbolElement.getAsString();
+            String baseId = baseIdElement.getAsString();
+            String quoteId = quoteIdElement.getAsString();
+
+            setId(id);
+            setLastPrice(lastPrice);
+
+            setBaseId(baseId);
+            setBaseSymbol(baseSymbol);
+
+            setQuoteId(quoteId);
+            setQuoteSymbol(quoteSymbol);
             
-            setId(idElement.getAsString());
-            setLastPrice(lastPriceElement.getAsBigDecimal());
-            setBaseSymbol(baseSymbolElement.getAsString());
-            setQuoteSymbol(quoteSymbolElement.getAsString());
-            setBaseId(baseIdElement.getAsString());
-            setQuoteId(quoteIdElement.getAsString());
             setTimeStamp(timeStamp);
    
             JsonObject quoteVolumeObject = quoteVolumeElement.getAsJsonObject();
             long quoteVolumeValue = quoteVolumeObject.get("value").getAsLong();
             int quoteVolumeDecimals = quoteVolumeObject.get("units").getAsJsonObject().get("asset").getAsJsonObject().get("decimals").getAsInt();
-           // BigDecimal quoteVolumeBigDecimal = calculateLongToBigDecimal(quoteVolumeValue, quoteVolumeDecimals);
             
       
 
@@ -103,16 +114,13 @@ public class ErgoDexMarketData extends PriceQuote {
           
             setDefaultInvert(!getQuoteId().equals(ErgoDex.SIGUSD_ID));
 
-         //   setQuoteVolume( quoteVolumeBigDecimal); 
-            //setBaseVolume(baseVolumeBigDecimal);
-
             m_baseDecimals = baseVolumeDecimals;
             m_quoteDecimals = quoteVolumeDecimals;
             m_isN2T = getBaseId().equals(ErgoCurrency.TOKEN_ID);
             m_tickerId = isNative2Token() ? getQuoteId() + "_" + getBaseId() : getId();
             
-            m_baseCurrency = new PriceCurrency(getBaseId(), getBaseSymbol(), getBaseDecimals(), ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
-            m_quoteCurrency = new PriceCurrency(getQuoteId(), getQuoteSymbol(), getQuoteDecimals(), ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
+            m_baseCurrency = new PriceCurrency(baseId, baseSymbol, m_baseDecimals, ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
+            m_quoteCurrency = new PriceCurrency(quoteId, quoteSymbol, m_quoteDecimals, ErgoDex.NETWORK_ID, ErgoDex.NETWORK_TYPE.toString());
         
             m_baseVolume.set(new PriceAmount(baseVolumeValue, m_baseCurrency));
             m_quoteVolume.set(new PriceAmount(quoteVolumeValue, m_quoteCurrency));

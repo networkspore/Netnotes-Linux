@@ -442,34 +442,31 @@ public class ErgoWalletData extends Network implements NoteInterface {
         // getAddresses
         JsonElement cmdElement = note.get(App.CMD);
         JsonElement locationIdElement = note.get("locationId");
-
-       String locationId = locationIdElement != null && !locationIdElement.isJsonNull() ? locationIdElement.getAsString() : null;
+   
+        String locationId = locationIdElement != null && !locationIdElement.isJsonNull() ? locationIdElement.getAsString() : null;
         String cmd = cmdElement != null ? cmdElement.getAsString() : null;
         String locationString = getNetworksData().getLocationString(locationId);
 
-
         if(cmd != null && isLocationAuthorized(locationString)){
+            JsonElement accessIdElement = note.get("accessId");
+            String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
+            boolean hasAccess = hasAccess(accessId);
+    
+            if(!hasAccess){
+                switch(cmd){
+                    case "getAccessId":
+                        return getAccessId(note, locationString, onSucceeded, onFailed);
+                }
+            }else{
                 
-            switch(cmd){
-                case "getAccessId":
-                    return getAccessId(note, locationString, onSucceeded, onFailed);
-                    
-               
+                switch(cmd){
+                    case "sendAssets":
+                        return m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                        
+                    case "executeContract":
+                        return m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
+                }       
                 
-                default:
-                    JsonElement accessIdElement = note.get("accessId");
-                    String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
-       
-                    if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
-                        switch(cmd){
-                            case "sendAssets":
-                                return m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
-                                
-                            case "executeContract":
-                                return m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
-
-                        }       
-                    }
             }
 
         }
@@ -498,13 +495,14 @@ public class ErgoWalletData extends Network implements NoteInterface {
             if(isLocationAuthorized(locationString)){
                 String accessId = accessIdElement != null && accessIdElement.isJsonPrimitive() ? accessIdElement.getAsString() : null;
 
-                if(accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null){
+                if(hasAccess(accessId)){
                     switch(cmd){
                         case "getAddresses":
                             return m_addressesData.getAddressesJson();
                         case "getBalance":
                             return getBalance(note);
-        
+                        case "getNetworkType":
+                            return m_addressesData.getNetworkType();
                     }
                 }else{
                     switch (cmd) {
@@ -512,7 +510,6 @@ public class ErgoWalletData extends Network implements NoteInterface {
                             return isOpen();
                         case "getWallet":
                             return getWalletJson();
-            
                         case "updateFile":
                             return updateFile(note);  
                         case "updateName":
@@ -525,6 +522,10 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }
         }
         return null;
+    }
+
+    public boolean hasAccess(String accessId){
+        return accessId != null &&  m_authorizedIds.contains(accessId) && m_addressesData != null;
     }
 
     public boolean isFile(){

@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.text.Bidi;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,8 +17,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.satergo.Wallet;
 import com.satergo.WalletKey;
@@ -65,7 +62,6 @@ import javafx.stage.StageStyle;
 
 import scorex.util.encode.Base16;
 
-import org.apache.commons.io.IOUtils;
 import org.ergoplatform.appkit.*;
 
 public class AddressesData {
@@ -99,21 +95,16 @@ public class AddressesData {
     
     private SimpleIntegerProperty m_ergoExchangeStatus = new SimpleIntegerProperty(App.STOPPED);
     private SimpleIntegerProperty m_tokenExchangeStatus = new SimpleIntegerProperty(App.STOPPED);
-    private String m_statusMsg = "";
+    /*private String m_statusMsg = "";
     private String m_tokenStatusMsg = "";
 
     private String m_ergoBaseQuery = "ERG";
     private String m_ergoBaseType = "symbol";
 
     private String m_ergoQuoteType = "firstSymbolContains"; 
-    private String m_ergoQuoteQuery = "USD";
-
-
-
-
-
-
+    private String m_ergoQuoteQuery = "USD";*/
    // private SimpleObjectProperty<PriceQuote> m_currentQuote = new SimpleObjectProperty<>(null);
+
     public final static long POLLING_TIME = 3000;
 
     public final static int ADDRESS_IMG_HEIGHT = 40;
@@ -132,7 +123,7 @@ public class AddressesData {
     private NoteMsgInterface m_marketMsgInterface = null;
     private NoteMsgInterface m_tokenMarketMsgInterface = null;
 
-    private ChangeListener<BigDecimal> m_priceQuoteAmountChanged = null;
+    //private ChangeListener<BigDecimal> m_priceQuoteAmountChanged = null;
     private long m_balanceTimestamp = 0;
 
     public AddressesData(String id,  ArrayList<AddressData> addressDataList, ErgoWalletData walletData, NetworkType networkType) {
@@ -150,6 +141,10 @@ public class AddressesData {
       //  m_addressDataList.get(0).updateBalance();
         
         start();
+    }
+
+    public NetworkType getNetworkType(){
+        return m_networkType;
     }
 
     public static ArrayList<PriceAmount>  getBalanceList(JsonObject json, boolean confirmed, NetworkType networkType){
@@ -1586,7 +1581,7 @@ public class AddressesData {
                 public void sendMessage(int code, long timestamp, String networkId, String msg){
                     if(code == App.ERROR){
                 
-                        m_statusMsg = msg;
+                      //  m_statusMsg = msg;
                         m_ergoExchangeStatus.set(code);
                     }
                 }
@@ -1645,7 +1640,7 @@ public class AddressesData {
                 public void sendMessage(int code, long timestamp, String networkId, String msg){
                     if(code == App.ERROR){
                 
-                        m_tokenStatusMsg = msg;
+                    //    m_tokenStatusMsg = msg;
                         m_tokenExchangeStatus.set(code);
                     }
                 }

@@ -33,7 +33,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -77,6 +76,11 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static String ERG_SIGUSD_POOL_ID = "9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec";
     public final static String ERG_SPF_POOL_ID = "f40afb6f877c40a30c8637dd5362227285738174151ce66d6684bc1b727ab6cf";
 
+    public final static BigDecimal DEFAULT_NITRO =  BigDecimal.valueOf(1.2);
+    public final static ErgoCurrency ERGO_CURRENCY = new ErgoCurrency(ErgoDex.NETWORK_TYPE);
+    public final static SPFCurrency SPF_CURRENCY = new SPFCurrency();
+
+
     public final static String MINER_ADDRESS = "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe";
 
     public final static long BLOCK_TIME_MILLIS = 2L * 60L * 1000L;
@@ -85,14 +89,11 @@ public class ErgoDex extends Network implements NoteInterface {
     
     public final static BigDecimal MIN_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.01);
     public final static BigDecimal DEFAULT_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.03);
-    public final static BigDecimal DEFAULT_NITRO = BigDecimal.valueOf(1.2);
-
-    public static ErgoAmount NETWORK_MIN_FEE;
-    public static ErgoAmount SWAP_MIN_EXECUTION_FEE;
-    public static ErgoAmount SWAP_MIN_MAX_EXEC_FEE;
-    public static ErgoAmount SWAP_MIN_TOTAL_FEES;
-    public static final long SWAP_FEE_DENOM = 1000;
+    public static final int SWAP_FEE_DENOM = 1000;
     public static final int POOL_FEE_MAX_DECIMALS = 3;
+
+  
+
 
    // private File m_dataFile = null;
 
@@ -119,24 +120,7 @@ public class ErgoDex extends Network implements NoteInterface {
         super(new Image(getAppIconString()), NAME, NETWORK_ID, networksData);
         setKeyWords(new String[]{"ergo", "exchange", "usd", "ergo tokens", "dApp", "SigUSD"});
         m_locationId = locationId;
-
-        NETWORK_MIN_FEE = new ErgoAmount( ErgoNetwork.MIN_NETWORK_FEE, NETWORK_TYPE);
-        SWAP_MIN_EXECUTION_FEE = new ErgoAmount(NETWORK_MIN_FEE.getBigDecimalAmount().multiply(BigDecimal.valueOf(3)), NETWORK_TYPE);
-        SWAP_MIN_MAX_EXEC_FEE = new ErgoAmount(SWAP_MIN_EXECUTION_FEE.getBigDecimalAmount().multiply(DEFAULT_NITRO), NETWORK_TYPE);
-        SWAP_MIN_TOTAL_FEES = new ErgoAmount(NETWORK_MIN_FEE.getBigDecimalAmount().add(SWAP_MIN_MAX_EXEC_FEE.getBigDecimalAmount()), NETWORK_TYPE);
     }
-
-    /*
-     public ErgoDexPrice getLastDexPrice(){
-        if(m_data == null){
-            return null;
-        }
-        int dataLength = m_data.length ;
-        return  m_data[dataLength -1];
-    }
-
-     */
-
 
 
     public static String getAppIconString(){
@@ -1293,12 +1277,12 @@ public class ErgoDex extends Network implements NoteInterface {
                     if (sourceObject != null && sourceObject instanceof JsonArray) {
                         JsonArray marketJsonArray = (JsonArray) sourceObject;
 
-                        /*try {
-                            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                        try {
+                            com.google.gson.Gson gson = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
                             Files.writeString(App.logFile.toPath(), gson.toJson(marketJsonArray) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         } catch (IOException e) {
 
-                        }*/
+                        }
         
                         if(getConnectionStatus() != App.STARTED){
                             setConnectionStatus(App.STARTED);
