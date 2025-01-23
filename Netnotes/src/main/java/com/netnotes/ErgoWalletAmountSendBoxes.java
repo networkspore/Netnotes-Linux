@@ -136,8 +136,14 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
         return m_minimumFee;
     }
 
+    public void update(JsonObject balanceJson){
 
-    public void update(JsonObject json){
+        update(balanceJson, false);
+    
+    }
+
+
+    public void update(JsonObject json, boolean confirmed){
         
 
         JsonElement timeStampElement = json != null ? json.get("timeStamp") : null;
@@ -164,7 +170,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
                 ErgoWalletAmountSendBox box = new ErgoWalletAmountSendBox(this, ergoAmount, m_scene);
                 box.setTimeStamp(timeStamp);
                 box.setQuote(ergoQuote, ergoQuoteAmount);
-                add(box);
+                add(box, false);
             }else if(ergAmountBoxInterface instanceof ErgoWalletAmountSendBox){
                 ErgoWalletAmountSendBox ergoAmountBox = (ErgoWalletAmountSendBox) ergAmountBoxInterface;
                 if(ergoAmountBox.getPriceAmount().getLongAmount() != nanoErg){
@@ -202,16 +208,16 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
 
                     String tokenId = tokenIdElement.getAsString();
                     long amount = amountElement.getAsLong();
-                    int decimals = decimalsElement.getAsInt();
-                    String name = nameElement.getAsString();
-                    String tokenType = tokenTypeElement.getAsString();
+                    int decimals = decimalsElement != null && !decimalsElement.isJsonNull() ? decimalsElement.getAsInt() : 0;
+                    String name = nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() : tokenId;
+                    String tokenType = tokenTypeElement != null && !tokenTypeElement.isJsonNull() ? tokenTypeElement.getAsString() : "";
                     JsonObject tokenInfoJsonObject = tokenInfoElement != null && !tokenInfoElement.isJsonNull() && tokenInfoElement.isJsonObject() ? tokenInfoElement.getAsJsonObject() : null;
                     
                     PriceCurrency priceCurrency = new PriceCurrency(tokenId, name, decimals, tokenType, m_networkType.toString());
                     if(tokenInfoJsonObject != null){
                         priceCurrency.setTokenInfo(tokenInfoJsonObject);
                     }
-                    
+
                     PriceAmount tokenAmount = new PriceAmount(amount, priceCurrency);    
                     PriceQuote tokenQuote = tokenQuoteElement != null && !tokenQuoteElement.isJsonNull() && tokenQuoteElement.isJsonObject() ? new PriceQuote(tokenQuoteElement.getAsJsonObject()) : null;
                     BigDecimal tokenQuoteErgAmount = tokenQuoteErgAmountElement != null && !tokenQuoteErgAmountElement.isJsonNull() ? tokenQuoteErgAmountElement.getAsBigDecimal() : null;
@@ -221,7 +227,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
                     if(tokenBoxInterface == null){
                         ErgoWalletAmountSendTokenBox box = new ErgoWalletAmountSendTokenBox(this, tokenAmount, m_scene);
                         box.setTimeStamp(timeStamp);
-                        add(box);
+                        add(box,false);
                         box.setQuote(tokenQuote, ergoQuote, tokenQuoteErgAmount, tokenQuoteAmount, ergoQuote != null ? ergoQuote.getQuoteSymbol() : null);
                     }else if(tokenBoxInterface instanceof ErgoWalletAmountSendTokenBox){
                         ErgoWalletAmountSendTokenBox tokenAmountBox = (ErgoWalletAmountSendTokenBox) tokenBoxInterface;
@@ -236,7 +242,7 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
  
                 removeOld(timeStamp);
 
-             
+                updateGrid();
             }else{
                clear();
             }

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 
@@ -207,6 +208,9 @@ public class ErgoWalletsAppBox extends AppBox {
         NoteInterface walletInterface = m_selectedWallet.get();
 
         if(m_lockBox.isUnlocked()){
+            showBalance.set(true);
+            setLoadingMsg("Getting Balance...");
+
             JsonObject note = Utils.getCmdObject("getBalance");
             note.addProperty("locationId", m_locationId);
             note.addProperty("accessId", m_lockBox.getLockId());
@@ -214,13 +218,10 @@ public class ErgoWalletsAppBox extends AppBox {
             Object obj = walletInterface.sendNote(note);
             
             if(obj != null && obj instanceof JsonObject){
-
+                removeLoadingBox();
                 m_balanceObject.set((JsonObject) obj);
                 
             
-            }else{
-                m_balanceObject.set(null);
-                showBalance.set(false);
             }
 
         }else{
@@ -603,9 +604,7 @@ public class ErgoWalletsAppBox extends AppBox {
             }
         });
 
-        showBalance.addListener((obs, oldval, newval) -> {
-            toggleShowBalance.setText(newval ? "⏷" : "⏵");
-        });
+
 
 
 
@@ -693,6 +692,9 @@ public class ErgoWalletsAppBox extends AppBox {
             }
 
             if (newval != null && noteInterface != null) {
+                showBalance.set(true);
+                addLoadingBox();
+                setLoadingMsg("Opening...");
                 JsonObject json = Utils.getCmdObject("getAddresses");
                 json.addProperty("accessId", newval);
                 json.addProperty("locationId", m_locationId);
@@ -760,12 +762,15 @@ public class ErgoWalletsAppBox extends AppBox {
  
 
         showBalance.addListener((obs, oldval, newval) -> {
+            toggleShowBalance.setText(newval ? "⏷" : "⏵");
+           
             if (newval) {
                 if (!walletBalanceBox.getChildren().contains(balancePaddingBox)) {
                     walletBalanceBox.getChildren().add(balancePaddingBox);
                 }
 
             } else {
+                removeLoadingBox();
                 if (walletBalanceBox.getChildren().contains(balancePaddingBox)) {
                     walletBalanceBox.getChildren().remove(balancePaddingBox);
                 }
@@ -828,9 +833,9 @@ public class ErgoWalletsAppBox extends AppBox {
 
                         m_lockBox.setUnlocked(accessId);
                         
-                        FxTimer.runLater(java.time.Duration.ofMillis(150), ()->{
-                            showBalance.set(true);
-                        });
+                        
+                        showBalance.set(true);
+                       
                     }
                 } 
             }, onFailed->{});
@@ -851,6 +856,65 @@ public class ErgoWalletsAppBox extends AppBox {
     public Object sendNote(JsonObject note){
 
         return null;
+    }
+
+    
+    private ProgressBar progressBar = null;
+    private Label loadingText = null;
+    private HBox loadingBarBox = null;
+    private HBox loadingTextBox = null;
+    private VBox loadingVBox = null;
+
+    private void setLoadingMsg(String msg){
+        m_loadingMsgProperty.set(msg);
+    }
+    
+    private SimpleStringProperty m_loadingMsgProperty = new SimpleStringProperty("Loading...");
+
+    public void addLoadingBox(){
+        if(loadingVBox == null){
+
+            progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+            progressBar.setPrefWidth(150);
+            loadingText = new Label();
+            loadingText.textProperty().bind(m_loadingMsgProperty);
+
+            loadingBarBox = new HBox(progressBar);
+            HBox.setHgrow(loadingBarBox, Priority.ALWAYS);
+            loadingBarBox.setAlignment(Pos.CENTER);
+
+            loadingTextBox = new HBox(loadingText);
+            HBox.setHgrow(loadingTextBox, Priority.ALWAYS);
+            loadingTextBox.setAlignment(Pos.CENTER);
+
+            loadingVBox = new VBox(loadingBarBox, loadingTextBox);
+            VBox.setVgrow(loadingVBox,Priority.ALWAYS);
+            HBox.setHgrow(loadingBarBox,Priority.ALWAYS);
+            loadingVBox.setAlignment(Pos.CENTER);
+            loadingVBox.setMinHeight(200);
+            getChildren().add(loadingVBox);
+        }
+    }
+
+    public void removeLoadingBox(){
+        if(loadingVBox != null){
+    
+            if(getChildren().contains(loadingVBox)){
+                getChildren().remove(loadingVBox);
+            }
+            loadingVBox.getChildren().clear();
+            loadingTextBox.getChildren().clear();
+            loadingBarBox.getChildren().clear();
+
+            loadingText.textProperty().unbind();
+            progressBar.setProgress(0);
+            progressBar = null;
+            loadingText = null;
+            loadingBarBox = null;
+            loadingTextBox = null;
+            loadingVBox = null;
+        }
+
     }
 
     public String getName() {
@@ -2154,17 +2218,19 @@ public class ErgoWalletsAppBox extends AppBox {
                 
                 for(int i = 0; i < amountBoxAray.length ;i++ ){
                     AmountBoxInterface amountBox =amountBoxAray[i];
-                
-                    ErgoWalletAmountSendBox sendBox = (ErgoWalletAmountSendBox) amountBox;
-                    
-                    PriceAmount sendAmount = sendBox.getSendAmount();
-                    if(sendAmount!= null){
-                        if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-                            sendAssets.add(sendAmount.getAmountObject());
+                    if(amountBox instanceof ErgoWalletAmountSendTokenBox){
+                        ErgoWalletAmountSendTokenBox sendBox = (ErgoWalletAmountSendTokenBox) amountBox;
+                        
+                        PriceAmount sendAmount = sendBox.getSendAmount();
+                        if(sendAmount!= null){
+                            if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
+                                sendAssets.add(sendAmount.getAmountObject());
+                            }
                         }
                     }
                     
                 }
+                
             
                 if(ergoPriceAmount.getLongAmount() == 0 && sendObject.size() == 0){
                     addSendBox.run();

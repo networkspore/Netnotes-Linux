@@ -2,10 +2,8 @@ package com.netnotes;
 
 import java.util.ArrayList;
 
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.geometry.Insets;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.geometry.Pos;
-
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -20,11 +18,8 @@ public class AmountBoxes extends VBox {
 
     private ArrayList<AmountBoxInterface> m_amountsList = new ArrayList<>();
 
+    private final HBox m_lastRowPaddingBox = new HBox();
 
-    private final SimpleObjectProperty<Insets> m_paddingInsets =new SimpleObjectProperty<>( new Insets(0,0,0,0));
-    private final HBox m_lastRowPaddingBox = new HBox();;
-  //  private String m_lastRowItemStyle = ADD_AS_LAST_ROW;
-  //  private boolean m_lastRowItemDisabled = false;
     
     public AmountBoxes(){
         super();
@@ -46,16 +41,6 @@ public class AmountBoxes extends VBox {
         HBox.setHgrow(m_lastRowPaddingBox, Priority.ALWAYS);
         m_lastRowPaddingBox.setAlignment(Pos.CENTER_LEFT);
        
-
-        m_paddingInsets.addListener((obs, oldval, newval)->updateGrid());
-        if(boxes != null && boxes.length > 0){
-            for(int i = 0; i < boxes.length; i++){
-                add(boxes[i]);
-            }
-            updateGrid();
-        }else{
-            updateGrid();
-        }
     }
 
     public HBox lastRowHBox(){
@@ -64,6 +49,7 @@ public class AmountBoxes extends VBox {
 
 
     public void shutdown(){
+
         m_amountsList.forEach(box ->{
             box.shutdown();
         });
@@ -78,24 +64,6 @@ public class AmountBoxes extends VBox {
     }
 
 
-    /*public void setLastRowItemStyle(String itemStyle){
-        m_lastRowItemStyle = itemStyle;
-        updateGrid();
-    }
-
-    public String getLastRowItemStyle(){
-        return m_lastRowItemStyle;
-    }
-
-    public void setLastRowItemDisabled(boolean disabled){
-        m_lastRowItemDisabled = disabled;
-        updateGrid();
-    }
-
-    public boolean getLastRowItemDisabled(){
-        return m_lastRowItemDisabled;
-    }*/
-
 
 
     public AmountBoxInterface[] getAmountBoxArray(){
@@ -109,12 +77,14 @@ public class AmountBoxes extends VBox {
     }
 
 
-    public void add(AmountBoxInterface amountBox){
+    public void add(AmountBoxInterface amountBox, boolean update){
         if(amountBox != null && amountBox instanceof HBox){
             HBox existingBox = (HBox) getAmountBox(amountBox.getTokenId());
             if(existingBox == null){
                 m_amountsList.add(amountBox);    
-                updateGrid();
+                if(update){
+                    updateGrid();
+                }
             }
         }
     }
@@ -182,10 +152,13 @@ public class AmountBoxes extends VBox {
         return m_amountsList.size();
     }
 
+
+
     public void updateGrid(){
         getChildren().clear();
+        int size = m_amountsList.size();
 
-        for(int i = 0; i < m_amountsList.size(); i++){
+        for(int i = 0; i < size; i++){
 
             HBox amountBox = (HBox) m_amountsList.get(i);
             HBox.setHgrow(amountBox, Priority.ALWAYS);
@@ -204,6 +177,7 @@ public class AmountBoxes extends VBox {
         }
         
         getChildren().add(m_lastRowPaddingBox);
+    
        
     }
 }

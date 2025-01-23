@@ -711,6 +711,21 @@ public class Utils {
 
     }
 
+    public static Future<?> returnException(Exception exception, ExecutorService execService, EventHandler<WorkerStateEvent> onFailed) {
+
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception {
+                throw exception;
+            }
+        };
+
+        task.setOnFailed(onFailed);
+
+        return execService.submit(task);
+
+    }
+
     public static Future<?> returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<Object> task = new Task<Object>() {

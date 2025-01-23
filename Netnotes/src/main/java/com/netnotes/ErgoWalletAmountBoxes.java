@@ -4,16 +4,10 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 
 import com.google.gson.JsonElement;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-
 import org.ergoplatform.appkit.NetworkType;
 
 
@@ -22,7 +16,6 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
     private final NetworkType m_networkType;
     private SimpleObjectProperty<JsonObject> m_balanceObject;
     private ChangeListener<JsonObject> m_balanceChangeListener;
-   // private SimpleObjectProperty<PriceQuote> m_ergoQuoteProperty = new SimpleObjectProperty<>(null);
     
 
     public ErgoWalletAmountBoxes( boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
@@ -31,16 +24,20 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
         m_networkType = networktype;
         m_balanceObject = balanceObject;
 
+
+
         m_balanceChangeListener = (obs,oldval, newval) ->{
             update(newval);
         };
 
         m_balanceObject.addListener(m_balanceChangeListener);
-
+        update(balanceObject.get());
     }
 
     public void update(JsonObject balanceJson){
+
         update(balanceJson, false);
+     
     }
 
     /**
@@ -75,7 +72,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                 ErgoWalletAmountBox box = new ErgoWalletAmountBox(ergoAmount, getScene());
                 box.setTimeStamp(timeStamp);
                 box.setQuote(ergoQuote, ergoQuoteAmount);
-                add(box);
+                add(box, false);
             }else if(ergAmountBoxInterface instanceof ErgoWalletAmountBox){
                 ErgoWalletAmountBox ergoAmountBox = (ErgoWalletAmountBox) ergAmountBoxInterface;
                 if(ergoAmountBox.getPriceAmount().getLongAmount() != nanoErg){
@@ -113,9 +110,9 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
 
                     String tokenId = tokenIdElement.getAsString();
                     long amount = amountElement.getAsLong();
-                    int decimals = decimalsElement.getAsInt();
-                    String name = nameElement.getAsString();
-                    String tokenType = tokenTypeElement.getAsString();
+                    int decimals = decimalsElement != null && !decimalsElement.isJsonNull() ? decimalsElement.getAsInt() : 0;
+                    String name = nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() : tokenId;
+                    String tokenType = tokenTypeElement != null && !tokenTypeElement.isJsonNull() ? tokenTypeElement.getAsString() : "";
                     JsonObject tokenInfoJsonObject = tokenInfoElement != null && !tokenInfoElement.isJsonNull() && tokenInfoElement.isJsonObject() ? tokenInfoElement.getAsJsonObject() : null;
                     
                     PriceCurrency priceCurrency = new PriceCurrency(tokenId, name, decimals, tokenType, m_networkType.toString());
@@ -132,7 +129,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
                     if(tokenBoxInterface == null){
                         ErgoWalletTokenAmountBox box = new ErgoWalletTokenAmountBox(tokenAmount, getScene());
                         box.setTimeStamp(timeStamp);
-                        add(box);
+                        add(box, false);
                         box.setQuote(tokenQuote, tokenQuoteErgAmount, tokenQuoteAmount, ergoQuote != null ? ergoQuote.getQuoteSymbol() : null);
                     }else if(tokenBoxInterface instanceof ErgoWalletTokenAmountBox){
                         ErgoWalletTokenAmountBox tokenAmountBox = (ErgoWalletTokenAmountBox) tokenBoxInterface;
@@ -147,7 +144,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
  
                 removeOld(timeStamp);
 
-             
+                updateGrid();
             }else{
                clear();
             }
@@ -156,6 +153,8 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
         }else{
             clear();
         }
+
+       
     }
 
 

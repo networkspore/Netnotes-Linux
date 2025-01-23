@@ -130,8 +130,17 @@ public class PriceAmount  {
         json.addProperty("name", getCurrency().getName());
         json.addProperty("tokenId", getCurrency().getTokenId());
         json.addProperty("decimals", getCurrency().getDecimals());
+        json.addProperty("networkType", getCurrency().getNetworkTypeString());
 
         return json;
+    }
+
+    public static ErgoToken getErgoToken(JsonObject json){
+
+        JsonElement longAmountElement = json.get("longAmount");
+        JsonElement tokenIdElement = json.get("tokenId");
+        
+        return longAmountElement != null && !longAmountElement.isJsonNull() && tokenIdElement != null && !tokenIdElement.isJsonNull() ? new ErgoToken(tokenIdElement.getAsString(), longAmountElement.getAsLong()) : null;
     }
 
     public ErgoToken getErgoToken(){

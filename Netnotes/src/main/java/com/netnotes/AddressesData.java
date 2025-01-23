@@ -105,7 +105,7 @@ public class AddressesData {
     private String m_ergoQuoteQuery = "USD";*/
    // private SimpleObjectProperty<PriceQuote> m_currentQuote = new SimpleObjectProperty<>(null);
 
-    public final static long POLLING_TIME = 3000;
+    public final static long POLLING_TIME = 7000;
 
     public final static int ADDRESS_IMG_HEIGHT = 40;
     public final static int ADDRESS_IMG_WIDTH = 350;
@@ -203,28 +203,6 @@ public class AddressesData {
         return assetsList;
     }
 
-    public static ArrayList<PriceAmount> getSendAssetsListFromArray(JsonArray jsonArray, NetworkType networkType){
-        ArrayList<PriceAmount> assetsList = new ArrayList<>();
-        for(JsonElement element : jsonArray){
-
-            if(!element.isJsonNull() && element.isJsonObject()){
-                JsonObject assetJson = element.getAsJsonObject();
-                assetsList.add(PriceAmount.getByAmountObject(assetJson, networkType));
-            }
-        }
-        return assetsList;
-    }
-
-    public static ArrayList<PriceAmount> getTokenFromList(ArrayList<PriceAmount> assetsList){
-        ArrayList<PriceAmount> tokensList = new ArrayList<>();
-        for(PriceAmount priceAmount : assetsList){
-            if(!priceAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-                tokensList.add(priceAmount);
-            }
-        
-        }
-        return tokensList;
-    }
 
     public static PriceAmount getPriceAmountFromList(ArrayList<PriceAmount> priceList, String tokenId){
         if(tokenId != null && priceList != null){
@@ -261,10 +239,15 @@ public class AddressesData {
             JsonElement recipientElement = dataObject.get("recipient");
             JsonElement assetsElement = dataObject.get("assets");
 
+            try {
+                Files.writeString(App.logFile.toPath(), note + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+
+            }
+
             
             if(!checkNetworkType(dataObject, m_networkType)){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Network type must be " + m_networkType.toString()), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("Network type must be " + m_networkType.toString(),getExecService(), onFailed);
             }
 
 
@@ -272,18 +255,15 @@ public class AddressesData {
 
             
             if(walletAddress == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "No wallet address provided"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("No wallet address provided",getExecService(), onFailed);
             }
 
 
             AddressData addressData = getAddress(walletAddress);
 
             if(addressData == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Address not found in this wallet"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("Address not found in this wallet",getExecService(), onFailed);
             }
-
             ArrayList<PriceAmount> balanceList = getBalanceList(addressData.getBalance(),true, m_networkType);
 
 
@@ -291,79 +271,65 @@ public class AddressesData {
             
 
             if(feeAmountNanoErgs == -1){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "No fee provided"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("No fee provided", getExecService(), onFailed);
             }
 
             if(feeAmountNanoErgs < 1000000){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Minimum fee of 1000000 nanoErg (0.001 Erg) required"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("Minimum fee of 0.001 Erg required (1000000 nanoErg)", getExecService(), onFailed);
             }
 
             long amountToSpendNanoErgs = getAmountToSpendNanoErgs(dataObject);
           
-
-            if(assetsElement == null || assetsElement != null && !assetsElement.isJsonArray()){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Asset element required"), getExecService(), onSucceeded, onFailed);
-                return null;
-            }
-
-            
-            ArrayList<PriceAmount> assetsList = getSendAssetsListFromArray(assetsElement.getAsJsonArray(), m_networkType);
-          
-            ArrayList<PriceAmount> tokensList = getTokenFromList(assetsList);
-
-            ErgoToken[] tokenArray = new ErgoToken[tokensList.size()];
-            for(int i = 0; i < tokensList.size() ; i++){
-                PriceAmount tokenAmount = tokensList.get(i);
-                tokenArray[i] = tokenAmount.getErgoToken();
-            }
-
-           
-            if(assetsList != null && assetsList.size() > 0){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR,  "No assets transmitted"), getExecService(), onSucceeded, onFailed);           
-                return null;
-            }
-
-            for(PriceAmount sendAmount : assetsList){
-                PriceAmount balanceAmount = getPriceAmountFromList(balanceList, sendAmount.getTokenId());
-                if(sendAmount.getLongAmount() > balanceAmount.getLongAmount()){
-                    Utils.returnObject(Utils.getMsgObject(App.ERROR,  "Insufficent " + balanceAmount.getCurrency().getName() + " - Required: " + sendAmount.getBigDecimalAmount()), getExecService(), onSucceeded, onFailed);           
-                    return null;
-                }
-            }
-            
             JsonObject recipientObject = recipientElement != null && recipientElement.isJsonObject() ? recipientElement.getAsJsonObject() : null;
 
             if(recipientObject == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "No recipient provided"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("No recipient provided", getExecService(), onFailed);
             }
 
+            ErgoToken[] assetArray = null;
+            try{
+                assetArray = getTokenArray(dataObject);
+            }catch(NullPointerException e){
+                return Utils.returnException(e, getExecService(), onFailed);
+            }
+
+            try {
+                Files.writeString(App.logFile.toPath(), "asset array Length: " +  assetArray.length , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+
+            }
+           
+           
+            for(ErgoToken sendAmount : assetArray){
+                PriceAmount balanceAmount = getPriceAmountFromList(balanceList, sendAmount.getId().toString());
+                if(sendAmount.getValue() > balanceAmount.getLongAmount()){
+                    return Utils.returnException("Insufficent " + balanceAmount.getCurrency().getName(), getExecService(), onFailed);
+                }
+            }
+
+            ErgoToken[] tokenArray = assetArray;
+            
+    
             JsonElement recipientAddressElement = recipientObject.get("address");
 
             AddressInformation recipientAddressInfo = recipientAddressElement != null && !recipientAddressElement.isJsonNull() ? new AddressInformation(recipientAddressElement.getAsString().replaceAll("[^A-HJ-NP-Za-km-z1-9]", "")) : null;
             
             if(recipientAddressInfo == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "No recipient address provided"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("No recipient address provided", getExecService(), onFailed);
             }
 
             if(recipientAddressInfo.getAddress() == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Invalid recipient address"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("Invalid recipient address", getExecService(), onFailed);
             }
 
             NamedNodeUrl namedNodeUrl = getNamedNodeUrl(dataObject);
 
             if(namedNodeUrl == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Node unavailable"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("Node unavailable", getExecService(), onFailed);
             }
 
             if(namedNodeUrl.getUrlString() == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "No node URL provided"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("No node URL provided", getExecService(), onFailed);
             }
 
             String nodeUrl = namedNodeUrl.getUrlString();
@@ -372,8 +338,7 @@ public class AddressesData {
             ErgoNetworkUrl explorerNetworkUrl = getExplorerUrl(dataObject);
 
             if(explorerNetworkUrl == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Explorer unavailable"), getExecService(), onSucceeded, onFailed);
-                return null;
+                return Utils.returnException("Explorer url not provided", getExecService(), onFailed);
             }
 
            
@@ -776,6 +741,34 @@ public class AddressesData {
         JsonElement nanoErgsElement = feeObject != null ? feeObject.get("nanoErgs") : null;
         return nanoErgsElement != null ? nanoErgsElement.getAsLong() : -1;
     }
+
+    public static ErgoToken[] getTokenArray(JsonObject dataObject) throws NullPointerException{
+        JsonElement assetsElement = dataObject != null ? dataObject.get("assets") : null;
+        JsonArray assetsArray = assetsElement != null && assetsElement.isJsonArray() ? assetsElement.getAsJsonArray() : null;
+
+        if(assetsArray != null){
+            ErgoToken[] tokenArray = new ErgoToken[assetsArray.size()];
+            
+            for(int i = 0; i < assetsArray.size() ; i++ ){
+                JsonElement element = assetsArray.get(i);
+                if(element != null && !element.isJsonNull() && element.isJsonObject()){
+                    JsonObject assetJson = element.getAsJsonObject();
+                    ErgoToken ergoToken = PriceAmount.getErgoToken(assetJson);
+                    if(ergoToken == null){
+                        throw new NullPointerException("Provided asset is missing token information. (Index: "+i+")");
+                    }
+                    tokenArray[i] = ergoToken;
+                }else{
+                    throw new NullPointerException("Provided asset is not a valid json object. (Index: "+i+")");
+                }
+            
+            }
+
+            return tokenArray;
+        }
+        return new ErgoToken[0];
+    }
+    
 
     public static JsonObject createNanoErgsObject(long nanoErg){
         JsonObject ergoObject = new JsonObject();
