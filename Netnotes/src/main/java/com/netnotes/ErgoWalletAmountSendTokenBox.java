@@ -1,7 +1,10 @@
 package com.netnotes;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonObject;
@@ -27,7 +30,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
-public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface {
+public class ErgoWalletAmountSendTokenBox extends HBox implements AmountBoxInterface {
 
     private long m_quoteTimeout = AddressesData.QUOTE_TIMEOUT;
     private PriceAmount m_balanceAmount = null;
@@ -36,9 +39,11 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
     private int m_minImgWidth = 250;
     private SimpleBooleanProperty m_showSubMenuProperty = new SimpleBooleanProperty(false);
-    private SimpleObjectProperty<PriceQuote> m_priceQuote = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<PriceQuote> m_tokenQuote = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<PriceQuote> m_ergoQuote = new SimpleObjectProperty<>(null);
     private ChangeListener<BigDecimal> m_amountListener = null;
-    private SimpleObjectProperty<BigDecimal> m_balanceQuoteAmount = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<BigDecimal> m_ergQuoteBalanceAmount = new SimpleObjectProperty<>(null);
+    private SimpleObjectProperty<BigDecimal> m_stableQuoteBalanceAmount = new SimpleObjectProperty<>(null);
     private TextField m_sendAmountField;
     private int m_leftColWidth = 140;
     private int m_botRowPadding = 3;
@@ -49,7 +54,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     private ChangeListener<String> m_sendAmountFieldTextChangeListener;
 
     private SimpleBooleanProperty m_toggleShowPriceQuote = new SimpleBooleanProperty(false);
-    private Binding<Double> m_quoteAmountFieldBinding = null;
+
     
     private SimpleDoubleProperty m_colWidth = new SimpleDoubleProperty(160);
     private Runnable m_toggleShowPriceQuoteRunnable = null;
@@ -63,16 +68,15 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     private ChangeListener<Boolean> m_togglePriceQuoteListener = null;
     private ChangeListener<PriceQuote> m_priceQuoteChangeListener = null;
     private ChangeListener<PriceQuote> m_priceQuoteHeadingChangeListener = null;
-  
+    private Binding<Double> m_quoteAmountFieldBinding = null;
     
     private Text m_quoteAmountSymbolText = null;
     private TextField m_quoteAmountField = null;
     private VBox m_quoteAmountBox = null;
     private HBox m_fieldBox = null;
-    private HBox m_topBalanceBox = null;
+    private HBox m_balanceFieldBox = null;
     private VBox m_bodyBox = null;
     private double m_charWidth = 10;
-
     private JsonParametersBox m_currencyParamsBox = null;
 
 
@@ -89,7 +93,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
     
 
-    public ErgoWalletAmountSendBox(ErgoWalletAmountSendBoxes sendBoxes, PriceAmount balanceAmount, Scene scene) {
+    public ErgoWalletAmountSendTokenBox(ErgoWalletAmountSendBoxes sendBoxes, PriceAmount balanceAmount, Scene scene) {
         super();
         m_sendBoxes = sendBoxes;
         m_id = FriendlyId.createFriendlyId();
@@ -97,14 +101,16 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         final PriceCurrency currency = m_balanceAmount.getCurrency();
         final int decimals = currency.getDecimals();
 
+        m_charWidth = Utils.computeTextWidth(App.txtFont, " ");
+
         TextField currencyName = new TextField(currency.getName());
         HBox.setHgrow(currencyName, Priority.ALWAYS);
         currencyName.setMaxWidth(m_leftColWidth);
-        currencyName.setEditable(false);
         currencyName.setMinWidth(m_leftColWidth);
+        currencyName.setEditable(false);
 
         String textFieldId = balanceAmount.getCurrency().getName() + "sendBox";
-        m_charWidth = Utils.computeTextWidth(App.txtFont, " ");
+
         m_sendAmountField = new TextField();
         HBox.setHgrow(m_sendAmountField, Priority.ALWAYS);
         m_sendAmountField.setAlignment(Pos.CENTER_LEFT);
@@ -129,8 +135,8 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             
                 String amountString = leftSide +  rightSide;
                 m_sendAmountField.setText(amountString);
-                
-                m_sendAmountProperty.set(Utils.isTextZero(amountString) ? null : new BigDecimal(Utils.formatStringToNumber(amountString, decimals)));
+                boolean isTextZero = Utils.isTextZero(amountString);
+                m_sendAmountProperty.set(isTextZero ? null : new BigDecimal(Utils.formatStringToNumber(amountString, decimals)));
             }
         };
 
@@ -142,6 +148,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         currencyImageView.setImage(currency.getIcon());
 
         Button maxBtn = new Button("MAX");
+        maxBtn.setFocusTraversable(true);
 
         HBox amountFieldBox = new HBox(m_sendAmountField);
         HBox.setHgrow(amountFieldBox, Priority.ALWAYS);
@@ -149,10 +156,10 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         amountFieldBox.setAlignment(Pos.CENTER_LEFT);
         amountFieldBox.setMaxHeight(18);
 
-        m_topBalanceBox = new HBox(amountFieldBox, maxBtn);
-        HBox.setHgrow(m_topBalanceBox,Priority.ALWAYS);
-        m_topBalanceBox.setId("bodyBox");
-        m_topBalanceBox.setAlignment(Pos.CENTER_LEFT);
+        m_balanceFieldBox = new HBox(amountFieldBox, maxBtn);
+        HBox.setHgrow(m_balanceFieldBox,Priority.ALWAYS);
+        m_balanceFieldBox.setId("bodyBox");
+        m_balanceFieldBox.setAlignment(Pos.CENTER_LEFT);
 
        
         Button toggleShowSubMenuBtn = new Button(m_showSubMenuProperty.get() ? "⏷" : "⏵");
@@ -169,12 +176,15 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             m_sendAmountProperty.set(availableBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : availableBalance);
         });
 
-
+        m_sendAmountProperty.addListener((obs,oldval,newval)->{
+            updateSendAmountQuote();
+            m_sendBoxes.updateWarnings();
+        });
 
 
      
 
-        HBox topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, m_topBalanceBox);
+        HBox topBox = new HBox(toggleShowSubMenuBtn, currencyImageView, currencyName, m_balanceFieldBox);
         HBox.setHgrow(topBox, Priority.ALWAYS);
         topBox.setAlignment(Pos.CENTER_LEFT);
         topBox.setPadding(new Insets(0, 10, m_botRowPadding, 0));
@@ -232,7 +242,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         m_isFieldFocused.addListener((obs,oldval,newval)->{
             if(newval){
                 m_sendAmountField.textProperty().unbind();
-                if(m_sendAmountField.getText().length() == 0 || m_sendAmountField.getText().equals("0")){
+                if(m_sendAmountField.getText().equals("0")){
                     m_sendAmountField.setText("");
                 }
                 m_sendAmountField.textProperty().addListener(m_sendAmountFieldTextChangeListener);
@@ -244,11 +254,12 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         });
 
         
-        m_priceQuote.addListener((obs,oldval,newval)->{
-            if(newval != null){
-                if(m_sendAmountProperty.get() != null && m_sendAmountProperty.get().compareTo(BigDecimal.ZERO) > 0){
-                 addQuoteAmountBox();
-                }
+        m_tokenQuote.addListener((obs,oldval,newval)->{
+            BigDecimal sendAmount = m_sendAmountProperty.get();
+            if(newval != null  && sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0){
+               
+                addQuoteAmountBox();
+                
                 addPriceQuoteBox();
             }else{
                 
@@ -258,10 +269,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             }
         });
     
-        m_sendAmountProperty.addListener((obs,oldval,newval)->{
-            updateSendAmountQuote();
-            m_sendBoxes.updateWarnings();
-        });
+
 
         m_showSubMenuProperty.addListener((obs,oldval,newval)->{
             toggleShowSubMenuBtn.setText(newval ? "⏷" : "⏵");
@@ -279,52 +287,22 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         });
     }
 
-    private void updateSendAmountQuote(){
-        BigDecimal sendAmount = m_sendAmountProperty.get();
-        PriceQuote priceQuote = m_priceQuote.get();
-        if(sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0 && priceQuote != null){
-            if(m_quoteAmountBox == null){
-                addQuoteAmountBox();
-            }
-            BigDecimal priceQuoteBigDecimal = priceQuote.getBigDecimalQuote();
-
-            BigDecimal quoteAmount = sendAmount.multiply(priceQuoteBigDecimal);
-            
-            String quoteSymbolString = priceQuote.getQuoteSymbol();
-            String quoteAmountString = quoteSymbolString.indexOf("USD") > -1 ? quoteAmount.setScale(2, RoundingMode.HALF_UP).toPlainString() : quoteAmount.toPlainString();
-
-            if(m_quoteAmountField == null && sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0){
-                addQuoteAmountBox();
-            }
-
-            if(!quoteAmountString.equals(m_quoteAmountField.getText())){
-                m_quoteAmountField.setText(quoteAmountString);
-            }
-            if(!quoteSymbolString.equals(m_quoteAmountSymbolText.getText())){
-                m_quoteAmountSymbolText.setText(quoteSymbolString);
-            }
-        }else{
-            if(m_quoteAmountBox != null){
-                removeQuoteAmountBox();
-            }
-        }
-    }
     
     
+      
     public void addCurrencyBox(){
         if(m_currencyParamsBox == null){
             m_currencyParamsBox = new JsonParametersBox((JsonObject) null, (int) m_colWidth.get() + 20);
             m_currencyParamsBox.setPadding(new Insets(0,0,0,5));
-
-            PriceCurrency currency = m_balanceAmount.getCurrency();
-
-            JsonObject infoJson = new JsonObject();
-            JsonObject currencyJson = currency.getJsonObject();
-            currencyJson.remove("imageString");
-            infoJson.add("info",currencyJson );
-            m_currencyParamsBox.updateParameters(infoJson);
-
-
+        
+                PriceCurrency currency = m_balanceAmount.getCurrency();
+                
+                JsonObject infoJson = new JsonObject();
+                JsonObject currencyJson = currency.getJsonObject();
+                currencyJson.remove("imageString");
+                infoJson.add("info", currencyJson);
+                m_currencyParamsBox.updateParameters(infoJson);
+            
             m_bodyBox.getChildren().add(0, m_currencyParamsBox);
         }
     }
@@ -343,11 +321,13 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
     public void removeQuoteAmountBox(){
         if(m_quoteAmountBox != null){
-            m_topBalanceBox.getChildren().remove(m_quoteAmountBox);
+            m_balanceFieldBox.getChildren().remove(m_quoteAmountBox);
             m_quoteAmountBox.getChildren().clear();
-            m_quoteAmountBox = null;
+            
+            
             m_quoteAmountField.prefWidthProperty().unbind();
             m_quoteAmountFieldBinding = null;
+            m_quoteAmountBox = null;
             m_quoteAmountField = null;
             m_quoteAmountSymbolText = null;
             m_fieldBox = null;
@@ -355,12 +335,14 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     }
     private final int quoteDecimalScale = ErgoNetwork.MIN_NETWORK_FEE.scale();
     public void addQuoteAmountBox(){
+
         if(m_quoteAmountBox == null){
             m_quoteAmountField = new TextField();
             m_quoteAmountField.setEditable(false);
-       
+           
             m_quoteAmountField.setPadding(new Insets(0,5,0,5));
             m_quoteAmountField.setId("itemLbl");
+            
             m_quoteAmountFieldBinding = Bindings.createObjectBinding(()->{
                 String number = m_quoteAmountField.textProperty().get();
                 int index = number.indexOf(".");
@@ -374,7 +356,6 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             }, m_quoteAmountField.textProperty());
             
             m_quoteAmountField.prefWidthProperty().bind(m_quoteAmountFieldBinding);
-
             m_quoteAmountSymbolText = new Text();
             m_quoteAmountSymbolText.setFill(App.txtColor);
             m_quoteAmountSymbolText.setFont(App.smallFont);
@@ -388,7 +369,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             m_quoteAmountBox.setId("bodyBox");
             m_quoteAmountBox.setPadding( new Insets(0,5,0,0));
 
-            m_topBalanceBox.getChildren().add(1, m_quoteAmountBox);
+            m_balanceFieldBox.getChildren().add(1, m_quoteAmountBox);
         }
     }
 
@@ -404,7 +385,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             m_priceQuoteLabel.maxWidthProperty().bind(m_colWidth.add(10));
             m_priceQuoteLabel.minWidthProperty().bind(m_colWidth.add(10));
 
-            m_priceQuoteField = new TextField(m_priceQuote.get() != null ? m_priceQuote.get().getAmountString() + " " + m_priceQuote.get().getQuoteSymbol() : "");
+            m_priceQuoteField = new TextField(m_tokenQuote.get() != null ? m_tokenQuote.get().getAmountString() + " " + m_tokenQuote.get().getQuoteSymbol() : "");
             HBox.setHgrow(m_priceQuoteField, Priority.ALWAYS);
             m_priceQuoteField.setEditable(false);
             
@@ -428,7 +409,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
                 }
             };
 
-            m_priceQuote.addListener(m_priceQuoteHeadingChangeListener);
+            m_tokenQuote.addListener(m_priceQuoteHeadingChangeListener);
 
             m_toggleShowPriceQuoteRunnable = ()->{
                 boolean isShow = m_toggleShowPriceQuote.get();
@@ -441,14 +422,14 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
                         m_priceQuoteVBox.getChildren().add(m_priceQuoteParametersBox);
                     }
                     if(m_priceQuoteChangeListener == null){
-                        PriceQuote priceQuote = m_priceQuote.get();
+                        PriceQuote priceQuote = m_tokenQuote.get();
                        
                         m_priceQuoteParametersBox.updateParameters(priceQuote != null ? priceQuote.getJsonObject() : null);
                         
                         m_priceQuoteChangeListener = (obs,oldval,newval) ->{
                             m_priceQuoteParametersBox.updateParameters(newval != null ? newval.getJsonObject() : null);
                         };
-                        m_priceQuote.addListener(m_priceQuoteChangeListener);
+                        m_tokenQuote.addListener(m_priceQuoteChangeListener);
 
                     }
                 }else{
@@ -457,7 +438,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
                         m_priceQuoteVBox.getChildren().remove(m_priceQuoteParametersBox);
                     }
                     if(m_priceQuoteChangeListener != null){
-                        m_priceQuote.removeListener(m_priceQuoteChangeListener);
+                        m_tokenQuote.removeListener(m_priceQuoteChangeListener);
                         m_priceQuoteParametersBox.shutdown();
                         m_priceQuoteChangeListener = null;
                     }
@@ -477,10 +458,10 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     public void removePriceQuoteBox(){
         if(m_priceQuoteVBox != null){
             
-            m_priceQuote.removeListener(m_priceQuoteHeadingChangeListener);
+            m_tokenQuote.removeListener(m_priceQuoteHeadingChangeListener);
             m_priceQuoteHeadingChangeListener = null;
             if(m_priceQuoteChangeListener != null){
-                m_priceQuote.removeListener(m_priceQuoteChangeListener);
+                m_tokenQuote.removeListener(m_priceQuoteChangeListener);
                 m_priceQuoteChangeListener = null;
             }
             m_bodyBox.getChildren().remove(m_priceQuoteVBox);
@@ -537,11 +518,54 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     }
 
 
-    public void setQuote(PriceQuote priceQuote, BigDecimal balanceQuoteAmount){
-        m_priceQuote.set(priceQuote);
-        m_balanceQuoteAmount.set(priceQuote != null ? balanceQuoteAmount : null);
+    public void setQuote(PriceQuote tokenQuote, PriceQuote ergoQuote, BigDecimal ergQuoteAmount, BigDecimal stableQuoteAmount, String stableQuoteSymbol){
+        m_tokenQuote.set(tokenQuote);
+        m_ergoQuote.set(ergoQuote);
+        m_ergQuoteBalanceAmount.set(tokenQuote != null && ergQuoteAmount != null ?  ergQuoteAmount : null);
+        m_stableQuoteBalanceAmount.set(ergQuoteAmount != null && stableQuoteAmount != null ? stableQuoteAmount : null);
+
         updateSendAmountQuote();
     }
+
+    private void updateSendAmountQuote(){
+        BigDecimal sendAmount =  m_sendAmountProperty.get();
+        PriceQuote tokenQuote = m_tokenQuote.get();
+        PriceQuote ergoQuote = m_ergoQuote.get();
+       
+        if(tokenQuote != null && sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0){
+          //  String quoteAmountString = stableQuoteAmount != null ? (stableQuoteAmount + "") : (ergQuoteAmount != null ? ergQuoteAmount + "" : "");
+            boolean isErgoQuote = ergoQuote != null;
+            String quoteTextString = isErgoQuote ? ergoQuote.getQuoteSymbol() : tokenQuote.getSymbol();
+            
+
+            BigDecimal tokenQuoteBigDecimal = tokenQuote.getBigDecimalQuote();
+            BigDecimal ergoQuoteBigDecimal = isErgoQuote ? ergoQuote.getBigDecimalQuote() : null;
+
+            BigDecimal amountInErg = sendAmount.multiply(tokenQuoteBigDecimal);
+     
+            BigDecimal amountInErgQuote = isErgoQuote ? amountInErg.multiply(ergoQuoteBigDecimal) : null;
+
+            BigDecimal quoteAmount = isErgoQuote ? amountInErgQuote : amountInErg;
+
+            String quoteSymbolString = isErgoQuote ? ergoQuote.getQuoteSymbol() : tokenQuote.getQuoteSymbol();
+            String quoteAmountString = quoteSymbolString.indexOf("USD") > -1 ? quoteAmount.setScale(2, RoundingMode.HALF_UP).toPlainString() : quoteAmount.toPlainString();
+
+            if(m_quoteAmountField == null && sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0){
+                addQuoteAmountBox();
+            }
+            if(m_quoteAmountField != null && !m_quoteAmountField.getText().equals(quoteAmountString)){
+                m_quoteAmountField.setText(quoteAmountString);
+            }
+            if( m_quoteAmountSymbolText != null && !quoteTextString.equals(m_quoteAmountSymbolText.getText())){
+                m_quoteAmountSymbolText.setText(quoteTextString);
+            }
+        }else{
+            if(m_quoteAmountBox != null){
+                removeQuoteAmountBox();
+            }
+        }
+    }
+
 
     public PriceAmount getBalanceAmount() {
         return m_balanceAmount;
@@ -591,10 +615,6 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         return m_balanceAmount;
     }
 
-
-    public BigDecimal getBalanceQuoteAmount(){
-        return m_balanceQuoteAmount.get();
-    }
 
     public void shutdown() {
 

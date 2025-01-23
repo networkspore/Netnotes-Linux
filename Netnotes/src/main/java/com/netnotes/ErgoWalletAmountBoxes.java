@@ -18,16 +18,16 @@ import org.ergoplatform.appkit.NetworkType;
 
 
 public class ErgoWalletAmountBoxes extends AmountBoxes {
-    private final boolean m_isConfirmed;
+
     private final NetworkType m_networkType;
     private SimpleObjectProperty<JsonObject> m_balanceObject;
     private ChangeListener<JsonObject> m_balanceChangeListener;
-    
+   // private SimpleObjectProperty<PriceQuote> m_ergoQuoteProperty = new SimpleObjectProperty<>(null);
     
 
     public ErgoWalletAmountBoxes( boolean isConfirmed, NetworkType networktype, SimpleObjectProperty<JsonObject> balanceObject){
         super();
-        m_isConfirmed = isConfirmed;
+
         m_networkType = networktype;
         m_balanceObject = balanceObject;
 
@@ -39,14 +39,20 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
 
     }
 
-    private SimpleObjectProperty<PriceQuote> m_ergoQuoteProperty = new SimpleObjectProperty<>(null);
+    public void update(JsonObject balanceJson){
+        update(balanceJson, false);
+    }
 
-
-    public void update(JsonObject json){
+    /**
+     * 
+     * @param balanceJson - the balance json object from the explorer, which may have quote information added by the wallet
+     * @param getUnconfirmed - not currently supported
+     */
+    public void update(JsonObject balanceJson, boolean getUnconfirmed){
         
 
-        JsonElement timeStampElement = json != null ? json.get("timeStamp") : null;
-        JsonElement objElement = json != null ? json.get(m_isConfirmed ? "confirmed" : "unconfirmed") : null;
+        JsonElement timeStampElement = balanceJson != null ? balanceJson.get("timeStamp") : null;
+        JsonElement objElement = balanceJson != null ? balanceJson.get("confirmed") : null;
 
         long timeStamp = timeStampElement != null ? timeStampElement.getAsLong() : -1;
         if (objElement != null && timeStamp != -1) {
@@ -61,7 +67,7 @@ public class ErgoWalletAmountBoxes extends AmountBoxes {
             PriceQuote ergoQuote = ergoQuoteElement != null && !ergoQuoteElement.isJsonNull() && ergoQuoteElement.isJsonObject() ? new PriceQuote(ergoQuoteElement.getAsJsonObject()) : null;
             BigDecimal ergoQuoteAmount = ergoQuoteAmountElement != null && !ergoQuoteAmountElement.isJsonNull() ? ergoQuoteAmountElement.getAsBigDecimal() : null;
 
-            m_ergoQuoteProperty.set(ergoQuote);
+            //m_ergoQuoteProperty.set(ergoQuote);
 
             AmountBoxInterface ergAmountBoxInterface = getAmountBox(ErgoCurrency.TOKEN_ID);
             if(ergAmountBoxInterface == null){

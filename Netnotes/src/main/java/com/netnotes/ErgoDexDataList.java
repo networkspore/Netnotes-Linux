@@ -683,6 +683,32 @@ public class ErgoDexDataList  {
         return execService.submit(task);
     }
 
+    public PriceQuote getTokenQuoteInErg(String tokenId){
+        JsonObject note = Utils.getCmdObject("getTokenQuoteInErg");
+        note.addProperty("locationId", getLocationId());
+        note.addProperty("tokenId", tokenId);
+        Object obj = getErgoDex().sendNote(note);
+        return obj != null && obj instanceof PriceQuote ? (PriceQuote) obj : null;
+    }
+
+    public PriceQuote getErgoQuoteInToken(String quoteId){
+        JsonObject note = Utils.getCmdObject("getQuoteById");
+        note.addProperty("locationId", getLocationId());
+        note.addProperty("quoteId", quoteId);
+        Object obj = getErgoDex().sendNote(note);
+        return obj != null && obj instanceof PriceQuote ? (PriceQuote) obj : null;
+    }
+
+    
+    public PriceQuote getQuoteById(String baseId, String quoteId){
+        JsonObject note = Utils.getCmdObject("getQuoteById");
+        note.addProperty("locationId", getLocationId());
+        note.addProperty("baseId", baseId);
+        note.addProperty("quoteId", quoteId);
+        Object obj = getErgoDex().sendNote(note);
+        return obj != null && obj instanceof PriceQuote ? (PriceQuote) obj : null;
+    }
+
     /*
      export class N2TAmmPoolsParser implements FromBox<AmmPool> {
         from(box: ErgoBox): AmmPool | undefined {

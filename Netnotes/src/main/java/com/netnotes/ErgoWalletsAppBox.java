@@ -1822,7 +1822,7 @@ public class ErgoWalletsAppBox extends AppBox {
     private class SendAppBox extends AppBox {
         
   
-        private ErgoWalletAmountSendBoxes m_amountBoxes;
+        private ErgoWalletAmountSendBoxes m_amountSendBoxes;
         private Button m_sendBtn = new Button("Send");
         private Tooltip m_errTip = new Tooltip();
         private TextField m_feesField;
@@ -1910,10 +1910,10 @@ public class ErgoWalletsAppBox extends AppBox {
             amountGBox.setAlignment(Pos.CENTER);
             amountGBox.setPadding(new Insets(0,0,10,0));
 
-            m_amountBoxes = new ErgoWalletAmountSendBoxes(m_appStage.getScene(), NetworkType.MAINNET, m_balanceObject);
-            HBox.setHgrow(m_amountBoxes, Priority.ALWAYS);
+            m_amountSendBoxes = new ErgoWalletAmountSendBoxes(m_appStage.getScene(), NetworkType.MAINNET, m_balanceObject);
+            HBox.setHgrow(m_amountSendBoxes, Priority.ALWAYS);
    
-            VBox walletListBox = new VBox( m_amountBoxes);
+            VBox walletListBox = new VBox( m_amountSendBoxes);
             walletListBox.setPadding(new Insets(0, 0, 10, 5));
             walletListBox.minHeight(80);
             HBox.setHgrow(walletListBox, Priority.ALWAYS);
@@ -1964,7 +1964,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 Object feeTypeUserData = feeTypeBtn.getUserData();
                 if(feeTypeUserData != null && feeTypeUserData instanceof PriceCurrency){
                     PriceCurrency currency = (PriceCurrency) feeTypeUserData;
-                    m_amountBoxes.feeAmountProperty().set(new PriceAmount(fee, currency));
+                    m_amountSendBoxes.feeAmountProperty().set(new PriceAmount(fee, currency));
                 }
             };
 
@@ -2055,7 +2055,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 bodyContentBox.getChildren().clear();
                 m_feesField.setText(ErgoNetwork.MIN_NETWORK_FEE + "");
                 toAddress.addressInformationProperty().set(new AddressInformation(""));
-                m_amountBoxes.reset();
+                m_amountSendBoxes.reset();
                 bodyContentBox.getChildren().add(sendBodyBox);
             };
 
@@ -2122,8 +2122,8 @@ public class ErgoWalletsAppBox extends AppBox {
                 
                 sendObject.add("recipient", recipientObject);
 
-                BigDecimal minimumDecimal = m_amountBoxes.minimumFeeProperty().get();
-                PriceAmount feePriceAmount = m_amountBoxes.feeAmountProperty().get();
+                BigDecimal minimumDecimal = m_amountSendBoxes.minimumFeeProperty().get();
+                PriceAmount feePriceAmount = m_amountSendBoxes.feeAmountProperty().get();
                 if(minimumDecimal == null || (feePriceAmount == null || (feePriceAmount != null && feePriceAmount.amountProperty().get().compareTo(minimumDecimal) == -1))){
                     addSendBox.run();
                     showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
@@ -2137,7 +2137,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 }
                       
 
-                ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
+                ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountSendBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
                 PriceAmount ergoPriceAmount = ergoSendBox.getPriceAmount();
 
                 if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
@@ -2150,7 +2150,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 JsonArray sendAssets = new JsonArray();
 
 
-                AmountBoxInterface[] amountBoxAray =  m_amountBoxes.getAmountBoxArray();
+                AmountBoxInterface[] amountBoxAray =  m_amountSendBoxes.getAmountBoxArray();
                 
                 for(int i = 0; i < amountBoxAray.length ;i++ ){
                     AmountBoxInterface amountBox =amountBoxAray[i];

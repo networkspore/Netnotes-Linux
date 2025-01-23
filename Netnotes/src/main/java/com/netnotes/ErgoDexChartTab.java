@@ -456,7 +456,7 @@ public class ErgoDexChartTab extends ContentTab {
             createChart();
         });
         
-        addErgoDexListener();
+        addChartViewListener();
 
         
         String[] spans = TimeSpan.AVAILABLE_TIMESPANS;
@@ -681,9 +681,15 @@ public class ErgoDexChartTab extends ContentTab {
         }else{
             updateChart();
         }
+        updateSPFQuote();
     }
 
-    public void addErgoDexListener(){
+    public void updateSPFQuote(){
+        PriceQuote priceQuote = m_dataList.getErgoQuoteInToken(ErgoDex.SPF_ID);
+        m_dexFees.updateSpfFees(priceQuote);
+    }
+
+    public void addChartViewListener(){
         
         String friendlyId = FriendlyId.createFriendlyId();
 
@@ -730,6 +736,7 @@ public class ErgoDexChartTab extends ContentTab {
         
     }
 
+   
 
 
     public void initChart(TimeSpan timeSpan){
@@ -1290,16 +1297,17 @@ public class ErgoDexChartTab extends ContentTab {
     
             m_amountField.textProperty().addListener((obs, oldval, newval)->{
                 PriceCurrency amountCurrency = getAmountCurrency();
-                try {
-                    Files.writeString(App.logFile.toPath(), amountCurrency.getDecimals() + " ", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-
-                }
-                String number = Utils.formatStringToNumber(newval, amountCurrency.getDecimals());
+                int decimals = amountCurrency.getDecimals();
+                String number = newval.replaceAll("[^0-9.]", "");
+                int index = number.indexOf(".");
+                String leftSide = index != -1 ? number.substring(0, index + 1) : number;
+                String rightSide = index != -1 ?  number.substring(index + 1) : "";
+                rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
+                rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
                 
-                m_amountField.setText(number);
-                boolean isZero = Utils.isTextZero(number);
-                m_amountBigDecimal = isZero ? BigDecimal.ZERO : new BigDecimal(number);
+                m_amountField.setText(leftSide + rightSide);
+                leftSide = leftSide.equals(".") ? "0." : leftSide;
+                m_amountBigDecimal = new BigDecimal(leftSide + rightSide);
                 setVolume();
             });
             m_amountField.textProperty().set(m_amountBigDecimal.toPlainString());
@@ -2672,7 +2680,7 @@ public class ErgoDexChartTab extends ContentTab {
                             }
                         };
 
-                       
+                        m_maxSwapFeeField.textProperty().bind(m_maxExFeeBinding);
                         m_maxSwapFeeFocusListener = (obs,oldval,newval)->{
                             if(m_maxSwapFeeField != null){
                                 if(!newval){
@@ -2764,7 +2772,8 @@ public class ErgoDexChartTab extends ContentTab {
                             BigDecimal nitro = m_dexFees.nitroProperty().get();
                             return nitro != null ? nitro.toPlainString() : "";
                         }, m_dexFees.nitroProperty());
-                        
+                        m_maxSwapFeeField.textProperty().bind(m_nitroBinding);
+
                         m_nitroFocusListener = (obs,oldval,newval)->{
                             if(m_nitroField != null){
                                 if(!newval){

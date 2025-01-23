@@ -80,7 +80,7 @@ public class ErgoDexFees {
     }
 
     public static BigDecimal calculateSpfMinExFee(PriceQuote quote, BigDecimal defaultErgMinExFee){ 
-        BigDecimal quoteAmount = quote != null ? quote.getInvertedQuote() : null;
+        BigDecimal quoteAmount = quote != null ? quote.getQuote() : null;
         return quoteAmount != null ? defaultErgMinExFee.multiply(quoteAmount) : null;
     }
 

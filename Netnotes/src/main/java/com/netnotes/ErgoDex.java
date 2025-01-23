@@ -75,9 +75,9 @@ public class ErgoDex extends Network implements NoteInterface {
 
     public final static String ERG_SIGUSD_POOL_ID = "9916d75132593c8b07fe18bd8d583bda1652eed7565cf41a4738ddd90fc992ec";
     public final static String ERG_SPF_POOL_ID = "f40afb6f877c40a30c8637dd5362227285738174151ce66d6684bc1b727ab6cf";
-
+    public final static NetworkType NETWORK_TYPE = NetworkType.MAINNET;
     public final static BigDecimal DEFAULT_NITRO =  BigDecimal.valueOf(1.2);
-    public final static ErgoCurrency ERGO_CURRENCY = new ErgoCurrency(ErgoDex.NETWORK_TYPE);
+    public final static ErgoCurrency ERGO_CURRENCY = new ErgoCurrency(NETWORK_TYPE);
     public final static SPFCurrency SPF_CURRENCY = new SPFCurrency();
 
 
@@ -102,7 +102,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
     public static final String MARKET_DATA_ID = "marketData";
     public static final String TICKER_DATA_ID = "tickerData";
-    public static final NetworkType NETWORK_TYPE = NetworkType.MAINNET;
+
     public static final String MARKETS_LIST = "MARKETS_LIST";
     
 
@@ -1277,12 +1277,12 @@ public class ErgoDex extends Network implements NoteInterface {
                     if (sourceObject != null && sourceObject instanceof JsonArray) {
                         JsonArray marketJsonArray = (JsonArray) sourceObject;
 
-                        try {
+                        /*try {
                             com.google.gson.Gson gson = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
                             Files.writeString(App.logFile.toPath(), gson.toJson(marketJsonArray) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         } catch (IOException e) {
 
-                        }
+                        }*/
         
                         if(getConnectionStatus() != App.STARTED){
                             setConnectionStatus(App.STARTED);
@@ -1369,7 +1369,7 @@ public class ErgoDex extends Network implements NoteInterface {
             int size = m_marketsList.size();
             for(int i = 0; i < size ; i++){
                 ErgoDexMarketData data = m_marketsList.get(i);
-                if(data.getBaseId().equals(baseId) && data.getQuoteId().equals(quoteId)){
+                if(data != null && data.getBaseId().equals(baseId) && data.getQuoteId().equals(quoteId)){
                     data.setExchangeName(NETWORK_ID);
                     return data;
                 }
@@ -1383,7 +1383,7 @@ public class ErgoDex extends Network implements NoteInterface {
             int size = m_marketsList.size();
             for(int i = 0; i < size ; i++){
                 ErgoDexMarketData data = m_marketsList.get(i);
-                if(data.getBaseSymbol().equals(baseSymbol) && data.getQuoteSymbol().equals(quoteSymbol)){
+                if(data != null && data.getBaseSymbol().equals(baseSymbol) && data.getQuoteSymbol().equals(quoteSymbol)){
                     data.setExchangeName(NETWORK_ID);
                     return data;
                 }
@@ -1446,7 +1446,11 @@ public class ErgoDex extends Network implements NoteInterface {
     }
 
     private Object getErgoUSDQuote(){
-        return findMarketDataById(ErgoCurrency.TOKEN_ID, SIGUSD_ID).getPriceQuote();
+        ErgoDexMarketData marketData = findMarketDataById(ErgoCurrency.TOKEN_ID, SIGUSD_ID);
+        if(marketData != null){
+            return marketData.getPriceQuote();
+        }
+        return null;
     }
 
     private Object getTokenQuoteInErg(JsonObject note){
@@ -1467,10 +1471,10 @@ public class ErgoDex extends Network implements NoteInterface {
         JsonElement baseIdElement = note != null ? note.get("baseId") : null;
         JsonElement quoteIdElement = note != null ? note.get("quoteId") : null;
 
-        String baseId = baseIdElement != null && !baseIdElement.isJsonNull() && baseIdElement.isJsonPrimitive() ? baseIdElement.getAsString() : null;
+        String baseId = baseIdElement != null && !baseIdElement.isJsonNull() && baseIdElement.isJsonPrimitive() ? baseIdElement.getAsString() : ErgoCurrency.TOKEN_ID;
         String quoteId = quoteIdElement != null && !quoteIdElement.isJsonNull() && quoteIdElement.isJsonPrimitive() ? quoteIdElement.getAsString() : null;
 
-        if(baseId != null && quoteId != null){
+        if(quoteId != null){
             return findMarketDataById(baseId, quoteId).getPriceQuote();
         }
         return null;

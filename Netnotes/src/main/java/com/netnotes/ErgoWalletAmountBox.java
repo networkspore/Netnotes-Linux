@@ -245,12 +245,12 @@ public class ErgoWalletAmountBox extends HBox implements AmountBoxInterface {
         currencyImageView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
         currencyImageView.setImage(m_priceAmount.getCurrency().getIcon());
 
-        HBox amaountFieldBox = new HBox(amountField);
-        HBox.setHgrow(amaountFieldBox, Priority.ALWAYS);
-        amaountFieldBox.setAlignment(Pos.CENTER_LEFT);
-        amaountFieldBox.setMinHeight(30);
+        HBox amountFieldbox = new HBox(amountField);
+        HBox.setHgrow(amountFieldbox, Priority.ALWAYS);
+        amountFieldbox.setAlignment(Pos.CENTER_LEFT);
+        amountFieldbox.setMinHeight(30);
 
-        m_balanceFieldBox = new HBox(amaountFieldBox);
+        m_balanceFieldBox = new HBox(amountFieldbox);
         HBox.setHgrow(m_balanceFieldBox,Priority.ALWAYS);
         m_balanceFieldBox.setId("bodyBox");
         m_balanceFieldBox.setAlignment(Pos.CENTER_LEFT);
