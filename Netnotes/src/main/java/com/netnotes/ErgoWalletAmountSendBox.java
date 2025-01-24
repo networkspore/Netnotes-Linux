@@ -85,7 +85,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         return sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) == 1; 
     }
 
-   
+    private SimpleBooleanProperty m_isMaxBtn = new SimpleBooleanProperty(true);
 
     
 
@@ -142,6 +142,8 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         currencyImageView.setImage(currency.getIcon());
 
         Button maxBtn = new Button("MAX");
+        maxBtn.setFocusTraversable(true);
+        maxBtn.textProperty().bind(Bindings.createObjectBinding(()->m_isMaxBtn.get() ? "MAX" : "MIN", m_isMaxBtn));
 
         HBox amountFieldBox = new HBox(m_sendAmountField);
         HBox.setHgrow(amountFieldBox, Priority.ALWAYS);
@@ -153,7 +155,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         HBox.setHgrow(m_topBalanceBox,Priority.ALWAYS);
         m_topBalanceBox.setId("bodyBox");
         m_topBalanceBox.setAlignment(Pos.CENTER_LEFT);
-
+        m_topBalanceBox.setMinHeight(28);
        
         Button toggleShowSubMenuBtn = new Button(m_showSubMenuProperty.get() ? "⏷" : "⏵");
         toggleShowSubMenuBtn.setId("caretBtn");
@@ -163,10 +165,11 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         });
 
         maxBtn.setOnAction(e -> {
-            BigDecimal balance = m_balanceAmount.amountProperty().get();
-            BigDecimal fee = getTokenFeeBigDecimal();
-            BigDecimal availableBalance = balance.subtract(fee);
-            m_sendAmountProperty.set(availableBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : availableBalance);
+            if(m_isMaxBtn.get()){
+                m_sendAmountProperty.set(getAvailableBalance());
+            }else{
+                m_sendAmountProperty.set(null);
+            }
         });
 
 
@@ -178,7 +181,7 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
         HBox.setHgrow(topBox, Priority.ALWAYS);
         topBox.setAlignment(Pos.CENTER_LEFT);
         topBox.setPadding(new Insets(0, 10, m_botRowPadding, 0));
-
+        topBox.setMinHeight(28);
         m_bodyBox = new VBox( );
         HBox.setHgrow(m_bodyBox,Priority.ALWAYS);
         m_bodyBox.setAlignment(Pos.CENTER_LEFT);
@@ -263,6 +266,12 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
             m_sendBoxes.updateWarnings();
         });
 
+        m_isMaxBtn.bind(Bindings.createObjectBinding(()->{
+            BigDecimal availableBalance = getAvailableBalance();
+            BigDecimal sendAmount = m_sendAmountProperty.get();   
+            return sendAmount != null ? sendAmount.compareTo(availableBalance) == -1 : true;
+        }, m_sendAmountProperty,m_sendBoxes.feeAmountProperty(), m_balanceAmount.amountProperty()));
+
         m_showSubMenuProperty.addListener((obs,oldval,newval)->{
             toggleShowSubMenuBtn.setText(newval ? "⏷" : "⏵");
             if(newval){
@@ -277,6 +286,14 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
                 removeCurrencyBox();
             }
         });
+    }
+
+    public BigDecimal getAvailableBalance(){
+        BigDecimal balance = m_balanceAmount.amountProperty().get();
+        BigDecimal fee = getTokenFeeBigDecimal();
+        BigDecimal availableBalance = balance.subtract(fee);
+        return availableBalance.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : availableBalance;
+
     }
 
     private void updateSendAmountQuote(){
