@@ -2,7 +2,6 @@ package com.netnotes;
 
 import java.util.ArrayList;
 
-import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.geometry.Pos;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;

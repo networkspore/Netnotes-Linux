@@ -226,6 +226,114 @@ public class AddressesData {
     }
 
 
+    public static Scene getAuthorizationScene(Stage txStage,  String title, Button closeBtn, PasswordField passwordField, JsonObject dataObject, String locationString, double rowHeight, int lblCol){
+
+        JsonParametersBox parametersBox = new JsonParametersBox(dataObject, lblCol);
+        parametersBox.openAll();
+
+
+        Label locationLbl = new Label("Location:");
+        locationLbl.setMinWidth(lblCol);
+        locationLbl.setFont(App.txtFont);
+
+        TextField locationField = new TextField(locationString);
+        locationField.setEditable(false);
+        HBox.setHgrow(locationField, Priority.ALWAYS);
+        locationField.setFont(App.txtFont);
+
+        HBox locationBox = new HBox(locationLbl, locationField);
+        HBox.setHgrow(locationBox,Priority.ALWAYS);
+        locationBox.setAlignment(Pos.CENTER_LEFT);
+        locationBox.setMinHeight(rowHeight);
+
+
+
+        HBox titleBox = App.createTopBar(App.icon, title, closeBtn, txStage);
+
+        ImageView btnImageView = new ImageView(App.logo);
+        btnImageView.setPreserveRatio(true);
+        btnImageView.setFitHeight(75);
+        
+
+        Label textField = new Label("Authorization Required");
+        textField.setFont(App.mainFont);
+        textField.setPadding(new Insets(20,0,20,15));
+        
+
+        VBox imageBox = new VBox(btnImageView, textField);
+        imageBox.setAlignment(Pos.CENTER);
+        imageBox.setPadding(new Insets(10,0,10,0));
+
+        Text passwordTxt = new Text("Enter password:");
+        passwordTxt.setFill(App.txtColor);
+        passwordTxt.setFont(App.txtFont);
+
+        passwordField.setFont(App.txtFont);
+        passwordField.setId("passField");
+
+        HBox.setHgrow(passwordField, Priority.ALWAYS);
+
+        HBox passwordBox = new HBox(passwordTxt, passwordField);
+        passwordBox.setAlignment(Pos.CENTER_LEFT);
+        passwordBox.setPadding( new Insets(5, 10, 15, 20));
+
+
+
+        ScrollPane bodyScroll = new ScrollPane(parametersBox);
+
+
+        VBox bodyBox = new VBox(locationBox, bodyScroll);
+        HBox.setHgrow(bodyBox,Priority.ALWAYS);
+        VBox.setVgrow(bodyBox,Priority.ALWAYS);
+        bodyBox.setPadding(new Insets(0,20, 0, 20));
+
+        Button exportBtn = new Button("🖫 Export JSON…");
+        exportBtn.setOnAction(onSave->{
+            ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
+            FileChooser saveChooser = new FileChooser();
+            saveChooser.setTitle("🖫 Export JSON…");
+            saveChooser.getExtensionFilters().addAll(txtFilter);
+            saveChooser.setSelectedExtensionFilter(txtFilter);
+            File saveFile = saveChooser.showSaveDialog(txStage);
+            if(saveFile != null){
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                
+                try {
+                    Files.writeString(saveFile.toPath(), gson.toJson(dataObject));
+                } catch (IOException e1) {
+                    Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
+                    alert.setTitle("Error");
+                    alert.setHeaderText("Error");
+                    alert.initOwner(txStage);
+                    alert.show();
+                }
+            }
+        });
+
+        HBox exportBtnBox = new HBox(exportBtn);
+        exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
+        exportBtnBox.setPadding(new Insets(15,15,15,0));
+
+        VBox layoutVBox = new VBox(titleBox, imageBox,bodyBox, exportBtnBox, passwordBox);
+        VBox.setVgrow(layoutVBox, Priority.ALWAYS);
+
+        bodyScroll.prefViewportWidthProperty().bind(bodyBox.widthProperty().subtract(1));
+        bodyScroll.prefViewportHeightProperty().bind(bodyBox.heightProperty().subtract(10));
+
+        parametersBox.setPrefWidth(bodyBox.widthProperty().get() -1);
+        bodyScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
+            parametersBox.setPrefWidth(newval.doubleValue()-40);
+        });
+
+
+
+        Scene passwordScene = new Scene(layoutVBox, 830, 600);
+        passwordScene.setFill(null);
+        passwordScene.getStylesheets().add("/css/startWindow.css");
+  
+        return passwordScene;
+    }
+
     public Future<?> sendAssets(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         
         JsonElement dataElement = note.get("data");
@@ -237,7 +345,6 @@ public class AddressesData {
             JsonObject dataObject = dataElement.getAsJsonObject();
 
             JsonElement recipientElement = dataObject.get("recipient");
-            JsonElement assetsElement = dataObject.get("assets");
 
             try {
                 Files.writeString(App.logFile.toPath(), note + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -293,13 +400,6 @@ public class AddressesData {
                 return Utils.returnException(e, getExecService(), onFailed);
             }
 
-            try {
-                Files.writeString(App.logFile.toPath(), "asset array Length: " +  assetArray.length , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-
-            }
-           
-           
             for(ErgoToken sendAmount : assetArray){
                 PriceAmount balanceAmount = getPriceAmountFromList(balanceList, sendAmount.getId().toString());
                 if(sendAmount.getValue() > balanceAmount.getLongAmount()){
@@ -341,137 +441,50 @@ public class AddressesData {
                 return Utils.returnException("Explorer url not provided", getExecService(), onFailed);
             }
 
-           
-
             String explorerUrl = explorerNetworkUrl.getUrlString();
 
 
+            Semaphore activeThreadSemaphore = new Semaphore(1); 
+
+            try {
+                activeThreadSemaphore.acquire();
+            } catch (InterruptedException e1) {
+                return Utils.returnException(e1, getExecService(), onFailed);
+            }
+
             String title = "Wallet - Send Assets - Signature Required";
-
-     
-
-            JsonParametersBox parametersBox = new JsonParametersBox(dataObject, lblCol);
-            parametersBox.openAll();
-
-
-            Label locationLbl = new Label("Location:");
-            locationLbl.setMinWidth(lblCol);
-            locationLbl.setFont(App.txtFont);
-
-            TextField locationField = new TextField(locationString);
-            locationField.setEditable(false);
-            HBox.setHgrow(locationField, Priority.ALWAYS);
-            locationField.setFont(App.txtFont);
-
-            HBox locationBox = new HBox(locationLbl, locationField);
-            HBox.setHgrow(locationBox,Priority.ALWAYS);
-            locationBox.setAlignment(Pos.CENTER_LEFT);
-            locationBox.setMinHeight(rowHeight);
-
-
-            Stage passwordStage = new Stage();
-            passwordStage.getIcons().add(App.logo);
-            passwordStage.initStyle(StageStyle.UNDECORATED);
-            passwordStage.setTitle(title);
-
-            Button closeBtn = new Button();
-
-            HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
-
-            ImageView btnImageView = new ImageView(App.logo);
-            btnImageView.setPreserveRatio(true);
-            btnImageView.setFitHeight(75);
-            
-
-            Label textField = new Label("Authorization Required");
-            textField.setFont(App.mainFont);
-            textField.setPadding(new Insets(20,0,20,15));
-            
-
-            VBox imageBox = new VBox(btnImageView, textField);
-            imageBox.setAlignment(Pos.CENTER);
-            imageBox.setPadding(new Insets(10,0,10,0));
-
-            Text passwordTxt = new Text("Enter password:");
-            passwordTxt.setFill(App.txtColor);
-            passwordTxt.setFont(App.txtFont);
+    
+            Stage txStage = new Stage();
+            txStage.getIcons().add(App.logo);
+            txStage.initStyle(StageStyle.UNDECORATED);
+            txStage.setTitle(title);
 
             PasswordField passwordField = new PasswordField();
-            passwordField.setFont(App.txtFont);
-            passwordField.setId("passField");
+            Button closeBtn = new Button();
 
-            HBox.setHgrow(passwordField, Priority.ALWAYS);
+            Scene passwordScene = getAuthorizationScene(txStage,title,closeBtn, passwordField, dataObject, locationString, rowHeight, lblCol);
 
-            HBox passwordBox = new HBox(passwordTxt, passwordField);
-            passwordBox.setAlignment(Pos.CENTER_LEFT);
-            passwordBox.setPadding( new Insets(5, 10, 15, 20));
-
-
-
-            ScrollPane bodyScroll = new ScrollPane(parametersBox);
-
-
-            VBox bodyBox = new VBox(locationBox, bodyScroll);
-            HBox.setHgrow(bodyBox,Priority.ALWAYS);
-            VBox.setVgrow(bodyBox,Priority.ALWAYS);
-            bodyBox.setPadding(new Insets(0,20, 0, 20));
-
-            Button exportBtn = new Button("🖫 Export JSON…");
-            exportBtn.setOnAction(onSave->{
-                ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
-                FileChooser saveChooser = new FileChooser();
-                saveChooser.setTitle("🖫 Export JSON…");
-                saveChooser.getExtensionFilters().addAll(txtFilter);
-                saveChooser.setSelectedExtensionFilter(txtFilter);
-                File saveFile = saveChooser.showSaveDialog(passwordStage);
-                if(saveFile != null){
-                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                    
-                    try {
-                        Files.writeString(saveFile.toPath(), gson.toJson(dataObject));
-                    } catch (IOException e1) {
-                        Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
-                        alert.setTitle("Error");
-                        alert.setHeaderText("Error");
-                        alert.initOwner(passwordStage);
-                        alert.show();
-                    }
-                }
-            });
-
-            HBox exportBtnBox = new HBox(exportBtn);
-            exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
-            exportBtnBox.setPadding(new Insets(15,15,15,0));
-
-            VBox layoutVBox = new VBox(titleBox, imageBox,bodyBox, exportBtnBox, passwordBox);
-            VBox.setVgrow(layoutVBox, Priority.ALWAYS);
-
-            bodyScroll.prefViewportWidthProperty().bind(bodyBox.widthProperty().subtract(1));
-            bodyScroll.prefViewportHeightProperty().bind(bodyBox.heightProperty().subtract(10));
-
-            parametersBox.setPrefWidth(bodyBox.widthProperty().get() -1);
-            bodyScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
-                parametersBox.setPrefWidth(newval.doubleValue()-1);
-            });
-
-  
-
-            Scene passwordScene = new Scene(layoutVBox, 800, 600);
-            passwordScene.setFill(null);
-            passwordScene.getStylesheets().add("/css/startWindow.css");
-            passwordStage.setScene(passwordScene);
-
-         
+            txStage.setScene(passwordScene);
 
             passwordField.setOnAction(e -> {
                 String pass = passwordField.getText();
-             
+                Wallet loadWallet = null;
+                try {
+                    loadWallet = Wallet.load(m_walletData.getWalleFile().toPath(), pass);
+                } catch (Exception e1) {
+                    passwordField.setText("");
+                    return;
+                }
+                
+                Wallet wallet = loadWallet;
+                
                 Task<JsonObject> task = new Task<JsonObject>() {
                     @Override
                     public JsonObject call() throws Exception {
-                        Platform.runLater(()-> passwordStage.close());
-                        Wallet wallet = Wallet.load(m_walletData.getWalleFile().toPath(), pass);
-                       
+
+                        Scene waitingScene = App.getWaingScene(new Image(ErgoWallets.getAppIconString()), "Transmitting - Send Assets","Transmitting...");
+                        txStage.setScene(waitingScene);
+                     
                         Address address = getWalletAddress(wallet, walletAddress, m_networkType);
                 
                         ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, m_networkType, nodeApiKey, explorerUrl);
@@ -525,7 +538,6 @@ public class AddressesData {
 
                             
                             JsonObject resultObject = new JsonObject();
-                            resultObject.addProperty("code", App.SUCCESS);
                             resultObject.addProperty("timeStamp", System.currentTimeMillis());
                             resultObject.addProperty("txId", txId);
                             resultObject.addProperty("result","Success");
@@ -540,53 +552,49 @@ public class AddressesData {
                 };
         
                 task.setOnFailed((failed->{
-                    JsonObject errorJson = Utils.getMsgObject(App.ERROR, failed.getSource().getException().toString());
-                    errorJson.addProperty("errTxId", "error_"+ FriendlyId.createFriendlyId());
-                    errorJson.addProperty("result","Error");
-                    errorJson.add("data", dataObject);
-                    Utils.returnObject(errorJson, getExecService(), onSucceeded, onFailed);
-                   
+                    activeThreadSemaphore.release();
+                    Object sourceException = failed.getSource().getException();
+                    Exception exception = sourceException instanceof Exception ? (Exception) sourceException : null;
+                    if(exception != null){
+                        Utils.returnException(exception , getExecService(), onFailed);
+                    }else{
+                        String msg = sourceException == null ? "Transaction terminated unexpectedly" : failed.getSource().getException().toString(); 
+                        Utils.returnException(msg, getExecService(), onFailed);
+                    }
+                    txStage.close();
                 }));
         
                 task.setOnSucceeded((succeeded)->{
+                    activeThreadSemaphore.release();
                     Utils.returnObject(succeeded.getSource().getValue(), getExecService(), onSucceeded, onFailed);
-            
+                    txStage.close();
                 });
         
-                Thread t = new Thread(task);
-                t.start();
-            
+                getExecService().submit(task);
             
             });
-
+      
+            
             Runnable sendCanceledJson =()->{
-                JsonObject errorJson = Utils.getMsgObject(App.CANCEL, "Transaction cancelled");
-                errorJson.addProperty("errTxId", "cancel_" + FriendlyId.createFriendlyId());
-                errorJson.addProperty("result","Canceled");
-                errorJson.add("data", dataObject);
-                Utils.returnObject(errorJson, getExecService(), onSucceeded, onFailed);
+                activeThreadSemaphore.release();
+                Utils.returnException("Transaction Canceled", getExecService(), onFailed);
             };
 
-            Semaphore activeThreadSemaphore = new Semaphore(1); 
-            try {
-                activeThreadSemaphore.acquire();
-            } catch (InterruptedException e1) {
+            
         
-            }
-
             closeBtn.setOnAction(e -> {
                 sendCanceledJson.run();
-                activeThreadSemaphore.release();
-                passwordStage.close();
+    
+                txStage.close();
                 
             });
 
 
 
-            passwordStage.setOnCloseRequest(e->{
+            txStage.setOnCloseRequest(e->{
                 sendCanceledJson.run();
-                activeThreadSemaphore.release();
-                passwordStage.close();
+             
+                txStage.close();
             });
 
             passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
@@ -595,11 +603,11 @@ public class AddressesData {
                 }
             });
             
-            passwordStage.show();
+            txStage.show();
     
             Platform.runLater(()->passwordField.requestFocus());
             
-            ResizeHelper.addResizeListener(passwordStage, 400, 600, Double.MAX_VALUE, Double.MAX_VALUE);
+            ResizeHelper.addResizeListener(txStage, 400, 600, Double.MAX_VALUE, Double.MAX_VALUE);
 
             
             Task<Object> task = new Task<Object>() {

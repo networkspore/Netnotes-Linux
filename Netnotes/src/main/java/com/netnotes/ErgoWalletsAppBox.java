@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.Mnemonic;
 import org.ergoplatform.appkit.MnemonicValidationException;
@@ -1667,8 +1668,8 @@ public class ErgoWalletsAppBox extends AppBox {
 
     private class RemoveWalletBox extends AppBox {
 
-        private Button nextBtn = new Button("Remove");
-        private Tooltip tooltip = new Tooltip();
+        private Button m_nextBtn = new Button("Remove");
+        private Tooltip m_errTip = new Tooltip();
 
         private SimpleObjectProperty<JsonArray> m_walletIds = new SimpleObjectProperty<>(null);
 
@@ -1687,18 +1688,20 @@ public class ErgoWalletsAppBox extends AppBox {
         }
 
         private void showError(String errText){
-            Point2D p = nextBtn.localToScene(0.0, 0.0);
-                    tooltip.setText(errText);
-                    tooltip.show(nextBtn,
-                            p.getX() + nextBtn.getScene().getX()
-                                    + nextBtn.getScene().getWindow().getX() - 60,
-                            (p.getY() + nextBtn.getScene().getY()
-                                    + nextBtn.getScene().getWindow().getY()) - 40);
-                    PauseTransition pt = new PauseTransition(Duration.millis(1600));
-                    pt.setOnFinished(ptE -> {
-                        tooltip.hide();
-                    });
-                    pt.play();
+            double stringWidth =  Utils.computeTextWidth(App.txtFont, errText);
+            Point2D p = m_nextBtn.localToScene(0.0, 0.0);
+            double x =  p.getX() + m_nextBtn.getScene().getX() + m_nextBtn.getScene().getWindow().getX() + (m_nextBtn.widthProperty().get() / 2) - (stringWidth/2);
+
+            m_errTip.setText(errText);
+            m_errTip.show(m_nextBtn,
+                    x,
+                    (p.getY() + m_nextBtn.getScene().getY()
+                            + m_nextBtn.getScene().getWindow().getY()) - 40);
+            PauseTransition pt = new PauseTransition(javafx.util.Duration.millis(5000));
+            pt.setOnFinished(ptE -> {
+                m_errTip.hide();
+            });
+            pt.play();
         }
 
         private void updateWalletList(){
@@ -1771,7 +1774,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 listBox.setMinHeight(newval.getHeight());
             });
            
-            HBox nextBox = new HBox(nextBtn);
+            HBox nextBox = new HBox(m_nextBtn);
             nextBox.setAlignment(Pos.CENTER);
             nextBox.setPadding(new Insets(20, 0, 0, 0));
 
@@ -1862,7 +1865,7 @@ public class ErgoWalletsAppBox extends AppBox {
           
             updateWalletList();
 
-            nextBtn.setOnAction(e->{
+            m_nextBtn.setOnAction(e->{
                 if(removeIds.size() == 0){
                     showError("No wallets selected");
                 }else{
@@ -1890,7 +1893,11 @@ public class ErgoWalletsAppBox extends AppBox {
         private Button m_sendBtn = new Button("Send");
         private Tooltip m_errTip = new Tooltip();
         private TextField m_feesField;
-   
+        private VBox m_sendBodyContentBox;
+        private AddressBox m_sendToAddress;
+        private VBox m_sendBodyBox;
+        private Future<?> m_sendingFuture = null;
+        
         public SendAppBox(){
             super();
 
@@ -1943,11 +1950,11 @@ public class ErgoWalletsAppBox extends AppBox {
             addressGBox.setAlignment(Pos.CENTER);
             addressGBox.setPadding(new Insets(0,0,0,0));
 
-            AddressBox toAddress = new AddressBox(new AddressInformation(""), m_appStage.getScene(), m_networkType);
-            HBox.setHgrow(toAddress, Priority.ALWAYS);
-            toAddress.getInvalidAddressList().add(m_lockBox.getAddress());
+            m_sendToAddress = new AddressBox(new AddressInformation(""), m_appStage.getScene(), m_networkType);
+            HBox.setHgrow(m_sendToAddress, Priority.ALWAYS);
+            m_sendToAddress.getInvalidAddressList().add(m_lockBox.getAddress());
         
-            HBox addressFieldBox = new HBox(toAddress);
+            HBox addressFieldBox = new HBox(m_sendToAddress);
             HBox.setHgrow(addressFieldBox, Priority.ALWAYS);
            // addressFieldBox.setId("bodyBox ");
         
@@ -2104,263 +2111,180 @@ public class ErgoWalletsAppBox extends AppBox {
             nextBox.setPadding(new Insets(20, 0, 5, 0));
 
 
-            VBox sendBodyBox = new VBox(addressPaddingBox, amountPaddingBox, nextBox);
+            m_sendBodyBox = new VBox(addressPaddingBox, amountPaddingBox, nextBox);
 
-            VBox bodyContentBox = new VBox(sendBodyBox);
+            m_sendBodyContentBox = new VBox(m_sendBodyBox);
 
-            VBox bodyBox = new VBox(gBox, bodyContentBox);
+            VBox bodyBox = new VBox(gBox, m_sendBodyContentBox);
             VBox.setMargin(bodyBox, new Insets(10, 0, 10, 0));
 
 
 
             VBox layoutVBox = new VBox(headerBox, bodyBox);
 
-            Runnable resetSend = ()->{
-                bodyContentBox.getChildren().clear();
-                m_feesField.setText(ErgoNetwork.MIN_NETWORK_FEE + "");
-                toAddress.addressInformationProperty().set(new AddressInformation(""));
-                m_amountSendBoxes.reset();
-                bodyContentBox.getChildren().add(sendBodyBox);
-            };
+           
 
-            Runnable addSendBox = ()->{
-                bodyContentBox.getChildren().clear();
-                bodyContentBox.getChildren().add(sendBodyBox);
-            };
 
             m_sendBtn.setOnAction(e->{
+                if(m_sendingFuture == null || (m_sendingFuture != null && m_sendingFuture.isDone() || m_sendingFuture.isCancelled())){
+                    m_sendBodyContentBox.getChildren().clear();
 
-                bodyContentBox.getChildren().clear();
+                    Text sendText = new Text("Sending...");
+                    sendText.setFont(App.txtFont);
+                    sendText.setFill(App.txtColor);
 
-                Text sendText = new Text("Sending...");
-                sendText.setFont(App.txtFont);
-                sendText.setFill(App.txtColor);
+                    HBox sendTextBox = new HBox(sendText);
+                    HBox.setHgrow(sendTextBox, Priority.ALWAYS);
+                    sendTextBox.setAlignment(Pos.CENTER);
 
-                HBox sendTextBox = new HBox(sendText);
-                HBox.setHgrow(sendTextBox, Priority.ALWAYS);
-                sendTextBox.setAlignment(Pos.CENTER);
-
-                ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
-                progressBar.setPrefWidth(400);
-                
-                VBox statusBox = new VBox(sendTextBox, progressBar);
-                HBox.setHgrow(statusBox, Priority.ALWAYS);
-                statusBox.setAlignment(Pos.CENTER);
-                statusBox.setPrefHeight(200);
-
-                bodyContentBox.getChildren().add(statusBox);
-                
-
-                JsonObject sendObject = new JsonObject();
-               
-                AddressInformation addressInformation = toAddress.addressInformationProperty().get();
-
-                if (addressInformation == null  || (addressInformation != null && addressInformation.getAddress() == null))  {
+                    ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+                    progressBar.setPrefWidth(400);
                     
-                    addSendBox.run();
-                    showError("Error: Enter valid recipient address");
-                    return;
-                }
+                    VBox statusBox = new VBox(sendTextBox, progressBar);
+                    HBox.setHgrow(statusBox, Priority.ALWAYS);
+                    statusBox.setAlignment(Pos.CENTER);
+                    statusBox.setPrefHeight(200);
 
-                if (!toAddress.isAddressValid().get())  {
+                    m_sendBodyContentBox.getChildren().add(statusBox);
                     
-                    addSendBox.run();
-                    showError("Error: Address is an invalid recipient");
-                    return;
-                }
-               
-              
-                NoteInterface walletInterface = m_selectedWallet.get();
 
-                if(walletInterface == null){
-                    
-                    addSendBox.run();
-                    showError("Error: No wallet selected");
-                    return;
-                }
-                AddressesData.addWalletAddressToDataObject(sendObject, m_lockBox.getAddress(), walletInterface.getName());
-        
-                JsonObject recipientObject = new JsonObject();
-                recipientObject.addProperty("address", addressInformation.getAddress().toString());
-                recipientObject.addProperty("addressType", addressInformation.getAddressType());
+                    JsonObject sendObject = new JsonObject();
                 
-                sendObject.add("recipient", recipientObject);
+                    AddressInformation addressInformation = m_sendToAddress.addressInformationProperty().get();
 
-                BigDecimal minimumDecimal = m_amountSendBoxes.minimumFeeProperty().get();
-                PriceAmount feePriceAmount = m_amountSendBoxes.feeAmountProperty().get();
-                if(minimumDecimal == null || (feePriceAmount == null || (feePriceAmount != null && feePriceAmount.amountProperty().get().compareTo(minimumDecimal) == -1))){
-                    addSendBox.run();
-                    showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
-                    return;
-                }
-
-                if(!AddressesData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
-                    addSendBox.run();
-                    showError("Babblefees not supported at this time");
-                    return;
-                }
-                      
-
-                ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountSendBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
-                PriceAmount ergoPriceAmount = ergoSendBox.getPriceAmount();
-
-                if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
-                    addSendBox.run();
-                    showError("Wallet balance unavailable");
-                    return;
-                }
-
-                //sendObject.add("feeAmount", feeObject);
-                JsonArray sendAssets = new JsonArray();
-
-
-                AmountBoxInterface[] amountBoxAray =  m_amountSendBoxes.getAmountBoxArray();
-                
-                for(int i = 0; i < amountBoxAray.length ;i++ ){
-                    AmountBoxInterface amountBox =amountBoxAray[i];
-                    if(amountBox instanceof ErgoWalletAmountSendTokenBox){
-                        ErgoWalletAmountSendTokenBox sendBox = (ErgoWalletAmountSendTokenBox) amountBox;
+                    if (addressInformation == null  || (addressInformation != null && addressInformation.getAddress() == null))  {
                         
-                        PriceAmount sendAmount = sendBox.getSendAmount();
-                        if(sendAmount!= null){
-                            if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-                                sendAssets.add(sendAmount.getAmountObject());
-                            }
-                        }
+                        addSendBox();
+                        showError("Error: Enter valid recipient address");
+                        return;
                     }
+
+                    if (!m_sendToAddress.isAddressValid().get())  {
+                        
+                        addSendBox();
+                        showError("Error: Address is an invalid recipient");
+                        return;
+                    }
+                
+                
+                    NoteInterface walletInterface = m_selectedWallet.get();
+
+                    if(walletInterface == null){
+                        
+                        addSendBox();
+                        showError("Error: No wallet selected");
+                        return;
+                    }
+                    AddressesData.addWalletAddressToDataObject(sendObject, m_lockBox.getAddress(), walletInterface.getName());
+            
+                    JsonObject recipientObject = new JsonObject();
+                    recipientObject.addProperty("address", addressInformation.getAddress().toString());
+                    recipientObject.addProperty("addressType", addressInformation.getAddressType());
                     
-                }
-                
-            
-                if(ergoPriceAmount.getLongAmount() == 0 && sendObject.size() == 0){
-                    addSendBox.run();
-                    showError("Enter assets to send");
-                    return;
-                }
-            
-                sendObject.add("assets", sendAssets);
+                    sendObject.add("recipient", recipientObject);
 
-                AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
+                    BigDecimal minimumDecimal = m_amountSendBoxes.minimumFeeProperty().get();
+                    PriceAmount feePriceAmount = m_amountSendBoxes.feeAmountProperty().get();
+                    if(minimumDecimal == null || (feePriceAmount == null || (feePriceAmount != null && feePriceAmount.amountProperty().get().compareTo(minimumDecimal) == -1))){
+                        addSendBox();
+                        showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
+                        return;
+                    }
 
-                JsonObject note = Utils.getCmdObject("sendAssets");
-                note.addProperty("accessId", m_lockBox.getLockId());
-                note.addProperty("locationId", m_locationId);
-                note.add("data", sendObject);
-
-                
-                
-                walletInterface.sendNote(note, (onComplete)->{
-                    Object sourceObject = onComplete.getSource().getValue();
-                    if(sourceObject != null && sourceObject instanceof JsonObject){
-
-                        JsonObject receiptJson = (JsonObject) sourceObject;
+                    if(!AddressesData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
+                        addSendBox();
+                        showError("Babblefees not supported at this time");
+                        return;
+                    }
                         
-                        JsonElement codeElement = receiptJson.get("code");
-                        JsonElement txIdElement = receiptJson.get("txId");;
-                        JsonElement errTxIdElement = receiptJson.get("errTxId");
-                        JsonElement resultElement = receiptJson.get("result");
-                        int code = codeElement != null ? codeElement.getAsInt() : -1;
 
-                        String resultString = resultElement != null ? resultElement.getAsString() : "Failed";
+                    ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountSendBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
 
-                        receiptJson.addProperty("result", resultString);
-                        
-                        Label sendReceiptText = new Label("Send Receipt");
-                        sendReceiptText.setFont(App.txtFont);
-                        
-                        HBox sendReceiptTextBox = new HBox(sendReceiptText);
-                        sendReceiptTextBox.setAlignment(Pos.CENTER_LEFT);
-                        HBox.setHgrow(sendReceiptTextBox, Priority.ALWAYS);
-                        sendReceiptTextBox.setPadding(new Insets(10, 0,2,5));
-            
-            
-                        Region sendReceiptHBar = new Region();
-                        sendReceiptHBar.setPrefWidth(400);
-                        sendReceiptHBar.setPrefHeight(2);
-                        sendReceiptHBar.setMinHeight(2);
-                        sendReceiptHBar.setId("hGradient");
+                    if(!ergoSendBox.isSufficientBalance()){
+                        addSendBox();
+                        showError("Insufficient Ergo balance");
+                        return;
+                    }
+
+                    PriceAmount ergoPriceAmount = ergoSendBox.getSendAmount();
+
+                    if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
+                        addSendBox();
+                        showError("Ergo amount is not valid");
+                        return;
+                    }
+
+                    //sendObject.add("feeAmount", feeObject);
+                    JsonArray sendAssets = new JsonArray();
+
+
+                    AmountBoxInterface[] amountBoxAray =  m_amountSendBoxes.getAmountBoxArray();
                     
-                        HBox sendReceiptHBarGBox = new HBox(sendReceiptHBar);
-                        sendReceiptHBarGBox.setAlignment(Pos.CENTER);
-                        sendReceiptHBarGBox.setPadding(new Insets(0,0,10,0));
-
-                        JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 140);
-                        HBox.setHgrow(sendReceiptJsonBox, Priority.ALWAYS);
-                        sendReceiptJsonBox.setPadding(new Insets(2,10,0,10));
-                        sendReceiptJsonBox.updateParameters(receiptJson);
-
-
-
-                        Button exportBtn = new Button("🖫 Export JSON…");
-                        exportBtn.setOnAction(onSave->{
-                            ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
-                            FileChooser saveChooser = new FileChooser();
-                            saveChooser.setTitle("🖫 Export JSON…");
-                            saveChooser.getExtensionFilters().addAll(txtFilter);
-                            saveChooser.setSelectedExtensionFilter(txtFilter);
-                           
-                            String id = txIdElement != null ? "tx_" + txIdElement.getAsString() : (errTxIdElement != null ? errTxIdElement.getAsString() : "TxErr");
-
-                            saveChooser.setInitialFileName(id + ".json");
-                            File saveFile = saveChooser.showSaveDialog(m_appStage);
-                            if(saveFile != null){
-                                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                                
-                                try {
-                                    Files.writeString(saveFile.toPath(), gson.toJson(receiptJson));
-                                } catch (IOException e1) {
-                                    Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
-                                    alert.setTitle("Error");
-                                    alert.setHeaderText("Error");
-                                    alert.initOwner(m_appStage);
-                                    alert.show();
+                    for(int i = 0; i < amountBoxAray.length ;i++ ){
+                        AmountBoxInterface amountBox =amountBoxAray[i];
+                        if(amountBox instanceof ErgoWalletAmountSendTokenBox){
+                            ErgoWalletAmountSendTokenBox sendBox = (ErgoWalletAmountSendTokenBox) amountBox;
+                            PriceAmount sendAmount = sendBox.getSendAmount();
+                            if(sendAmount!= null){
+                                if(!sendBox.isSufficientBalance()){
+                                    addSendBox();
+                                    showError("Insufficient " + sendBox.getCurrency().getName() +" balance");
+                                    return;
+                                }
+                                if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
+                                    sendAssets.add(sendAmount.getAmountObject());
                                 }
                             }
-                        });
-
-                        HBox exportBtnBox = new HBox(exportBtn);
-                        exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
-                        exportBtnBox.setPadding(new Insets(15,15,15,0));
-
-                        Region receiptBottomHBar = new Region();
-                        receiptBottomHBar.setPrefWidth(400);
-                        receiptBottomHBar.setPrefHeight(2);
-                        receiptBottomHBar.setMinHeight(2);
-                        receiptBottomHBar.setId("hGradient");
-            
-                        HBox receiptBottomGBox = new HBox(receiptBottomHBar);
-                        receiptBottomGBox.setAlignment(Pos.CENTER);
-                        receiptBottomGBox.setPadding(new Insets(10,0,0,0));
-
-
-                        Button receiptBottomOkBtn = new Button("Ok");
-                        receiptBottomOkBtn.setOnAction(onOk->{
-                            if(code == App.SUCCESS){
-                                resetSend.run();
-                                m_currentBox.set(null);
-                            }else{
-                                addSendBox.run();
-                            }
-                        });
-
-
-                        HBox receiptBottomOkBox = new HBox(receiptBottomOkBtn);
-                        receiptBottomOkBox.setAlignment(Pos.CENTER);
-                        receiptBottomOkBox.setPadding(new Insets(20, 0, 0, 0));
-
-
-                        VBox receiptContentBox = new VBox(sendReceiptTextBox,sendReceiptHBarGBox, sendReceiptJsonBox, exportBtnBox, receiptBottomGBox, receiptBottomOkBox);
-
-                        bodyContentBox.getChildren().clear();
-                        bodyContentBox.getChildren().add(receiptContentBox);
+                        }
                         
                     }
+                    
+                
+                    if(ergoPriceAmount.getLongAmount() == 0 && sendAssets.size() == 0){
+                        addSendBox();
+                        showError("Enter assets to send");
+                        return;
+                    }
+                
+                    sendObject.add("assets", sendAssets);
 
-                }, (onError)->{
-                    addSendBox.run();
-                    showError("Error: " + onError.getSource().getException().toString());
+                    AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
 
-                });
+                    JsonObject note = Utils.getCmdObject("sendAssets");
+                    note.addProperty("accessId", m_lockBox.getLockId());
+                    note.addProperty("locationId", m_locationId);
+                    note.add("data", sendObject);
+
+                    
+                    
+                    m_sendingFuture = walletInterface.sendNote(note, (onComplete)->{
+                        Object sourceObject = onComplete.getSource().getValue();
+                        if(sourceObject != null && sourceObject instanceof JsonObject){
+                            JsonObject receiptJson = (JsonObject) sourceObject;
+                            JsonElement txIdElement = receiptJson.get("txId");
+                            JsonElement resultElement = receiptJson.get("result");
+
+                            String resultString = resultElement != null ? resultElement.getAsString() : "Error";
+            
+                            receiptJson.addProperty("result", resultString);
+                            String id = txIdElement != null ? "tx_" + txIdElement.getAsString() : "Err_" + FriendlyId.createFriendlyId();
+                            showReceipt(id, App.SUCCESS, receiptJson);
+                        }
+                    }, (onError)->{
+                        Throwable throwable = onError.getSource().getException();
+                        String errorString = throwable.getMessage();
+
+                        String errTxId = "INC_" + FriendlyId.createFriendlyId();
+                        
+                        JsonObject receiptJson = new JsonObject();
+                        receiptJson.addProperty("result","Incomplete");
+                        receiptJson.addProperty("errorMsg", errorString.equals("") ? throwable.toString() : errorString);
+                        receiptJson.addProperty("timeStamp", System.currentTimeMillis());
+
+                        showReceipt(errTxId, App.ERROR, receiptJson);
+
+                    });
+                }
                 
                 
                 
@@ -2370,6 +2294,109 @@ public class ErgoWalletsAppBox extends AppBox {
                 getChildren().add(layoutVBox);
             }
 
+            private void addSendBox(){
+                m_sendBodyContentBox.getChildren().clear();
+                m_sendBodyContentBox.getChildren().add(m_sendBodyBox);
+            }
+
+            private void resetSend(){
+                m_sendBodyContentBox.getChildren().clear();
+                m_feesField.setText(ErgoNetwork.MIN_NETWORK_FEE + "");
+                m_sendToAddress.addressInformationProperty().set(new AddressInformation(""));
+                m_amountSendBoxes.reset();
+                m_sendBodyContentBox.getChildren().add(m_sendBodyBox);
+            };
+            
+            private void showReceipt(String id, int code, JsonObject receiptJson){
+           
+                Label sendReceiptText = new Label("Send Receipt");
+                sendReceiptText.setFont(App.txtFont);
+                
+                HBox sendReceiptTextBox = new HBox(sendReceiptText);
+                sendReceiptTextBox.setAlignment(Pos.CENTER_LEFT);
+                HBox.setHgrow(sendReceiptTextBox, Priority.ALWAYS);
+                sendReceiptTextBox.setPadding(new Insets(10, 0,2,5));
+    
+    
+                Region sendReceiptHBar = new Region();
+                sendReceiptHBar.setPrefWidth(400);
+                sendReceiptHBar.setPrefHeight(2);
+                sendReceiptHBar.setMinHeight(2);
+                sendReceiptHBar.setId("hGradient");
+            
+                HBox sendReceiptHBarGBox = new HBox(sendReceiptHBar);
+                sendReceiptHBarGBox.setAlignment(Pos.CENTER);
+                sendReceiptHBarGBox.setPadding(new Insets(0,0,10,0));
+
+                JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 140);
+                HBox.setHgrow(sendReceiptJsonBox, Priority.ALWAYS);
+                sendReceiptJsonBox.setPadding(new Insets(2,10,0,10));
+                sendReceiptJsonBox.updateParameters(receiptJson);
+
+
+
+                Button exportBtn = new Button("🖫 Export JSON…");
+                exportBtn.setOnAction(onSave->{
+                    ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
+                    FileChooser saveChooser = new FileChooser();
+                    saveChooser.setTitle("🖫 Export JSON…");
+                    saveChooser.getExtensionFilters().addAll(txtFilter);
+                    saveChooser.setSelectedExtensionFilter(txtFilter);
+                    saveChooser.setInitialFileName(id + ".json");
+                    File saveFile = saveChooser.showSaveDialog(m_appStage);
+                    if(saveFile != null){
+                        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                        
+                        try {
+                            Files.writeString(saveFile.toPath(), gson.toJson(receiptJson));
+                        } catch (IOException e1) {
+                            Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
+                            alert.setTitle("Error");
+                            alert.setHeaderText("Error");
+                            alert.initOwner(m_appStage);
+                            alert.show();
+                        }
+                    }
+                });
+
+                HBox exportBtnBox = new HBox(exportBtn);
+                exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
+                exportBtnBox.setPadding(new Insets(15,15,15,0));
+
+                Region receiptBottomHBar = new Region();
+                receiptBottomHBar.setPrefWidth(400);
+                receiptBottomHBar.setPrefHeight(2);
+                receiptBottomHBar.setMinHeight(2);
+                receiptBottomHBar.setId("hGradient");
+    
+                HBox receiptBottomGBox = new HBox(receiptBottomHBar);
+                receiptBottomGBox.setAlignment(Pos.CENTER);
+                receiptBottomGBox.setPadding(new Insets(10,0,0,0));
+
+
+                Button receiptBottomOkBtn = new Button("Ok");
+                receiptBottomOkBtn.setOnAction(onOk->{
+                    if(code == App.SUCCESS){
+                        resetSend();
+                        m_currentBox.set(null);
+                    }else{
+                       addSendBox();
+                    }
+                });
+
+
+                HBox receiptBottomOkBox = new HBox(receiptBottomOkBtn);
+                receiptBottomOkBox.setAlignment(Pos.CENTER);
+                receiptBottomOkBox.setPadding(new Insets(20, 0, 0, 0));
+
+
+                VBox receiptContentBox = new VBox(sendReceiptTextBox,sendReceiptHBarGBox, sendReceiptJsonBox, exportBtnBox, receiptBottomGBox, receiptBottomOkBox);
+
+                m_sendBodyContentBox.getChildren().clear();
+                m_sendBodyContentBox.getChildren().add(receiptContentBox);
+                    
+                
+            }
             public void checkFeeField(){
       
                 String feeString = m_feesField.getText();

@@ -459,6 +459,8 @@ public class App extends Application {
         return statusStage;
     }
 
+    
+
     static class Delta {
 
         double x, y;
@@ -1694,7 +1696,7 @@ public class App extends Application {
 
     }*/
 
-    public static Scene getProgressScene(Image icon, String headingString, String titleContextString, String fileName, ProgressBar progressBar, Stage stage, Button closeBtn) {
+    public static Scene getFileProgressScene(Image icon, String headingString, String titleContextString, String fileName, ProgressBar progressBar, Stage stage, Button closeBtn) {
 
         double defaultRowHeight = 40;
        
@@ -1775,6 +1777,72 @@ public class App extends Application {
 
         // bodyTopRegion.minHeightProperty().bind(stage.heightProperty().subtract(30).divide(2).subtract(progressAlignmentBox.heightProperty()).subtract(fileNameProgressBox.heightProperty().divide(2)));
         bodyBox.prefHeightProperty().bind(stage.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(10));
+        return scene;
+    }
+
+
+    public static Scene getWaingScene(Image image , String headingString, String progressString) {
+
+        double defaultRowHeight = 40;
+       
+        ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+
+        Text progressText = new Text(progressString);
+        progressText.setFill(txtColor);
+        progressText.setFont(txtFont);
+
+
+       
+
+        HBox headingBox = new HBox( createImageButton(image, headingString));
+        headingBox.prefHeight(defaultRowHeight);
+        headingBox.setAlignment(Pos.CENTER);
+        HBox.setHgrow(headingBox, Priority.ALWAYS);
+        headingBox.setPadding(new Insets(10, 10, 10, 10));
+        headingBox.setId("headingBox");
+
+        HBox headingPaddingBox = new HBox(headingBox);
+
+        headingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
+
+        VBox headerBox = new VBox(headingPaddingBox);
+
+        headerBox.setPadding(new Insets(0, 5, 0, 5));
+
+
+        HBox progressAlignmentBox = new HBox(progressBar);
+        progressAlignmentBox.setAlignment(Pos.CENTER);
+
+       
+        HBox progressBox = new HBox(progressText);
+        progressBox.setAlignment(Pos.CENTER);
+        progressBox.setPadding(new Insets(20, 0, 0, 0));
+
+        VBox progressPaddingBox = new VBox(progressAlignmentBox, progressBox);
+        progressPaddingBox.setId("bodyBox");
+        HBox.setHgrow(progressPaddingBox, Priority.ALWAYS);
+        progressPaddingBox.setPadding(new Insets(40, 0, 15, 0));
+
+        VBox bodyBox = new VBox(progressPaddingBox);
+        bodyBox.setId("bodyBox");
+        bodyBox.setPadding(new Insets(15));
+        bodyBox.setAlignment(Pos.CENTER);
+
+        VBox bodyPaddingBox = new VBox(bodyBox);
+        bodyPaddingBox.setPadding(new Insets(5, 5, 5, 5));
+
+        Region footerSpacer = new Region();
+        footerSpacer.setMinHeight(5);
+
+        VBox footerBox = new VBox(footerSpacer);
+        VBox layoutBox = new VBox(headerBox, bodyPaddingBox, footerBox);
+        Scene scene = new Scene(layoutBox, STAGE_WIDTH, 150);
+        scene.setFill(null);
+        scene.getStylesheets().add("/css/startWindow.css");
+
+        progressBar.prefWidthProperty().bind(scene.widthProperty().multiply(0.7));
+
+        bodyBox.prefHeightProperty().bind(scene.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(10));
         return scene;
     }
 

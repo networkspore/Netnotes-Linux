@@ -270,6 +270,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
         JsonParametersBox walletInformationBox = new JsonParametersBox(paramsObject, lblCol);
         HBox.setHgrow(walletInformationBox, Priority.ALWAYS);
+        walletInformationBox.setPadding(new Insets(0,0,0,10));
 
         Text passwordTxt = new Text("Enter password:");
         passwordTxt.setFill(App.txtColor);

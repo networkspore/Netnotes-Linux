@@ -1,10 +1,7 @@
 package com.netnotes;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonObject;
@@ -504,7 +501,12 @@ public class ErgoWalletAmountSendTokenBox extends HBox implements AmountBoxInter
     public PriceAmount getSendAmount() {
         BigDecimal sendAmount = m_sendAmountProperty.get();
         return sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0 ? new PriceAmount(sendAmount, getCurrency()) : null;
+    }
 
+    public boolean isSufficientBalance(){
+        BigDecimal remaining = getBalanceRemaining();
+
+        return remaining.compareTo(BigDecimal.ZERO) > -1;
     }
 
     public ReadOnlyObjectProperty<BigDecimal> sendAmountProperty(){
@@ -526,11 +528,11 @@ public class ErgoWalletAmountSendTokenBox extends HBox implements AmountBoxInter
 
 
     public void setQuote(PriceQuote tokenQuote, PriceQuote ergoQuote, BigDecimal ergQuoteAmount, BigDecimal stableQuoteAmount, String stableQuoteSymbol){
-        m_tokenQuote.set(tokenQuote);
+       
         m_ergoQuote.set(ergoQuote);
         m_ergQuoteBalanceAmount.set(tokenQuote != null && ergQuoteAmount != null ?  ergQuoteAmount : null);
         m_stableQuoteBalanceAmount.set(ergQuoteAmount != null && stableQuoteAmount != null ? stableQuoteAmount : null);
-
+        m_tokenQuote.set(tokenQuote);
         updateSendAmountQuote();
     }
 
@@ -619,7 +621,7 @@ public class ErgoWalletAmountSendTokenBox extends HBox implements AmountBoxInter
     }
 
     public PriceAmount getPriceAmount(){
-        return m_balanceAmount;
+        return getSendAmount();
     }
 
 

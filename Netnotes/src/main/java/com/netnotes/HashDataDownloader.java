@@ -253,7 +253,7 @@ public class HashDataDownloader {
 
             ProgressBar progressBar = new ProgressBar();
         
-            Scene progressScene = App.getProgressScene(m_image, "Downloading", "Setup - Netnotes", m_fileName, progressBar, m_stage, closeBtn);
+            Scene progressScene = App.getFileProgressScene(m_image, "Downloading", "Setup - Netnotes", m_fileName, progressBar, m_stage, closeBtn);
             m_stage.setScene(progressScene);
 
             FileChooser chooser = new FileChooser();

@@ -514,9 +514,18 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
     }
 
     public PriceAmount getSendAmount() {
-        BigDecimal sendAmount = m_sendAmountProperty.get();
-        return sendAmount != null ? new PriceAmount(sendAmount, getCurrency()) : null;
+        BigDecimal sendAmount = m_sendAmountProperty.get() != null ? m_sendAmountProperty.get() : BigDecimal.ZERO;
+        return  new PriceAmount(sendAmount, getCurrency());
+    }
 
+    @Override
+    public PriceAmount getPriceAmount(){
+        return getSendAmount();
+    }
+    public boolean isSufficientBalance(){
+        BigDecimal remaining = getBalanceRemaining();
+
+        return remaining.compareTo(BigDecimal.ZERO) > -1;
     }
 
     public ReadOnlyObjectProperty<BigDecimal> sendAmountProperty(){
@@ -585,10 +594,6 @@ public class ErgoWalletAmountSendBox extends HBox implements AmountBoxInterface 
 
     public void setMinImageWidth(int width) {
         m_minImgWidth = width;
-    }
-
-    public PriceAmount getPriceAmount(){
-        return m_balanceAmount;
     }
 
 

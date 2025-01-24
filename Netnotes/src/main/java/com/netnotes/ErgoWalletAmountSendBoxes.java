@@ -173,8 +173,8 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
                 add(box, false);
             }else if(ergAmountBoxInterface instanceof ErgoWalletAmountSendBox){
                 ErgoWalletAmountSendBox ergoAmountBox = (ErgoWalletAmountSendBox) ergAmountBoxInterface;
-                if(ergoAmountBox.getPriceAmount().getLongAmount() != nanoErg){
-                    ergoAmountBox.getPriceAmount().setLongAmount(nanoErg);
+                if(ergoAmountBox.getBalanceAmount().getLongAmount() != nanoErg){
+                    ergoAmountBox.getBalanceAmount().setLongAmount(nanoErg);
                   
                 }
                 ergoAmountBox.setQuote(ergoQuote, ergoQuoteAmount);
@@ -231,8 +231,8 @@ public class ErgoWalletAmountSendBoxes extends AmountBoxes {
                         box.setQuote(tokenQuote, ergoQuote, tokenQuoteErgAmount, tokenQuoteAmount, ergoQuote != null ? ergoQuote.getQuoteSymbol() : null);
                     }else if(tokenBoxInterface instanceof ErgoWalletAmountSendTokenBox){
                         ErgoWalletAmountSendTokenBox tokenAmountBox = (ErgoWalletAmountSendTokenBox) tokenBoxInterface;
-                        if(tokenAmountBox.getPriceAmount().getLongAmount() != amount){
-                            tokenAmountBox.getPriceAmount().setLongAmount(amount);
+                        if(tokenAmountBox.getBalanceAmount().getLongAmount() != amount){
+                            tokenAmountBox.getBalanceAmount().setLongAmount(amount);
                         }
                         tokenAmountBox.setTimeStamp(timeStamp);
                         tokenAmountBox.setQuote(tokenQuote, ergoQuote, tokenQuoteErgAmount, tokenQuoteAmount, ergoQuote != null ? ergoQuote.getQuoteSymbol() : null);
