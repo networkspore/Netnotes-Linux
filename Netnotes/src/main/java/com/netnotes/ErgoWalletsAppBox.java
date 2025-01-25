@@ -1896,7 +1896,6 @@ public class ErgoWalletsAppBox extends AppBox {
         private VBox m_sendBodyContentBox;
         private AddressBox m_sendToAddress;
         private VBox m_sendBodyBox;
-        private Future<?> m_sendingFuture = null;
         
         public SendAppBox(){
             super();
@@ -2126,165 +2125,179 @@ public class ErgoWalletsAppBox extends AppBox {
 
 
             m_sendBtn.setOnAction(e->{
-                if(m_sendingFuture == null || (m_sendingFuture != null && m_sendingFuture.isDone() || m_sendingFuture.isCancelled())){
-                    m_sendBodyContentBox.getChildren().clear();
+              
+                m_sendBodyContentBox.getChildren().clear();
 
-                    Text sendText = new Text("Sending...");
-                    sendText.setFont(App.txtFont);
-                    sendText.setFill(App.txtColor);
+                Text sendText = new Text("Sending...");
+                sendText.setFont(App.txtFont);
+                sendText.setFill(App.txtColor);
 
-                    HBox sendTextBox = new HBox(sendText);
-                    HBox.setHgrow(sendTextBox, Priority.ALWAYS);
-                    sendTextBox.setAlignment(Pos.CENTER);
+                HBox sendTextBox = new HBox(sendText);
+                HBox.setHgrow(sendTextBox, Priority.ALWAYS);
+                sendTextBox.setAlignment(Pos.CENTER);
 
-                    ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
-                    progressBar.setPrefWidth(400);
-                    
-                    VBox statusBox = new VBox(sendTextBox, progressBar);
-                    HBox.setHgrow(statusBox, Priority.ALWAYS);
-                    statusBox.setAlignment(Pos.CENTER);
-                    statusBox.setPrefHeight(200);
-
-                    m_sendBodyContentBox.getChildren().add(statusBox);
-                    
-
-                    JsonObject sendObject = new JsonObject();
+                ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
+                progressBar.setPrefWidth(400);
                 
-                    AddressInformation addressInformation = m_sendToAddress.addressInformationProperty().get();
+                VBox statusBox = new VBox(sendTextBox, progressBar);
+                HBox.setHgrow(statusBox, Priority.ALWAYS);
+                statusBox.setAlignment(Pos.CENTER);
+                statusBox.setPrefHeight(200);
 
-                    if (addressInformation == null  || (addressInformation != null && addressInformation.getAddress() == null))  {
-                        
-                        addSendBox();
-                        showError("Error: Enter valid recipient address");
-                        return;
-                    }
-
-                    if (!m_sendToAddress.isAddressValid().get())  {
-                        
-                        addSendBox();
-                        showError("Error: Address is an invalid recipient");
-                        return;
-                    }
+                m_sendBodyContentBox.getChildren().add(statusBox);
                 
-                
-                    NoteInterface walletInterface = m_selectedWallet.get();
 
-                    if(walletInterface == null){
-                        
-                        addSendBox();
-                        showError("Error: No wallet selected");
-                        return;
-                    }
-                    AddressesData.addWalletAddressToDataObject(sendObject, m_lockBox.getAddress(), walletInterface.getName());
+                JsonObject sendObject = new JsonObject();
             
-                    JsonObject recipientObject = new JsonObject();
-                    recipientObject.addProperty("address", addressInformation.getAddress().toString());
-                    recipientObject.addProperty("addressType", addressInformation.getAddressType());
+                AddressInformation addressInformation = m_sendToAddress.addressInformationProperty().get();
+
+                if (addressInformation == null  || (addressInformation != null && addressInformation.getAddress() == null))  {
                     
-                    sendObject.add("recipient", recipientObject);
+                    addSendBox();
+                    showError("Error: Enter valid recipient address");
+                    return;
+                }
 
-                    BigDecimal minimumDecimal = m_amountSendBoxes.minimumFeeProperty().get();
-                    PriceAmount feePriceAmount = m_amountSendBoxes.feeAmountProperty().get();
-                    if(minimumDecimal == null || (feePriceAmount == null || (feePriceAmount != null && feePriceAmount.amountProperty().get().compareTo(minimumDecimal) == -1))){
-                        addSendBox();
-                        showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
-                        return;
-                    }
-
-                    if(!AddressesData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
-                        addSendBox();
-                        showError("Babblefees not supported at this time");
-                        return;
-                    }
-                        
-
-                    ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountSendBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
-
-                    if(!ergoSendBox.isSufficientBalance()){
-                        addSendBox();
-                        showError("Insufficient Ergo balance");
-                        return;
-                    }
-
-                    PriceAmount ergoPriceAmount = ergoSendBox.getSendAmount();
-
-                    if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
-                        addSendBox();
-                        showError("Ergo amount is not valid");
-                        return;
-                    }
-
-                    //sendObject.add("feeAmount", feeObject);
-                    JsonArray sendAssets = new JsonArray();
-
-
-                    AmountBoxInterface[] amountBoxAray =  m_amountSendBoxes.getAmountBoxArray();
+                if (!m_sendToAddress.isAddressValid().get())  {
                     
-                    for(int i = 0; i < amountBoxAray.length ;i++ ){
-                        AmountBoxInterface amountBox =amountBoxAray[i];
-                        if(amountBox instanceof ErgoWalletAmountSendTokenBox){
-                            ErgoWalletAmountSendTokenBox sendBox = (ErgoWalletAmountSendTokenBox) amountBox;
-                            PriceAmount sendAmount = sendBox.getSendAmount();
-                            if(sendAmount!= null){
-                                if(!sendBox.isSufficientBalance()){
-                                    addSendBox();
-                                    showError("Insufficient " + sendBox.getCurrency().getName() +" balance");
-                                    return;
-                                }
-                                if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-                                    sendAssets.add(sendAmount.getAmountObject());
-                                }
+                    addSendBox();
+                    showError("Error: Address is an invalid recipient");
+                    return;
+                }
+            
+            
+                NoteInterface walletInterface = m_selectedWallet.get();
+
+                if(walletInterface == null){
+                    
+                    addSendBox();
+                    showError("Error: No wallet selected");
+                    return;
+                }
+                AddressesData.addWalletAddressToDataObject(sendObject, m_lockBox.getAddress(), walletInterface.getName());
+        
+                JsonObject recipientObject = new JsonObject();
+                recipientObject.addProperty("address", addressInformation.getAddress().toString());
+                recipientObject.addProperty("addressType", addressInformation.getAddressType());
+                
+                sendObject.add("recipient", recipientObject);
+
+                BigDecimal minimumDecimal = m_amountSendBoxes.minimumFeeProperty().get();
+                PriceAmount feePriceAmount = m_amountSendBoxes.feeAmountProperty().get();
+                if(minimumDecimal == null || (feePriceAmount == null || (feePriceAmount != null && feePriceAmount.amountProperty().get().compareTo(minimumDecimal) == -1))){
+                    addSendBox();
+                    showError("Error: Minimum fee " +(minimumDecimal != null ? ("of " + minimumDecimal) : "unavailable") + " " +feeTypeBtn.getText() + " required");
+                    return;
+                }
+
+                if(!AddressesData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
+                    addSendBox();
+                    showError("Babblefees not supported at this time");
+                    return;
+                }
+                    
+
+                ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountSendBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
+
+                if(!ergoSendBox.isSufficientBalance()){
+                    addSendBox();
+                    showError("Insufficient Ergo balance");
+                    return;
+                }
+
+                PriceAmount ergoPriceAmount = ergoSendBox.getSendAmount();
+                long nanoErgs = ergoPriceAmount.getLongAmount();
+
+                if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
+                    addSendBox();
+                    showError("Ergo amount is not valid");
+                    return;
+                }
+
+                //sendObject.add("feeAmount", feeObject);
+                JsonArray sendAssets = new JsonArray();
+
+
+                AmountBoxInterface[] amountBoxAray =  m_amountSendBoxes.getAmountBoxArray();
+                
+                for(int i = 0; i < amountBoxAray.length ;i++ ){
+                    AmountBoxInterface amountBox =amountBoxAray[i];
+                    if(amountBox instanceof ErgoWalletAmountSendTokenBox){
+                        ErgoWalletAmountSendTokenBox sendBox = (ErgoWalletAmountSendTokenBox) amountBox;
+                        PriceAmount sendAmount = sendBox.getSendAmount();
+                        if(sendAmount!= null){
+                            if(!sendBox.isSufficientBalance()){
+                                addSendBox();
+                                showError("Insufficient " + sendBox.getCurrency().getName() +" balance");
+                                return;
+                            }
+                            if(!sendAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
+                                sendAssets.add(sendAmount.getAmountObject());
                             }
                         }
-                        
                     }
                     
-                
-                    if(ergoPriceAmount.getLongAmount() == 0 && sendAssets.size() == 0){
-                        addSendBox();
-                        showError("Enter assets to send");
-                        return;
-                    }
-                
-                    sendObject.add("assets", sendAssets);
-
-                    AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
-
-                    JsonObject note = Utils.getCmdObject("sendAssets");
-                    note.addProperty("accessId", m_lockBox.getLockId());
-                    note.addProperty("locationId", m_locationId);
-                    note.add("data", sendObject);
-
-                    
-                    
-                    m_sendingFuture = walletInterface.sendNote(note, (onComplete)->{
-                        Object sourceObject = onComplete.getSource().getValue();
-                        if(sourceObject != null && sourceObject instanceof JsonObject){
-                            JsonObject receiptJson = (JsonObject) sourceObject;
-                            JsonElement txIdElement = receiptJson.get("txId");
-                            JsonElement resultElement = receiptJson.get("result");
-
-                            String resultString = resultElement != null ? resultElement.getAsString() : "Error";
-            
-                            receiptJson.addProperty("result", resultString);
-                            String id = txIdElement != null ? "tx_" + txIdElement.getAsString() : "Err_" + FriendlyId.createFriendlyId();
-                            showReceipt(id, App.SUCCESS, receiptJson);
-                        }
-                    }, (onError)->{
-                        Throwable throwable = onError.getSource().getException();
-                        String errorString = throwable.getMessage();
-
-                        String errTxId = "INC_" + FriendlyId.createFriendlyId();
-                        
-                        JsonObject receiptJson = new JsonObject();
-                        receiptJson.addProperty("result","Incomplete");
-                        receiptJson.addProperty("errorMsg", errorString.equals("") ? throwable.toString() : errorString);
-                        receiptJson.addProperty("timeStamp", System.currentTimeMillis());
-
-                        showReceipt(errTxId, App.ERROR, receiptJson);
-
-                    });
                 }
+        
+            
+                if(nanoErgs == 0 && sendAssets.size() == 0){
+                    addSendBox();
+                    showError("Enter assets to send");
+                    return;
+                }
+
+                if(nanoErgs < 39600 && sendAssets.size() > 0){
+                    addSendBox();
+                    showError("Transactions involving tokens require a minimum of " + PriceAmount.calculateLongToBigDecimal(39600, ErgoCurrency.FRACTIONAL_PRECISION).toPlainString() + " ERG to be included in the transaction. (Recommended minimum: "+ErgoNetwork.MIN_NETWORK_FEE+" ERG)");
+                    return;
+                }
+
+
+            
+                sendObject.add("assets", sendAssets);
+
+                AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
+
+                JsonObject note = Utils.getCmdObject("sendAssets");
+                note.addProperty("accessId", m_lockBox.getLockId());
+                note.addProperty("locationId", m_locationId);
+                note.add("data", sendObject);
+
+                
+                
+                walletInterface.sendNote(note, (onComplete)->{
+                    Object sourceObject = onComplete.getSource().getValue();
+                    if(sourceObject != null && sourceObject instanceof JsonObject){
+                        JsonObject receiptJson = (JsonObject) sourceObject;
+                        JsonElement txIdElement = receiptJson.get("txId");
+                        JsonElement resultElement = receiptJson.get("result");
+                        
+
+                        boolean isComplete = txIdElement != null && !txIdElement.isJsonNull();
+                        String resultString = resultElement != null ? resultElement.getAsString() : isComplete ? "Complete" : "Failed";
+                        receiptJson.addProperty("result", resultString);
+
+                        String id = isComplete ? "tx_" + txIdElement.getAsString() : "err_" + FriendlyId.createFriendlyId();
+                        
+                        receiptJson.add("info", sendObject);
+
+                        showReceipt(id, isComplete ? App.SUCCESS : App.ERROR, receiptJson);
+                    }
+                }, (onError)->{
+                    Throwable throwable = onError.getSource().getException();
+                    String errorString = throwable.getMessage();
+
+                    String errTxId = "inc_" + FriendlyId.createFriendlyId();
+                    
+                    JsonObject receiptJson = new JsonObject();
+                    receiptJson.addProperty("result","Incomplete");
+                    receiptJson.addProperty("description", errorString.equals("") ? throwable.toString() : errorString);
+                    receiptJson.addProperty("timeStamp", System.currentTimeMillis());
+                    receiptJson.add("info", sendObject);
+                    showReceipt(errTxId, App.ERROR, receiptJson);
+
+                });
+                
                 
                 
                 

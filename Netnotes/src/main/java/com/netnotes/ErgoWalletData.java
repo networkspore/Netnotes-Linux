@@ -7,19 +7,28 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.ergoplatform.appkit.Address;
+import org.ergoplatform.appkit.BlockHeader;
+import org.ergoplatform.appkit.BlockchainDataSource;
+import org.ergoplatform.appkit.ErgoClient;
+import org.ergoplatform.appkit.ErgoToken;
 import org.ergoplatform.appkit.NetworkType;
+import org.ergoplatform.appkit.RestApiErgoClient;
+import org.ergoplatform.appkit.UnsignedTransaction;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.satergo.Wallet;
+import com.satergo.WalletKey;
 import com.satergo.WalletKey.Failure;
+import com.satergo.ergo.ErgoInterface;
 import com.utils.Utils;
 
 import javafx.application.Platform;
@@ -48,7 +57,8 @@ import javafx.stage.StageStyle;
 
 public class ErgoWalletData extends Network implements NoteInterface {
 
- 
+    private Semaphore m_txSemaphore = new Semaphore(1); 
+
     private File m_walletFile = null;
       
     private ArrayList<String>  m_authorizedIds = new ArrayList<>();
@@ -84,6 +94,9 @@ public class ErgoWalletData extends Network implements NoteInterface {
         }
     }
     
+    public Semaphore getTxSemaphore(){
+        return m_txSemaphore;
+    }
 
     public ErgoWallets getErgoWallets(){
         return m_ergoWalletsDataList.getErgoWallets();
@@ -98,6 +111,38 @@ public class ErgoWalletData extends Network implements NoteInterface {
         return m_walletFile;
     }
 
+    public boolean isTxAvailable(){
+        return m_txSemaphore.availablePermits() == 1;
+    }
+
+    public void startTx() throws InterruptedException{
+        m_txSemaphore.acquire();
+    }
+
+    public void endTx(){
+        m_txSemaphore.release();
+    }
+
+    public Future<?> loadWallet(String pass, File walletFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws Exception {
+                m_txSemaphore.acquire();
+                return Wallet.load(walletFile.toPath(), pass);
+            }
+        };
+
+        task.setOnFailed(onFailed);
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+    }
+
+       
+
+    
 
     @Override
     public void addMsgListener(NoteMsgInterface listener){

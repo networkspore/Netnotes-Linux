@@ -194,6 +194,7 @@ public class ErgoWalletAmountSendTokenBox extends HBox implements AmountBoxInter
         topBox.setAlignment(Pos.CENTER_LEFT);
         topBox.setPadding(new Insets(0, 10, m_botRowPadding, 0));
         topBox.setMinHeight(28);
+        
         m_bodyBox = new VBox( );
         HBox.setHgrow(m_bodyBox,Priority.ALWAYS);
         m_bodyBox.setAlignment(Pos.CENTER_LEFT);

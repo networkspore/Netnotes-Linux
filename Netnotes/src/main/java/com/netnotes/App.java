@@ -1496,7 +1496,7 @@ public class App extends Application {
         minimizeBtn.setOnAction(minEvent -> {
             theStage.setIconified(true);
         });
-
+        
         HBox newTopBar = new HBox(barIconView, newTitleLbl, spacer, minimizeBtn, closeBtn);
         newTopBar.setAlignment(Pos.CENTER_LEFT);
         newTopBar.setPadding(new Insets(7, 8, 10, 10));
@@ -1781,68 +1781,60 @@ public class App extends Application {
     }
 
 
-    public static Scene getWaingScene(Image image , String headingString, String progressString) {
+    public static Scene getWaitngScene(Label progressText, Button cancelBtn, Stage theStage) {
 
-        double defaultRowHeight = 40;
-       
+
+        Button closeBtn = new Button();
+        Label topLabel = new Label();
+        topLabel.textProperty().bind(progressText.textProperty());
+
+        HBox topBar = App.createTopBar(icon, topLabel, closeBtn, theStage); 
+        
+        closeBtn.setOnAction(e->cancelBtn.fire());
         ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
-
-        Text progressText = new Text(progressString);
-        progressText.setFill(txtColor);
-        progressText.setFont(txtFont);
-
-
-       
-
-        HBox headingBox = new HBox( createImageButton(image, headingString));
-        headingBox.prefHeight(defaultRowHeight);
-        headingBox.setAlignment(Pos.CENTER);
-        HBox.setHgrow(headingBox, Priority.ALWAYS);
-        headingBox.setPadding(new Insets(10, 10, 10, 10));
-        headingBox.setId("headingBox");
-
-        HBox headingPaddingBox = new HBox(headingBox);
-
-        headingPaddingBox.setPadding(new Insets(5, 0, 2, 0));
-
-        VBox headerBox = new VBox(headingPaddingBox);
-
-        headerBox.setPadding(new Insets(0, 5, 0, 5));
-
 
         HBox progressAlignmentBox = new HBox(progressBar);
         progressAlignmentBox.setAlignment(Pos.CENTER);
+        progressAlignmentBox.setPadding(new Insets(50, 0, 0, 0));
 
        
         HBox progressBox = new HBox(progressText);
         progressBox.setAlignment(Pos.CENTER);
         progressBox.setPadding(new Insets(20, 0, 0, 0));
 
-        VBox progressPaddingBox = new VBox(progressAlignmentBox, progressBox);
-        progressPaddingBox.setId("bodyBox");
+   
+        HBox cancelBtnBox = new HBox(cancelBtn);
+        HBox.setHgrow(cancelBtnBox, Priority.ALWAYS);
+        cancelBtnBox.setAlignment(Pos.CENTER);
+        cancelBtnBox.setPadding(new Insets(20,0,20,0));
+
+
+        VBox progressPaddingBox = new VBox(progressAlignmentBox, progressBox, cancelBtnBox);
+
         HBox.setHgrow(progressPaddingBox, Priority.ALWAYS);
-        progressPaddingBox.setPadding(new Insets(40, 0, 15, 0));
+
 
         VBox bodyBox = new VBox(progressPaddingBox);
         bodyBox.setId("bodyBox");
-        bodyBox.setPadding(new Insets(15));
         bodyBox.setAlignment(Pos.CENTER);
 
-        VBox bodyPaddingBox = new VBox(bodyBox);
-        bodyPaddingBox.setPadding(new Insets(5, 5, 5, 5));
+        VBox bodyPaddingBox = new VBox(topBar, bodyBox);
+        bodyPaddingBox.setPadding(new Insets(0, 5, 5, 5));
 
         Region footerSpacer = new Region();
         footerSpacer.setMinHeight(5);
 
         VBox footerBox = new VBox(footerSpacer);
-        VBox layoutBox = new VBox(headerBox, bodyPaddingBox, footerBox);
+        VBox layoutBox = new VBox(bodyPaddingBox, footerBox);
         Scene scene = new Scene(layoutBox, STAGE_WIDTH, 150);
         scene.setFill(null);
         scene.getStylesheets().add("/css/startWindow.css");
 
         progressBar.prefWidthProperty().bind(scene.widthProperty().multiply(0.7));
 
-        bodyBox.prefHeightProperty().bind(scene.heightProperty().subtract(headerBox.heightProperty()).subtract(footerBox.heightProperty()).subtract(10));
+        bodyBox.prefHeightProperty().bind(scene.heightProperty().subtract(footerBox.heightProperty()).subtract(10));
+
+        theStage.setOnCloseRequest(e->cancelBtn.fire());
         return scene;
     }
 

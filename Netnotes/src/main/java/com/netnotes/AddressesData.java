@@ -322,7 +322,7 @@ public class AddressesData {
 
         parametersBox.setPrefWidth(bodyBox.widthProperty().get() -1);
         bodyScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
-            parametersBox.setPrefWidth(newval.doubleValue()-40);
+            parametersBox.setPrefWidth(newval.doubleValue()-50);
         });
 
 
@@ -333,6 +333,7 @@ public class AddressesData {
   
         return passwordScene;
     }
+
 
     public Future<?> sendAssets(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         
@@ -346,25 +347,15 @@ public class AddressesData {
 
             JsonElement recipientElement = dataObject.get("recipient");
 
-            try {
-                Files.writeString(App.logFile.toPath(), note + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-
-            }
-
-            
             if(!checkNetworkType(dataObject, m_networkType)){
                 return Utils.returnException("Network type must be " + m_networkType.toString(),getExecService(), onFailed);
             }
 
-
             String walletAddress = getAddressStringFromDataObject(dataObject);
 
-            
             if(walletAddress == null){
                 return Utils.returnException("No wallet address provided",getExecService(), onFailed);
             }
-
 
             AddressData addressData = getAddress(walletAddress);
 
@@ -376,7 +367,6 @@ public class AddressesData {
 
             long feeAmountNanoErgs = getFeeAmountNanoErgs(dataObject);
             
-
             if(feeAmountNanoErgs == -1){
                 return Utils.returnException("No fee provided", getExecService(), onFailed);
             }
@@ -409,7 +399,6 @@ public class AddressesData {
 
             ErgoToken[] tokenArray = assetArray;
             
-    
             JsonElement recipientAddressElement = recipientObject.get("address");
 
             AddressInformation recipientAddressInfo = recipientAddressElement != null && !recipientAddressElement.isJsonNull() ? new AddressInformation(recipientAddressElement.getAsString().replaceAll("[^A-HJ-NP-Za-km-z1-9]", "")) : null;
@@ -443,15 +432,6 @@ public class AddressesData {
 
             String explorerUrl = explorerNetworkUrl.getUrlString();
 
-
-            Semaphore activeThreadSemaphore = new Semaphore(1); 
-
-            try {
-                activeThreadSemaphore.acquire();
-            } catch (InterruptedException e1) {
-                return Utils.returnException(e1, getExecService(), onFailed);
-            }
-
             String title = "Wallet - Send Assets - Signature Required";
     
             Stage txStage = new Stage();
@@ -468,134 +448,82 @@ public class AddressesData {
 
             passwordField.setOnAction(e -> {
                 String pass = passwordField.getText();
-                Wallet loadWallet = null;
-                try {
-                    loadWallet = Wallet.load(m_walletData.getWalleFile().toPath(), pass);
-                } catch (Exception e1) {
-                    passwordField.setText("");
-                    return;
-                }
+                passwordField.setText("");
                 
-                Wallet wallet = loadWallet;
+                Button cancelBtn = new Button("Cancel");
+                cancelBtn.setId("iconBtnSelected");
+                Label progressLabel = new Label(m_walletData.isTxAvailable() ? "Opening wallet..." : "Waiting for wallet access...");
                 
-                Task<JsonObject> task = new Task<JsonObject>() {
-                    @Override
-                    public JsonObject call() throws Exception {
+                Scene waitingScene = App.getWaitngScene(progressLabel, cancelBtn, txStage);
+                txStage.setScene(waitingScene);
+                txStage.centerOnScreen();
 
-                        Scene waitingScene = App.getWaingScene(new Image(ErgoWallets.getAppIconString()), "Transmitting - Send Assets","Transmitting...");
-                        txStage.setScene(waitingScene);
-                     
-                        Address address = getWalletAddress(wallet, walletAddress, m_networkType);
-                
-                        ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, m_networkType, nodeApiKey, explorerUrl);
-
-                        UnsignedTransaction unsignedTx = ErgoInterface.createUnsignedTransaction(
-                            ergoClient,
-                            wallet.addressStream(m_networkType).toList(),
-                            recipientAddressInfo.getAddress(),
-                            amountToSpendNanoErgs,
-                            feeAmountNanoErgs,
-                            address,
-                            tokenArray
-                        );
-
+                Future<?> walletFuture = m_walletData.loadWallet(pass, m_walletData.getWalletFile(),getExecService(), onWalletLoaded->{
                     
-                  
-                        String txId = wallet.transact(ergoClient, ergoClient.execute(ctx -> {
-                            try {
-                                return wallet.key().signWithPassword(pass, ctx, unsignedTx, wallet.myAddresses.keySet());
-                            } catch (WalletKey.Failure ex) {
-        
-                                return null;
+                    cancelBtn.setDisable(true);
+                    cancelBtn.setId("iconBtn");
+                    Object walletObject = onWalletLoaded.getSource().getValue();
+                    if(walletObject != null && walletObject instanceof Wallet){
+                        progressLabel.setText("Executing transaction...");
+                        sendAssets(
+                            getExecService(), 
+                            (Wallet) walletObject, 
+                            walletAddress, 
+                            nodeUrl, 
+                            nodeApiKey, 
+                            explorerUrl, 
+                            m_networkType, 
+                            recipientAddressInfo, 
+                            amountToSpendNanoErgs, 
+                            feeAmountNanoErgs, 
+                            tokenArray, 
+                            pass,
+                            (onSent)->{
+                               
+                                Utils.returnObject(onSent.getSource().getValue(), getExecService(), onSucceeded);
+                                txStage.close();
+                                m_walletData.endTx();
+                            }, 
+                            (onSendFailed)->{                     
+                            
+                                Object sourceException = onSendFailed.getSource().getException();
+                                Exception exception = sourceException instanceof Exception ? (Exception) sourceException : null;
+                                if(exception != null){
+                                    Utils.returnException(exception , getExecService(), onFailed);
+                                }else{
+                                    String msg = sourceException == null ? "Transaction terminated unexpectedly" : onSendFailed.getSource().getException().toString(); 
+                                    Utils.returnException(msg, getExecService(), onFailed);
+                                }
+                                txStage.close();
+                                m_walletData.endTx();
                             }
-                        }));
-
-
-                        if(txId != null){
-
-                            JsonElement networkElement = dataObject.remove("network");
-                            
-                            JsonObject networkObject = networkElement != null && networkElement.isJsonObject() ? networkElement.getAsJsonObject() : new JsonObject();
-                            try{
-                                
-                                BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
-                                List<BlockHeader> blockHeaderList =  dataSource != null ? dataSource.getLastBlockHeaders(1, true) : null;
-                                BlockHeader blockHeader = blockHeaderList != null && blockHeaderList.size() > 0 ? blockHeaderList.get(0)  : null;
-                                
-                                int blockHeight = blockHeader != null ? blockHeader.getHeight() : -1;
-                                long timeStamp = blockHeader != null ? blockHeader.getTimestamp() : -1;
-                                networkObject.remove("networkHeight");
-                                networkObject.remove("timeStamp");
-                                networkObject.addProperty("networkHeight", blockHeight);
-                                networkObject.addProperty("timeStamp", timeStamp);
-    
-                            }catch(Exception dataSourcException){
-                                networkObject.remove("infoException");
-                                networkObject.addProperty("infoException", dataSourcException.toString());
-                            }
-                            
-                            dataObject.add("network", networkObject);
-
-                            
-                            JsonObject resultObject = new JsonObject();
-                            resultObject.addProperty("timeStamp", System.currentTimeMillis());
-                            resultObject.addProperty("txId", txId);
-                            resultObject.addProperty("result","Success");
-                            resultObject.add("data", dataObject);
-                        
-                            return resultObject;
-                        }else{
-                            throw new Exception("Transaction signing failed");
-                        }
-                        
-                    }
-                };
-        
-                task.setOnFailed((failed->{
-                    activeThreadSemaphore.release();
-                    Object sourceException = failed.getSource().getException();
-                    Exception exception = sourceException instanceof Exception ? (Exception) sourceException : null;
-                    if(exception != null){
-                        Utils.returnException(exception , getExecService(), onFailed);
+                        );
                     }else{
-                        String msg = sourceException == null ? "Transaction terminated unexpectedly" : failed.getSource().getException().toString(); 
-                        Utils.returnException(msg, getExecService(), onFailed);
+                        txStage.setScene(passwordScene);
+                        txStage.centerOnScreen();
                     }
-                    txStage.close();
-                }));
-        
-                task.setOnSucceeded((succeeded)->{
-                    activeThreadSemaphore.release();
-                    Utils.returnObject(succeeded.getSource().getValue(), getExecService(), onSucceeded, onFailed);
-                    txStage.close();
+                }, onLoadFailed->{
+                    txStage.setScene(passwordScene);
+                    txStage.centerOnScreen();
                 });
-        
-                getExecService().submit(task);
-            
+
+                cancelBtn.setOnAction(onCancel->{
+                    walletFuture.cancel(true);
+                });
             });
-      
+
             
             Runnable sendCanceledJson =()->{
-                activeThreadSemaphore.release();
+          
+                passwordField.setOnAction(null);
                 Utils.returnException("Transaction Canceled", getExecService(), onFailed);
+                txStage.close();
             };
 
-            
-        
-            closeBtn.setOnAction(e -> {
-                sendCanceledJson.run();
-    
-                txStage.close();
-                
-            });
+            closeBtn.setOnAction(e -> sendCanceledJson.run());
 
 
-
-            txStage.setOnCloseRequest(e->{
-                sendCanceledJson.run();
-             
-                txStage.close();
-            });
+            txStage.setOnCloseRequest(e->sendCanceledJson.run());
 
             passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
                 if (newVal != null && !(newVal instanceof PasswordField)) {
@@ -610,20 +538,110 @@ public class AddressesData {
             ResizeHelper.addResizeListener(txStage, 400, 600, Double.MAX_VALUE, Double.MAX_VALUE);
 
             
-            Task<Object> task = new Task<Object>() {
-                @Override
-                public Object call() throws InterruptedException {
-                    activeThreadSemaphore.acquire();
-                    activeThreadSemaphore.release();
-                    return null;
-                }
-            };
-            return getExecService().submit(task);   
         }
-
         return null;
 
     }
+
+    
+    public Future<?> sendAssets(ExecutorService execService, 
+        Wallet wallet, 
+        String walletAddress, 
+        String nodeUrl, 
+        String nodeApiKey, 
+        String explorerUrl, 
+        NetworkType networkType, 
+        AddressInformation recipientAddressInfo, 
+        long amountToSpendNanoErgs,
+        long feeAmountNanoErgs,
+        ErgoToken[] tokenArray,
+        String pass,
+        EventHandler<WorkerStateEvent> onSucceeded,
+        EventHandler<WorkerStateEvent> onFailed)
+    {
+        Task<JsonObject> task = new Task<JsonObject>() {
+            @Override
+            public JsonObject call() throws Exception {
+
+           
+                Address address = getWalletAddress(wallet, walletAddress, networkType);
+        
+                ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, networkType, nodeApiKey, explorerUrl);
+
+                UnsignedTransaction unsignedTx = ErgoInterface.createUnsignedTransaction(
+                    ergoClient,
+                    wallet.addressStream(networkType).toList(),
+                    recipientAddressInfo.getAddress(),
+                    amountToSpendNanoErgs,
+                    feeAmountNanoErgs,
+                    address,
+                    tokenArray
+                );
+          
+                String txId = wallet.transact(ergoClient, ergoClient.execute(ctx -> {
+                    try {
+                        return wallet.key().signWithPassword(pass, ctx, unsignedTx, wallet.myAddresses.keySet());
+                    } catch (WalletKey.Failure ex) {
+
+                        return null;
+                    }
+                }));
+
+
+                if(txId != null){
+
+                    JsonObject resultObject = new JsonObject();
+                    resultObject.addProperty("result","Sent");
+                    resultObject.addProperty("txId", txId);
+                    resultObject.addProperty("timeStamp", System.currentTimeMillis());
+
+                    try{
+                        
+                        BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
+                        List<BlockHeader> blockHeaderList =  dataSource != null ? dataSource.getLastBlockHeaders(1, true) : null;
+                        BlockHeader blockHeader = blockHeaderList != null && blockHeaderList.size() > 0 ? blockHeaderList.get(0)  : null;
+                        
+                        int blockHeight = blockHeader != null ? blockHeader.getHeight() : -1;
+                        long timeStamp = blockHeader != null ? blockHeader.getTimestamp() : -1;
+
+                        JsonObject networkInfoObject = new JsonObject();
+                        networkInfoObject.addProperty("networkHeight", blockHeight);
+                        networkInfoObject.addProperty("timeStamp", timeStamp);
+                        resultObject.add("networkInfo", networkInfoObject);
+                    }catch(Exception dataSourcException){
+         
+                    }
+                    
+                    return resultObject;
+                }else{
+                    throw new Exception("Transaction signing failed");
+                }
+                
+            }
+        };
+
+        task.setOnSucceeded(onSucceeded);
+        task.setOnFailed(onFailed);
+
+        return execService.submit(task);
+    }
+
+    public static Address getWalletAddress(Wallet wallet, String addressString, NetworkType networkType){
+        SimpleObjectProperty<Address> resultAddress = new SimpleObjectProperty<>(null);
+        wallet.myAddresses.forEach((index, name) -> {                    
+            try {
+                Address address = wallet.publicAddress(networkType, index);
+                if(address.toString().equals(addressString)){
+                   resultAddress.set(address);
+                }
+            } catch (Failure e) {
+       
+            }
+        });
+
+        return resultAddress.get();
+    }
+
 
     public JsonObject getDefaultExplorer(){
         JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
@@ -1038,7 +1056,7 @@ public class AddressesData {
                         Platform.runLater(()-> passwordStage.close());
                         Wallet wallet = Wallet.load(m_walletData.getWalleFile().toPath(), pass);
                        
-                        Address address = getWalletAddress(wallet, walletAddress, m_networkType);
+                        Address address = null;
                 
                         ErgoClient ergoClient = RestApiErgoClient.create(namedNodeUrl.getUrlString(), m_networkType, namedNodeUrl.getApiKey(), explorerUrl.getUrlString());
                         
@@ -1268,22 +1286,7 @@ public class AddressesData {
         return null;
 
     }
-   
-    public static Address getWalletAddress(Wallet wallet, String addressString, NetworkType networkType){
-        SimpleObjectProperty<Address> resultAddress = new SimpleObjectProperty<>(null);
-        wallet.myAddresses.forEach((index, name) -> {                    
-            try {
-                Address address = wallet.publicAddress(networkType, index);
-                if(address.toString().equals(addressString)){
-                   resultAddress.set(address);
-                }
-            } catch (Failure e) {
-       
-            }
-        });
 
-        return resultAddress.get();
-    }
 
 
 
