@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -13,7 +12,6 @@ import org.ergoplatform.appkit.Mnemonic;
 import org.ergoplatform.appkit.MnemonicValidationException;
 import org.ergoplatform.appkit.NetworkType;
 import org.ergoplatform.appkit.SecretString;
-import org.reactfx.util.FxTimer;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.Gson;
@@ -104,6 +102,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
     private JsonParser m_jsonParser = new JsonParser();
     private NetworkType m_networkType = NetworkType.MAINNET;
+    private Future<?> m_accessIdFuture = null; 
 
 
     public void setDefault(String walletId){
@@ -784,63 +783,63 @@ public class ErgoWalletsAppBox extends AppBox {
         });
 
         m_lockBox.setPasswordAction(e -> {
-            
-            NoteInterface noteInterface = m_selectedWallet.get();
+            if(m_accessIdFuture == null || (m_accessIdFuture != null && m_accessIdFuture.isDone() || m_accessIdFuture.isCancelled())){
+                NoteInterface noteInterface = m_selectedWallet.get();
 
-            JsonObject getWalletObject = Utils.getCmdObject("getAccessId");
-            getWalletObject.addProperty("locationId", m_locationId);
+                JsonObject getWalletObject = Utils.getCmdObject("getAccessId");
+                getWalletObject.addProperty("locationId", m_locationId);
 
-            noteInterface.sendNote(getWalletObject, onSucceeded->{
-                Object successObject = onSucceeded.getSource().getValue();
+                m_accessIdFuture = noteInterface.sendNote(getWalletObject, onSucceeded->{
+                    Object successObject = onSucceeded.getSource().getValue();
 
-                if (successObject != null) {
-                    JsonObject json = (JsonObject) successObject;
-                    // addressesDataObject.set(json);
-                    JsonElement codeElement = json.get("code");
-                    JsonElement accessIdElement = json.get("accessId");
+                    if (successObject != null) {
+                        JsonObject json = (JsonObject) successObject;
+                        // addressesDataObject.set(json);
+                        JsonElement codeElement = json.get("code");
+                        JsonElement accessIdElement = json.get("accessId");
 
 
-                    if(accessIdElement != null && codeElement == null){
-                    
-                        String accessId = accessIdElement.getAsString();
+                        if(accessIdElement != null && codeElement == null){
                         
-                        m_walletMsgInterface = new NoteMsgInterface() {
-                            private final String m_accessId = accessId;
-
-                            public String getId() {
-                                return m_accessId;
-                            }
-                            @Override
-                            public void sendMessage(int code, long timestamp,String networkId, Number num) {
-                            }
-
-                            public void sendMessage(int code, long timestamp,String networkId, String msg) {
+                            String accessId = accessIdElement.getAsString();
                             
+                            m_walletMsgInterface = new NoteMsgInterface() {
+                                private final String m_accessId = accessId;
 
-                                switch (code) {
-                                    case App.UPDATED:
-                                        if (networkId != null && networkId.equals(m_lockBox.getAddress())) {
-                                            getBalance();
-                                        }else{
-                                            m_balanceObject.set(null);
-                                        }
-                                        break;
-                            
+                                public String getId() {
+                                    return m_accessId;
                                 }
-                            }
-                        };
+                                @Override
+                                public void sendMessage(int code, long timestamp,String networkId, Number num) {
+                                }
 
-                        noteInterface.addMsgListener(m_walletMsgInterface);
+                                public void sendMessage(int code, long timestamp,String networkId, String msg) {
+                                
 
-                        m_lockBox.setUnlocked(accessId);
+                                    switch (code) {
+                                        case App.UPDATED:
+                                            if (networkId != null && networkId.equals(m_lockBox.getAddress())) {
+                                                getBalance();
+                                            }else{
+                                                m_balanceObject.set(null);
+                                            }
+                                            break;
+                                
+                                    }
+                                }
+                            };
+
+                            noteInterface.addMsgListener(m_walletMsgInterface);
+
+                            m_lockBox.setUnlocked(accessId);
+                            
+                            
+                            showBalance.set(true);
                         
-                        
-                        showBalance.set(true);
-                       
-                    }
-                } 
-            }, onFailed->{});
-            
+                        }
+                    } 
+                }, onFailed->{});
+            }
 
         });
 
@@ -925,6 +924,9 @@ public class ErgoWalletsAppBox extends AppBox {
     public void shutdown() {
         NoteInterface noteInterface = m_selectedWallet.get();
         m_balanceObject.set(null);
+        if(m_accessIdFuture != null && !m_accessIdFuture.isDone() || !m_accessIdFuture.isCancelled()){
+            m_accessIdFuture.cancel(true);
+        }
         if(noteInterface != null){
             m_selectedWallet.set(null);
         }
@@ -2072,7 +2074,6 @@ public class ErgoWalletsAppBox extends AppBox {
                 }
             });
 
-
             ergFeeTypeItem.fire();
             HBox feeEnterBtnBox = new HBox();
             feeEnterBtnBox.setAlignment(Pos.CENTER_LEFT);
@@ -2082,12 +2083,10 @@ public class ErgoWalletsAppBox extends AppBox {
             feesFieldBox.setAlignment(Pos.CENTER_LEFT);
             feesFieldBox.setPadding(new Insets(2));
 
-
             HBox feesBox = new HBox(feesLabel, feesFieldBox);
             HBox.setHgrow(feesBox, Priority.ALWAYS);
             feesBox.setAlignment(Pos.CENTER_RIGHT);
             feesBox.setPadding(new Insets(0,10,20,0));
-
 
             Region sendHBar = new Region();
             sendHBar.setPrefWidth(400);
@@ -2099,16 +2098,12 @@ public class ErgoWalletsAppBox extends AppBox {
             sendGBox.setAlignment(Pos.CENTER);
             sendGBox.setPadding(new Insets(10,0,0,0));
 
-
             VBox amountPaddingBox = new VBox(amountTextBox, amountGBox, walletListBox, feesBox, sendGBox);
             amountPaddingBox.setPadding(new Insets(0,10,0,10));
-
-
         
             HBox nextBox = new HBox(m_sendBtn);
             nextBox.setAlignment(Pos.CENTER);
             nextBox.setPadding(new Insets(20, 0, 5, 0));
-
 
             m_sendBodyBox = new VBox(addressPaddingBox, amountPaddingBox, nextBox);
 
@@ -2117,12 +2112,7 @@ public class ErgoWalletsAppBox extends AppBox {
             VBox bodyBox = new VBox(gBox, m_sendBodyContentBox);
             VBox.setMargin(bodyBox, new Insets(10, 0, 10, 0));
 
-
-
             VBox layoutVBox = new VBox(headerBox, bodyBox);
-
-           
-
 
             m_sendBtn.setOnAction(e->{
               
@@ -2145,7 +2135,6 @@ public class ErgoWalletsAppBox extends AppBox {
                 statusBox.setPrefHeight(200);
 
                 m_sendBodyContentBox.getChildren().add(statusBox);
-                
 
                 JsonObject sendObject = new JsonObject();
             
@@ -2164,7 +2153,6 @@ public class ErgoWalletsAppBox extends AppBox {
                     showError("Error: Address is an invalid recipient");
                     return;
                 }
-            
             
                 NoteInterface walletInterface = m_selectedWallet.get();
 
@@ -2196,7 +2184,6 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
                     
-
                 ErgoWalletAmountSendBox ergoSendBox = (ErgoWalletAmountSendBox) m_amountSendBoxes.getAmountBox(ErgoCurrency.TOKEN_ID);
 
                 if(!ergoSendBox.isSufficientBalance()){
@@ -2214,9 +2201,7 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
 
-                //sendObject.add("feeAmount", feeObject);
                 JsonArray sendAssets = new JsonArray();
-
 
                 AmountBoxInterface[] amountBoxAray =  m_amountSendBoxes.getAmountBoxArray();
                 
@@ -2239,7 +2224,6 @@ public class ErgoWalletsAppBox extends AppBox {
                     
                 }
         
-            
                 if(nanoErgs == 0 && sendAssets.size() == 0){
                     addSendBox();
                     showError("Enter assets to send");
@@ -2248,12 +2232,10 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 if(nanoErgs < 39600 && sendAssets.size() > 0){
                     addSendBox();
-                    showError("Transactions involving tokens require a minimum of " + PriceAmount.calculateLongToBigDecimal(39600, ErgoCurrency.FRACTIONAL_PRECISION).toPlainString() + " ERG to be included in the transaction. (Recommended minimum: "+ErgoNetwork.MIN_NETWORK_FEE+" ERG)");
+                    showError("Transactions involving tokens require a minimum of " + PriceAmount.calculateLongToBigDecimal(39600, ErgoCurrency.FRACTIONAL_PRECISION).toPlainString() + " ERG to be included in the transaction.");
                     return;
                 }
 
-
-            
                 sendObject.add("assets", sendAssets);
 
                 AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
@@ -2263,8 +2245,6 @@ public class ErgoWalletsAppBox extends AppBox {
                 note.addProperty("locationId", m_locationId);
                 note.add("data", sendObject);
 
-                
-                
                 walletInterface.sendNote(note, (onComplete)->{
                     Object sourceObject = onComplete.getSource().getValue();
                     if(sourceObject != null && sourceObject instanceof JsonObject){

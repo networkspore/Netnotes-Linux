@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -458,7 +459,7 @@ public class AddressesData {
                 txStage.setScene(waitingScene);
                 txStage.centerOnScreen();
 
-                Future<?> walletFuture = m_walletData.loadWallet(pass, m_walletData.getWalletFile(),getExecService(), onWalletLoaded->{
+                Future<?> walletFuture = m_walletData.startTx(pass, m_walletData.getWalletFile(),getExecService(), onWalletLoaded->{
                     
                     cancelBtn.setDisable(true);
                     cancelBtn.setId("iconBtn");
@@ -499,12 +500,41 @@ public class AddressesData {
                             }
                         );
                     }else{
+                        m_walletData.endTx();
                         txStage.setScene(passwordScene);
                         txStage.centerOnScreen();
                     }
                 }, onLoadFailed->{
-                    txStage.setScene(passwordScene);
-                    txStage.centerOnScreen();
+                    Throwable throwable = onLoadFailed.getSource().getException();
+
+                    if(throwable != null){
+                        if(!(throwable instanceof InterruptedException)){
+                            m_walletData.endTx();
+                        }
+                        if(throwable instanceof NoSuchFileException){
+
+                            Alert noFileAlert = new Alert(AlertType.ERROR, "Wallet file does not exist, or has been moved.", ButtonType.OK);
+                            noFileAlert.setHeaderText("Error");
+                            noFileAlert.setTitle("Error: File not found");
+                            noFileAlert.show();
+                            Utils.returnException((Exception) throwable, getExecService(), onFailed);
+                            txStage.close();
+                        }else{
+                            txStage.setScene(passwordScene);
+                            txStage.centerOnScreen();
+                        }
+                    }else{
+                        m_walletData.endTx();
+
+                        Alert unavailableAlert = new Alert(AlertType.ERROR, "Transaction Unavailable", ButtonType.OK);
+                        unavailableAlert.setHeaderText("Error");
+                        unavailableAlert.setTitle("Error: Transaction Unavailable");
+                        unavailableAlert.show();
+
+                        Utils.returnException("Transaction Unavailable", getExecService(), onFailed);
+                        txStage.close();
+                    }
+
                 });
 
                 cancelBtn.setOnAction(onCancel->{

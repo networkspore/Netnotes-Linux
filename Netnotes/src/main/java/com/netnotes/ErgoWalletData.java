@@ -7,28 +7,20 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.ergoplatform.appkit.Address;
-import org.ergoplatform.appkit.BlockHeader;
-import org.ergoplatform.appkit.BlockchainDataSource;
-import org.ergoplatform.appkit.ErgoClient;
-import org.ergoplatform.appkit.ErgoToken;
-import org.ergoplatform.appkit.NetworkType;
-import org.ergoplatform.appkit.RestApiErgoClient;
-import org.ergoplatform.appkit.UnsignedTransaction;
 
 import com.devskiller.friendly_id.FriendlyId;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import org.ergoplatform.appkit.Address;
+import org.ergoplatform.appkit.NetworkType;
 import com.satergo.Wallet;
-import com.satergo.WalletKey;
 import com.satergo.WalletKey.Failure;
-import com.satergo.ergo.ErgoInterface;
+
 import com.utils.Utils;
 
 import javafx.application.Platform;
@@ -123,7 +115,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         m_txSemaphore.release();
     }
 
-    public Future<?> loadWallet(String pass, File walletFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> startTx(String pass, File walletFile, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         
         Task<Object> task = new Task<Object>() {
             @Override
@@ -256,33 +248,14 @@ public class ErgoWalletData extends Network implements NoteInterface {
      
     }
 
-    private JsonObject getConfigObject(){
-        JsonObject json = new JsonObject();
-       
-        json.addProperty("configId", m_configId);
-        
-        return json;
-    }
-
     private ExecutorService getExecService(){
         return getErgoNetworkData().getNetworksData().getExecService();
     }
-    
-  
 
     private Future<?> getAccessId(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
     
-        Semaphore activeThreadSemaphore = new Semaphore(1);
-        try{
-            activeThreadSemaphore.acquire();
-        }catch(InterruptedException e){
-
-        }
+        Semaphore activeThreadSemaphore = new Semaphore(0);
       
-        
-
-        
-
         int lblCol = 180;
         String authorizeString = "Authorize Wallet Access";
         String title = getName() + " - " + authorizeString;
@@ -345,86 +318,140 @@ public class ErgoWalletData extends Network implements NoteInterface {
         passwordScene.setFill(null);
         passwordScene.getStylesheets().add("/css/startWindow.css");
         passwordStage.setScene(passwordScene);
-        
-   
+
+
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws InterruptedException {
+                activeThreadSemaphore.acquire();
+                activeThreadSemaphore.release();
+                return null;
+            }
+        };
+
+        task.setOnFailed(onInterrupted->{
+            passwordField.setOnAction(null);
+            Utils.returnException("Canceled", getExecService(), onFailed);
+            passwordStage.close();
+        });
+
+        Future<?> limitAccessFuture = getNetworksData().getExecService().submit(task);
+
+                
+        Runnable releaseAccess = ()->{
+            passwordStage.close();
+            activeThreadSemaphore.release();
+        };
 
         passwordField.setOnAction(action -> {
 
             String pass = passwordField.getText();    
             passwordField.setText("");
 
-            try {
-
-                Wallet wallet = Wallet.load(m_walletFile.toPath(), pass);
-
-                if(m_addressesData == null){
-                    ArrayList<AddressData> addressDataList = new ArrayList<>();
-                    wallet.myAddresses.forEach((index, name) -> {
-
-                        try {
-
-                            Address address = wallet.publicAddress(m_networkType, index);
-                            AddressData addressData = new AddressData(name, index, address.toString(), m_networkType, ErgoWalletData.this);
-                            addressDataList.add(addressData);
-                        } catch (Failure e) {
-                            try {
-                                Files.writeString(App.logFile.toPath(), "AddressesData - address failure: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e1) {
-
-                            }
-                        }
-                        
-
-                    });
-                 
-                    m_addressesData = new AddressesData(getNetworkId(), addressDataList, ErgoWalletData.this, m_networkType);
-                }
-
-                String id = FriendlyId.createFriendlyId();
-                m_authorizedIds.add(id);
-                
-                JsonObject json = new JsonObject();
-                json.addProperty("accessId", id);
-                json.addProperty("networkId", getNetworkId());
+            Button cancelBtn = new Button("Cancel");
+            cancelBtn.setId("iconBtnSelected");
+            Label progressLabel = new Label(isTxAvailable() ? "Checking password..." : "Waiting for wallet access...");
             
-                
-                Utils.returnObject(json, getExecService(), onSucceeded, onFailed);
-                passwordStage.close();
+            Scene waitingScene = App.getWaitngScene(progressLabel, cancelBtn, passwordStage);
+            passwordStage.setScene(waitingScene);
+            passwordStage.centerOnScreen();
 
-            } catch (Exception e) {
-                
-                if(e instanceof NoSuchFileException){
+            Future<?> txFuture = startTx(pass, m_walletFile, getExecService(), (onWalletLoaded)->{
+                Object loadedObject = onWalletLoaded.getSource().getValue();
+                cancelBtn.setDisable(true);
+                cancelBtn.setId("iconBtn");
+                progressLabel.setText("Opening wallet");
+                if(loadedObject != null && loadedObject instanceof Wallet){
+                    Wallet wallet = (Wallet) loadedObject;
 
-                    Alert noFileAlert = new Alert(AlertType.ERROR, "Wallet file does not exist, or has been moved.", ButtonType.OK);
-                    noFileAlert.setHeaderText("Error");
-                    noFileAlert.setTitle("Error: File not found");
-                    noFileAlert.show();
+                    if(m_addressesData == null){
+                        ArrayList<AddressData> addressDataList = new ArrayList<>();
+                        wallet.myAddresses.forEach((index, name) -> {
 
-                    Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
+                            try {
+
+                                Address address = wallet.publicAddress(m_networkType, index);
+                                AddressData addressData = new AddressData(name, index, address.toString(), m_networkType, ErgoWalletData.this);
+                                addressDataList.add(addressData);
+                            } catch (Failure e) {
+                                try {
+                                    Files.writeString(App.logFile.toPath(), "AddressesData - address failure: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                } catch (IOException e1) {
+
+                                }
+                            }
+                            
+
+                        });
+                    
+                        m_addressesData = new AddressesData(getNetworkId(), addressDataList, ErgoWalletData.this, m_networkType);
+                    }
+
+                    String id = FriendlyId.createFriendlyId();
+                    m_authorizedIds.add(id);
+                    
+                    JsonObject json = new JsonObject();
+                    json.addProperty("accessId", id);
+                    json.addProperty("networkId", getNetworkId());
                 
-                    passwordStage.close();
-                 
+                    
+                    Utils.returnObject(json, getExecService(), onSucceeded);
+                   
+                    
+                }else{
+                
+                    Utils.returnException("Wallet unavailable", getExecService(), onFailed);
+                    
+                }
+                endTx();
+                releaseAccess.run();
+                
+            }, (onLoadFailed)->{
+                Throwable throwable = onLoadFailed.getSource().getException();
+                if(throwable != null){
+                    if(!(throwable instanceof InterruptedException)){
+                        endTx();
+                    }
+                    if(throwable instanceof NoSuchFileException){
+
+                        Alert noFileAlert = new Alert(AlertType.ERROR, "Wallet file does not exist, or has been moved.", ButtonType.OK);
+                        noFileAlert.setHeaderText("Error");
+                        noFileAlert.setTitle("Error: File not found");
+                        noFileAlert.show();
+                        Utils.returnException((Exception) throwable, getExecService(), onFailed);
+                        releaseAccess.run();
+                    }else{
+                        passwordStage.setScene(passwordScene);
+                        passwordStage.centerOnScreen();
+                    }
+                }else{
+                    Alert unavailableAlert = new Alert(AlertType.ERROR, "Access unavailable", ButtonType.OK);
+                    unavailableAlert.setHeaderText("Error");
+                    unavailableAlert.setTitle("Error: Access unavailable");
+                    unavailableAlert.show();
+                    Utils.returnException("Access unavailable", getExecService(), onFailed);
+                    releaseAccess.run();
                 }
 
-            }
+                
+      
+            });
+
+            cancelBtn.setOnAction(onCancel->{
+                txFuture.cancel(true);
+            });
         
         });
 
         
         closeBtn.setOnAction(e -> {
-            
-            Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
-            activeThreadSemaphore.release();
-            passwordStage.close();
-
+            Utils.returnException("Authorization cancelled", getExecService(), onFailed);
+            releaseAccess.run();
         });
 
         passwordStage.setOnCloseRequest(e->{
-        
-            Utils.returnObject(Utils.getMsgObject(App.ERROR, "Authorization cancelled"), getExecService(), onSucceeded, onFailed);
-            activeThreadSemaphore.release();
-
-            passwordStage.close();
+            Utils.returnException("Authorization cancelled", getExecService(), onFailed);
+            releaseAccess.run();
         });
 
         passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
@@ -438,15 +465,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         
         ResizeHelper.addResizeListener(passwordStage, defaultWidth, defaultHeight, Double.MAX_VALUE, defaultHeight);
 
-        Task<Object> task = new Task<Object>() {
-            @Override
-            public Object call() throws InterruptedException {
-                activeThreadSemaphore.acquire();
-                activeThreadSemaphore.release();
-                return null;
-            }
-        };
-        return getNetworksData().getExecService().submit(task);
+        return limitAccessFuture;
     }
 
 

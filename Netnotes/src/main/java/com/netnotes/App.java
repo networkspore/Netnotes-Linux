@@ -1,6 +1,5 @@
 package com.netnotes;
 
-import javafx.animation.PauseTransition;
 /**
  * Netnotes
  *
@@ -10,12 +9,13 @@ import javafx.animation.PauseTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.concurrent.WorkerStateEvent;
 
 import java.security.spec.InvalidKeySpecException;
 import java.security.NoSuchAlgorithmException;
 
+
+import javafx.animation.PauseTransition;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.Scene;
@@ -23,7 +23,6 @@ import javafx.scene.image.Image;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressBar;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -39,31 +38,26 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.FontWeight;
 import javafx.scene.paint.Color;
-
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCode;
+
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-
-
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 import org.reactfx.util.FxTimer;
 
@@ -72,6 +66,7 @@ import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
+
 import de.codecentric.centerdevice.javafxsvg.SvgImageLoaderFactory;
 
 

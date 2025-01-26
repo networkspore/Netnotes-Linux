@@ -686,7 +686,7 @@ public class ErgoDexChartTab extends ContentTab {
 
     public void updateSPFQuote(){
         PriceQuote priceQuote = m_dataList.getErgoQuoteInToken(ErgoDex.SPF_ID);
-        m_dexFees.updateSpfFees(priceQuote);
+        m_dexFees.setSpfQuote(priceQuote);
     }
 
     public void addChartViewListener(){
@@ -922,7 +922,7 @@ public class ErgoDexChartTab extends ContentTab {
 
         private MenuButton m_slippageMenu;
 
-        private ErgoDexTxInfoBox m_txInfoBox;
+        private ErgoDexSwapInfoBox m_txInfoBox;
 
         private Tooltip m_errTip;
 
@@ -959,7 +959,7 @@ public class ErgoDexChartTab extends ContentTab {
             m_orderTypeProperty = new SimpleStringProperty(MARKET_ORDER);
             
             m_dexWallet = new ErgoDexWalletBox();
-            m_txInfoBox = new ErgoDexTxInfoBox();
+            m_txInfoBox = new ErgoDexSwapInfoBox();
 
            
 
@@ -1717,7 +1717,7 @@ public class ErgoDexChartTab extends ContentTab {
             m_dexFees.setMaxExFee(maxExFee);
             save();
         }
-  
+
         public void setShowSwapSettings(boolean showSettings){
             m_showSwapFeesBox.set(showSettings);
             save();
@@ -2353,7 +2353,7 @@ public class ErgoDexChartTab extends ContentTab {
             
         }
         
-        public class ErgoDexTxInfoBox extends VBox{
+        public class ErgoDexSwapInfoBox extends VBox{
      
             private SimpleObjectProperty<BigDecimal> m_volumeProperty = null;
             private SimpleObjectProperty<BigDecimal> m_minVolumeProperty = null;
@@ -2413,7 +2413,7 @@ public class ErgoDexChartTab extends ContentTab {
             private VBox m_settingsExtendedBox = null;
             private SimpleBooleanProperty m_showMinBtn = new SimpleBooleanProperty(false);
 
-            public ErgoDexTxInfoBox(){
+            public ErgoDexSwapInfoBox(){
                 super();
                // m_minErgReq = new SimpleObjectProperty<>(BigDecimal.ZERO);
                 m_volumeProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
@@ -2684,15 +2684,19 @@ public class ErgoDexChartTab extends ContentTab {
                         m_maxSwapFeeFocusListener = (obs,oldval,newval)->{
                             if(m_maxSwapFeeField != null){
                                 if(!newval){
+                                    boolean isSpf = m_dexFees.isSPF();
+
                                     String str = m_maxSwapFeeField.getText();
                                     
                                     if(!Utils.isTextZero(str)){
-                                        int scale = m_dexFees.isSPF() ? SPFCurrency.FRACTIONAL_PRECISION : ErgoCurrency.FRACTIONAL_PRECISION;
+                                        int scale = isSpf ? SPFCurrency.FRACTIONAL_PRECISION : ErgoCurrency.FRACTIONAL_PRECISION;
                                         BigDecimal newFee = new BigDecimal(Utils.formatStringToNumber(str, scale));
                                         
-                                       
+                                        
                                         setMaxExFee(newFee);
                                         
+                                    }else{
+                                        setMaxExFee(BigDecimal.ZERO);
                                     }
                      
                                     if(m_maxSwapFeeFieldBox.getChildren().contains(m_maxSwapFeeEnterBtn)){
@@ -2772,17 +2776,15 @@ public class ErgoDexChartTab extends ContentTab {
                             BigDecimal nitro = m_dexFees.nitroProperty().get();
                             return nitro != null ? nitro.toPlainString() : "";
                         }, m_dexFees.nitroProperty());
-                        m_maxSwapFeeField.textProperty().bind(m_nitroBinding);
+                        m_nitroField.textProperty().bind(m_nitroBinding);
 
                         m_nitroFocusListener = (obs,oldval,newval)->{
                             if(m_nitroField != null){
                                 if(!newval){
                                     String str = m_nitroField.getText();
                                     
-                                    if(!Utils.isTextZero(str)){
-                                        BigDecimal newNitro = new BigDecimal(Utils.formatStringToNumber(str, 5));
-                                        setMaxExFee(newNitro);
-                                    }
+                                    setNitro(new BigDecimal(Utils.formatStringToNumber(str, 3)));
+                                
                      
                                     if(m_nitroFieldBox.getChildren().contains(m_nitroEnterBtn)){
                                         m_nitroFieldBox.getChildren().remove(m_nitroEnterBtn);

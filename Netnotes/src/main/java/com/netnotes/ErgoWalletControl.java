@@ -306,6 +306,9 @@ public class ErgoWalletControl {
     
 
     public void disconnectWallet(){
+        if(m_accessIdFuture != null && !m_accessIdFuture.isDone() || !m_accessIdFuture.isCancelled()){
+            m_accessIdFuture.cancel(true);
+        }
         if(m_walletInterface != null && m_walletMsgInterface != null){
             m_walletInterface.removeMsgListener(m_walletMsgInterface);
         }      
