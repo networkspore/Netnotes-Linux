@@ -4,11 +4,13 @@ package com.netnotes;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -62,12 +64,14 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
 import scorex.util.encode.Base16;
+import sigmastate.basics.DLogProtocol.DLogProverInput;
+import sigmastate.basics.DLogProtocol.ProveDlog;
 
 import org.ergoplatform.appkit.*;
-
+import sigmastate.Values;
 public class AddressesData {
     
-
+   
     
     public final static NetworkInformation NOMARKET = new NetworkInformation("null", "(disabled)","/assets/bar-chart-150.png", "/assets/bar-chart-30.png", "No market selected" );
     public final static NetworkInformation[] ERGO_MARKETS = new NetworkInformation[]{
@@ -372,7 +376,7 @@ public class AddressesData {
                 return Utils.returnException("No fee provided", getExecService(), onFailed);
             }
 
-            if(feeAmountNanoErgs < 1000000){
+            if(feeAmountNanoErgs < ErgoNetwork.MIN_NANO_ERGS){
                 return Utils.returnException("Minimum fee of 0.001 Erg required (1000000 nanoErg)", getExecService(), onFailed);
             }
 
@@ -412,7 +416,7 @@ public class AddressesData {
                 return Utils.returnException("Invalid recipient address", getExecService(), onFailed);
             }
 
-            NamedNodeUrl namedNodeUrl = getNamedNodeUrl(dataObject);
+            NamedNodeUrl namedNodeUrl = getNamedNodeUrlFromDataObject(dataObject);
 
             if(namedNodeUrl == null){
                 return Utils.returnException("Node unavailable", getExecService(), onFailed);
@@ -656,6 +660,395 @@ public class AddressesData {
         return execService.submit(task);
     }
 
+
+    
+    public Future<?> executeContract(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        
+        JsonElement dataElement = note.get("data");
+        int lblCol = 170;
+        int rowHeight = 22;
+
+        if(dataElement != null && dataElement.isJsonObject())
+        {
+            JsonObject dataObject = dataElement.getAsJsonObject();
+
+            JsonElement contractDataElement = dataObject.get("contractData");
+
+            JsonObject contractDataObject = contractDataElement != null && contractDataElement.isJsonObject() ? contractDataElement.getAsJsonObject() : null;
+
+            if(contractDataObject == null){
+                return Utils.returnException("No contract data provided", getExecService(), onFailed);
+            }
+
+
+            if(!checkNetworkType(dataObject, m_networkType)){
+                return Utils.returnException("Network type must be " + m_networkType.toString(),getExecService(), onFailed);
+            }
+
+            String walletAddress = getAddressStringFromDataObject(dataObject);
+
+            if(walletAddress == null){
+                return Utils.returnException("No wallet address provided",getExecService(), onFailed);
+            }
+
+            AddressData addressData = getAddress(walletAddress);
+
+            if(addressData == null){
+                return Utils.returnException("Address not found in this wallet",getExecService(), onFailed);
+            }
+            ArrayList<PriceAmount> balanceList = getBalanceList(addressData.getBalance(),true, m_networkType);
+
+
+            long feeAmountNanoErgs = getFeeAmountNanoErgs(dataObject);
+            
+            if(feeAmountNanoErgs == -1){
+                return Utils.returnException("No fee provided", getExecService(), onFailed);
+            }
+
+            if(feeAmountNanoErgs < 1000000){
+                return Utils.returnException("Minimum fee of 0.001 Erg required (1000000 nanoErg)", getExecService(), onFailed);
+            }
+
+            long amountToSpendNanoErgs = getAmountToSpendNanoErgs(dataObject);
+          
+            
+            ErgoToken[] assetArray = null;
+            try{
+                assetArray = getTokenArray(dataObject);
+            }catch(NullPointerException e){
+                return Utils.returnException(e, getExecService(), onFailed);
+            }
+
+            for(ErgoToken sendAmount : assetArray){
+                PriceAmount balanceAmount = getPriceAmountFromList(balanceList, sendAmount.getId().toString());
+                if(sendAmount.getValue() > balanceAmount.getLongAmount()){
+                    return Utils.returnException("Insufficent " + balanceAmount.getCurrency().getName(), getExecService(), onFailed);
+                }
+            }
+
+            ErgoToken[] tokenArray = assetArray;
+            
+            JsonElement contractElement = contractDataObject.get("description");
+
+            if(contractElement == null || (contractElement != null && contractElement.isJsonNull())){
+                return Utils.returnException("Contract description not provided", getExecService(), onFailed);
+            }
+           
+            String contract = contractElement.getAsString();
+
+            NamedNodeUrl namedNodeUrl = getNamedNodeUrlFromDataObject(dataObject);
+
+            if(namedNodeUrl == null){
+                return Utils.returnException("Node unavailable", getExecService(), onFailed);
+            }
+
+            if(namedNodeUrl.getUrlString() == null){
+                return Utils.returnException("No node URL provided", getExecService(), onFailed);
+            }
+
+            String nodeUrl = namedNodeUrl.getUrlString();
+            String nodeApiKey = namedNodeUrl.getApiKey();
+
+            ErgoNetworkUrl explorerNetworkUrl = getExplorerUrl(dataObject);
+
+            if(explorerNetworkUrl == null){
+                return Utils.returnException("Explorer url not provided", getExecService(), onFailed);
+            }
+
+            String explorerUrl = explorerNetworkUrl.getUrlString();
+
+            String title = "Wallet - Send Assets - Signature Required";
+    
+            Stage txStage = new Stage();
+            txStage.getIcons().add(App.logo);
+            txStage.initStyle(StageStyle.UNDECORATED);
+            txStage.setTitle(title);
+
+            PasswordField passwordField = new PasswordField();
+            Button closeBtn = new Button();
+
+            Scene passwordScene = getAuthorizationScene(txStage,title,closeBtn, passwordField, dataObject, locationString, rowHeight, lblCol);
+
+            txStage.setScene(passwordScene);
+
+            passwordField.setOnAction(e -> {
+                String pass = passwordField.getText();
+                passwordField.setText("");
+                
+                Button cancelBtn = new Button("Cancel");
+                cancelBtn.setId("iconBtnSelected");
+                Label progressLabel = new Label(m_walletData.isTxAvailable() ? "Opening wallet..." : "Waiting for wallet access...");
+                
+                Scene waitingScene = App.getWaitngScene(progressLabel, cancelBtn, txStage);
+                txStage.setScene(waitingScene);
+                txStage.centerOnScreen();
+
+                Future<?> walletFuture = m_walletData.startTx(pass, m_walletData.getWalletFile(),getExecService(), onWalletLoaded->{
+                    
+                    cancelBtn.setDisable(true);
+                    cancelBtn.setId("iconBtn");
+                    Object walletObject = onWalletLoaded.getSource().getValue();
+                    if(walletObject != null && walletObject instanceof Wallet){
+                        progressLabel.setText("Executing transaction...");
+                        executeContract(
+                            getExecService(), 
+                            (Wallet) walletObject, 
+                            walletAddress, 
+                            nodeUrl, 
+                            nodeApiKey, 
+                            explorerUrl, 
+                            m_networkType, 
+                            contract, 
+                            amountToSpendNanoErgs, 
+                            feeAmountNanoErgs, 
+                            tokenArray, 
+                            pass,
+                            (onSent)->{
+                               
+                                Utils.returnObject(onSent.getSource().getValue(), getExecService(), onSucceeded);
+                                txStage.close();
+                                m_walletData.endTx();
+                            }, 
+                            (onSendFailed)->{                     
+                            
+                                Object sourceException = onSendFailed.getSource().getException();
+                                Exception exception = sourceException instanceof Exception ? (Exception) sourceException : null;
+                                if(exception != null){
+                                    Utils.returnException(exception , getExecService(), onFailed);
+                                }else{
+                                    String msg = sourceException == null ? "Transaction terminated unexpectedly" : onSendFailed.getSource().getException().toString(); 
+                                    Utils.returnException(msg, getExecService(), onFailed);
+                                }
+                                txStage.close();
+                                m_walletData.endTx();
+                            }
+                        );
+                    }else{
+                        m_walletData.endTx();
+                        txStage.setScene(passwordScene);
+                        txStage.centerOnScreen();
+                    }
+                }, onLoadFailed->{
+                    Throwable throwable = onLoadFailed.getSource().getException();
+
+                    if(throwable != null){
+                        if(!(throwable instanceof InterruptedException)){
+                            m_walletData.endTx();
+                        }
+                        if(throwable instanceof NoSuchFileException){
+
+                            Alert noFileAlert = new Alert(AlertType.ERROR, "Wallet file does not exist, or has been moved.", ButtonType.OK);
+                            noFileAlert.setHeaderText("Error");
+                            noFileAlert.setTitle("Error: File not found");
+                            noFileAlert.show();
+                            Utils.returnException((Exception) throwable, getExecService(), onFailed);
+                            txStage.close();
+                        }else{
+                            txStage.setScene(passwordScene);
+                            txStage.centerOnScreen();
+                        }
+                    }else{
+                        m_walletData.endTx();
+
+                        Alert unavailableAlert = new Alert(AlertType.ERROR, "Transaction Unavailable", ButtonType.OK);
+                        unavailableAlert.setHeaderText("Error");
+                        unavailableAlert.setTitle("Error: Transaction Unavailable");
+                        unavailableAlert.show();
+
+                        Utils.returnException("Transaction Unavailable", getExecService(), onFailed);
+                        txStage.close();
+                    }
+
+                });
+
+                cancelBtn.setOnAction(onCancel->{
+                    walletFuture.cancel(true);
+                });
+            });
+
+            
+            Runnable sendCanceledJson =()->{
+          
+                passwordField.setOnAction(null);
+                Utils.returnException("Transaction Canceled", getExecService(), onFailed);
+                txStage.close();
+            };
+
+            closeBtn.setOnAction(e -> sendCanceledJson.run());
+
+
+            txStage.setOnCloseRequest(e->sendCanceledJson.run());
+
+            passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
+                if (newVal != null && !(newVal instanceof PasswordField)) {
+                    Platform.runLater(() -> passwordField.requestFocus());
+                }
+            });
+            
+            txStage.show();
+    
+            Platform.runLater(()->passwordField.requestFocus());
+            
+            ResizeHelper.addResizeListener(txStage, 400, 600, Double.MAX_VALUE, Double.MAX_VALUE);
+
+            
+        }
+        return null;
+
+    }
+
+    public Future<?> executeContract(ExecutorService execService, 
+    Wallet wallet, 
+    String walletAddress, 
+    String nodeUrl, 
+    String nodeApiKey, 
+    String explorerUrl, 
+    NetworkType networkType, 
+    String contract, 
+    long amountToSpendNanoErgs,
+    long feeAmountNanoErgs,
+    ErgoToken[] tokenArray,
+    String pass,
+    EventHandler<WorkerStateEvent> onSucceeded,
+    EventHandler<WorkerStateEvent> onFailed)
+{
+    Task<JsonObject> task = new Task<JsonObject>() {
+        @Override
+        public JsonObject call() throws Exception {
+
+       
+            Address changeAddress = getWalletAddress(wallet, walletAddress, networkType);
+    
+            ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, networkType, nodeApiKey, explorerUrl);
+
+            if (feeAmountNanoErgs < Parameters.MinFee) {
+                throw new IllegalArgumentException("fee cannot be less than MinFee (" + Parameters.MinFee + " nanoERG)");
+            }
+            List<Address> addresses = wallet.addressStream(networkType).toList();
+            
+            ProveDlog refundProp = new DLogProverInput(BigInteger.valueOf(Long.MAX_VALUE)).publicImage();
+            byte[] quoteIdBytes = new byte[32];
+            Arrays.fill(quoteIdBytes, (byte) 4);
+
+            byte[] spectrumId = new byte[32];
+            Arrays.fill(spectrumId, (byte) 3);
+
+            byte[] poolNFT = new byte[32];
+            Arrays.fill(poolNFT, (byte) 2);
+
+            byte[] redeemerPropBytes = new byte[32];
+            Arrays.fill(redeemerPropBytes, (byte) 1);
+
+            byte[] minerPropBytes = Base16.decode("1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304").get();
+                        
+            UnsignedTransaction unsignedTx = ergoClient.execute(ctx -> {
+                List<InputBox> boxesToSpend = BoxOperations.createForSenders(addresses, ctx)
+                    .withAmountToSpend(amountToSpendNanoErgs)
+                    .withFeeAmount(feeAmountNanoErgs)
+                    .withTokensToSpend(List.of(tokenArray))
+                    .loadTop();
+
+                UnsignedTransactionBuilder txBuilder = ctx.newTxBuilder();
+                OutBoxBuilder newBoxBuilder = txBuilder.outBoxBuilder();
+                newBoxBuilder.value(amountToSpendNanoErgs);
+                if (tokenArray.length > 0) {
+                    newBoxBuilder.tokens(tokenArray);
+                }
+          
+                ErgoContract ergoContract = ctx.compileContract(
+                    ConstantsBuilder.create()
+                        .item("ExFeePerTokenDenom", 22222L)
+                        .item("Delta", 11111L)
+                        .item("BaseAmount", 1200L)
+                        .item("FeeNum", 996)
+                        .item("RefundProp", refundProp)
+                        .item("SpectrumIsQuote", false)
+                        .item("MaxExFee", 1400L)
+                        .item("PoolNFT", poolNFT)
+                        .item("RedeemerPropBytes", redeemerPropBytes)
+                        .item("QuoteId", quoteIdBytes)
+                        .item("MinQuoteAmount", 800L)
+                        .item("SpectrumId", spectrumId)
+                        .item("FeeDenom", 1000)
+                        .item("MinerPropBytes", minerPropBytes)
+                        .item("MaxMinerFee", 10000L)
+                    .build(), 
+                    contract
+                );
+
+                
+
+                Values.ErgoTree ergoTree = ergoContract.getErgoTree();
+
+                ErgoTreeTemplate template = ErgoTreeTemplate.fromErgoTree(ergoTree);
+
+                try {
+                    Files.writeString(App.logFile.toPath(), "encodedBytes: " + template.getEncodedBytes() + "\nhex: " + template.getTemplateHashHex() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                } catch (IOException e) {
+
+                }
+    
+                newBoxBuilder.contract(ergoContract).build();
+                
+                OutBox newBox = newBoxBuilder.build();
+                return txBuilder
+                    .addInputs(boxesToSpend.toArray(new InputBox[0])).addOutputs(newBox)
+                    .fee(feeAmountNanoErgs)
+                    .sendChangeTo(changeAddress)
+                    .build();
+            });
+
+            
+      
+            String txId = "test";/*wallet.transact(ergoClient, ergoClient.execute(ctx -> {
+                try {
+                    return wallet.key().signWithPassword(pass, ctx, unsignedTx, wallet.myAddresses.keySet());
+                } catch (WalletKey.Failure ex) {
+
+                    return null;
+                }
+            }));*/
+
+
+            if(txId != null){
+
+                JsonObject resultObject = new JsonObject();
+                resultObject.addProperty("result","Sent");
+                resultObject.addProperty("txId", txId);
+                resultObject.addProperty("timeStamp", System.currentTimeMillis());
+
+                try{
+                    
+                    BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
+                    List<BlockHeader> blockHeaderList =  dataSource != null ? dataSource.getLastBlockHeaders(1, true) : null;
+                    BlockHeader blockHeader = blockHeaderList != null && blockHeaderList.size() > 0 ? blockHeaderList.get(0)  : null;
+                    
+                    int blockHeight = blockHeader != null ? blockHeader.getHeight() : -1;
+                    long timeStamp = blockHeader != null ? blockHeader.getTimestamp() : -1;
+
+                    JsonObject networkInfoObject = new JsonObject();
+                    networkInfoObject.addProperty("networkHeight", blockHeight);
+                    networkInfoObject.addProperty("timeStamp", timeStamp);
+                    resultObject.add("networkInfo", networkInfoObject);
+                }catch(Exception dataSourcException){
+     
+                }
+                
+                return resultObject;
+            }else{
+                throw new Exception("Transaction signing failed");
+            }
+            
+        }
+    };
+
+    task.setOnSucceeded(onSucceeded);
+    task.setOnFailed(onFailed);
+
+    return execService.submit(task);
+}
+
+
     public static Address getWalletAddress(Wallet wallet, String addressString, NetworkType networkType){
         SimpleObjectProperty<Address> resultAddress = new SimpleObjectProperty<>(null);
         wallet.myAddresses.forEach((index, name) -> {                    
@@ -720,7 +1113,7 @@ public class AddressesData {
         dataObject.add("node", nodeInterfaceObject);
     }
 
-    public NamedNodeUrl getNamedNodeUrl(JsonObject dataObject){
+    public NamedNodeUrl getNamedNodeUrlFromDataObject(JsonObject dataObject){
 
         JsonElement nodeElement = dataObject.get("node");
 
@@ -758,7 +1151,7 @@ public class AddressesData {
         return ergoObject;
     }
 
-    public static void addWalletAddressToDataObject(JsonObject dataObject, String address, String walletName){
+    public static void addWalletAddressToDataObject(String address, String walletName, JsonObject dataObject){
         JsonObject networkTypeObject = getAddressObject(address, walletName);
         dataObject.add("wallet", networkTypeObject);
     }
@@ -778,7 +1171,7 @@ public class AddressesData {
         return ergoObject;
     }
 
-    public static void addNetworkTypeToDataObject(JsonObject dataObject, NetworkType networkType){
+    public static void addNetworkTypeToDataObject(NetworkType networkType, JsonObject dataObject){
         JsonObject networkTypeObject = getNetworkTypeObject(networkType);
         dataObject.add("network", networkTypeObject);
     }
@@ -842,6 +1235,33 @@ public class AddressesData {
         return true;
     }
 
+    public static void addAssetsToDataObject(PriceAmount[] priceAmounts, JsonObject dataObject){
+        priceAmounts = priceAmounts == null ? new PriceAmount[0] : priceAmounts;
+        JsonArray tokenArray = new JsonArray();
+        for(int i = 0 ; i < priceAmounts.length ; i++){
+            PriceAmount token = priceAmounts[i];
+            tokenArray.add(token.getAmountObject());
+        }
+        dataObject.add("assets", tokenArray);
+    }
+
+    public static boolean addFeeNanoErgToDataObject(long nanoErgs, JsonObject dataObject){
+
+        if(nanoErgs < ErgoNetwork.MIN_NANO_ERGS){
+            return false;
+        }
+        JsonObject nanoErgsObject = createNanoErgsObject(nanoErgs);
+        nanoErgsObject.addProperty("ergs", PriceAmount.calculateLongToBigDecimal(nanoErgs, ErgoCurrency.DECIMALS));
+        dataObject.add("feeAmount", nanoErgsObject);
+        return true;
+    }
+
+    public static void addNanoErgsToSpendToDataObject(long nanoErgs, JsonObject dataObject){
+        JsonObject nanoErgsObject = createNanoErgsObject(nanoErgs);
+        nanoErgsObject.addProperty("ergs", PriceAmount.calculateLongToBigDecimal(nanoErgs, ErgoCurrency.DECIMALS));
+        dataObject.add("amountToSpend", nanoErgsObject);
+    }
+
     public static boolean addAmountToSpendToDataObject(PriceAmount ergoAmount, JsonObject dataObject){
         if(ergoAmount == null || !ergoAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
             return false;
@@ -855,468 +1275,6 @@ public class AddressesData {
     public String getContractString(JsonObject datObject){
         return null;
     }
-    
-    public Future<?> executeContract(JsonObject note,String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
-        
-        JsonElement dataElement = note.get("data");
-        int lblCol = 120;
-        int rowHeight = 22;
-
-        if(dataElement != null && dataElement.isJsonObject())
-        {
-            try {
-                Files.writeString(App.logFile.toPath(), note + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
-
-            }
-
-            JsonObject dataObject = dataElement.getAsJsonObject();
-            if(dataObject == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "'data' element missing"), getExecService(), onSucceeded, null);
-                return null;
-            }
-            
-            NamedNodeUrl namedNodeUrl = getNamedNodeUrl(dataObject);
-            if(namedNodeUrl == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Node unavailable"), getExecService(), onSucceeded, null);
-                return null;
-            }
-
-            ErgoNetworkUrl explorerUrl = getExplorerUrl(dataObject);
-            if(explorerUrl == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Explorer unavailable"), getExecService(), onSucceeded, null);
-                return null;
-            }
-
-            String walletAddress = getAddressStringFromDataObject(dataObject);
-            if(walletAddress == null){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "No wallet address provided"), getExecService(), onSucceeded, onFailed);
-                return null;
-            }
-
-
-            if(!checkNetworkType(dataObject, m_networkType)){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Network type mismatch"), getExecService(), onSucceeded, onFailed);
-                return null;
-            }
-
-            long nanoErgFee = getFeeAmountNanoErgs(dataObject);
-            if(nanoErgFee < 2000000){
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, nanoErgFee == -1 ? "Network fee unavailable" : "Insufcient network fee: "+nanoErgFee+" (Minimum: 2000000 nanoErg or 0.002 Erg)"), getExecService(), onSucceeded, onFailed);
-                return null;
-            }
-
-            Semaphore activeThreadSemaphore = new Semaphore(1);
-            try{
-                activeThreadSemaphore.acquire();
-            }catch(InterruptedException e){
-                
-            }
-
-
-            String smartContract = getContractString(dataObject);
-
-
-            BigDecimal priceQuoteDecimal = new BigDecimal(1.75);
-
-            ErgoAmount ergoAmount = new ErgoAmount(BigDecimal.valueOf(1), m_networkType);
-            
-            long ergoAmountLong = ergoAmount.getLongAmount();
-            long minerFeeAmount = 0;//feePriceAmount.getLongAmount(); 
-
-            //SwapPossible outputAmount()
-            
-            BigDecimal slippage = BigDecimal.valueOf(minerFeeAmount);
-
-            
-            BigDecimal minExFee = BigDecimal.valueOf(1000);
-            BigDecimal nitro = BigDecimal.valueOf(1.0);
-            BigDecimal minOutput = null;
-
-            //BigDecimal exFeePerToken = 
-
-            BigDecimal quoteDecimal = ergoAmount.getBigDecimalAmount().multiply(priceQuoteDecimal);
-
-
-
-
-            String title = "Wallet - Execute Contract - Signature Required";
-
-     
-
-            JsonParametersBox parametersBox = new JsonParametersBox(dataObject, lblCol);
-            parametersBox.openAll();
-
-
-            Label locationLbl = new Label("Location:");
-            locationLbl.setMinWidth(lblCol);
-            locationLbl.setFont(App.txtFont);
-
-            TextField locationField = new TextField(locationString);
-            locationField.setEditable(false);
-            HBox.setHgrow(locationField, Priority.ALWAYS);
-            locationField.setFont(App.txtFont);
-
-            HBox locationBox = new HBox(locationLbl, locationField);
-            HBox.setHgrow(locationBox,Priority.ALWAYS);
-            locationBox.setAlignment(Pos.CENTER_LEFT);
-            locationBox.setMinHeight(rowHeight);
-
-
-            Stage passwordStage = new Stage();
-            passwordStage.getIcons().add(App.logo);
-            passwordStage.initStyle(StageStyle.UNDECORATED);
-            passwordStage.setTitle(title);
-
-            Button closeBtn = new Button();
-
-            HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
-
-            ImageView btnImageView = new ImageView(App.logo);
-            btnImageView.setPreserveRatio(true);
-            btnImageView.setFitHeight(75);
-            
-
-            Label textField = new Label("Authorization Required");
-            textField.setFont(App.mainFont);
-            textField.setPadding(new Insets(20,0,20,15));
-            
-
-            VBox imageBox = new VBox(btnImageView, textField);
-            imageBox.setAlignment(Pos.CENTER);
-            imageBox.setPadding(new Insets(10,0,10,0));
-
-            Text passwordTxt = new Text("Enter password:");
-            passwordTxt.setFill(App.txtColor);
-            passwordTxt.setFont(App.txtFont);
-
-            PasswordField passwordField = new PasswordField();
-            passwordField.setFont(App.txtFont);
-            passwordField.setId("passField");
-
-            HBox.setHgrow(passwordField, Priority.ALWAYS);
-
-            HBox passwordBox = new HBox(passwordTxt, passwordField);
-            passwordBox.setAlignment(Pos.CENTER_LEFT);
-            passwordBox.setPadding(new Insets(10, 0, 0, 0));
-
-
-            VBox.setMargin(passwordBox, new Insets(5, 10, 15, 20));
-
-            ScrollPane bodyScroll = new ScrollPane(parametersBox);
-
-
-            VBox bodyBox = new VBox(locationBox, bodyScroll);
-            HBox.setHgrow(bodyBox,Priority.ALWAYS);
-            VBox.setVgrow(bodyBox,Priority.ALWAYS);
-            bodyBox.setPadding(new Insets(0,20, 0, 20));
-
-            Button exportBtn = new Button("🖫 Export JSON…");
-            exportBtn.setOnAction(onSave->{
-                ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
-                FileChooser saveChooser = new FileChooser();
-                saveChooser.setTitle("🖫 Export JSON…");
-                saveChooser.getExtensionFilters().addAll(txtFilter);
-                saveChooser.setSelectedExtensionFilter(txtFilter);
-                File saveFile = saveChooser.showSaveDialog(passwordStage);
-                if(saveFile != null){
-                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                    
-                    try {
-                        Files.writeString(saveFile.toPath(), gson.toJson(dataObject));
-                    } catch (IOException e1) {
-                        Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
-                        alert.setTitle("Error");
-                        alert.setHeaderText("Error");
-                        alert.initOwner(passwordStage);
-                        alert.show();
-                    }
-                }
-            });
-
-            HBox exportBtnBox = new HBox(exportBtn);
-            exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
-            exportBtnBox.setPadding(new Insets(15,15,15,0));
-
-            VBox layoutVBox = new VBox(titleBox, imageBox,bodyBox, exportBtnBox, passwordBox);
-            VBox.setVgrow(layoutVBox, Priority.ALWAYS);
-
-            bodyScroll.prefViewportWidthProperty().bind(bodyBox.widthProperty().subtract(1));
-            bodyScroll.prefViewportHeightProperty().bind(bodyBox.heightProperty().subtract(10));
-
-            parametersBox.setPrefWidth(bodyBox.widthProperty().get() -1);
-            bodyScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
-                double width = newval.doubleValue();
-                parametersBox.setPrefWidth(width-1);
-            });
-
-            
-            
-            PriceCurrency quoteCurrency = new PriceCurrency(ErgoDex.SIGUSD_ID, "SigUSD", 2, "EIP-004", m_networkType.toString());
-            String quoteIdString = quoteCurrency.getTokenId(); //SpectrumFinance.ERG_ID;
-            PriceAmount quotePriceAmount = new PriceAmount(quoteDecimal, quoteCurrency);
-            boolean spectrumIsQuote = quoteIdString.equals(ErgoDex.SPF_ID);
-
-            boolean feeIsSPF = false;
-            byte[] spectrumId = Base16.decode(feeIsSPF ? ErgoDex.SPF_ID : ErgoCurrency.TOKEN_ID).get();
-            //minValueForOrder = minerFee + uiFee + exFee + MinBoxValue
-
-            long quoteAmountLong = quotePriceAmount.getLongAmount();
-            
-           // ErgoToken[] tokenArray = new ErgoToken[] {new ErgoToken(SpectrumFinance.SIGUSD_ID, quoteAmountLong)};
-
-           
-
-
-
-
-            
-            Scene passwordScene = new Scene(layoutVBox, 800, 600);
-            passwordScene.setFill(null);
-            passwordScene.getStylesheets().add("/css/startWindow.css");
-            passwordStage.setScene(passwordScene);
-
-
-            passwordField.setOnAction(e -> {
-                String pass = passwordField.getText();
-             
-                Task<JsonObject> task = new Task<JsonObject>() {
-                    @Override
-                    public JsonObject call() throws Exception {
-                        Platform.runLater(()-> passwordStage.close());
-                        Wallet wallet = Wallet.load(m_walletData.getWalleFile().toPath(), pass);
-                       
-                        Address address = null;
-                
-                        ErgoClient ergoClient = RestApiErgoClient.create(namedNodeUrl.getUrlString(), m_networkType, namedNodeUrl.getApiKey(), explorerUrl.getUrlString());
-                        
-                        
-                        BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
-                        BlockchainParameters parameters = dataSource != null ? dataSource.getParameters() : null;
-
-                        List<BlockHeader> blockHeaderList =  dataSource != null ? dataSource.getLastBlockHeaders(1, true) : null;
-                        BlockHeader blockHeader = blockHeaderList != null && blockHeaderList.size() > 0 ? blockHeaderList.get(0)  : null;
-                        
-                        int blockHeight = blockHeader != null ? blockHeader.getHeight() : -1;
-                        long timeStamp = blockHeader != null ? blockHeader.getTimestamp() : -1;
-
-                        ErgoNodeParmeters ergoNodeParameters = blockHeader != null ? new ErgoNodeParmeters(parameters, blockHeight, timeStamp, blockHeight) : null;
-            
-                        JsonObject ergoNodeParametersObject = ergoNodeParameters != null ? ergoNodeParameters.getJsonObject() : null;
-                        if(ergoNodeParametersObject != null){
-                            dataObject.remove("network");
-                    
-                            dataObject.add("network", ergoNodeParametersObject);
-                        }
-                        List<Address> addresses = wallet.addressStream(m_networkType).toList();
-
-                        //swapBuy
-                        /*BigInteger maxInteger = BigInteger.valueOf(Long.MAX_VALUE);
-                        
-                        ProveDlog refundProp = new DLogProverInput(maxInteger).publicImage();
-                        long maxExFee = 1400L;
-                        long exFeePerTokenNum = 22L;
-                        long exFeePerTokenDenom = 100L;
-                        long baseAmount = 1200L;
-                        int feeNum = 996;
-                        byte[] poolNFT = new byte[32];
-                        Arrays.fill(poolNFT, (byte) 2);
-                        byte[] redeemerPropBytes = new byte[32];
-                        Arrays.fill(redeemerPropBytes, (byte) 1);
-                        long minQuoteAmount = 800L;
-                        byte[] spectrumId = new byte[32];
-                        Arrays.fill(spectrumId, (byte) 3);
-                        int feeDenom = 1000;
-                        byte[] minerPropBytes = Base16.decode("1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304").get();
-                        long maxMinerFee = 10000L;
-
-                        String swapBuyV3SC = Files.readString(new File("/txt/SwapBuyV3.sc").toPath());*/
-                        
-                        /*export const uiFeeParams$ = new BehaviorSubject<UiFeeParams>({
-                            address: '9fdmUutc4DhcqXAAyQeBTsw49PjEM4vuW9riQCHtXAoGEw3R11d',
-                            minUiFee: 0.3,
-                            uiFeePercent: 3,
-                            uiFeeThreshold: 30,
-                        });*/
-                         
-                        //swapSell
-                        byte[] redeemerPropBytes = address.toPropositionBytes();
-
-                        //ake2b256 -> (Coll[SByte$]) => Coll[SByte$])
-                       
-                        AddressInformation minerAddressInfo = new AddressInformation(ErgoDex.MINER_ADDRESS);
-                        Address minerAddress = minerAddressInfo.getAddress();
-                        //MinerPropBytes = Base16.decode("1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304").get()
-                        byte[] minerBytes = minerAddress.toPropositionBytes();
-
-                        Files.writeString(App.logFile.toPath(),"redeemerBytes: " + Base16.encode(redeemerPropBytes) +   "\nminerBytes:" + Base16.encode(minerBytes) + "\n" + "minerBytes:" + "1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304" + "\n" ,StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-
-                        UnsignedTransaction unsignedTx = ergoClient.execute(ctx -> {
-                        
-                            List<InputBox> boxesToSpend = BoxOperations.createForSenders(addresses, ctx)
-                                .withAmountToSpend(ergoAmountLong)
-                                .withFeeAmount(minerFeeAmount)
-                                .loadTop();
-                            //boxesToSpend.get(0).getTokens().
-                            UnsignedTransactionBuilder txBuilder = ctx.newTxBuilder();
-                
-                            OutBoxBuilder newBoxBuilder = txBuilder.outBoxBuilder();
-                            newBoxBuilder.value( ergoAmountLong );
-
-                            /*if (tokensToSend.length > 0) {
-                                newBoxBuilder.tokens(tokensToSend);
-                            }*/
-                           //recipient.getPublicKey()
-
-                           byte[] quoteIdBytes = Base16.decode(quoteIdString).get();
-
-                          
-                           
-                            ErgoContract ergoContract = ctx.compileContract(ConstantsBuilder.create()
-                                .item("ExFeePerTokenDenom", 22222L)
-                                .item("Delta",11111L)
-                                .item("BaseAmount", ergoAmountLong)
-                                .item("FeeNum",996)
-                                .item("RefundProp", address.getPublicKey())
-                                .item("SpectrumIsQuote", spectrumIsQuote)
-                                .item("MaxExFee", 1400L)
-                                .item("PoolNFT", quoteIdBytes)
-                                .item("RedeemerPropBytes", redeemerPropBytes)
-                                .item("QuoteId", quoteIdBytes)
-                                .item("MinQuoteAmount", quoteAmountLong)
-                                .item("SpectrumId", spectrumId)
-                                .item("FeeDenom", 1000)
-                                .item("MinerPropBytes", minerBytes)
-                                
-                                .build(),
-                                smartContract);
-
-                            try {
-                                Files.writeString(App.logFile.toPath(), "ErgoTree:" + ergoContract.getErgoTree().bytesHex() + "\n" + "ErgoTree:" + "19fe04210400059cdb0205cead0105e01204c80f08cd02217daf90deb73bdf8b6709bb42093fdfaff6573fd47b630e2d3fdd4a8193a74d0404040604020400010105f01504000e2002020202020202020202020202020202020202020202020202020202020202020e2001010101010101010101010101010101010101010101010101010101010101010e20040404040404040404040404040404040404040404040404040404040404040405c00c0101010105f015060100040404020e2003030303030303030303030303030303030303030303030303030303030303030101040406010104d00f0e691005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a573040500050005a09c010100d804d601b2a4730000d6027301d6037302d6049c73037e730405eb027305d195ed92b1a4730693b1db630872017307d806d605db63087201d606b2a5730800d607db63087206d608b27207730900d6098c720802d60a95730a9d9c7e997209730b067e7202067e7203067e720906edededededed938cb27205730c0001730d93c27206730e938c720801730f92720a7e7310069573117312d801d60b997e7313069d9c720a7e7203067e72020695ed91720b731492b172077315d801d60cb27207731600ed938c720c017317927e8c720c0206720b7318909c7e8cb2720573190002067e7204069c9a720a731a9a9c7ec17201067e731b067e72040690b0ada5d9010b639593c2720b731cc1720b731d731ed9010b599a8c720b018c720b02731f7320", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e) {
-                
-                            }
-
-                            try {
-                                Files.writeString(App.logFile.toPath(), "ErgoTreeTemplate:" + Base16.encode(ergoContract.getErgoTree().template()) + "\n" + "ErgoTreeTemplate:" + "d804d601b2a4730000d6027301d6037302d6049c73037e730405eb027305d195ed92b1a4730693b1db630872017307d806d605db63087201d606b2a5730800d607db63087206d608b27207730900d6098c720802d60a95730a9d9c7e997209730b067e7202067e7203067e720906edededededed938cb27205730c0001730d93c27206730e938c720801730f92720a7e7310069573117312d801d60b997e7313069d9c720a7e7203067e72020695ed91720b731492b172077315d801d60cb27207731600ed938c720c017317927e8c720c0206720b7318909c7e8cb2720573190002067e7204069c9a720a731a9a9c7ec17201067e731b067e72040690b0ada5d9010b639593c2720b731cc1720b731d731ed9010b599a8c720b018c720b02731f7320", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                            } catch (IOException e) {
-                
-                            }
-                            
-                            
-                            newBoxBuilder.contract(ergoContract).build();
-                                /*val rewardBox = OUTPUTS(1)
-                                
-                                */
-                                OutBox newBox = newBoxBuilder.build();
-                                
-
-                             return txBuilder
-                                    .addInputs(boxesToSpend.toArray(new InputBox[0]))
-                                    .addOutputs(newBox)
-                                    .fee(minerFeeAmount)
-                                    .sendChangeTo(address)
-                                    .build();
-                       
-                        });
-
-                  
-                        /*String txId = wallet.transact(ergoClient, ergoClient.execute(ctx -> {
-                            try {
-                                return wallet.key().signWithPassword(pass, ctx, unsignedTx, wallet.myAddresses.keySet());
-                            } catch (WalletKey.Failure ex) {
-        
-                                return null;
-                            }
-                        }));
-                        if(txId != null){
-
-                            JsonObject resultObject = new JsonObject();
-                            resultObject.addProperty("code", App.SUCCESS);
-                            resultObject.addProperty("timeStamp", System.currentTimeMillis());
-                            resultObject.addProperty("txId", txId);
-                            resultObject.add("data", dataObject);
-                        
-                            return resultObject;
-                        }else{
-                            throw new Exception("Transaction signing failed");
-                        }*/
-                        
-                        JsonObject resultObject = new JsonObject();
-                        resultObject.addProperty("code", App.SUCCESS);
-                        resultObject.addProperty("timeStamp", System.currentTimeMillis());
-                        resultObject.addProperty("txId", "none");
-                        resultObject.add("data", dataObject);
-                    
-                        return resultObject;
-                    }
-                };
-        
-                task.setOnFailed((failed->{
-                    Utils.returnObject(Utils.getMsgObject(App.ERROR, failed.getSource().getException().toString()), getExecService(), onSucceeded, onFailed);
-                   
-                }));
-        
-                task.setOnSucceeded((succeeded)->{
-                    Utils.returnObject(succeeded.getSource().getValue(), getExecService(), onSucceeded, onFailed);
-            
-                });
-        
-                Thread t = new Thread(task);
-                t.setDaemon(true);
-                t.start();
-            
-            
-            });
-
-       
-
-            closeBtn.setOnAction(e -> {
-             
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Transaction cancelled"), getExecService(), onSucceeded, onFailed);
-                  
-                activeThreadSemaphore.release();
-                passwordStage.close();
-
-            });
-
-
-
-            passwordStage.setOnCloseRequest(e->{
-            
-                Utils.returnObject(Utils.getMsgObject(App.ERROR, "Transaction cancelled"), getExecService(), onSucceeded, onFailed);
-             
-                activeThreadSemaphore.release();
-                passwordStage.close();
-            });
-
-            passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
-                if (newVal != null && !(newVal instanceof PasswordField)) {
-                    Platform.runLater(() -> passwordField.requestFocus());
-                }
-            });
-            passwordStage.show();
-    
-            Platform.runLater(()->passwordField.requestFocus());
-            
-            ResizeHelper.addResizeListener(passwordStage, 400, 600, Double.MAX_VALUE, Double.MAX_VALUE);
-        
-            Task<Object> task = new Task<Object>() {
-                @Override
-                public Object call() throws InterruptedException {
-                    activeThreadSemaphore.acquire();
-                    activeThreadSemaphore.release();
-                    return null;
-                }
-            };
-            return getExecService().submit(task); 
-        }
-
-            
-        return null;
-
-    }
-
 
 
 

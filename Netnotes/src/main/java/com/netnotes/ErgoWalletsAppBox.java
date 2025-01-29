@@ -2006,7 +2006,7 @@ public class ErgoWalletsAppBox extends AppBox {
                 String leftSide = index != -1 ? number.substring(0, index + 1) : number;
                 String rightSide = index != -1 ?  number.substring(index + 1) : "";
                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
-                rightSide = rightSide.length() > ErgoCurrency.FRACTIONAL_PRECISION ? rightSide.substring(0, ErgoCurrency.FRACTIONAL_PRECISION) : rightSide;
+                rightSide = rightSide.length() > ErgoCurrency.DECIMALS ? rightSide.substring(0, ErgoCurrency.DECIMALS) : rightSide;
                 m_feesField.setText(leftSide +  rightSide);
             });
             m_feesField.focusedProperty().addListener((obs,oldval,newval)->{
@@ -2162,7 +2162,7 @@ public class ErgoWalletsAppBox extends AppBox {
                     showError("Error: No wallet selected");
                     return;
                 }
-                AddressesData.addWalletAddressToDataObject(sendObject, m_lockBox.getAddress(), walletInterface.getName());
+                AddressesData.addWalletAddressToDataObject(m_lockBox.getAddress(), walletInterface.getName(), sendObject);
         
                 JsonObject recipientObject = new JsonObject();
                 recipientObject.addProperty("address", addressInformation.getAddress().toString());
@@ -2230,15 +2230,15 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
 
-                if(nanoErgs < 39600 && sendAssets.size() > 0){
+                if(nanoErgs < 39600){
                     addSendBox();
-                    showError("Transactions involving tokens require a minimum of " + PriceAmount.calculateLongToBigDecimal(39600, ErgoCurrency.FRACTIONAL_PRECISION).toPlainString() + " ERG to be included in the transaction.");
+                    showError("Transactions require a minimum of " + PriceAmount.calculateLongToBigDecimal(39600, ErgoCurrency.DECIMALS).toPlainString() + " ERG");
                     return;
                 }
 
                 sendObject.add("assets", sendAssets);
 
-                AddressesData.addNetworkTypeToDataObject(sendObject, m_networkType);
+                AddressesData.addNetworkTypeToDataObject(m_networkType, sendObject);
 
                 JsonObject note = Utils.getCmdObject("sendAssets");
                 note.addProperty("accessId", m_lockBox.getLockId());
@@ -2321,14 +2321,14 @@ public class ErgoWalletsAppBox extends AppBox {
                 sendReceiptHBarGBox.setAlignment(Pos.CENTER);
                 sendReceiptHBarGBox.setPadding(new Insets(0,0,10,0));
 
-                JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, 140);
+                JsonParametersBox sendReceiptJsonBox = new JsonParametersBox((JsonObject) null, ErgoNetwork.COL_WIDTH);
                 HBox.setHgrow(sendReceiptJsonBox, Priority.ALWAYS);
                 sendReceiptJsonBox.setPadding(new Insets(2,10,0,10));
                 sendReceiptJsonBox.updateParameters(receiptJson);
 
 
 
-                Button exportBtn = new Button("🖫 Export JSON…");
+                Button exportBtn = new Button("🖫 Export… (*.json)");
                 exportBtn.setOnAction(onSave->{
                     ExtensionFilter txtFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
                     FileChooser saveChooser = new FileChooser();

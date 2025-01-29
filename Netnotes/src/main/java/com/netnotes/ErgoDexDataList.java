@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
@@ -15,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 
 import com.devskiller.friendly_id.FriendlyId;
@@ -25,11 +27,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
 import org.ergoplatform.appkit.ErgoTreeTemplate;
+import org.ergoplatform.appkit.impl.ErgoTreeContract;
 import org.reactfx.util.FxTimer;
 import org.reactfx.util.Timer;
 
 import com.utils.Utils;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -105,7 +110,7 @@ public class ErgoDexDataList  {
     private VBox m_layoutBox;
     private double m_defaultCharSize;
     private VBox m_loadingBox;
-
+    private SimpleBooleanProperty m_isNetworkEnabled = new SimpleBooleanProperty(false);
     
     public ErgoDexDataList(String locationId,Stage appStage, ErgoDex ergoDex, SimpleBooleanProperty isInvert, SimpleDoubleProperty gridWidth, SimpleDoubleProperty gridHeight, TextField updatedField,  SimpleObjectProperty<TimeSpan> timeSpanObject, SimpleObjectProperty<NoteInterface> networkInterface, ScrollPane scrollPane) {
         m_currentBox = new SimpleObjectProperty<>(null);
@@ -148,9 +153,59 @@ public class ErgoDexDataList  {
         });
         addDexistener();
 
-      
+        m_isNetworkEnabled.addListener((obs,oldval,newval)->loadContracts(newval));
+        
+        m_isNetworkEnabled.bind(Bindings.createObjectBinding(()->m_ergoNetworkInterfaceProperty.get() != null, m_ergoNetworkInterfaceProperty));
     }
 
+    private Semaphore m_loadContractsSemaphore = new Semaphore(1);
+    private ErgoDexContracts m_ergoDexContracts = null;
+
+    public ErgoDexContracts getErgoDexContracts(){
+        return m_ergoDexContracts;
+    }
+
+    private void loadContracts(boolean load){
+        if(load){
+            loadContracts();
+        }else{
+            m_ergoDexContracts = null;
+        }
+     
+    }
+
+    private void loadContracts(){
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() throws InterruptedException, IOException {
+                m_loadContractsSemaphore.acquire();
+                
+                return new ErgoDexContracts();
+            }
+        };
+
+        task.setOnFailed(onFailed->{
+            if(m_loadContractsSemaphore.availablePermits() < 1){
+                m_loadContractsSemaphore.release();
+            }
+            m_ergoDexContracts = null;
+        });
+
+        task.setOnSucceeded((onSucceeded)->{
+            m_loadContractsSemaphore.release();
+            Object obj = onSucceeded.getSource().getValue();
+            if(obj != null && obj instanceof ErgoDexContracts){
+                m_ergoDexContracts = (ErgoDexContracts) obj;
+
+
+            }else{
+                m_ergoDexContracts = null;
+            }
+            
+        });
+
+        getNetworksData().getExecService().submit(task);
+    }
 
 
     public void setLoadingBox(){
@@ -242,6 +297,14 @@ public class ErgoDexDataList  {
 
     public SimpleObjectProperty<NoteInterface> ergoInterfaceProperty(){
         return m_ergoNetworkInterfaceProperty;
+    }
+
+    public boolean isNetworkEnabled(){
+        return m_isNetworkEnabled.get();
+    }
+
+    public ReadOnlyBooleanProperty isNetworkEnabledProperty(){
+        return m_isNetworkEnabled;
     }
     
     public Stage appStage(){
@@ -759,6 +822,37 @@ public class ErgoDexDataList  {
 
 
 
-  
+    public class ErgoDexContracts {
+        private String m_n2tBuyContract = null;
+        private String m_n2tSellContract = null;
+        private String m_t2tContract = null;
+        
+        public ErgoDexContracts() throws IOException{
+            m_n2tBuyContract = Utils.getStringFromResource("/ergoDex/contracts/n2t/SwapBuyV3.sc");
+            m_n2tSellContract = Utils.getStringFromResource("/ergoDex/contracts/n2t/SwapSellV3.sc");
+            m_t2tContract = Utils.getStringFromResource("/ergoDex/contracts/t2t/Swap.sc");
+        }
+
+        public String getN2tBuyContract(){
+            return m_n2tBuyContract;
+        }
+
+        public String getN2tSellContract(){
+            return m_n2tSellContract;
+        }
+
+        public String getT2tContract(){
+            return m_t2tContract;
+        }
+
+        public JsonObject getN2tSellContractData(boolean isFeeSPF, BigDecimal maxExFee){
+            
+            long[] maxFees = Utils.decimalToFractional(maxExFee);
+
+            JsonObject contractData = new JsonObject();
+            contractData.addProperty("description", m_n2tSellContract);
+            return contractData;
+        }
+    }
     
 }

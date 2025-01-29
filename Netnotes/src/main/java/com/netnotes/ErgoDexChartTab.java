@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.netnotes.ErgoDexDataList.ErgoDexContracts;
 import com.netnotes.NetworksData.ManageNetworksTab;
 import com.utils.Utils;
 
@@ -66,9 +67,11 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.NetworkType;
+import org.ergoplatform.appkit.ErgoToken;
 import org.reactfx.util.FxTimer;
 
 public class ErgoDexChartTab extends ContentTab {
@@ -918,8 +921,6 @@ public class ErgoDexChartTab extends ContentTab {
         private ScrollPane m_swapBoxScroll;
         private ErgoDexWalletBox m_dexWallet = null;  
      
-        private SimpleStringProperty m_orderTypeProperty;
-
         private MenuButton m_slippageMenu;
 
         private ErgoDexSwapInfoBox m_txInfoBox;
@@ -955,13 +956,9 @@ public class ErgoDexChartTab extends ContentTab {
            
             m_baseCurrencyImage = m_marketData.getBaseCurrency().getBackgroundIcon(BG_ICON_HEIGHT);
             m_quoteCurrencyImage = m_marketData.getQuoteCurrency().getBackgroundIcon(BG_ICON_HEIGHT);
-
-            m_orderTypeProperty = new SimpleStringProperty(MARKET_ORDER);
             
             m_dexWallet = new ErgoDexWalletBox();
             m_txInfoBox = new ErgoDexSwapInfoBox();
-
-           
 
             m_sellBtn = new Button("Sell");
             m_sellBtn.setId(isSellProperty().get() ? "iconBtnSelected" : "iconBtn");
@@ -1187,18 +1184,19 @@ public class ErgoDexChartTab extends ContentTab {
             m_executeBtn = new Button("Loading...");
             m_executeBtn.setPadding(new Insets(5));
             m_executeBtn.setOnAction(e->{
-                boolean isFeeSPF = m_dexFees.isSPF();
-                PriceCurrency amountCurrency = getAmountCurrency();
-                BigDecimal minExFee = m_dexFees.getMinExFee();
-                BigDecimal maxExFee = m_dexFees.getMaxExFee();
-                BigDecimal networkFee = m_dexFees.getNetworkFee();
-                PriceCurrency feeCurrency = m_dexFees.getFeeCurrency();
+     
 
-                Future<?> m_swappingFuture = executeSwap(m_amountBigDecimal, amountCurrency, isFeeSPF, feeCurrency, networkFee, minExFee, maxExFee, (onComplete)->{
+                Future<?> m_swappingFuture = executeSwap((onComplete)->{
 
                 }, onError->{
                     Throwable exception = onError.getSource().getException();
-                    showError(exception != null ? exception.getMessage() : "Swap failed");
+                    String msg =  exception.getMessage();
+                    try {
+                        Files.writeString(App.logFile.toPath(), msg,StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    } catch (IOException e1) {
+
+                    }
+                    showError(exception != null ? msg : "Swap failed");
                 });
 
             });
@@ -1225,51 +1223,25 @@ public class ErgoDexChartTab extends ContentTab {
     
             VBox marketPaddingBox = new VBox(orderTypeBox, marketBox);
     
-            
-    
-    
-            /*Runnable updateOrderType = () ->{
-            
-                String orderType = m_orderTypeProperty.get() != null ? m_orderTypeProperty.get() : "";
-                
-                switch(orderType){
-                    
-                    case LIMIT_ORDER:
-                        orderPriceTextField.setId("swapField");
-                        orderPriceTextField.setEditable(true);
-                    
-                        break;
-                    case MARKET_ORDER:        
-                    default:
-                        orderPriceTextField.setId("swapBtnStatic");
-                        orderPriceTextField.setEditable(false);
-                    
-                        
-                }
-            
-            };
-            
-    
-            m_orderTypeProperty.addListener((obs,oldVal,newVal)->updateOrderType.run());*/
-    
-           // updateOrderType.run();
-    
+
+            double barWidth = 3;
+            double barHeight = 3;
 
             m_swapScrollContentBox = new VBox(m_dexWallet);
-           
+            m_swapScrollContentBox.setAlignment(Pos.TOP_CENTER);
             m_swapBoxScroll = new ScrollPane(m_swapScrollContentBox); 
             m_swapBoxScroll.prefViewportWidthProperty().bind(widthProperty()); 
             m_swapBoxScroll.prefViewportHeightProperty().bind(heightProperty().subtract(marketPaddingBox.heightProperty()).subtract(1));
         
-            m_swapScrollContentBox.setPrefWidth(m_swapBoxScroll.viewportBoundsProperty().get().getWidth());
-            m_swapScrollContentBox.setMinHeight(m_swapBoxScroll.viewportBoundsProperty().get().getHeight());
+            m_swapScrollContentBox.setPrefWidth(m_swapBoxScroll.prefViewportWidthProperty().get()-barWidth);
+            m_swapScrollContentBox.setMinHeight(m_swapBoxScroll.prefViewportHeightProperty().get()-barHeight);
 
             m_swapBoxScroll.prefViewportWidthProperty().addListener((obs,oldval,newval)->{
-                m_swapScrollContentBox.setPrefWidth(newval.doubleValue());
+                m_swapScrollContentBox.setPrefWidth(newval.doubleValue() - barWidth);
             });
 
             m_swapBoxScroll.prefViewportHeightProperty().addListener((obs,oldval,newval)->{
-                m_swapScrollContentBox.setMinHeight(newval.doubleValue());
+                m_swapScrollContentBox.setMinHeight(newval.doubleValue() - barHeight);
             });
 
             getChildren().addAll( m_swapBoxScroll, marketPaddingBox);
@@ -1304,18 +1276,15 @@ public class ErgoDexChartTab extends ContentTab {
                 String rightSide = index != -1 ?  number.substring(index + 1) : "";
                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
                 rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
-                
-                m_amountField.setText(leftSide + rightSide);
-                leftSide = leftSide.equals(".") ? "0." : leftSide;
-                m_amountBigDecimal = new BigDecimal(leftSide + rightSide);
+                number = (leftSide + rightSide);
+                m_amountField.setText(number);
+                m_amountBigDecimal = Utils.isTextZero(number) ? BigDecimal.ZERO : new BigDecimal(Utils.formatStringToNumber(number, decimals));
                 setVolume();
             });
+
             m_amountField.textProperty().set(m_amountBigDecimal.toPlainString());
-
             m_slippageTolerance.addListener((obs,oldval,newval)->setVolume());
-
             m_chartView.ergoPoolBoxData().addListener((obs,oldval,newval)->setVolume());
-           
             m_dexWallet.ergoAmountProperty().addListener((obs,oldVal,newval)->checkSwap());
             update();
         }
@@ -1492,11 +1461,27 @@ public class ErgoDexChartTab extends ContentTab {
             String amountTokenId = amountCurrency.getTokenId();
             String amountSymbol = amountCurrency.getSymbol();
 
-            PriceAmount amountBalance = m_dexWallet.getPoolPriceAmountByTokenId(amountTokenId);
+
+
+     
             NetworkType networkType = m_dexWallet.getErgoWalletControl().getNetworkType();
 
+            PriceAmount ergoAmountBalance = m_dexWallet.ergoAmountProperty().get();
             boolean isNetworkType = networkType != null && networkType == ErgoDex.NETWORK_TYPE;
+
+            if(ergoAmountBalance == null || !isNetworkType){
+                boolean isUnlocked = m_dexWallet.getErgoWalletControl().isUnlocked();
+                boolean isSelected = m_dexWallet.getErgoWalletControl().isSelected();
+                boolean isNetwork = isNetworkEnabled();
+                return !isNetwork ? "Ergo network disabled" : (!isSelected ? "Wallet not selected" : (!isUnlocked ? "Wallet is locked" :  (!isNetworkType ? "Wallet is " + networkType.toString() + ": " + ErgoDex.NETWORK_TYPE.toString() + " required" : "Wallet balance unavailable")));
+            }
             
+            PriceAmount amountBalance = m_dexWallet.getPoolPriceAmountByTokenId(amountTokenId);
+
+            if(amountBalance == null){
+                return "Wallet does not contain " + amountCurrency.getSymbol();
+            }
+
             BigDecimal walletAmountBalanceBigDecimal = amountBalance.getBigDecimalAmount();
 
             BigDecimal ergoFees = !isSpectrumFee ? networkFee.add(maxExFee) : networkFee;
@@ -1506,7 +1491,7 @@ public class ErgoDexChartTab extends ContentTab {
             String feeCurrencySymbol = isSpectrumFee ? "SPF" : "ERG";
             
             PriceAmount feeCurrencyBalance = m_dexWallet.getBalancePriceAmountByTokenId(feeCurrencyId);
-            PriceAmount ergoAmountBalance = m_dexWallet.ergoAmountProperty().get();
+            
 
             BigDecimal minHouseingAmount = ErgoNetwork.MIN_NETWORK_FEE;
 
@@ -1516,14 +1501,6 @@ public class ErgoDexChartTab extends ContentTab {
             boolean isAmountFeeType = amountTokenId.equals(feeCurrencyId);
             boolean isFeeTypeErg = feeCurrencyId.equals(ErgoCurrency.TOKEN_ID);
 
-
-            if(ergoAmountBalance == null || !isNetworkType){
-                boolean isUnlocked = m_dexWallet.getErgoWalletControl().isUnlocked();
-                boolean isSelected = m_dexWallet.getErgoWalletControl().isSelected();
-                boolean isNetwork = m_dataList.ergoInterfaceProperty().get() != null;
-                return !isNetwork ? "Ergo network disabled" : (!isSelected ? "Wallet not selected" : (!isUnlocked ? "Wallet is locked" :  (!isNetworkType ? "Wallet is " + networkType.toString() + ": " + ErgoDex.NETWORK_TYPE.toString() + " required" : "Wallet balance unavailable")));
-            }
-          
     
             if(isFeeTypeErg && isAmountFeeType && amount.add(ergoFees).add(minHouseingAmount).compareTo(ergoBalanceBigDecimal) == 1){
                 return "Insufficent ERG balance for swap,fee"+(isFeeTypeErg ? "s" : "" )+" and token housing.\n(Required: " + amount.add(ergoFees).add(minHouseingAmount) + " ERG)";
@@ -1544,6 +1521,10 @@ public class ErgoDexChartTab extends ContentTab {
             return null;
         }
         
+
+        public boolean isNetworkEnabled(){
+            return m_dataList.isNetworkEnabled();
+        }
         
         public PriceCurrency getAmountCurrency(){
             boolean isInvert = isInvertProperty().get();
@@ -1600,93 +1581,67 @@ public class ErgoDexChartTab extends ContentTab {
             return m_dataList.getLocationId();
         }
 
+        public ExecutorService getExecService(){
+            return getNetworksData().getExecService();
+        }
 
-        public Future<?> executeSwap(
-            BigDecimal amount, 
-            PriceCurrency amountCurrency, 
-            boolean isSpectrumFee, 
-            PriceCurrency feeCurrency, 
-            BigDecimal networkFee,
-            BigDecimal minExFee, 
-            BigDecimal maxExFee, 
-            EventHandler<WorkerStateEvent> onComplete, 
-            EventHandler<WorkerStateEvent> onError
-        ){
-            String errorString = getExecuteErrorString(amount, amountCurrency, isSpectrumFee, networkFee, maxExFee);
+        public Future<?> executeSwap(EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
+            
+            BigDecimal amount = m_amountBigDecimal;
+            if(amount == null || amount.equals(BigDecimal.ZERO)){
+                return Utils.returnException("Enter an amount", getExecService(), onError);
+            }
+            boolean isFeeSPF = m_dexFees.isSPF();
+            PriceCurrency amountCurrency = getAmountCurrency();
+            PriceCurrency volumeCurrency = getVolumeCurrency();
+
+            BigDecimal maxExFeeDecimal = m_dexFees.getMaxExFee();
+            BigDecimal networkFee = m_dexFees.getNetworkFee();
+           
+            String errorString = getExecuteErrorString(amount, amountCurrency, isFeeSPF, networkFee, maxExFeeDecimal);
             if(errorString != null){
-                return Utils.returnException(errorString, getNetworksData().getExecService(), onError);
+                return Utils.returnException(errorString, getExecService(), onError);
             }
             NoteInterface ergoInterface = m_dataList.ergoInterfaceProperty().get();
-            boolean isFeeSPF = isSpectrumFee;
-            int feeDecimals = feeCurrency.getDecimals();
 
-            long minExFeeLong = PriceAmount.calculateBigDecimalToLong(minExFee, feeDecimals);
-            long maxExFeeLong = PriceAmount.calculateBigDecimalToLong(maxExFee, feeDecimals);
+            long networkFeeNanoErgs = ErgoDexFees.getNanoErgsFromErgs(networkFee);
 
             int amountDecimals = amountCurrency.getDecimals();
             long amountLong = PriceAmount.calculateBigDecimalToLong(amount, amountDecimals);
 
-            boolean isSell = amountCurrency.getTokenId().equals(ErgoCurrency.TOKEN_ID);
-   
-            if(m_marketData.isNative2Token()){
-                String contractString  = null;
-                
+            
 
-                try{
-                    contractString = Utils.getStringFromResource( isSell ? "/ergoDex/contracts/SwapSellV3.sc" : "/ergoDex/contracts/SwapBuyV3.sc" );
-                }catch(IOException e1){
-                    return Utils.returnException(errorString, getNetworksData().getExecService(), onError);
+            int contractType = amountCurrency.getTokenId().equals(ErgoCurrency.TOKEN_ID) ? 0 : (volumeCurrency.getTokenId().equals(ErgoCurrency.TOKEN_ID) ? 1 : 2);
+
+            ErgoDexContracts ergoDexContracts = m_dataList.getErgoDexContracts();
+           
+            if(ergoDexContracts != null){
+                switch(contractType){
+                    case 0:
+                        return executeN2TSellContract(ergoInterface, ergoDexContracts, isFeeSPF, amountLong, networkFeeNanoErgs, maxExFeeDecimal, onComplete, onError);
+                    default:
+                        return Utils.returnException("This contract has not been enabled yet", getExecService(), onError);
                 }
-                
-               // return executeN2TContract(ergoInterface, contractString, isSell, isFeeSPF, input.getLongAmount(), networkFee, minExFee, maxExFee);
-            
             }else{
-
+                return Utils.returnException("Contracts not loaded", getExecService(), onError);
             }
-            
-    
-        
-            return null;
+
            
         }
-        
-        public static Future<?> executeN2TContract(NoteInterface ergoInterface, String contractStr, boolean isSell, boolean isFeeSPF, long baseAmount, long networkFee, long minExFee, long maxExFee){
 
-
-            long maxOutput = 0;
-
-           /* BigDecimal feePerToken = getFeePerToken(minExFee, minOutput);
-            long adjustedMinExFee = feePerToken.multiply(BigDecimal.valueOf(minOutput)).longValue();
+        public Future<?> executeN2TSellContract(NoteInterface ergoInterface, ErgoDexContracts ergoDexContracts, boolean isFeeSPF, long baseAmount, long networkFee, BigDecimal maxExFee, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
+            long feeLong = PriceAmount.calculateBigDecimalToLong(maxExFee, isFeeSPF ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS);
+            long nanoErgs = baseAmount + (isFeeSPF ? 0L : feeLong);
             
-            try {
-                Files.writeString(App.logFile.toPath(), "feePerToken: " + feePerToken + "\n" + adjustedMinExFee + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-            } catch (IOException e) {
+            JsonObject contractData = ergoDexContracts.getN2tSellContractData(isFeeSPF, maxExFee);
+            PriceAmount[] tokens = isFeeSPF ? new PriceAmount[]{new PriceAmount(feeLong, ErgoDex.SPF_CURRENCY) } : new PriceAmount[0];
 
-            }*/
-
-            
-
-            //minExFee / minOutput(long)
-            JsonObject exFeePerTokenDenom = new JsonObject();
-           // exFeePerTokenDenom.addProperty("value", getFeePerDenom(ergoAmount.getLongAmount(), quotePriceAmount.getLongAmount()));
-            exFeePerTokenDenom.addProperty("type", "long");
-            exFeePerTokenDenom.addProperty("name", "ExFeePerTokenDenom");
-
-            JsonObject swapObject = new JsonObject();
-                 
-            /*if(!m_dexWallet.getErgoWalletControl().sendNote(
-                "executeContract", 
-                swapObject, 
-                onSucceeded->{
-
-                }, onFailed->{
-
-                })){
-                    showError("Ergo Network - Ergo Wallet is inaccessible.");
-            }*/
-            return null;
+            return m_dexWallet.getErgoWalletControl().executeContract(nanoErgs, networkFee, tokens, contractData, getExecService(), onComplete, onError);
         }
-        
+       
+       
+       
+
         public long getMinQuoteAmount(long slippage){
 
 
@@ -1818,9 +1773,9 @@ public class ErgoDexChartTab extends ContentTab {
                 ergoAmountHeadingField.textProperty().bind(Bindings.createObjectBinding(()->{
                     String walletName = m_walletControl.walletNameProperty().get();
                     PriceAmount ergoAmount =  m_ergoAmountProperty.get();
-                    NoteInterface ergoInterface = m_dataList.ergoInterfaceProperty().get();
-                    return ergoAmount != null ? ergoAmount.getAmountString() : walletName != null ? "🔒 Locked" : ergoInterface != null ? "🚫" : "⛔" ;
-                }, m_ergoAmountProperty, m_walletControl.walletNameProperty(), m_dataList.ergoInterfaceProperty()));
+                    boolean isNetwork = isNetworkEnabled();
+                    return ergoAmount != null ? ergoAmount.getAmountString() : walletName != null ? "🔒 Locked" : isNetwork ? "🚫" : "⛔" ;
+                }, m_ergoAmountProperty, m_walletControl.walletNameProperty(), m_dataList.isNetworkEnabledProperty()));
                 
                 ergoAmountHeadingField.prefWidthProperty().bind(Bindings.createObjectBinding(()->{
                     double w = Utils.computeTextWidth(App.txtFont, ergoAmountHeadingField.textProperty().get()) + 20;
@@ -1922,7 +1877,7 @@ public class ErgoDexChartTab extends ContentTab {
                 m_walletAdrMenu.showingProperty().addListener((obs,oldval,newval)->{
             
                     if(newval){
-                        if(m_walletControl.currentAddress().get() != null){
+                        if(m_walletControl.currentAddressProperty().get() != null){
                             updateAddressesMenu();
                         }
                     }
@@ -2037,7 +1992,7 @@ public class ErgoDexChartTab extends ContentTab {
 
                 m_walletControl.balanceProperty().addListener((obs,oldval,newval)->updateBalance());
     
-                m_walletControl.currentAddress().addListener((obs,oldval,newval)->{
+                m_walletControl.currentAddressProperty().addListener((obs,oldval,newval)->{
                     if(newval != null){
                       
 
@@ -2332,7 +2287,7 @@ public class ErgoDexChartTab extends ContentTab {
                             if(address != null){
                                 MenuItem addressItem = new MenuItem((nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() + ": "  : "" ) + address);
                                 addressItem.setOnAction(e->{
-                                    m_walletControl.currentAddress().set(address);
+                                    m_walletControl.currentAddressProperty().set(address);
                                     m_walletControl.updateBalance();
                                 });
                                 m_walletAdrMenu.getItems().add(addressItem);
@@ -2464,8 +2419,8 @@ public class ErgoDexChartTab extends ContentTab {
                 m_showMinBtn.bind(Bindings.createObjectBinding(()->{
                     boolean isSPF = m_dexFees.isSPF();
                     BigDecimal maxExFee = m_dexFees.getMaxExFee();
-                    BigDecimal netwworkFee = m_dexFees.getNetworkFee();
-                    return !(!isSPF && maxExFee != null && netwworkFee != null && netwworkFee.equals(ErgoDexFees.DEFAULT_NETWORK_FEE) ? maxExFee.equals(m_dexFees.getDefaultErgoMaxExFee()) : false);
+                    BigDecimal networkFee = m_dexFees.getNetworkFee();
+                    return !isSPF || maxExFee == null || networkFee == null || !networkFee.equals(ErgoDexFees.DEFAULT_NETWORK_FEE) || !maxExFee.equals(ErgoDexFees.DEFAULT_ERG_MAX_EX_FEE);
                 }, m_dexFees.maxExFeeProperty(), m_dexFees.isSPFProperty()));
 
                 m_showMinBtn.addListener((obs,oldval,newval)->{
@@ -2578,7 +2533,7 @@ public class ErgoDexChartTab extends ContentTab {
                                 String leftSide = index != -1 ? number.substring(0, index + 1) : number;
                                 String rightSide = index != -1 ?  number.substring(index + 1) : "";
                                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
-                                rightSide = rightSide.length() > ErgoCurrency.FRACTIONAL_PRECISION ? rightSide.substring(0, ErgoCurrency.FRACTIONAL_PRECISION) : rightSide;
+                                rightSide = rightSide.length() > ErgoCurrency.DECIMALS ? rightSide.substring(0, ErgoCurrency.DECIMALS) : rightSide;
                             
                                 m_networkFeeField.setText(leftSide +  rightSide);
 
@@ -2596,7 +2551,7 @@ public class ErgoDexChartTab extends ContentTab {
                                         setNetworkFee(defaultFee);
                                     }else{
                                         
-                                        BigDecimal newFee = new BigDecimal(Utils.formatStringToNumber(str, ErgoCurrency.FRACTIONAL_PRECISION));
+                                        BigDecimal newFee = new BigDecimal(Utils.formatStringToNumber(str, ErgoCurrency.DECIMALS));
                                         if(newFee.compareTo(defaultFee) == -1){
                                             setNetworkFee(defaultFee);
                                         }else{
@@ -2654,7 +2609,7 @@ public class ErgoDexChartTab extends ContentTab {
 
                         m_maxExFeeBinding = Bindings.createObjectBinding(()->{
                             BigDecimal maxExFee = m_dexFees.maxExFeeProperty().get();
-                            return maxExFee != null ? maxExFee.toPlainString() : "";
+                            return maxExFee != null ? maxExFee + "" : "";
                         }, m_dexFees.maxExFeeProperty());
 
                         m_maxSwapFeeField.textProperty().bind(m_maxExFeeBinding);
@@ -2668,7 +2623,7 @@ public class ErgoDexChartTab extends ContentTab {
                         m_maxSwapFeeField.setOnAction(m_maxSwapFieldAction);
                         m_maxSwapFeeTextListener = (obs,oldval,newval)->{
                             if(m_maxSwapFeeField != null){
-                                int scale = m_dexFees.isSPF() ? SPFCurrency.FRACTIONAL_PRECISION : ErgoCurrency.FRACTIONAL_PRECISION;
+                                int scale = m_dexFees.isSPF() ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS;
                                 String number = newval.replaceAll("[^0-9.]", "");
                                 int index = number.indexOf(".");
                                 String leftSide = index != -1 ? number.substring(0, index + 1) : number;
@@ -2689,7 +2644,7 @@ public class ErgoDexChartTab extends ContentTab {
                                     String str = m_maxSwapFeeField.getText();
                                     
                                     if(!Utils.isTextZero(str)){
-                                        int scale = isSpf ? SPFCurrency.FRACTIONAL_PRECISION : ErgoCurrency.FRACTIONAL_PRECISION;
+                                        int scale = isSpf ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS;
                                         BigDecimal newFee = new BigDecimal(Utils.formatStringToNumber(str, scale));
                                         
                                         
@@ -2764,7 +2719,7 @@ public class ErgoDexChartTab extends ContentTab {
                                 String leftSide = index != -1 ? number.substring(0, index + 1) : number;
                                 String rightSide = index != -1 ?  number.substring(index + 1) : "";
                                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
-                                rightSide = rightSide.length() > 5 ? rightSide.substring(0, 5) : rightSide;
+                                rightSide = rightSide.length() > ErgoDex.POOL_FEE_MAX_DECIMALS ? rightSide.substring(0, ErgoDex.POOL_FEE_MAX_DECIMALS) : rightSide;
                             
                                 m_nitroField.setText(leftSide +  rightSide);
 
@@ -2774,7 +2729,7 @@ public class ErgoDexChartTab extends ContentTab {
                         
                         m_nitroBinding = Bindings.createObjectBinding(()->{
                             BigDecimal nitro = m_dexFees.nitroProperty().get();
-                            return nitro != null ? nitro.toPlainString() : "";
+                            return nitro != null ? nitro + "" : "";
                         }, m_dexFees.nitroProperty());
                         m_nitroField.textProperty().bind(m_nitroBinding);
 
@@ -2790,7 +2745,7 @@ public class ErgoDexChartTab extends ContentTab {
                                         m_nitroFieldBox.getChildren().remove(m_nitroEnterBtn);
                                     }
                                     m_nitroField.textProperty().removeListener(m_nitroTextListener);
-                                    m_maxSwapFeeField.textProperty().bind(m_nitroBinding);
+                                    m_nitroField.textProperty().bind(m_nitroBinding);
                                 }else{
                                     m_nitroField.textProperty().unbind();
                                     m_nitroField.textProperty().addListener(m_nitroTextListener);
@@ -2846,7 +2801,7 @@ public class ErgoDexChartTab extends ContentTab {
                             BigDecimal minVolume = m_minVolumeProperty.get();
                             if(volume.compareTo(BigDecimal.ZERO) > -1 && minVolume.compareTo(BigDecimal.ZERO) > -1){
                                 BigDecimal slippageAmount = volume.subtract(minVolume);
-                                return slippageAmount.toPlainString();
+                                return slippageAmount + "";
                             }
                             return "0";
                         }, m_minVolumeProperty));
@@ -2906,6 +2861,7 @@ public class ErgoDexChartTab extends ContentTab {
                         }
 
                         m_settingsExtendedBox.getChildren().clear();
+
                         m_networkFeeFieldBox.getChildren().clear();
                         m_networkFeeBox.getChildren().clear();
                         m_networkFeeField.textProperty().removeListener(m_networkFeeTextListener);
@@ -2913,7 +2869,6 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeInfoLbl.setTooltip(null);
                         m_networkFeeField.setOnAction(null);
                         m_networkFeeEnterBtn.setOnAction(null);
-
                         m_networkFeeFieldAction = null;
                         m_networkFeeTooltip = null;
                         m_networkFeeInfoLbl = null;
@@ -2948,12 +2903,11 @@ public class ErgoDexChartTab extends ContentTab {
                         m_nitroFieldBox.getChildren().clear();
                         m_nitroBox.getChildren().clear();
                         m_nitroField.textProperty().unbind();
-                        m_nitroField.textProperty().removeListener(m_maxSwapFeeTextListener);
-                        m_nitroField.focusedProperty().removeListener(m_maxSwapFeeFocusListener);
+                        m_nitroField.textProperty().removeListener(m_nitroTextListener);
+                        m_nitroField.focusedProperty().removeListener(m_nitroFocusListener);
                         m_nitroInfoLbl.setTooltip(null);
                         m_nitroField.setOnAction(null);
                         m_nitroEnterBtn.setOnAction(null);
-
                         m_nitroText = null;
                         m_nitroField = null;
                         m_nitroFocusListener = null;
@@ -2980,7 +2934,6 @@ public class ErgoDexChartTab extends ContentTab {
                         m_minErgoFieldBox.getChildren().clear();
                         m_minErgoBox.getChildren().clear();
                         m_minErgoInfoLbl.setTooltip(null);
-
                         m_minErgoToolTip = null;
                         m_minErgoInfoLbl = null;
                         m_minErgoText = null;

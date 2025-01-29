@@ -103,8 +103,7 @@ public class JsonParametersBox extends AppBox{
 
             
             Label nameText = new Label();
-            nameText.setMaxWidth(m_colWidth);
-            nameText.setMinWidth(m_colWidth);
+       
 
             if(isJsonObject){
                 String[] names = m_regexPattern.split(keyString);
@@ -113,6 +112,7 @@ public class JsonParametersBox extends AppBox{
                     nameText.setText(nameText.getText() + " " + names[i].substring(0,1).toUpperCase() + names[i].substring(1));
                 }
             }else{
+
                 nameText.setText(keyString);
             }
 
@@ -180,7 +180,9 @@ public class JsonParametersBox extends AppBox{
                 break;
                 case 3:
                     String textString = "";
-
+                    nameText.setMaxWidth(m_colWidth);
+                    nameText.setMinWidth(m_colWidth);
+                    
                     switch(keyString){
                         case "timestamp":
                         case "timeStamp":

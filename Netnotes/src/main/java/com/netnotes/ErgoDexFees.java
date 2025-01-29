@@ -15,38 +15,31 @@ import com.google.gson.JsonElement;
 public class ErgoDexFees {
     public static final BigDecimal DEFAULT_NETWORK_FEE = BigDecimal.valueOf(0.002);
     public static final BigDecimal MIN_NITRO = BigDecimal.valueOf(1.2);
+    public static final BigDecimal DEFAULT_ERG_MIN_EX_FEE = DEFAULT_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
+    public static final BigDecimal DEFAULT_ERG_MAX_EX_FEE = DEFAULT_ERG_MIN_EX_FEE.multiply(MIN_NITRO).setScale(ErgoDex.POOL_FEE_MAX_DECIMALS, RoundingMode.FLOOR);
 
-    private final BigDecimal m_defaultErgMinExFee;
-    private final BigDecimal m_deafultErgMaxExFee;
-
-    private final SimpleObjectProperty<BigDecimal> m_networkFee = new SimpleObjectProperty<>(DEFAULT_NETWORK_FEE);
-        
     private PriceQuote m_spfPriceQuote = null;
-    private final SimpleBooleanProperty m_isSPF = new SimpleBooleanProperty(false);
- 
-    
-    private final SimpleObjectProperty<BigDecimal> m_nitro = new SimpleObjectProperty<>(ErgoDex.DEFAULT_NITRO);
 
+    private final SimpleBooleanProperty m_isSPF = new SimpleBooleanProperty(false);
+    private final SimpleObjectProperty<BigDecimal> m_nitro = new SimpleObjectProperty<>(ErgoDex.DEFAULT_NITRO);
     private final SimpleObjectProperty<BigDecimal> m_ergoMaxExFee;
     private final SimpleObjectProperty<BigDecimal> m_spfMinExFee = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<BigDecimal> m_spfMaxExFee = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<BigDecimal> m_minExFeeProperty = new SimpleObjectProperty<>(null);
     private final SimpleObjectProperty<BigDecimal> m_maxExFeeProperty = new SimpleObjectProperty<>(null);
+    private final SimpleObjectProperty<BigDecimal> m_networkFee = new SimpleObjectProperty<>(DEFAULT_NETWORK_FEE);
 
     public ErgoDexFees(){
-        m_defaultErgMinExFee = DEFAULT_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
-        m_deafultErgMaxExFee = m_defaultErgMinExFee.multiply(ErgoDex.DEFAULT_NITRO);
-        m_ergoMaxExFee = new SimpleObjectProperty<>(m_deafultErgMaxExFee);
-       
+        m_ergoMaxExFee = new SimpleObjectProperty<>(DEFAULT_ERG_MIN_EX_FEE);
+        setNitro(MIN_NITRO);
         createBindings();
     }
 
     public ErgoDexFees(BigDecimal networkFee){
         m_networkFee.set(networkFee);
-        m_defaultErgMinExFee = DEFAULT_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
-        m_deafultErgMaxExFee = m_defaultErgMinExFee.multiply(ErgoDex.DEFAULT_NITRO);
-        m_ergoMaxExFee = new SimpleObjectProperty<>(m_deafultErgMaxExFee);
-
+        m_ergoMaxExFee = new SimpleObjectProperty<>(DEFAULT_ERG_MAX_EX_FEE);
+        
+        setNitro(MIN_NITRO);
         createBindings();
     }
 
@@ -59,9 +52,8 @@ public class ErgoDexFees {
         boolean isSPF = isSPFElement != null ? isSPFElement.getAsBoolean() : false;
 
         m_networkFee.set(networkFee);
-        m_defaultErgMinExFee = DEFAULT_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
-        m_deafultErgMaxExFee = m_defaultErgMinExFee.multiply(ErgoDex.DEFAULT_NITRO);
-        m_ergoMaxExFee = new SimpleObjectProperty<>(m_defaultErgMinExFee.multiply(nitro));
+        m_ergoMaxExFee = new SimpleObjectProperty<>(DEFAULT_ERG_MIN_EX_FEE.multiply(nitro).setScale(ErgoDex.POOL_FEE_MAX_DECIMALS, RoundingMode.FLOOR));
+        
         setIsSPF(isSPF);
         setNitro(nitro);
         createBindings();
@@ -69,19 +61,18 @@ public class ErgoDexFees {
 
     public void reset(){
         m_networkFee.set(DEFAULT_NETWORK_FEE);
-        m_ergoMaxExFee.set(m_deafultErgMaxExFee);
+        setNitro(MIN_NITRO);
         m_isSPF.set(false);
     }
     
     private void createBindings(){
-        
-        m_maxExFeeProperty.bind(Bindings.createObjectBinding(()->getMaxExFee(), m_isSPF, m_ergoMaxExFee));
+        m_maxExFeeProperty.bind(Bindings.createObjectBinding(()->getMaxExFee(), m_isSPF, m_ergoMaxExFee, m_spfMaxExFee));
         m_minExFeeProperty.bind(Bindings.createObjectBinding(()->getMinExFee(), m_isSPF, m_spfMinExFee));
     }
 
     public BigDecimal calculateSpfMinExFee(){ 
         BigDecimal quoteAmount = m_spfPriceQuote != null ? m_spfPriceQuote.getQuote() : null;
-        return quoteAmount != null ? m_defaultErgMinExFee.multiply(quoteAmount) : null;
+        return quoteAmount != null ? DEFAULT_ERG_MIN_EX_FEE.multiply(quoteAmount) : null;
     }
 
     public static BigDecimal calculateSpfMaxExFee(BigDecimal minExFee, BigDecimal nitro){      
@@ -108,16 +99,9 @@ public class ErgoDexFees {
         return m_isSPF;
     }
 
-    public BigDecimal getErgoMinExFee(){
-        return m_defaultErgMinExFee;
-    }
-
-    public BigDecimal getDefaultErgoMaxExFee(){
-        return m_deafultErgMaxExFee;
-    }
 
     public BigDecimal ergoMaxExFee(){
-        return m_nitro.get().multiply(m_defaultErgMinExFee);
+        return getNitro().multiply(DEFAULT_ERG_MIN_EX_FEE);
     }
     
     public ReadOnlyObjectProperty<BigDecimal> nitroProperty(){
@@ -126,7 +110,9 @@ public class ErgoDexFees {
 
     public void setNitro(BigDecimal nitro){
         nitro = nitro.compareTo(MIN_NITRO) == -1 ? MIN_NITRO : nitro;
-        m_ergoMaxExFee.set(m_defaultErgMinExFee.multiply(nitro));
+        BigDecimal maxExFee = DEFAULT_ERG_MIN_EX_FEE.multiply(nitro);
+        maxExFee = maxExFee.scale() > ErgoDex.POOL_FEE_MAX_DECIMALS ? maxExFee.setScale(ErgoDex.POOL_FEE_MAX_DECIMALS, RoundingMode.FLOOR) : maxExFee;
+        m_ergoMaxExFee.set(maxExFee);
         m_nitro.set(nitro);
         updateSpfFees();
     }
@@ -134,7 +120,9 @@ public class ErgoDexFees {
     public void updateSpfFees(){
         BigDecimal minExFee = calculateSpfMinExFee();
         m_spfMinExFee.set(minExFee);
-        m_spfMaxExFee.set(calculateSpfMaxExFee(minExFee, getNitro()));
+        BigDecimal maxExFee = calculateSpfMaxExFee(minExFee, getNitro());
+        maxExFee = maxExFee != null && maxExFee.scale() > ErgoDex.POOL_FEE_MAX_DECIMALS ? maxExFee.setScale(ErgoDex.POOL_FEE_MAX_DECIMALS, RoundingMode.FLOOR) : maxExFee;
+        m_spfMaxExFee.set(maxExFee);
 
     }
     public void setSpfQuote(PriceQuote quote){
@@ -156,7 +144,7 @@ public class ErgoDexFees {
     }
 
     public BigDecimal getMinExFee(){
-        return isSPF() ? m_spfMinExFee.get() : m_defaultErgMinExFee;
+        return isSPF() ? m_spfMinExFee.get() : DEFAULT_ERG_MIN_EX_FEE;
     }
 
     public BigDecimal getMaxExFee(){
@@ -177,6 +165,10 @@ public class ErgoDexFees {
 
     public BigDecimal getNetworkFee(){
         return m_networkFee.get();
+    }
+
+    public static long getNanoErgsFromErgs(BigDecimal ergs){
+        return PriceAmount.calculateBigDecimalToLong(ergs, ErgoCurrency.DECIMALS);
     }
 
     public void setNetworkFee(BigDecimal fee){
@@ -200,8 +192,8 @@ public class ErgoDexFees {
             setNitro(MIN_NITRO);
         }else{
          
-            if(maxExFee.compareTo(m_deafultErgMaxExFee) > -1){
-                BigDecimal newNitro = maxExFee.divide(m_defaultErgMinExFee, 3, RoundingMode.HALF_UP);
+            if(maxExFee.compareTo(DEFAULT_ERG_MAX_EX_FEE) == 1){
+                BigDecimal newNitro = maxExFee.divide(DEFAULT_ERG_MIN_EX_FEE, ErgoDex.POOL_FEE_MAX_DECIMALS, RoundingMode.HALF_UP);
                 setNitro(newNitro);
             }else{
                 setNitro(MIN_NITRO);

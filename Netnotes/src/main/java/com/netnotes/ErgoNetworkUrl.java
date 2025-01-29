@@ -20,7 +20,7 @@ public class ErgoNetworkUrl {
 
     //type
 
-    private String m_id;
+
     private String m_name = "localhost";
     private String m_protocol = "https";
     private String m_url = "127.0.0.1";
@@ -32,7 +32,7 @@ public class ErgoNetworkUrl {
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(null);
 
     public ErgoNetworkUrl(String id, String name, String protocol, String url, int port, NetworkType networkType) {
-        m_id = id;
+
         m_name = name;
         m_protocol = protocol;
         m_url = url;
@@ -43,25 +43,19 @@ public class ErgoNetworkUrl {
     public ErgoNetworkUrl(JsonObject json) throws Exception {
         if (json != null) {
 
-            JsonElement idElement = json.get("id");
+
             JsonElement nameElement = json.get("name");
             JsonElement urlElement = json.get("url");
             JsonElement portElement = json.get("port");
             JsonElement networkTypeElement = json.get("networkType");
             JsonElement protocolElement = json.get("protocol");
 
-            if(idElement == null || urlElement == null || portElement == null || portElement == null || networkTypeElement == null || protocolElement == null ){
-                throw new Exception("Explorer element is missing");
-            }
-
-            m_id = idElement != null ? idElement.getAsString() : FriendlyId.createFriendlyId();
-
             if (networkTypeElement != null && networkTypeElement.isJsonPrimitive()) {
                 String networkTypeString = networkTypeElement.getAsString();
                 m_networkType = networkTypeString.equals(TESTNET_STRING) ? NetworkType.TESTNET : NetworkType.MAINNET;
             }
 
-            m_name = nameElement != null && idElement != null ? nameElement.getAsString() : m_networkType.toString() + " #" + m_id;
+            m_name = nameElement != null ? nameElement.getAsString() : m_networkType.toString() + " #" + FriendlyId.createFriendlyId();
             m_url = urlElement != null ? urlElement.getAsString() : m_url;
             m_port = portElement != null ? portElement.getAsInt() : m_port;
             m_protocol = protocolElement != null ? protocolElement.getAsString() : m_protocol;
@@ -72,10 +66,7 @@ public class ErgoNetworkUrl {
 
 
 
-    public String getId() {
-        return m_id;
-    }
-
+  
     public String getName() {
         return m_name;
     }
@@ -120,19 +111,18 @@ public class ErgoNetworkUrl {
 
     public JsonObject getJsonObject() {
         JsonObject json = new JsonObject();
-        json.addProperty("id", m_id);
         json.addProperty("name", m_name);
         json.addProperty("protocol", m_protocol);
         json.addProperty("url", m_url);
         json.addProperty("port", m_port);
-        json.addProperty("networkType", m_networkType == null ? MAINNET_STRING : m_networkType.toString());
+        json.addProperty("url", getUrlString());
         return json;
     }
 
     public IconButton getButton() {
 
         IconButton btn = new IconButton(null, getRowString(), IconStyle.ROW);
-        btn.setButtonId(m_id);
+        
         return btn;
 
     }

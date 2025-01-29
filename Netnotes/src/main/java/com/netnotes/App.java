@@ -402,57 +402,6 @@ public class App extends Application {
     }
 
 
-    public static Stage getStatusStage(String title, String statusMessage) {
-        Stage statusStage = new Stage();
-        statusStage.setResizable(false);
-        statusStage.initStyle(StageStyle.UNDECORATED);
-        
-        statusStage.getIcons().add(logo);
-
-        statusStage.setTitle(title);
-
-        Label newTitleLbl = new Label(title);
-        newTitleLbl.setFont(titleFont);
-        newTitleLbl.setTextFill(txtColor);
-        newTitleLbl.setPadding(new Insets(0, 0, 0, 10));
-
-        ImageView barIconView = new ImageView(icon);
-        barIconView.setFitHeight(20);
-        barIconView.setPreserveRatio(true);
-
-        HBox newTopBar = new HBox(barIconView, newTitleLbl);
-        newTopBar.setAlignment(Pos.CENTER_LEFT);
-        newTopBar.setPadding(new Insets(10, 8, 10, 10));
-        newTopBar.setId("topBar");
-
-        ImageView waitingView = new ImageView(logo);
-        waitingView.setFitHeight(135);
-        waitingView.setPreserveRatio(true);
-
-        HBox imageBox = new HBox(waitingView);
-        HBox.setHgrow(imageBox, Priority.ALWAYS);
-        imageBox.setAlignment(Pos.CENTER);
-
-        Text statusTxt = new Text(statusMessage);
-        statusTxt.setFill(txtColor);
-        statusTxt.setFont(txtFont);
-
-        VBox bodyVBox = new VBox(imageBox, statusTxt);
-
-        VBox.setVgrow(bodyVBox, Priority.ALWAYS);
-        VBox.setMargin(bodyVBox, new Insets(0, 20, 20, 20));
-
-        VBox layoutVBox = new VBox(newTopBar, bodyVBox);
-
-        Scene statusScene = new Scene(layoutVBox, 420, 215);
-        statusScene.setFill(null);
-        statusScene.getStylesheets().add("/css/startWindow.css");
-        
-        statusStage.setScene(statusScene);
-
-
-        return statusStage;
-    }
 
     
 
@@ -1775,42 +1724,101 @@ public class App extends Application {
         return scene;
     }
 
+    public static Stage getStatusStage(String title, String statusMessage) {
+        Stage statusStage = new Stage();
+        statusStage.setResizable(false);
+        statusStage.initStyle(StageStyle.UNDECORATED);
+        
+        statusStage.getIcons().add(logo);
 
-    public static Scene getWaitngScene(Label progressText, Button cancelBtn, Stage theStage) {
+        statusStage.setTitle(title);
+
+        Label newTitleLbl = new Label(title);
+        newTitleLbl.setFont(titleFont);
+        newTitleLbl.setTextFill(txtColor);
+        newTitleLbl.setPadding(new Insets(0, 0, 0, 10));
+
+        ImageView barIconView = new ImageView(icon);
+        barIconView.setFitHeight(20);
+        barIconView.setPreserveRatio(true);
+
+        HBox newTopBar = new HBox(barIconView, newTitleLbl);
+        newTopBar.setAlignment(Pos.CENTER_LEFT);
+        newTopBar.setPadding(new Insets(10, 8, 10, 10));
+        newTopBar.setId("topBar");
+
+        ImageView waitingView = new ImageView(logo);
+        waitingView.setFitHeight(135);
+        waitingView.setPreserveRatio(true);
+
+        HBox imageBox = new HBox(waitingView);
+        HBox.setHgrow(imageBox, Priority.ALWAYS);
+        imageBox.setAlignment(Pos.CENTER);
+
+        Text statusTxt = new Text(statusMessage);
+        statusTxt.setFill(txtColor);
+        statusTxt.setFont(txtFont);
+
+        VBox bodyVBox = new VBox(imageBox, statusTxt);
+
+        VBox.setVgrow(bodyVBox, Priority.ALWAYS);
+        VBox.setMargin(bodyVBox, new Insets(0, 20, 20, 20));
+
+        VBox layoutVBox = new VBox(newTopBar, bodyVBox);
+
+        Scene statusScene = new Scene(layoutVBox, 420, 215);
+        statusScene.setFill(null);
+        statusScene.getStylesheets().add("/css/startWindow.css");
+        
+        statusStage.setScene(statusScene);
+
+
+        return statusStage;
+    }
+
+    public static Scene getWaitngScene(Label statusLabel, Button cancelBtn, Stage theStage) {
 
 
         Button closeBtn = new Button();
         Label topLabel = new Label();
-        topLabel.textProperty().bind(progressText.textProperty());
+        topLabel.textProperty().bind(statusLabel.textProperty());
 
         HBox topBar = App.createTopBar(icon, topLabel, closeBtn, theStage); 
         
+
+        ImageView waitingView = new ImageView(logo);
+        waitingView.setFitHeight(135);
+        waitingView.setPreserveRatio(true);
+
+        HBox imageBox = new HBox(waitingView);
+        HBox.setHgrow(imageBox, Priority.ALWAYS);
+        imageBox.setAlignment(Pos.CENTER);
+
         closeBtn.setOnAction(e->cancelBtn.fire());
         ProgressBar progressBar = new ProgressBar(ProgressBar.INDETERMINATE_PROGRESS);
 
         HBox progressAlignmentBox = new HBox(progressBar);
         progressAlignmentBox.setAlignment(Pos.CENTER);
-        progressAlignmentBox.setPadding(new Insets(50, 0, 0, 0));
+        progressAlignmentBox.setPadding(new Insets(0, 0, 0, 0));
 
        
-        HBox progressBox = new HBox(progressText);
-        progressBox.setAlignment(Pos.CENTER);
-        progressBox.setPadding(new Insets(20, 0, 0, 0));
+        HBox statusLabelBox = new HBox(statusLabel);
+
+        statusLabelBox.setPadding(new Insets(5, 0, 0, 15));
 
    
         HBox cancelBtnBox = new HBox(cancelBtn);
         HBox.setHgrow(cancelBtnBox, Priority.ALWAYS);
         cancelBtnBox.setAlignment(Pos.CENTER);
-        cancelBtnBox.setPadding(new Insets(20,0,20,0));
+        cancelBtnBox.setPadding(new Insets(10,0,10,0));
 
 
-        VBox progressPaddingBox = new VBox(progressAlignmentBox, progressBox, cancelBtnBox);
+        VBox progressPaddingBox = new VBox(imageBox, progressAlignmentBox, statusLabelBox, cancelBtnBox);
 
         HBox.setHgrow(progressPaddingBox, Priority.ALWAYS);
 
 
         VBox bodyBox = new VBox(progressPaddingBox);
-        bodyBox.setId("bodyBox");
         bodyBox.setAlignment(Pos.CENTER);
 
         VBox bodyPaddingBox = new VBox(topBar, bodyBox);
@@ -1821,7 +1829,7 @@ public class App extends Application {
 
         VBox footerBox = new VBox(footerSpacer);
         VBox layoutBox = new VBox(bodyPaddingBox, footerBox);
-        Scene scene = new Scene(layoutBox, STAGE_WIDTH, 150);
+        Scene scene = new Scene(layoutBox, 420, 250);
         scene.setFill(null);
         scene.getStylesheets().add("/css/startWindow.css");
 

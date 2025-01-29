@@ -45,8 +45,11 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public static final String MARKET_NETWORK = "MARKET_NETWORK";
     public static final String TOKEN_MARKET_NETWORK = "TOKEN_MARKET_NETWORK";
     
-    public static BigDecimal MIN_NETWORK_FEE = BigDecimal.valueOf(0.001);
+    public final static BigDecimal MIN_NETWORK_FEE = BigDecimal.valueOf(0.001);
+    public final static long MIN_NANO_ERGS = 1000000L;
 
+    public static final int COL_WIDTH = 160;
+    
     private NetworkType m_networkType = NetworkType.MAINNET;
    
 

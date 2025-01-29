@@ -68,13 +68,20 @@ import java.math.BigInteger;
 import java.net.URLConnection;
 import java.lang.Double;
 
+import javafx.beans.binding.Binding;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
+import javafx.scene.control.Button;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
+import javafx.scene.layout.HBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
@@ -726,6 +733,28 @@ public class Utils {
 
     }
 
+    public static Binding<String> createFormFieldIdBinding(TextField textField){
+        return Bindings.createObjectBinding(()-> textField != null ? (textField.textProperty().get().length() > 0 ? null : "formField") : null, textField.textProperty());
+    }
+
+    public static ChangeListener<String> createFieldEnterBtnAddListener(TextField textField, HBox textFieldBox, Button enterBtn){
+        ChangeListener<String> changeListener = (obs, oldval, newval) ->{
+            if(textField != null && textFieldBox != null && enterBtn != null){
+                if(newval.length() > 0){
+                    if(!textFieldBox.getChildren().contains(enterBtn)){
+                        textFieldBox.getChildren().add(1, enterBtn);
+                    }
+                }else{
+                    if(textFieldBox.getChildren().contains(enterBtn)){
+                        textFieldBox.getChildren().remove(enterBtn);
+                    }
+                }
+            }
+        };
+        return changeListener;
+    }
+
+
     public static Future<?> returnObject(Object object, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
         Task<Object> task = new Task<Object>() {
@@ -817,7 +846,7 @@ public class Utils {
 
     }
 
-    public static BigInteger[] decimalToFractional(BigDecimal decimal){
+    public static long[] decimalToFractional(BigDecimal decimal){
         String number = decimal.toPlainString();
         int index = number.indexOf(".");
         String leftSide = index != -1 ? number.substring(0, index) : number;
@@ -825,7 +854,7 @@ public class Utils {
         int numDecimals = rightSide.length();
         BigInteger denominator = BigInteger.valueOf(10).pow(numDecimals);
         BigInteger numerator = new BigInteger(leftSide).multiply(denominator).add(new BigInteger(rightSide));
-        return new BigInteger[]{numerator, denominator};
+        return new long[]{numerator.longValue(), denominator.longValue()};
      }
 
     public static String formatStringToNumber(String number, int decimals){

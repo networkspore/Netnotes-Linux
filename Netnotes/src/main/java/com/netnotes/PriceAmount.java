@@ -124,21 +124,29 @@ public class PriceAmount  {
     
 
     public JsonObject getAmountObject(){
+        String name = getCurrency().getName();
+        int decimals = getCurrency().getDecimals();
+        String networkType = getCurrency().getNetworkTypeString();
+
         JsonObject json = new JsonObject();
         json.addProperty("decimalAmount", getBigDecimalAmount());
-        json.addProperty("longAmount", getLongAmount());
-        json.addProperty("name", getCurrency().getName());
-        json.addProperty("tokenId", getCurrency().getTokenId());
-        json.addProperty("decimals", getCurrency().getDecimals());
-        json.addProperty("networkType", getCurrency().getNetworkTypeString());
+        json.addProperty("value", getLongAmount());
+        if(name != null){
+            json.addProperty("name", name);
+        }
+        json.addProperty("id", getCurrency().getTokenId());
+        json.addProperty("decimals", decimals);
+        if(networkType != null){
+            json.addProperty("networkType", networkType);
+        }
 
         return json;
     }
 
     public static ErgoToken getErgoToken(JsonObject json){
 
-        JsonElement longAmountElement = json.get("longAmount");
-        JsonElement tokenIdElement = json.get("tokenId");
+        JsonElement longAmountElement = json.get("value");
+        JsonElement tokenIdElement = json.get("id");
         
         return longAmountElement != null && !longAmountElement.isJsonNull() && tokenIdElement != null && !tokenIdElement.isJsonNull() ? new ErgoToken(tokenIdElement.getAsString(), longAmountElement.getAsLong()) : null;
     }

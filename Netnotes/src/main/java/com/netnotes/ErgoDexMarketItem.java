@@ -169,12 +169,7 @@ public class ErgoDexMarketItem {
         return m_currentHeight;
     }
 
-    public void setCurrentHeight(double height){
-        m_currentHeight = height;
-          
-        m_rowChartImgView.setFitWidth(calculateCurrentImgWidth());
-        m_rowChartImgView.setFitHeight(height);
-    }
+
 
     private HBox symbolTextPaddingBox;
     private HBox priceHBox ;
@@ -666,17 +661,19 @@ public class ErgoDexMarketItem {
         return m_isCurrent;
     }
 
-    public int calculateCurrentImgWidth(){
-        return (int) m_dataList.gridWidthProperty().get() - (isCurrent() ? chartWidthOffset : 0);
+    public int calculateCurrentImgWidth(boolean isCurrent){
+        return (int) m_dataList.gridWidthProperty().get() - (isCurrent ? chartWidthOffset : 0);
     }
 
     public void setCurrent(boolean isCurrent){
         m_isCurrent = isCurrent;
 
-        setCurrentHeight(isCurrent ? focusedHeight : regularHeight);
+        m_currentHeight = isCurrent ? focusedHeight : regularHeight;
 
         Insets selectedInsets = new Insets(0,10,0,0);        
        
+
+
 
         ErgoDexNumbers numbers = m_numbers;
 
@@ -729,6 +726,9 @@ public class ErgoDexMarketItem {
         }
         
          
+        m_rowChartImgView.setFitWidth(calculateCurrentImgWidth(isCurrent));
+        m_rowChartImgView.setFitHeight(m_currentHeight);
+    
     }
 
 
@@ -739,7 +739,7 @@ public class ErgoDexMarketItem {
         if(chartView != null ){
             if(chartView.getConnectionStatus() != App.ERROR ){
 
-                int width = calculateCurrentImgWidth();
+                int width = calculateCurrentImgWidth(isCurrent());
                 int height = (int) m_currentHeight;
 
                 int imgCellWidth = 1;
@@ -773,8 +773,10 @@ public class ErgoDexMarketItem {
                         chartView.updateRowChart(numbers, colSpan, imgCellWidth, m_rowImg, m_posColor, m_negColor);
                         
                         m_rowChartImgView.setImage(SwingFXUtils.toFXImage(m_rowImg, m_rowWImg));
-                        m_rowChartImgView.setFitWidth(m_rowImg.getWidth());
-                        m_rowChartImgView.setFitHeight(m_rowImg.getHeight());
+                        
+                        m_rowChartImgView.setFitWidth(calculateCurrentImgWidth(isCurrent()));
+                        m_rowChartImgView.setFitHeight(m_currentHeight);
+    
                      
                         String priceString = String.format("%-12s", numbers.getClose() + "").substring(0,12).trim();
                         
@@ -791,8 +793,10 @@ public class ErgoDexMarketItem {
                     } catch (IOException e) {
                
                     }
-                    m_rowChartImgView.setFitWidth(width);
-                    m_rowChartImgView.setFitHeight(height);
+                    
+                    m_rowChartImgView.setFitWidth(calculateCurrentImgWidth(isCurrent()));
+                    m_rowChartImgView.setFitHeight(m_currentHeight);
+                
                 });
             }else{
                 try {

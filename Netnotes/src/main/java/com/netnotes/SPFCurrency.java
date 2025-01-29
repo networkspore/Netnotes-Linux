@@ -7,7 +7,7 @@ public class SPFCurrency extends PriceCurrency {
     public final static String NAME = "SPF";
     public final static String SYMBOL = "SPF";
     public final static String IMAGE_STRING = "/assets/spf.svg";
-    public final static int FRACTIONAL_PRECISION = 6;
+    public final static int DECIMALS = 6;
     public final static String FONT_SYMBOL  = "SPF";
     public final static String TOKEN_TYPE = "EIP-004";
     public final static String URL_STRING = "https://spectrum.fi/";
@@ -15,7 +15,7 @@ public class SPFCurrency extends PriceCurrency {
     
 
     public SPFCurrency(){
-        super(TOKEN_ID, NAME, SYMBOL, FRACTIONAL_PRECISION, ErgoDex.NETWORK_TYPE.toString(), IMAGE_STRING, TOKEN_TYPE, FONT_SYMBOL);
+        super(TOKEN_ID, NAME, SYMBOL, DECIMALS, ErgoDex.NETWORK_TYPE.toString(), IMAGE_STRING, TOKEN_TYPE, FONT_SYMBOL);
         setEmissionAmount(1000000000000000L);
         setDescription("Official utility and governance token of the Spectrum Finance protocol");
         setUrl(URL_STRING);

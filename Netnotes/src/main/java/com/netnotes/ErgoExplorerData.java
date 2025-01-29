@@ -224,7 +224,7 @@ public class ErgoExplorerData {
 
      public Future<?> getUnspentByErgoTree(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
           JsonElement ergotreeElement = json != null ? json.get("ergoTree") : null;
-          
+      
           String ergotree = ergotreeElement != null && ergotreeElement.isJsonPrimitive() ? ergotreeElement.getAsString() : null;
           if(ergotree != null){
                JsonElement offsetElement = json.get("offset");

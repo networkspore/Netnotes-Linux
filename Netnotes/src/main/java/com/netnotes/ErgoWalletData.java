@@ -350,7 +350,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
             Button cancelBtn = new Button("Cancel");
             cancelBtn.setId("iconBtnSelected");
-            Label progressLabel = new Label(isTxAvailable() ? "Checking password..." : "Waiting for wallet access...");
+            Label progressLabel = new Label(isTxAvailable() ? "Verifying..." : "Waiting for wallet access...");
             
             Scene waitingScene = App.getWaitngScene(progressLabel, cancelBtn, passwordStage);
             passwordStage.setScene(waitingScene);

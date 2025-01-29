@@ -1,5 +1,11 @@
 package com.netnotes;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -9,12 +15,17 @@ import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
@@ -25,6 +36,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
 
 public class ErgoExplorersAppBox extends AppBox {
@@ -39,6 +52,41 @@ public class ErgoExplorersAppBox extends AppBox {
 
     private ContextMenu m_explorerMenu = new ContextMenu();
     private HBox m_explorerFieldBox;
+    private Button m_toggleExplorersBtn;
+    private VBox m_explorerBodyPaddingBox = null;
+    private JsonParametersBox m_explorerParameterBox = null;
+
+    public static final String SEARCH_TxId = "Tx (TxId)";
+    public static final String SEARCH_AdrTxs = "Txs (Address)";
+    public static final String SEARCH_TokenIdInfo = "Token (TokenId)";
+    public static final String SEARCH_UnspentByTokenId = "Unspent (TokenId)";
+    public static final String SEARCH_UnspentByErgoTree = "Unspent (ErgoTree)";
+    public static final String SEARCH_UnspentByTemplateHash = "Unspent (Hash)";
+    
+    private Text m_searchText = null;
+    private TextField m_searchTextField = null;
+    private Binding<String> m_searchTextFieldIdBinding = null;
+    private ChangeListener<String> m_searchFieldEnterBtnAddListener = null;
+    private EventHandler<ActionEvent> m_searchBtnEnterAction;
+    private EventHandler<ActionEvent> m_searchFieldEnterAction;
+    private EventHandler<ActionEvent> m_clearBtnAction;
+    private Button m_searchEnterBtn = null;
+    private Button m_searchClearBtn = null;
+    private MenuButton m_searchTypeMenuButton = null;
+    private ChangeListener<String> m_searchTypeTextListener = null;
+    private MenuItem m_txIdMenuItem = null;
+    private MenuItem m_tokenIdInfoMenuItem = null;
+    private MenuItem m_unspentByTokenIdMenuItem = null;
+    private MenuItem m_unspentByErgoTreeMenuItem = null;
+    private MenuItem m_unspentByHashMenuItem = null;
+    private HBox m_searchFieldBox = null;
+    private HBox m_searchHBox = null;
+    private VBox m_searchVBox = null;
+    private JsonParametersBox m_searchResultBox = null;
+    private Button m_exportBtn = null;
+    private ExtensionFilter m_exportSaveFilter = null;
+    private HBox m_exportBtnBox = null;
+    private Gson m_gson = null;
 
     public ErgoExplorersAppBox(Stage appStage, String locationId, NoteInterface ergoNetworkInterface){
         super();
@@ -64,9 +112,9 @@ public class ErgoExplorersAppBox extends AppBox {
         closeImage.setFitWidth(20);
         closeImage.setPreserveRatio(true);
 
-        Button toggleShowExplorers = new Button(m_showExplorers.get() ? "⏷" : "⏵");
-        toggleShowExplorers.setId("caretBtn");
-        toggleShowExplorers.setOnAction(e->{
+        m_toggleExplorersBtn = new Button(m_showExplorers.get() ? "⏷" : "⏵");
+        m_toggleExplorersBtn.setId("caretBtn");
+        m_toggleExplorersBtn.setOnAction(e->{
             m_showExplorers.set(!m_showExplorers.get());
         });
 
@@ -100,9 +148,9 @@ public class ErgoExplorersAppBox extends AppBox {
         explorerBtnBox.setPadding(new Insets(2, 2, 0, 5));
         HBox.setHgrow(explorerBtnBox, Priority.ALWAYS);
 
-        VBox explorerBodyPaddingBox = new VBox();
-        HBox.setHgrow(explorerBodyPaddingBox, Priority.ALWAYS);
-        explorerBodyPaddingBox.setPadding(new Insets(0,10,0,0));
+        m_explorerBodyPaddingBox = new VBox();
+        HBox.setHgrow(m_explorerBodyPaddingBox, Priority.ALWAYS);
+        m_explorerBodyPaddingBox.setPadding(new Insets(0,10,0,5));
 
 
         Binding<String> explorerNameBinding = Bindings.createObjectBinding(()->{
@@ -112,148 +160,28 @@ public class ErgoExplorersAppBox extends AppBox {
 
         openMenuBtn.textProperty().bind(explorerNameBinding);
 
-
-       
-
-  
-
-   
-
-        
-        Label explorerNameIcon = new Label("  ");
-        explorerNameIcon.setId("logoBtn");
-
-        Label explorerNameText = new Label("Name"); 
-        explorerNameText.setFont(App.txtFont);
-        explorerNameText.setPadding(new Insets(0,5,0,5));
-        explorerNameText.setMinWidth(100);
-
-        TextField explorerNameField = new TextField();
-        explorerNameField.setEditable(false);
-        HBox.setHgrow(explorerNameField,Priority.ALWAYS);
-
-        HBox explorerNameFieldBox = new HBox(explorerNameField);
-        HBox.setHgrow(explorerNameFieldBox,Priority.ALWAYS);
-        explorerNameFieldBox.setId("bodyBox");
-        explorerNameFieldBox.setAlignment(Pos.CENTER_LEFT);
-        explorerNameFieldBox.setMaxHeight(18);
-
-        HBox explorerNameBox = new HBox(explorerNameIcon, explorerNameText, explorerNameFieldBox);
-        explorerNameBox.setAlignment(Pos.CENTER_LEFT);
-        explorerNameBox.setPadding(new Insets(2,0,0,0));
-
-        Label explorerUrlIcon = new Label("  ");
-        explorerUrlIcon.setId("logoBtn");
-  
-
-        Label explorerUrlText = new Label("Api Url"); 
-        explorerUrlText.setFont(App.txtFont);
-        explorerUrlText.setPadding(new Insets(0,5,0,5));
-        explorerUrlText.setMinWidth(100);
-
-        TextField explorerUrlField = new TextField();
-        explorerUrlField.setEditable(false);
-        HBox.setHgrow(explorerUrlField,Priority.ALWAYS);
-
-        HBox explorerUrlFieldBox = new HBox(explorerUrlField);
-        HBox.setHgrow(explorerUrlFieldBox,Priority.ALWAYS);
-        explorerUrlFieldBox.setId("bodyBox");
-        explorerUrlFieldBox.setAlignment(Pos.CENTER_LEFT);
-        explorerUrlFieldBox.setMaxHeight(18);
-     
-        HBox explorerUrlBox = new HBox(explorerUrlIcon, explorerUrlText, explorerUrlFieldBox);
-        explorerUrlBox.setAlignment(Pos.CENTER_LEFT);
-        explorerUrlBox.setPadding(new Insets(2,0,0,0));
-
-        Label explorerWebsiteIcon = new Label("  ");
-        explorerWebsiteIcon.setId("logoBtn");
-
-        Label explorerWebsiteText = new Label("Website"); 
-        explorerWebsiteText.setFont(App.txtFont);
-        explorerWebsiteText.setPadding(new Insets(0,5,0,5));
-        explorerWebsiteText.setMinWidth(100);
-
-        TextField explorerWebsiteField = new TextField();
-        explorerWebsiteField.setEditable(false);
-        HBox.setHgrow(explorerWebsiteField,Priority.ALWAYS);
-
-        HBox explorerWebsiteFieldBox = new HBox(explorerWebsiteField);
-        HBox.setHgrow(explorerWebsiteFieldBox,Priority.ALWAYS);
-        explorerWebsiteFieldBox.setId("bodyBox");
-        explorerWebsiteFieldBox.setAlignment(Pos.CENTER_LEFT);
-        explorerWebsiteFieldBox.setMaxHeight(18);
-
-        HBox explorerWebsiteBox = new HBox(explorerWebsiteIcon, explorerWebsiteText, explorerWebsiteFieldBox);
-        explorerWebsiteBox.setAlignment(Pos.CENTER_LEFT);
-        explorerWebsiteBox.setPadding(new Insets(2,0,0,0));
-
         HBox explorerLabelBox = new HBox(explorerTopLabel);
         explorerLabelBox.setAlignment(Pos.CENTER_LEFT);
 
 
-        HBox explorersTopBar = new HBox(toggleShowExplorers, topIconBox, explorerLabelBox, explorerBtnBox);
+        HBox explorersTopBar = new HBox(m_toggleExplorersBtn, topIconBox, explorerLabelBox, explorerBtnBox);
         explorersTopBar.setAlignment(Pos.CENTER_LEFT);
         explorersTopBar.setPadding(new Insets(2));
 
-        VBox explorerLayoutBox = new VBox(explorersTopBar, explorerBodyPaddingBox);
+        VBox explorerLayoutBox = new VBox(explorersTopBar, m_explorerBodyPaddingBox);
         HBox.setHgrow(explorerLayoutBox, Priority.ALWAYS);
 
 
 
-        Runnable setExplorerInfo = ()->{
-            NoteInterface explorerInterface =  m_defaultExplorer.get();
-            JsonObject json = explorerInterface != null ? explorerInterface.getJsonObject() : null;
-            if(json != null){
-
-                JsonElement networkUrlElement = json.get("ergoNetworkUrl");
-                JsonElement webUrlElement = json.get("webUrl");
-
-                ErgoNetworkUrl ergoNetworkUrl = null;
-                
-                ErgoNetworkUrl webUrl = null; 
-                try{
-                    ergoNetworkUrl = networkUrlElement != null && networkUrlElement.isJsonObject() ? new ErgoNetworkUrl(networkUrlElement.getAsJsonObject()) : null;
-                    webUrl = webUrlElement != null && webUrlElement.isJsonObject() ? new ErgoNetworkUrl(webUrlElement.getAsJsonObject()) : null;
-                }catch(Exception e){
-
-                }
-
-                final String noAccess = "No access";
-            
-                explorerNameField.setText(ergoNetworkUrl != null ? ergoNetworkUrl.getName() : noAccess);
-                explorerUrlField.setText(ergoNetworkUrl != null ?ergoNetworkUrl.getUrlString() : noAccess);
-                explorerWebsiteField.setText(webUrl != null ? webUrl.getUrlString() : noAccess);     
-            }else{
-                explorerNameField.setText("");
-                explorerUrlField.setText("");
-                explorerWebsiteField.setText("");
-            }
-        };
-
       
-
-        VBox explorerBodyBox = new VBox(explorerNameBox,  explorerUrlBox, explorerWebsiteBox);
-
-   
+    
         
-        m_showExplorers.addListener((obs, oldval, newval) -> {
+        m_showExplorers.addListener((obs, oldval, newval) -> updateShowExplorers());
 
-            toggleShowExplorers.setText(newval ? "⏷" : "⏵");
+        m_defaultExplorer.addListener((obs,oldval,newval)->setExplorerInfo());
 
-            if (newval) {
-                if (!explorerBodyPaddingBox.getChildren().contains(explorerBodyBox)) {
-                    explorerBodyPaddingBox.getChildren().add(explorerBodyBox);
-                }
-            } else {
-                if (explorerBodyPaddingBox.getChildren().contains(explorerBodyBox)) {
-                    explorerBodyPaddingBox.getChildren().remove(explorerBodyBox);
-                }
-            }
-        });
-
-        m_defaultExplorer.addListener((obs,oldval,newval)->setExplorerInfo.run());
-
-        setExplorerInfo.run();
+        setExplorerInfo();
+        updateShowExplorers();
 
         m_mainBox = new VBox(explorerLayoutBox);
         m_mainBox.setPadding(new Insets(0));
@@ -274,6 +202,450 @@ public class ErgoExplorersAppBox extends AppBox {
 
         getChildren().addAll(m_mainBox);
         setPadding(new Insets(0,0,5,0));
+    }
+
+    public void updateShowExplorers(){
+
+        boolean isShow = m_showExplorers.get();
+        m_toggleExplorersBtn.setText(isShow ? "⏷" : "⏵");
+
+        if (isShow) {
+            addExplorerBoxes();
+        } else {
+            removeExplorerBoxes();
+        }
+    
+    }
+    
+
+    public void addSearchBox(){
+        if(m_searchText == null){
+            
+
+            m_searchText = new Text("Search ");
+            m_searchText.setFill(App.txtColor);
+            m_searchText.setFont(App.txtFont);
+            
+            m_searchTextField = new TextField();
+            HBox.setHgrow(m_searchTextField, Priority.ALWAYS);
+            m_searchTextField.setPromptText("");
+            m_searchTextFieldIdBinding = Utils.createFormFieldIdBinding(m_searchTextField);
+            m_searchTextField.idProperty().bind(m_searchTextFieldIdBinding);
+             
+            m_searchTypeMenuButton = new MenuButton(SEARCH_TxId);
+            resizeMenuBtn();
+            m_searchTypeTextListener = (obs, oldval, newval)->updateSearchType();
+
+            m_searchTypeMenuButton.textProperty().addListener(m_searchTypeTextListener);
+
+            m_txIdMenuItem = new MenuItem("Transaction by Tx Id");
+            m_txIdMenuItem.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_TxId);
+            });
+
+            m_tokenIdInfoMenuItem = new MenuItem("Token info by Token Id");
+            m_tokenIdInfoMenuItem.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_TokenIdInfo);
+                resizeMenuBtn();
+            });
+
+            m_unspentByTokenIdMenuItem = new MenuItem("Unspent boxes by Token Id");
+            m_unspentByTokenIdMenuItem.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_UnspentByTokenId);
+            });
+
+            m_unspentByErgoTreeMenuItem = new MenuItem("Unspent boxes by Ergo Tree");
+            m_unspentByErgoTreeMenuItem.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_UnspentByErgoTree);
+            });
+
+            m_unspentByHashMenuItem = new MenuItem("Unspent boxes by Template Hash");
+            m_unspentByHashMenuItem.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_UnspentByTemplateHash);
+            });
+
+            m_searchTypeMenuButton.getItems().addAll(m_txIdMenuItem, m_tokenIdInfoMenuItem, m_unspentByTokenIdMenuItem, m_unspentByErgoTreeMenuItem, m_unspentByHashMenuItem);
+
+            m_searchFieldBox = new HBox(m_searchTextField);
+            m_searchFieldBox.setAlignment(Pos.CENTER_LEFT);
+            HBox.setHgrow(m_searchFieldBox, Priority.ALWAYS);
+            m_searchFieldBox.setId("bodyBox");
+
+            m_searchEnterBtn = new Button("↵");
+            m_searchEnterBtn.setId("toolBtn");
+            m_searchBtnEnterAction = (e)->{
+                if(m_searchTextField != null && m_searchTypeMenuButton != null){
+                    String searchText = m_searchTextField.getText();
+                    switch(m_searchTypeMenuButton.getText()){
+                        case SEARCH_TxId:
+                            searchForTxId(searchText);
+                        break;
+                    
+                        case SEARCH_TokenIdInfo:
+                            searchForTokenInfo(searchText);
+                        break;
+                        case SEARCH_UnspentByTokenId:
+                            searchForUnspentByTokenId(searchText);
+                        break;
+                        case SEARCH_UnspentByErgoTree:
+                            searchForUnspentByErgoTree(searchText);
+                        break;
+                        case SEARCH_UnspentByTemplateHash:
+                            searchForUnspentByTemplateHash(searchText);
+                        break;
+
+                    }
+                }
+            };
+            m_searchEnterBtn.setOnAction(m_searchBtnEnterAction);
+
+            m_searchFieldEnterAction = (e)->m_searchEnterBtn.fire();
+            m_searchTextField.setOnAction(m_searchFieldEnterAction);
+
+         
+           
+
+            m_searchFieldEnterBtnAddListener = Utils.createFieldEnterBtnAddListener(m_searchTextField, m_searchFieldBox, m_searchEnterBtn);
+            m_searchTextField.textProperty().addListener(m_searchFieldEnterBtnAddListener);
+
+            m_searchHBox = new HBox( m_searchText, m_searchFieldBox, m_searchTypeMenuButton);
+            HBox.setHgrow(m_searchHBox, Priority.ALWAYS);
+            m_searchHBox.setAlignment(Pos.CENTER_LEFT);
+            m_searchHBox.setPadding(new Insets(10,0,10,0));
+
+            m_searchVBox = new VBox(m_searchHBox);
+
+
+            m_explorerBodyPaddingBox.getChildren().addAll(m_searchVBox);
+
+            updateSearchType();
+        }
+    }
+
+    public void resizeMenuBtn(){
+        double w = Utils.computeTextWidth(App.txtFont, m_searchTypeMenuButton.getText());
+        m_searchTypeMenuButton.setPrefWidth(w);
+    }
+
+    public void updateSearchType(){
+        
+            if(m_searchTextField != null && m_searchTypeMenuButton != null){
+                switch(m_searchTypeMenuButton.getText()){
+                    case SEARCH_TxId:
+                        m_searchTextField.setPromptText("TxId");
+                    break;
+                    case SEARCH_TokenIdInfo:
+                        m_searchTextField.setPromptText("TokenId");
+                    break;
+                    case SEARCH_UnspentByTokenId:
+                        m_searchTextField.setPromptText("TokenId");
+                    break;
+                    case SEARCH_UnspentByErgoTree:
+                        m_searchTextField.setPromptText("ErgoTree Hex");
+                    break;
+                    case SEARCH_UnspentByTemplateHash:
+                        m_searchTextField.setPromptText("Template Hash");
+                    break;
+                }
+            }
+        
+    }
+
+    public void removeSearchBox(){
+
+        if(m_searchTextField != null){
+
+            m_searchTextField.idProperty().unbind();
+            m_searchEnterBtn.setOnAction(null);
+            m_searchTextField.setOnAction(null);
+            m_searchTextField.textProperty().removeListener(m_searchFieldEnterBtnAddListener);
+            m_searchTypeMenuButton.textProperty().removeListener(m_searchTypeTextListener);          
+            m_searchVBox.getChildren().clear();
+            m_searchHBox.getChildren().clear();
+            m_searchFieldBox.getChildren().clear();
+            
+            m_searchTextFieldIdBinding = null;
+            m_searchFieldEnterBtnAddListener = null;
+            m_searchBtnEnterAction = null;
+            m_searchFieldEnterAction = null;
+            m_clearBtnAction = null;
+            m_searchTypeTextListener = null;
+            m_searchText = null;
+            m_searchTextField = null;
+            m_searchEnterBtn = null;
+            m_searchClearBtn = null;
+            m_searchTypeMenuButton = null;
+            m_txIdMenuItem = null;
+            m_tokenIdInfoMenuItem = null;
+            m_unspentByTokenIdMenuItem = null;
+            m_unspentByErgoTreeMenuItem = null;
+            m_unspentByHashMenuItem = null;
+            m_searchFieldBox = null;
+            m_searchHBox = null;
+            m_searchVBox = null;
+        }
+        
+    }
+
+    public void searchForTxId(String id){
+       
+        NoteInterface explorerInterface = m_defaultExplorer.get();
+        if(explorerInterface != null){
+            JsonObject note = Utils.getCmdObject("getTransaction");
+            note.addProperty("txId", id);
+            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
+            explorerInterface.sendNote(note, (onSucceeded)->{
+                Object sourceObject = onSucceeded.getSource().getValue();
+                if(sourceObject != null){
+                    updateSearchResults("tx_" +id, (JsonObject) sourceObject);
+                }else{
+                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
+                }
+            }, (onFailed)->{
+                Throwable throwable = onFailed.getSource().getException();
+                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
+            });
+        }else{
+            updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
+        }
+        
+    }
+    public void searchForTokenInfo(String id){
+    
+        NoteInterface explorerInterface = m_defaultExplorer.get();
+        if(explorerInterface != null){
+            JsonObject note = Utils.getCmdObject("getTokenInfo");
+            note.addProperty("tokenId", id);
+            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
+            explorerInterface.sendNote(note, (onSucceeded)->{
+                Object sourceObject = onSucceeded.getSource().getValue();
+                if(sourceObject != null){
+                    updateSearchResults("tokenInfo_" +id, (JsonObject) sourceObject);
+                }else{
+                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
+                }
+            }, (onFailed)->{
+                Throwable throwable = onFailed.getSource().getException();
+                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
+            });
+        }else{
+            updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
+        }
+    
+    }
+                     
+    public void searchForUnspentByTokenId(String id){
+    
+        NoteInterface explorerInterface = m_defaultExplorer.get();
+        if(explorerInterface != null){
+            JsonObject note = Utils.getCmdObject("getUnspentByTokenId");
+            note.addProperty("tokenId", id);
+            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
+            explorerInterface.sendNote(note, (onSucceeded)->{
+                Object sourceObject = onSucceeded.getSource().getValue();
+                if(sourceObject != null){
+                    updateSearchResults("unspent_" + id, (JsonObject) sourceObject);
+                }else{
+                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
+                }
+            }, (onFailed)->{
+                Throwable throwable = onFailed.getSource().getException();
+                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
+            });
+        }else{
+            updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
+        }
+        
+    }
+                  
+    public void searchForUnspentByErgoTree(String ergoTree){
+    
+        NoteInterface explorerInterface = m_defaultExplorer.get();
+        if(explorerInterface != null){
+            JsonObject note = Utils.getCmdObject("getUnspentByErgoTree");
+            note.addProperty("ergoTree", ergoTree);
+            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
+            explorerInterface.sendNote(note, (onSucceeded)->{
+                Object sourceObject = onSucceeded.getSource().getValue();
+                if(sourceObject != null){
+                    updateSearchResults("unspentBoxes", (JsonObject) sourceObject);
+                }else{
+                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
+                }
+            }, (onFailed)->{
+                Throwable throwable = onFailed.getSource().getException();
+                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
+            });
+        }else{
+            updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
+        }
+    
+    }
+                       
+                       
+    public void searchForUnspentByTemplateHash(String hash){
+   
+        NoteInterface explorerInterface = m_defaultExplorer.get();
+        if(explorerInterface != null){
+            JsonObject note = Utils.getCmdObject("getUnspentByErgoTreeTemplateHash");
+            note.addProperty("hash", hash);
+            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
+
+            explorerInterface.sendNote(note, (onSucceeded)->{
+                Object sourceObject = onSucceeded.getSource().getValue();
+                if(sourceObject != null){
+                    updateSearchResults("unspentBoxes", (JsonObject) sourceObject);
+                }else{
+                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
+                }
+            }, (onFailed)->{
+                Throwable throwable = onFailed.getSource().getException();
+                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
+            });
+        }else{
+            updateSearchResults(null, Utils.getJsonObject("error", "Explorer disabled"));
+        }
+        
+    }
+
+    private JsonObject m_resultsJson = null;
+    private String m_resultsName = null;
+
+    public void updateSearchResults(String name, JsonObject resultsObject){
+        m_resultsJson = resultsObject;
+        m_resultsName = name;
+        if(resultsObject != null){
+            if(m_searchClearBtn == null){
+                m_searchClearBtn = new Button("☓");
+                m_clearBtnAction = (e)->{
+                    updateSearchResults(null, null);
+                };
+                m_searchClearBtn.setOnAction(m_clearBtnAction);
+                m_searchHBox.getChildren().add(m_searchClearBtn);                
+            }
+            if(m_searchResultBox == null){
+                m_searchResultBox = new JsonParametersBox(resultsObject, ErgoNetwork.COL_WIDTH);
+                m_searchResultBox.setPadding(new Insets(0,0,0,10));
+                m_searchVBox.getChildren().add(m_searchResultBox);
+            }else{
+                m_searchResultBox.updateParameters(resultsObject);
+            }
+            if(name != null){
+                if(m_exportBtn == null){
+                    m_exportBtn = new Button("🖫 Export… (*.json)");
+                    m_exportSaveFilter = new FileChooser.ExtensionFilter("JSON (application/json)", "*.json");
+                    m_gson = new GsonBuilder().setPrettyPrinting().create();
+                    m_exportBtn.setOnAction(onSave->{
+                        if(m_resultsName != null && m_resultsJson != null && m_gson != null){
+                            JsonObject results = m_resultsJson;
+                            Gson gson = m_gson;
+
+                            FileChooser saveChooser = new FileChooser();
+                            saveChooser.setTitle("🖫 Export JSON");
+                            saveChooser.getExtensionFilters().addAll(m_exportSaveFilter);
+                            saveChooser.setSelectedExtensionFilter(m_exportSaveFilter);
+                            saveChooser.setInitialFileName(m_resultsName + ".json");
+                            File saveFile = saveChooser.showSaveDialog(m_appStage);
+                            if(saveFile != null){
+                                
+                                
+                                try {
+                                    Files.writeString(saveFile.toPath(), gson.toJson(results));
+                                } catch (IOException e1) {
+                                    Alert alert = new Alert(AlertType.NONE, e1.toString(), ButtonType.OK);
+                                    alert.setTitle("Error");
+                                    alert.setHeaderText("Error");
+                                    alert.initOwner(m_appStage);
+                                    alert.show();
+                                }
+                            }
+                        }
+                    });
+
+                    m_exportBtnBox = new HBox(m_exportBtn);
+                    m_exportBtnBox.setAlignment(Pos.CENTER_RIGHT);
+                    m_exportBtnBox.setPadding(new Insets(15,0,15,0));
+                    m_searchVBox.getChildren().add(m_exportBtnBox);
+                }
+            }else{
+                if(m_searchVBox.getChildren().contains(m_exportBtnBox)){
+                    m_searchVBox.getChildren().remove(m_exportBtnBox);
+                    m_exportBtnBox.getChildren().clear();
+                    m_exportBtnBox = null;
+                    m_exportBtn.setOnAction(null);
+                    m_exportBtn = null;
+                    m_gson = null;
+                }
+            }
+        }else{
+            if(m_searchClearBtn != null){
+                m_searchClearBtn.setOnAction(null);
+                m_clearBtnAction = null;
+                m_searchHBox.getChildren().remove(m_searchClearBtn);
+                m_searchClearBtn = null;
+            }
+            if(m_searchResultBox != null){
+                m_searchVBox.getChildren().remove(m_searchResultBox);
+                m_searchResultBox.shutdown();
+                m_searchResultBox = null;
+               
+            }
+            if(m_searchVBox.getChildren().contains(m_exportBtnBox)){
+                m_searchVBox.getChildren().remove(m_exportBtnBox);
+                m_exportBtnBox.getChildren().clear();
+                m_exportBtnBox = null;
+                m_exportBtn.setOnAction(null);
+                m_exportBtn = null;
+                m_gson = null;
+            }
+        }
+        
+    }
+
+
+    public void addExplorerBoxes(){
+
+        
+        
+        if(m_explorerParameterBox == null){
+            m_explorerParameterBox = new JsonParametersBox(getExplorerInfo(), ErgoNetwork.COL_WIDTH);
+            m_explorerBodyPaddingBox.getChildren().add(m_explorerParameterBox);
+            
+        }
+        addSearchBox();
+    }
+
+    public void removeExplorerBoxes(){
+        removeSearchBox();
+        if(m_explorerParameterBox != null){
+            if(m_explorerBodyPaddingBox.getChildren().contains(m_explorerParameterBox)) {
+                m_explorerBodyPaddingBox.getChildren().remove(m_explorerParameterBox);
+            }
+            m_explorerParameterBox.shutdown();
+            m_explorerParameterBox = null;
+        }
+    }
+
+    public JsonObject getDefaultJsonObject(){
+        NoteInterface noteInterface = m_defaultExplorer.get();
+        return noteInterface != null ? noteInterface.getJsonObject() : null;
+    }
+
+    public void setExplorerInfo(){
+        if(m_explorerParameterBox != null){        
+            m_explorerParameterBox.updateParameters(getExplorerInfo());   
+        }
+    }
+
+    public JsonObject getExplorerInfo(){
+        JsonObject defaultJson = getDefaultJsonObject();
+        if(defaultJson != null){
+            JsonObject infoJson = new JsonObject();
+            infoJson.add("info", getDefaultJsonObject());
+            return infoJson;
+        }else{
+            return Utils.getJsonObject("info", "(disabled)");
+        }
     }
 
     public void setDefaultExplorer(String id){

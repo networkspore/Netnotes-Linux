@@ -3,9 +3,12 @@ package com.netnotes;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.NetworkType;
+import org.ergoplatform.appkit.ErgoToken;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -48,7 +51,7 @@ public class ErgoWalletControl {
         return m_walletName;
     }
 
-    public SimpleStringProperty currentAddress(){
+    public SimpleStringProperty currentAddressProperty(){
         return m_currentAddress;
     }
 
@@ -56,7 +59,88 @@ public class ErgoWalletControl {
         return m_balanceObject;
     }
 
-   public Future<?> sendNote(String cmd, JsonObject noteData, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public String getCurrentAddress(){
+        return m_currentAddress.get();
+    }
+
+    public String getWalletName(){
+        return m_walletName.get();
+    }
+
+    public Future<?> executeContract(long amountToSpendNanoErgs, long feeNanoErgs, PriceAmount[] tokens, JsonObject contractData, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        JsonObject noteData = new JsonObject();
+        String currentAddress = getCurrentAddress();
+        String walletName = getWalletName();
+
+        if(currentAddress == null || walletName == null){
+            return Utils.returnException("Wallet is locked", execService, onFailed);
+        }
+
+        AddressesData.addWalletAddressToDataObject(currentAddress, walletName, noteData);
+
+        if(!AddressesData.addFeeNanoErgToDataObject(feeNanoErgs, noteData)){
+            return Utils.returnException("Minimum network fee required: " + ErgoNetwork.MIN_NETWORK_FEE, execService, onFailed);
+        }
+
+        JsonObject balanceObject = m_balanceObject.get();
+        
+        if(balanceObject == null){
+            return Utils.returnException("Balance is unvailable", execService, onFailed);
+        }
+
+        ArrayList<PriceAmount> balanceList = AddressesData.getBalanceList(balanceObject, true, getNetworkType());
+
+        PriceAmount ergoBalance = AddressesData.getPriceAmountFromList(balanceList, ErgoCurrency.TOKEN_ID);
+
+        if(ergoBalance == null){
+            return Utils.returnException("Ergo balance unavailable", execService, onFailed);
+        }
+
+        if(ergoBalance.getLongAmount() < (amountToSpendNanoErgs + feeNanoErgs + ErgoDexFees.getNanoErgsFromErgs(ErgoNetwork.MIN_NETWORK_FEE))){
+            return Utils.returnException("Insufficient ergo with network fee and token housing", execService, onFailed);
+        }
+
+        AddressesData.addNanoErgsToSpendToDataObject(amountToSpendNanoErgs, noteData);
+
+        if(tokens.length > 0){
+            for(PriceAmount tokenAmount : tokens){
+                PriceAmount tokenBalance = AddressesData.getPriceAmountFromList(balanceList, ErgoCurrency.TOKEN_ID);
+                if(tokenBalance == null){
+                    return Utils.returnException(tokenAmount.getSymbol() + " not available in wallet.", execService, onFailed);
+                }
+                if(tokenAmount.getLongAmount() > tokenBalance.getLongAmount()){
+                    return Utils.returnException("Insufficient " + tokenAmount.getSymbol() + " in wallet (Balance: "+ tokenBalance.getBigDecimalAmount() +")", execService, onFailed);
+                }
+            }
+        }
+
+        AddressesData.addAssetsToDataObject(tokens, noteData);
+
+        if(contractData == null){
+            return Utils.returnException("No contract data provided", execService, onFailed);
+        }
+
+
+        if(contractData.get("description") == null){
+            return Utils.returnException("No contract description provided", execService, onFailed);
+        }
+
+        AddressesData.addNetworkTypeToDataObject(getNetworkType(), noteData);
+
+        noteData.add("contractData", contractData);
+
+        return sendNote("executeContract", noteData, execService, onSucceeded, onFailed);
+    }
+
+    public Future<?> sendNote(String cmd, JsonObject noteData, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+        if(m_accessId == null){
+            return Utils.returnException("No access to wallet", execService, onFailed);
+        }
+
+        if(m_locationId == null){
+            return Utils.returnException("Location is not initialized", execService, onFailed);
+        }
+
         JsonObject note = Utils.getCmdObject(cmd);
         note.addProperty("accessId", m_accessId);
         note.addProperty("locationId", m_locationId);
@@ -66,9 +150,13 @@ public class ErgoWalletControl {
         if(walletInterface != null){
             return walletInterface.sendNote(note, onSucceeded, onFailed);
         }else{
-            return null;
+            return Utils.returnException("Wallet unavilable", execService, onFailed);
         }
    }
+
+
+
+   
 
     
 
