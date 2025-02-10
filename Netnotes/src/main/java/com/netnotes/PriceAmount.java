@@ -9,7 +9,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 
 import org.ergoplatform.appkit.NetworkType;
-import org.ergoplatform.appkit.ErgoToken;
+import org.ergoplatform.sdk.ErgoToken;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

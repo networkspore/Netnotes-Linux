@@ -47,7 +47,9 @@ import javafx.geometry.Pos;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-
+import scorex.util.encode.Base16;
+import sigmastate.Values;
+import sigmastate.serialization.ErgoTreeSerializer;
 
 import java.io.File;
 import java.io.IOException;
@@ -59,9 +61,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.ergoplatform.appkit.ErgoTreeTemplate;
 import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonParseException;
+import com.utils.Base58;
 import com.utils.Utils;
 
 import at.favre.lib.crypto.bcrypt.BCrypt;
@@ -192,8 +196,6 @@ public class App extends Application {
     @Override
     public void start(Stage appStage) {
         SvgImageLoaderFactory.install();
-
-        
 
         Font.loadFont(App.class.getResource("/assets/OCRAEXT.TTF").toExternalForm(),16);
         Font.loadFont(App.class.getResource("/assets/DejaVuSansMono.ttf").toExternalForm(),20);

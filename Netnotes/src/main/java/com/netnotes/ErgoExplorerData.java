@@ -189,11 +189,42 @@ public class ErgoExplorerData {
           String urlString = namedUrl.getUrlString() + "/api/v1/boxes/unspent/byTokenId/" + tokenId;
 
           if(limit != -1 || offset != -1 || sortDirection != null){
-               urlString += "?offset=" + (offset != -1 ? offset : 0) + "&" + "sortDirection=" + (sortDirection != null ? sortDirection : "asc") + ( limit != -1 ? "&limit=" + limit : "");
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + "&" + "sortDirection=" + (sortDirection != null ? (sortDirection.equals("asc") ? "asc" : "dsc") : "asc") + ( limit != -1 ? "&limit=" + limit : "");
           }
 
           return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
      }
+
+
+     public Future<?> getTransactionsByTemplateHash(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
+          JsonElement hashElement = json != null ? json.get("hash") : null;
+          String hash = hashElement != null && hashElement.isJsonPrimitive() ? hashElement.getAsString() : null;
+          if(hash != null){
+               JsonElement offsetElement = json.get("offset");
+               JsonElement limitElement = json.get("limit");
+               JsonElement directionElement = json.get("sortDirection");
+               int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
+               int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
+               String sortDirection = directionElement != null && !directionElement.isJsonNull() ? directionElement.getAsString() : "asc";
+               return getTransactionsByTemplateHash(hash, offset, limit, sortDirection, onSucceeded, onFailed);
+          }
+          return null;
+     }
+
+     public Future<?> getTransactionsByTemplateHash(String hash, int offset, int limit,  String sortDirection, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+          ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
+          
+          String urlString = namedUrl.getUrlString() + "/api/v1/transactions/byInputsScriptTemplateHash/" + hash;
+
+          if(limit != -1 || offset != -1 || sortDirection != null){
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "")+ "&sortDirection=" + (sortDirection != null ? (sortDirection.equals("asc") ? "asc" : "dsc") : "asc");
+          }
+
+          
+        
+          return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
+     }
+
 
      public Future<?> getUnspentByErgoTreeTemplateHash(JsonObject json, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
           JsonElement hashElement = json != null ? json.get("hash") : null;
@@ -201,23 +232,23 @@ public class ErgoExplorerData {
           if(hash != null){
                JsonElement offsetElement = json.get("offset");
                JsonElement limitElement = json.get("limit");
+               JsonElement sortDirectionElement = json.get("sortDirection");
                int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
                int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
-               return getUnspentByErgoTreeTemplateHash(hash, offset, limit, onSucceeded, onFailed);
+               String sortDirection = sortDirectionElement != null && !sortDirectionElement.isJsonNull() ? sortDirectionElement.getAsString() : null;
+               return getUnspentByErgoTreeTemplateHash(hash, offset, limit,sortDirection, onSucceeded, onFailed);
           }
           return null;
      }
 
-     public Future<?> getUnspentByErgoTreeTemplateHash(String hash, int offset, int limit, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+     public Future<?> getUnspentByErgoTreeTemplateHash(String hash, int offset, int limit, String sortDirection, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           
           String urlString = namedUrl.getUrlString() + "/api/v1/boxes/unspent/byErgoTreeTemplateHash/" + hash;
 
-          if(limit != -1 || offset != -1 ){
-               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "");
+          if(limit != -1 || offset != -1 || sortDirection != null){
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "")+ "&sortDirection=" + (sortDirection != null ? (sortDirection.equals("asc") ? "asc" : "dsc") : "asc");
           }
-
-          
         
           return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
      }
@@ -229,20 +260,22 @@ public class ErgoExplorerData {
           if(ergotree != null){
                JsonElement offsetElement = json.get("offset");
                JsonElement limitElement = json.get("limit");
+               JsonElement sortDirectionElement = json.get("sortDirection");
                int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : -1;
                int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : -1;
-               return getUnspentByErgoTree(ergotree, offset, limit, onSucceeded, onFailed);
+               String sortDirection = sortDirectionElement != null && !sortDirectionElement.isJsonNull() ? sortDirectionElement.getAsString() : null;
+               return getUnspentByErgoTree(ergotree, offset, limit,sortDirection, onSucceeded, onFailed);
           }
           return null;
      }
 
-     public Future<?> getUnspentByErgoTree(String ergotree, int offset, int limit, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+     public Future<?> getUnspentByErgoTree(String ergotree, int offset, int limit,String sortDirection, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
           ErgoNetworkUrl namedUrl =  m_ergoNetworkUrlProperty;
           
           String urlString = namedUrl.getUrlString() + "/api/v1/boxes/unspent/byErgoTree/" + ergotree;
 
-          if(limit != -1 || offset != -1 ){
-               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "");
+          if(limit != -1 || offset != -1 || sortDirection != null){
+               urlString += "?offset=" + (offset != -1 ? offset : 0) + ( limit != -1 ? "&limit=" + limit : "")+ "&sortDirection=" + (sortDirection != null ? (sortDirection.equals("asc") ? "asc" : "dsc") : "asc");
           }
 
           return Utils.getUrlJson(urlString, getExecService(), onSucceeded, onFailed);
@@ -313,7 +346,8 @@ public class ErgoExplorerData {
 
                     case "getTransaction":
                          return getTransaction(note, onSucceeded, onFailed);
-                         
+                    case "getTransactionsByTemplateHash":
+                         return getTransactionsByTemplateHash(note, onSucceeded, onFailed);
                     case "getBalance":
                          return getBalance(note, onSucceeded, onFailed);
                          

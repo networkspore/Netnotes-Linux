@@ -115,7 +115,7 @@ public class ErgoNetworkUrl {
         json.addProperty("protocol", m_protocol);
         json.addProperty("url", m_url);
         json.addProperty("port", m_port);
-        json.addProperty("url", getUrlString());
+        json.addProperty("urlString", getUrlString());
         return json;
     }
 

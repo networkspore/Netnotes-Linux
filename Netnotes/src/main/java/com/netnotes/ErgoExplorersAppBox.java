@@ -29,6 +29,7 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -38,6 +39,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.util.Duration;
 import javafx.stage.Stage;
 
 public class ErgoExplorersAppBox extends AppBox {
@@ -57,12 +59,15 @@ public class ErgoExplorersAppBox extends AppBox {
     private JsonParametersBox m_explorerParameterBox = null;
 
     public static final String SEARCH_TxId = "Tx (TxId)";
-    public static final String SEARCH_AdrTxs = "Txs (Address)";
+    public static final String SEARCH_TxsHash = "Txs (Hash)";
+    public static final String SEARCH_TxsAdr = "Txs (Address)";
     public static final String SEARCH_TokenIdInfo = "Token (TokenId)";
     public static final String SEARCH_UnspentByTokenId = "Unspent (TokenId)";
     public static final String SEARCH_UnspentByErgoTree = "Unspent (ErgoTree)";
     public static final String SEARCH_UnspentByTemplateHash = "Unspent (Hash)";
-    
+    public static final String SEARCH_SORT_ASC = "asc";
+    public static final String SEARCH_SORT_DSC = "dsc";
+
     private Text m_searchText = null;
     private TextField m_searchTextField = null;
     private Binding<String> m_searchTextFieldIdBinding = null;
@@ -75,6 +80,8 @@ public class ErgoExplorersAppBox extends AppBox {
     private MenuButton m_searchTypeMenuButton = null;
     private ChangeListener<String> m_searchTypeTextListener = null;
     private MenuItem m_txIdMenuItem = null;
+    private MenuItem m_txByAddress = null;
+    private MenuItem m_txByTemplateHashMenuItem = null;
     private MenuItem m_tokenIdInfoMenuItem = null;
     private MenuItem m_unspentByTokenIdMenuItem = null;
     private MenuItem m_unspentByErgoTreeMenuItem = null;
@@ -87,6 +94,22 @@ public class ErgoExplorersAppBox extends AppBox {
     private ExtensionFilter m_exportSaveFilter = null;
     private HBox m_exportBtnBox = null;
     private Gson m_gson = null;
+
+
+    private String m_searchSortMethod = SEARCH_SORT_ASC;
+    private HBox m_pageHBox = null;
+    private HBox m_pagePaddingBox;
+    private TextField m_pageOffsetTextField = null;
+    private Text m_pageLimitText = null;
+    private Text m_pageOffsetText = null;
+    private Text m_pageSortText = null;
+    private Button m_pageNextBtn = null;
+    private Button m_pagePrevBtn = null;
+    private Button m_pageSortBtn = null;
+    private TextField m_pageLimitField = null;
+    private ChangeListener<String> m_pageLimitFieldListener = null;
+    private ChangeListener<String> m_pageOffsetFieldListener = null;
+
 
     public ErgoExplorersAppBox(Stage appStage, String locationId, NoteInterface ergoNetworkInterface){
         super();
@@ -171,11 +194,6 @@ public class ErgoExplorersAppBox extends AppBox {
         VBox explorerLayoutBox = new VBox(explorersTopBar, m_explorerBodyPaddingBox);
         HBox.setHgrow(explorerLayoutBox, Priority.ALWAYS);
 
-
-
-      
-    
-        
         m_showExplorers.addListener((obs, oldval, newval) -> updateShowExplorers());
 
         m_defaultExplorer.addListener((obs,oldval,newval)->setExplorerInfo());
@@ -241,30 +259,52 @@ public class ErgoExplorersAppBox extends AppBox {
             m_txIdMenuItem = new MenuItem("Transaction by Tx Id");
             m_txIdMenuItem.setOnAction(e->{
                 m_searchTypeMenuButton.setText(SEARCH_TxId);
+                resizeMenuBtn();
+                removePageBox();
+            });
+            
+            m_txByAddress = new MenuItem("Transactions by Address");
+            m_txByAddress.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_TxsAdr);
+                resizeMenuBtn();
+                addPageBox();
+            });
+
+            m_txByTemplateHashMenuItem = new MenuItem("Transactions by Input script template hash");
+            m_txByTemplateHashMenuItem.setOnAction(e->{
+                m_searchTypeMenuButton.setText(SEARCH_TxsHash);
+                resizeMenuBtn();
+                addPageBox();
             });
 
             m_tokenIdInfoMenuItem = new MenuItem("Token info by Token Id");
             m_tokenIdInfoMenuItem.setOnAction(e->{
                 m_searchTypeMenuButton.setText(SEARCH_TokenIdInfo);
                 resizeMenuBtn();
+                removePageBox();
             });
 
             m_unspentByTokenIdMenuItem = new MenuItem("Unspent boxes by Token Id");
             m_unspentByTokenIdMenuItem.setOnAction(e->{
                 m_searchTypeMenuButton.setText(SEARCH_UnspentByTokenId);
+                addPageBox();
             });
 
             m_unspentByErgoTreeMenuItem = new MenuItem("Unspent boxes by Ergo Tree");
             m_unspentByErgoTreeMenuItem.setOnAction(e->{
                 m_searchTypeMenuButton.setText(SEARCH_UnspentByErgoTree);
+                resizeMenuBtn();
+                addPageBox();
             });
 
             m_unspentByHashMenuItem = new MenuItem("Unspent boxes by Template Hash");
             m_unspentByHashMenuItem.setOnAction(e->{
                 m_searchTypeMenuButton.setText(SEARCH_UnspentByTemplateHash);
+                resizeMenuBtn();
+                addPageBox();
             });
 
-            m_searchTypeMenuButton.getItems().addAll(m_txIdMenuItem, m_tokenIdInfoMenuItem, m_unspentByTokenIdMenuItem, m_unspentByErgoTreeMenuItem, m_unspentByHashMenuItem);
+            m_searchTypeMenuButton.getItems().addAll(m_txIdMenuItem,m_txByAddress, m_txByTemplateHashMenuItem, m_tokenIdInfoMenuItem, m_unspentByTokenIdMenuItem, m_unspentByErgoTreeMenuItem, m_unspentByHashMenuItem);
 
             m_searchFieldBox = new HBox(m_searchTextField);
             m_searchFieldBox.setAlignment(Pos.CENTER_LEFT);
@@ -280,7 +320,12 @@ public class ErgoExplorersAppBox extends AppBox {
                         case SEARCH_TxId:
                             searchForTxId(searchText);
                         break;
-                    
+                        case SEARCH_TxsAdr:
+                            getAddressTransactions(searchText);
+                        break;
+                        case SEARCH_TxsHash:
+                            getTransactionsByTemplateHash(searchText);
+                        break;
                         case SEARCH_TokenIdInfo:
                             searchForTokenInfo(searchText);
                         break;
@@ -351,10 +396,149 @@ public class ErgoExplorersAppBox extends AppBox {
         
     }
 
+    
+
+    public void addPageBox(){
+        if(m_pageHBox == null){
+            double txtWidth = Utils.computeTextWidth(App.txtFont, "1000") + 20;
+
+            m_pageOffsetText = new Text(" Offset");
+            m_pageOffsetText.setFont(App.txtFont);
+            m_pageOffsetText.setFill(App.txtColor);
+
+            m_pageOffsetTextField = new TextField();
+            m_pageOffsetTextField.setPromptText("0");
+            m_pageOffsetTextField.setPrefWidth(txtWidth);
+            m_pageOffsetFieldListener = (obs,oldval,newval)->{
+                if(m_pageOffsetTextField != null){
+                    String number = newval.replaceAll("[^0-9]", "");
+                    m_pageOffsetTextField.setText(number);
+                }
+            };
+            m_pageOffsetTextField.setOnAction(e->{
+                if(m_searchTextField.getText().length() > 0){
+                    m_searchEnterBtn.fire();
+                }
+            });
+            m_pageOffsetTextField.textProperty().addListener(m_pageOffsetFieldListener);
+            
+            m_pageLimitText = new Text(" Limit");
+            m_pageLimitText.setFont(App.txtFont);
+            m_pageLimitText.setFill(App.txtColor);
+
+            m_pageLimitField = new TextField("100");
+            m_pageLimitField.setPrefWidth(txtWidth);
+            m_pageLimitFieldListener = (obs,oldval,newval)->{
+                String number = newval.replaceAll("[^0-9]", "");
+                m_pageLimitField.setText(number);
+            };
+            m_pageLimitField.setOnAction(e->{
+                if(m_searchTextField.getText().length() > 0){
+                    m_searchEnterBtn.fire();
+                }
+            });
+            m_pageLimitField.textProperty().addListener(m_pageLimitFieldListener);
+
+            m_pageNextBtn = new Button("⮞");
+            m_pageNextBtn.setId("toolBtn");
+            m_pageNextBtn.setOnAction(e->{
+                if(m_pageLimitField != null && m_pageOffsetTextField != null && m_searchEnterBtn != null){
+                    int pageSize = Utils.getIntFromField(m_pageLimitField);
+                    if(pageSize > 0){
+                        int from = (Utils.getIntFromField(m_pageOffsetTextField) + pageSize);
+
+                        m_pageOffsetTextField.setText( from + "");
+                        if(m_searchTextField.getText().length() > 0){
+                            m_searchEnterBtn.fire();
+                        }
+                    }
+                }
+            });
+      
+            m_pagePrevBtn = new Button("⮜");
+            m_pagePrevBtn.setId("toolBtn");
+            m_pagePrevBtn.setOnAction(e->{
+                if(m_pageLimitField != null && m_pageOffsetTextField != null && m_searchEnterBtn != null){
+                    int pageSize = Utils.getIntFromField(m_pageLimitField);
+                    if(pageSize > 0){
+                        int from = (Utils.getIntFromField(m_pageOffsetTextField) - pageSize);
+                        from = from < 0 ? 0 : from;
+
+                        m_pageOffsetTextField.setText( from + "");
+                        if(m_searchTextField.getText().length() > 0){
+                            m_searchEnterBtn.fire();
+                        }
+                    }
+                }
+            });
+
+            m_pageSortText = new Text(" Sort ");
+            m_pageSortText.setFont(App.txtFont);
+            m_pageSortText.setFill(App.txtColor);
+
+            m_pageSortBtn = new Button(m_searchSortMethod.equals(SEARCH_SORT_ASC) ? "Asc" : "Dsc");
+            m_pageSortBtn.setId("toolBtn");
+            m_pageSortBtn.setOnAction(e->{
+                if(m_searchSortMethod != null && m_searchEnterBtn != null){
+                    m_searchSortMethod = m_searchSortMethod.equals(SEARCH_SORT_ASC) ? SEARCH_SORT_DSC : SEARCH_SORT_ASC;
+                    m_pageSortBtn.setText(m_searchSortMethod.equals(SEARCH_SORT_ASC) ? "Asc" : " Dsc");
+                  
+                    if(m_searchTextField.getText().length() > 0){
+                        m_searchEnterBtn.fire();
+                    }
+                }
+            });
+            m_pagePaddingBox = new HBox(m_pageOffsetText, m_pageOffsetTextField, m_pageLimitText, m_pageLimitField, m_pageSortText, m_pageSortBtn, m_pagePrevBtn, m_pageNextBtn);
+            m_pagePaddingBox.setAlignment(Pos.CENTER);
+            m_pagePaddingBox.setId("footerBox");
+
+            m_pageHBox = new HBox(m_pagePaddingBox);
+            m_pageHBox.setPadding(new Insets(2,0, 2,0));
+            m_pageHBox.setAlignment(Pos.CENTER);
+            HBox.setHgrow(m_pageHBox, Priority.ALWAYS);
+            m_pageHBox.setPadding(new Insets(5,0,0, 0));
+        
+            m_explorerBodyPaddingBox.getChildren().add(m_pageHBox);
+            
+        }
+
+    }
+    public void removePageBox(){
+        if(m_pageHBox != null){
+ 
+            m_explorerBodyPaddingBox.getChildren().remove(m_pageHBox);
+            m_pagePaddingBox.getChildren().clear();
+            m_pageHBox.getChildren().clear();
+            m_searchSortMethod = SEARCH_SORT_ASC;
+            m_pageSortBtn.setOnAction(null);
+            m_pageSortBtn.setTooltip(null);
+
+            m_pageOffsetTextField.textProperty().removeListener(m_pageOffsetFieldListener);
+            m_pageOffsetTextField.setTooltip(null);
+            m_pageNextBtn.setOnAction(null);
+            m_pagePrevBtn.setOnAction(null);
+            m_pageLimitField.textProperty().removeListener(m_pageLimitFieldListener);
+
+            m_pageLimitFieldListener = null;
+            m_pageOffsetFieldListener = null;
+
+            m_pageOffsetText = null;
+            m_pageSortText = null;
+            m_pageSortBtn = null;
+            m_pagePrevBtn = null;
+            m_pageNextBtn = null;
+            m_pageLimitField = null;
+            m_pageOffsetTextField = null;
+            m_pageLimitText = null;
+            m_pageHBox = null;
+        }
+    }
+
     public void removeSearchBox(){
 
         if(m_searchTextField != null){
-
+            updateSearchResults(null, null);
+            removePageBox();
             m_searchTextField.idProperty().unbind();
             m_searchEnterBtn.setOnAction(null);
             m_searchTextField.setOnAction(null);
@@ -387,17 +571,17 @@ public class ErgoExplorersAppBox extends AppBox {
         
     }
 
-    public void searchForTxId(String id){
-       
+
+    public void search(String cmd, String property, String value){
         NoteInterface explorerInterface = m_defaultExplorer.get();
         if(explorerInterface != null){
-            JsonObject note = Utils.getCmdObject("getTransaction");
-            note.addProperty("txId", id);
+            JsonObject note = Utils.getCmdObject(cmd);
+            note.addProperty(property, value);
             updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
             explorerInterface.sendNote(note, (onSucceeded)->{
                 Object sourceObject = onSucceeded.getSource().getValue();
                 if(sourceObject != null){
-                    updateSearchResults("tx_" +id, (JsonObject) sourceObject);
+                    updateSearchResults(property, (JsonObject) sourceObject);
                 }else{
                     updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
                 }
@@ -408,19 +592,33 @@ public class ErgoExplorersAppBox extends AppBox {
         }else{
             updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
         }
-        
     }
-    public void searchForTokenInfo(String id){
-    
+
+    public void searchByPage(String cmd, String property, String value){
         NoteInterface explorerInterface = m_defaultExplorer.get();
-        if(explorerInterface != null){
-            JsonObject note = Utils.getCmdObject("getTokenInfo");
-            note.addProperty("tokenId", id);
+        if(explorerInterface != null && m_pageOffsetTextField != null){
+            int offset = m_pageOffsetTextField.getText() != "" ? Utils.getIntFromField(m_pageOffsetTextField) : -1;
+      
+            String sortMethod = m_searchSortMethod;
+            
+            int limit = m_pageLimitField.getText() != "" ? Utils.getIntFromField(m_pageLimitField) : -1;
+            JsonObject note = Utils.getCmdObject(cmd);
+            note.addProperty(property, value);
+            if(offset != -1){
+                note.addProperty("offset", offset);
+            }
+            if(limit != -1){
+                note.addProperty("limit", limit);
+            }
+            if(sortMethod.equals("dsc")){
+                note.addProperty("sortDirection", m_searchSortMethod);
+            }
+
             updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
             explorerInterface.sendNote(note, (onSucceeded)->{
                 Object sourceObject = onSucceeded.getSource().getValue();
                 if(sourceObject != null){
-                    updateSearchResults("tokenInfo_" +id, (JsonObject) sourceObject);
+                    updateSearchResults(property, (JsonObject) sourceObject);
                 }else{
                     updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
                 }
@@ -431,81 +629,36 @@ public class ErgoExplorersAppBox extends AppBox {
         }else{
             updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
         }
+    }
+
+    public void searchForTxId(String id){
+        search("getTransaction", "txId", id);
+    }
+
+    public void getAddressTransactions(String address){
+     
+        searchByPage("getAddressTransactions", "address", address);
+    }
     
+    public void getTransactionsByTemplateHash(String hash){
+        searchByPage("getTransactionsByTemplateHash","hash", hash);
+    }
+
+    public void searchForTokenInfo(String id){
+        search("getTokenInfo","tokenId", id);
     }
                      
     public void searchForUnspentByTokenId(String id){
-    
-        NoteInterface explorerInterface = m_defaultExplorer.get();
-        if(explorerInterface != null){
-            JsonObject note = Utils.getCmdObject("getUnspentByTokenId");
-            note.addProperty("tokenId", id);
-            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
-            explorerInterface.sendNote(note, (onSucceeded)->{
-                Object sourceObject = onSucceeded.getSource().getValue();
-                if(sourceObject != null){
-                    updateSearchResults("unspent_" + id, (JsonObject) sourceObject);
-                }else{
-                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
-                }
-            }, (onFailed)->{
-                Throwable throwable = onFailed.getSource().getException();
-                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
-            });
-        }else{
-            updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
-        }
-        
+        searchByPage("getUnspentByTokenId","tokenId", id);
     }
                   
     public void searchForUnspentByErgoTree(String ergoTree){
-    
-        NoteInterface explorerInterface = m_defaultExplorer.get();
-        if(explorerInterface != null){
-            JsonObject note = Utils.getCmdObject("getUnspentByErgoTree");
-            note.addProperty("ergoTree", ergoTree);
-            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
-            explorerInterface.sendNote(note, (onSucceeded)->{
-                Object sourceObject = onSucceeded.getSource().getValue();
-                if(sourceObject != null){
-                    updateSearchResults("unspentBoxes", (JsonObject) sourceObject);
-                }else{
-                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
-                }
-            }, (onFailed)->{
-                Throwable throwable = onFailed.getSource().getException();
-                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
-            });
-        }else{
-            updateSearchResults(null,Utils.getJsonObject("error", "Explorer disabled"));
-        }
-    
+        searchByPage("getUnspentByErgoTree","ergoTree", ergoTree);
     }
                        
                        
     public void searchForUnspentByTemplateHash(String hash){
-   
-        NoteInterface explorerInterface = m_defaultExplorer.get();
-        if(explorerInterface != null){
-            JsonObject note = Utils.getCmdObject("getUnspentByErgoTreeTemplateHash");
-            note.addProperty("hash", hash);
-            updateSearchResults(null, Utils.getJsonObject("status", "Searching..."));
-
-            explorerInterface.sendNote(note, (onSucceeded)->{
-                Object sourceObject = onSucceeded.getSource().getValue();
-                if(sourceObject != null){
-                    updateSearchResults("unspentBoxes", (JsonObject) sourceObject);
-                }else{
-                    updateSearchResults(null, Utils.getJsonObject("error", "Received invalid result"));
-                }
-            }, (onFailed)->{
-                Throwable throwable = onFailed.getSource().getException();
-                updateSearchResults(null, Utils.getJsonObject("error", throwable != null ? throwable.getMessage() : "Unknwon error"));
-            });
-        }else{
-            updateSearchResults(null, Utils.getJsonObject("error", "Explorer disabled"));
-        }
-        
+        searchByPage("getUnspentByErgoTreeTemplateHash","hash", hash);
     }
 
     private JsonObject m_resultsJson = null;
@@ -518,6 +671,7 @@ public class ErgoExplorersAppBox extends AppBox {
             if(m_searchClearBtn == null){
                 m_searchClearBtn = new Button("☓");
                 m_clearBtnAction = (e)->{
+                    m_searchTextField.setText("");
                     updateSearchResults(null, null);
                 };
                 m_searchClearBtn.setOnAction(m_clearBtnAction);
@@ -616,6 +770,7 @@ public class ErgoExplorersAppBox extends AppBox {
     }
 
     public void removeExplorerBoxes(){
+        
         removeSearchBox();
         if(m_explorerParameterBox != null){
             if(m_explorerBodyPaddingBox.getChildren().contains(m_explorerParameterBox)) {

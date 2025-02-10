@@ -475,7 +475,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
         JsonElement addressElement = note.get("address");
         String address = addressElement != null && addressElement.isJsonPrimitive() ? addressElement.getAsString() : null;
         
-        AddressData addressData = address!= null ? m_addressesData.getAddress(address) : null;
+        AddressData addressData = address!= null ? m_addressesData.getAddressData(address) : null;
             
         if(addressData != null){
            
@@ -523,15 +523,19 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         return getAccessId(note, locationString, onSucceeded, onFailed);
                 }
             }else{
-                
-                switch(cmd){
-                    case "sendAssets":
-                        return m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
-                        
-                    case "executeContract":
-                        return m_addressesData.executeContract(note, locationString, onSucceeded, onFailed);
-                }       
-                
+                try{
+                    switch(cmd){
+                        case "sendAssets":
+                            return m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
+                        case "executeTransaction":
+                            return m_addressesData.executeTransaction(note, locationString, onSucceeded, onFailed);
+                        case "viewWalletMnemonic":
+                            m_addressesData.viewWalletMnemonic(locationString, onSucceeded, onFailed);
+                        break;
+                    }       
+                }catch(Exception e){
+                    return Utils.returnException(e, getExecService(), onFailed);
+                }
             }
 
         }

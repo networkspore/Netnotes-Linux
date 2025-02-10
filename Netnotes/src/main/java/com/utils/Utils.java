@@ -733,6 +733,18 @@ public class Utils {
 
     }
 
+    public static int getIntFromField(TextField field){
+        return field == null ? 0 : Utils.isTextZero(field.getText()) ? 0 :  Integer.parseInt(Utils.formatStringToNumber(field.getText(), 0));
+    }
+
+    public static BigDecimal getBigDecimalFromField(TextField field, int decimals){
+        return field == null ? BigDecimal.ZERO : Utils.isTextZero(field.getText()) ? BigDecimal.ZERO :  new BigDecimal(Utils.formatStringToNumber(field.getText(), 0));
+    }
+
+    public static String formatStringLineLength(String str, int len){
+        return str.replaceAll("(.{"+len+"})", "$1\n");
+    }
+
     public static Binding<String> createFormFieldIdBinding(TextField textField){
         return Bindings.createObjectBinding(()-> textField != null ? (textField.textProperty().get().length() > 0 ? null : "formField") : null, textField.textProperty());
     }
@@ -845,17 +857,6 @@ public class Utils {
         return execService.submit(task);
 
     }
-
-    public static long[] decimalToFractional(BigDecimal decimal){
-        String number = decimal.toPlainString();
-        int index = number.indexOf(".");
-        String leftSide = index != -1 ? number.substring(0, index) : number;
-        String rightSide = index != -1 ?  number.substring(index + 1) : "";
-        int numDecimals = rightSide.length();
-        BigInteger denominator = BigInteger.valueOf(10).pow(numDecimals);
-        BigInteger numerator = new BigInteger(leftSide).multiply(denominator).add(new BigInteger(rightSide));
-        return new long[]{numerator.longValue(), denominator.longValue()};
-     }
 
     public static String formatStringToNumber(String number, int decimals){
         number = number.replaceAll("[^0-9.]", "");

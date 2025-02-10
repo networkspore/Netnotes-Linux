@@ -15,7 +15,7 @@ import com.google.gson.JsonPrimitive;
 import com.utils.Utils;
 import java.io.IOException;
 import java.math.BigDecimal;
-
+import org.ergoplatform.appkit.Address;
 
 public class AddressData extends Network {  
     
@@ -60,6 +60,10 @@ public class AddressData extends Network {
             json.add("balance", balanceObject);
         }
         return json;
+    }
+
+    public Address createAddress() throws RuntimeException{
+        return Address.create(m_addressString);
     }
 
     public void setAddressesData(AddressesData addressesData){

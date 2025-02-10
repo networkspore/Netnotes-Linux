@@ -145,7 +145,7 @@ public class AddressBox extends HBox {
         addressField.setPromptText("            Enter Address");
         addressField.setId("textAreaInputEmpty");
         addressField.textProperty().addListener((obs,oldval,newval)->{
-            String b58 = newval.replaceAll("[^A-HJ-NP-Za-km-z1-9]", "");
+            String b58 = newval.replaceAll("[^A-HJ-NP-Za-km-z0-9]", "");
            
             if(newval.length() == 0){
                 addressField.setId("textAreaInputEmpty");
@@ -330,7 +330,7 @@ public class AddressBox extends HBox {
         Address adr = adrInfo.getAddress();
 
         NetworkType adrNetworkType = adrInfo.getNetworkType();
-        String adrType = adrInfo.getAddressType();
+        String adrType = adrInfo.getAddressTypeString();
         String adrString = adrInfo.getAddressString();
 
         boolean isInvalidAddress = adr != null ? isInvalidAddress(adrString) : true;

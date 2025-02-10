@@ -9,4 +9,6 @@
 Netnotes/test-wallet.erg
 test-wallet.erg
 Netnotes/spectrumPrices.json
-Netnotes/src/main/resources/extended32
+.bloop
+.metals
+.scala-build

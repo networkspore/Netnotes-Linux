@@ -3,14 +3,11 @@ package com.netnotes;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -18,14 +15,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import com.satergo.Wallet;
 import com.satergo.WalletKey;
-import com.satergo.WalletKey.Failure;
 import com.satergo.ergo.ErgoInterface;
-
 import com.utils.Utils;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.Gson;
@@ -33,6 +27,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.netnotes.ErgoTransactionData.OutputData;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -63,14 +58,13 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-import scorex.util.encode.Base16;
-import sigmastate.basics.DLogProtocol.DLogProverInput;
-import sigmastate.basics.DLogProtocol.ProveDlog;
-
 import org.ergoplatform.appkit.*;
+
+import org.ergoplatform.sdk.ErgoToken;
 import sigmastate.Values;
+
 public class AddressesData {
-    
+
    
     
     public final static NetworkInformation NOMARKET = new NetworkInformation("null", "(disabled)","/assets/bar-chart-150.png", "/assets/bar-chart-30.png", "No market selected" );
@@ -115,7 +109,7 @@ public class AddressesData {
     public final static int ADDRESS_IMG_HEIGHT = 40;
     public final static int ADDRESS_IMG_WIDTH = 350;
     public final static long QUOTE_TIMEOUT = POLLING_TIME*2;
-
+ 
     private SimpleObjectProperty<LocalDateTime> m_lastUpdated = new SimpleObjectProperty<>(LocalDateTime.now());
 
     private Stage m_promptStage = null;
@@ -131,11 +125,13 @@ public class AddressesData {
     //private ChangeListener<BigDecimal> m_priceQuoteAmountChanged = null;
     private long m_balanceTimestamp = 0;
 
+
     public AddressesData(String id,  ArrayList<AddressData> addressDataList, ErgoWalletData walletData, NetworkType networkType) {
 
       //  m_wallet = wallet;
         m_walletData = walletData;
         m_networkType = networkType;
+       
         m_addressDataList = addressDataList;
         
      
@@ -230,6 +226,126 @@ public class AddressesData {
         return m_walletData.getNetworksData().getExecService();
     }
 
+    public void viewWalletMnemonic(String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+
+        JsonObject authObj = new JsonObject();
+
+        authObj.addProperty("timeStamp", System.currentTimeMillis());
+
+        String title = "Wallet - View Mnemonic - Signature Required";
+    
+        Stage txStage = new Stage();
+        txStage.getIcons().add(App.logo);
+        txStage.initStyle(StageStyle.UNDECORATED);
+        txStage.setTitle(title);
+
+        PasswordField passwordField = new PasswordField();
+        Button closeBtn = new Button();
+
+        Scene passwordScene = getAuthorizationScene(txStage,title,closeBtn, passwordField, authObj, locationString, rowHeight, lblCol);
+
+        txStage.setScene(passwordScene);
+
+        passwordField.setOnAction(e -> {
+            String pass = passwordField.getText();
+            passwordField.setText("");
+            
+            Button cancelBtn = new Button("Cancel");
+            cancelBtn.setId("iconBtnSelected");
+            Label progressLabel = new Label(m_walletData.isTxAvailable() ? "Opening wallet..." : "Waiting for wallet access...");
+            
+            Scene waitingScene = App.getWaitngScene(progressLabel, cancelBtn, txStage);
+            txStage.setScene(waitingScene);
+            txStage.centerOnScreen();
+
+            Future<?> walletFuture = m_walletData.startTx(pass, m_walletData.getWalletFile(), getExecService(), onWalletLoaded->{
+                
+                cancelBtn.setDisable(true);
+                cancelBtn.setId("iconBtn");
+                Object walletObject = onWalletLoaded.getSource().getValue();
+                if(walletObject != null && walletObject instanceof Wallet){
+                    
+                    Wallet wallet = (Wallet) walletObject;
+                    try{
+                        wallet.key().viewWalletMnemonic(pass);
+                        Utils.returnObject(Utils.getJsonObject("result", "success"), getExecService(), onSucceeded);
+
+                    }catch(Exception passFailed){
+                        Utils.returnException(passFailed, getExecService(), onFailed);
+                    }
+                
+                      
+                    m_walletData.endTx();      
+                    txStage.close();
+                }else{
+                    m_walletData.endTx();
+                    txStage.setScene(passwordScene);
+                    txStage.centerOnScreen();
+                }
+            }, onLoadFailed->{
+                Throwable throwable = onLoadFailed.getSource().getException();
+
+                if(throwable != null){
+                    if(!(throwable instanceof InterruptedException)){
+                        m_walletData.endTx();
+                    }
+                    if(throwable instanceof NoSuchFileException){
+
+                        Alert noFileAlert = new Alert(AlertType.ERROR, "Wallet file does not exist, or has been moved.", ButtonType.OK);
+                        noFileAlert.setHeaderText("Error");
+                        noFileAlert.setTitle("Error: File not found");
+                        noFileAlert.show();
+                        Utils.returnException((Exception) throwable, getExecService(), onFailed);
+                        txStage.close();
+                    }else{
+                        txStage.setScene(passwordScene);
+                        txStage.centerOnScreen();
+                    }
+                }else{
+                    m_walletData.endTx();
+
+                    Alert unavailableAlert = new Alert(AlertType.ERROR, "Wallet Unavailable", ButtonType.OK);
+                    unavailableAlert.setHeaderText("Error");
+                    unavailableAlert.setTitle("Error: Wallet Unavailable");
+                    unavailableAlert.show();
+
+                    Utils.returnException("Wallet Unavailable", getExecService(), onFailed);
+                    txStage.close();
+                }
+
+            });
+
+            cancelBtn.setOnAction(onCancel->{
+                walletFuture.cancel(true);
+            });
+        });
+
+        
+        Runnable sendCanceledJson =()->{
+      
+            passwordField.setOnAction(null);
+            Utils.returnException("Transaction Canceled", getExecService(), onFailed);
+            txStage.close();
+        };
+
+        closeBtn.setOnAction(e -> sendCanceledJson.run());
+
+
+        txStage.setOnCloseRequest(e->sendCanceledJson.run());
+
+        passwordScene.focusOwnerProperty().addListener((obs, oldval, newVal) -> {
+            if (newVal != null && !(newVal instanceof PasswordField)) {
+                Platform.runLater(() -> passwordField.requestFocus());
+            }
+        });
+        
+        txStage.show();
+
+        Platform.runLater(()->passwordField.requestFocus());
+        
+        ResizeHelper.addResizeListener(txStage, 400, 600, Double.MAX_VALUE, Double.MAX_VALUE);
+
+    }
 
     public static Scene getAuthorizationScene(Stage txStage,  String title, Button closeBtn, PasswordField passwordField, JsonObject dataObject, String locationString, double rowHeight, int lblCol){
 
@@ -338,13 +454,13 @@ public class AddressesData {
   
         return passwordScene;
     }
+    private int lblCol = 170;
+    private int rowHeight = 22;
 
-
-    public Future<?> sendAssets(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> sendAssets(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) throws Exception{
         
         JsonElement dataElement = note.get("data");
-        int lblCol = 170;
-        int rowHeight = 22;
+
 
         if(dataElement != null && dataElement.isJsonObject())
         {
@@ -352,87 +468,87 @@ public class AddressesData {
 
             JsonElement recipientElement = dataObject.get("recipient");
 
-            if(!checkNetworkType(dataObject, m_networkType)){
-                return Utils.returnException("Network type must be " + m_networkType.toString(),getExecService(), onFailed);
+            JsonObject recipientObject = recipientElement != null && recipientElement.isJsonObject() ? recipientElement.getAsJsonObject() : null;
+
+            if(recipientObject == null){
+                throw new Exception("No recipient provided");
             }
 
-            String walletAddress = getAddressStringFromDataObject(dataObject);
+            JsonElement recipientAddressElement = recipientObject.get("address");
+
+            AddressInformation recipientAddressInfo = recipientAddressElement != null && !recipientAddressElement.isJsonNull() ? new AddressInformation(recipientAddressElement.getAsString()) : null;
+            
+            if(recipientAddressInfo == null){
+                throw new Exception("No recipient address provided");
+            }
+
+            if(recipientAddressInfo.getAddress() == null){
+                throw new Exception("Invalid recipient address");
+            }
+
+            if(!ErgoTransactionData.checkNetworkType(dataObject, m_networkType)){
+                throw new Exception("Network type must be " + m_networkType.toString());
+            }
+
+            JsonObject walletAddressObject = ErgoTransactionData.getAddressObjectFromDataObject("senderAddress", dataObject);
+
+            String walletAddress = ErgoTransactionData.getAddressFromObject(walletAddressObject);
 
             if(walletAddress == null){
-                return Utils.returnException("No wallet address provided",getExecService(), onFailed);
+                throw new Exception("No wallet address provided");
             }
 
-            AddressData addressData = getAddress(walletAddress);
+            AddressData addressData = getAddressData(walletAddress);
 
             if(addressData == null){
-                return Utils.returnException("Address not found in this wallet",getExecService(), onFailed);
+                throw new Exception("Address not found in this wallet");
             }
             ArrayList<PriceAmount> balanceList = getBalanceList(addressData.getBalance(),true, m_networkType);
 
 
-            long feeAmountNanoErgs = getFeeAmountNanoErgs(dataObject);
+            long feeAmountNanoErgs = ErgoTransactionData.getFeeAmountFromDataObject(dataObject);
             
             if(feeAmountNanoErgs == -1){
-                return Utils.returnException("No fee provided", getExecService(), onFailed);
+                throw new Exception("No fee provided");
             }
 
             if(feeAmountNanoErgs < ErgoNetwork.MIN_NANO_ERGS){
-                return Utils.returnException("Minimum fee of 0.001 Erg required (1000000 nanoErg)", getExecService(), onFailed);
+                throw new Exception("Minimum fee of 0.001 Erg required (1000000 nanoErg)");
             }
 
-            long amountToSpendNanoErgs = getAmountToSpendNanoErgs(dataObject);
+            long amountToSpendNanoErgs = ErgoTransactionData.getErgAmountFromDataObject(dataObject);
           
-            JsonObject recipientObject = recipientElement != null && recipientElement.isJsonObject() ? recipientElement.getAsJsonObject() : null;
+            
 
-            if(recipientObject == null){
-                return Utils.returnException("No recipient provided", getExecService(), onFailed);
-            }
-
-            ErgoToken[] assetArray = null;
-            try{
-                assetArray = getTokenArray(dataObject);
-            }catch(NullPointerException e){
-                return Utils.returnException(e, getExecService(), onFailed);
-            }
-
+            ErgoToken[] assetArray = ErgoTransactionData.getTokensFromDataObject(dataObject);
+            
             for(ErgoToken sendAmount : assetArray){
                 PriceAmount balanceAmount = getPriceAmountFromList(balanceList, sendAmount.getId().toString());
                 if(sendAmount.getValue() > balanceAmount.getLongAmount()){
-                    return Utils.returnException("Insufficent " + balanceAmount.getCurrency().getName(), getExecService(), onFailed);
+                    throw new Exception("Insufficent " + balanceAmount.getCurrency().getName());
                 }
             }
-
-            ErgoToken[] tokenArray = assetArray;
             
-            JsonElement recipientAddressElement = recipientObject.get("address");
-
-            AddressInformation recipientAddressInfo = recipientAddressElement != null && !recipientAddressElement.isJsonNull() ? new AddressInformation(recipientAddressElement.getAsString().replaceAll("[^A-HJ-NP-Za-km-z1-9]", "")) : null;
             
-            if(recipientAddressInfo == null){
-                return Utils.returnException("No recipient address provided", getExecService(), onFailed);
-            }
+            
 
-            if(recipientAddressInfo.getAddress() == null){
-                return Utils.returnException("Invalid recipient address", getExecService(), onFailed);
-            }
-
-            NamedNodeUrl namedNodeUrl = getNamedNodeUrlFromDataObject(dataObject);
+            NamedNodeUrl namedNodeUrl = ErgoTransactionData.getNamedNodeUrlFromDataObject(dataObject, getDefaultNode());
 
             if(namedNodeUrl == null){
-                return Utils.returnException("Node unavailable", getExecService(), onFailed);
+                throw new Exception("Node unavailable");
             }
 
             if(namedNodeUrl.getUrlString() == null){
-                return Utils.returnException("No node URL provided", getExecService(), onFailed);
+                throw new Exception("No node URL provided");
             }
 
             String nodeUrl = namedNodeUrl.getUrlString();
             String nodeApiKey = namedNodeUrl.getApiKey();
 
-            ErgoNetworkUrl explorerNetworkUrl = getExplorerUrl(dataObject);
+            ErgoNetworkUrl explorerNetworkUrl = ErgoTransactionData.getExplorerUrl(dataObject, getDefaultExplorer());
 
             if(explorerNetworkUrl == null){
-                return Utils.returnException("Explorer url not provided", getExecService(), onFailed);
+                throw new Exception("Explorer url not provided");
             }
 
             String explorerUrl = explorerNetworkUrl.getUrlString();
@@ -481,7 +597,7 @@ public class AddressesData {
                             recipientAddressInfo, 
                             amountToSpendNanoErgs, 
                             feeAmountNanoErgs, 
-                            tokenArray, 
+                            assetArray, 
                             pass,
                             (onSent)->{
                                
@@ -598,7 +714,7 @@ public class AddressesData {
             public JsonObject call() throws Exception {
 
            
-                Address address = getWalletAddress(wallet, walletAddress, networkType);
+                Address address = ErgoTransactionData.getWalletAddress(wallet, walletAddress, networkType);
         
                 ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, networkType, nodeApiKey, explorerUrl);
 
@@ -662,7 +778,7 @@ public class AddressesData {
 
 
     
-    public Future<?> executeContract(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
+    public Future<?> executeTransaction(JsonObject note, String locationString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) throws Exception{
         
         JsonElement dataElement = note.get("data");
         int lblCol = 170;
@@ -670,93 +786,42 @@ public class AddressesData {
 
         if(dataElement != null && dataElement.isJsonObject())
         {
-            JsonObject dataObject = dataElement.getAsJsonObject();
+            JsonObject txDataObject = dataElement.getAsJsonObject();
 
-            JsonElement contractDataElement = dataObject.get("contractData");
-
-            JsonObject contractDataObject = contractDataElement != null && contractDataElement.isJsonObject() ? contractDataElement.getAsJsonObject() : null;
-
-            if(contractDataObject == null){
-                return Utils.returnException("No contract data provided", getExecService(), onFailed);
+            if(txDataObject == null){
+                throw new Exception("No Ergo output data provided");
             }
 
 
-            if(!checkNetworkType(dataObject, m_networkType)){
-                return Utils.returnException("Network type must be " + m_networkType.toString(),getExecService(), onFailed);
+            ErgoTransactionData txData = new ErgoTransactionData(txDataObject, getNetworkType(), getDefaultNode(), getDefaultExplorer() );
+            if(txData.getErgoInputData().size() != 1){
+                throw new Exception("Limited to currenly requiring one asset input");
             }
-
-            String walletAddress = getAddressStringFromDataObject(dataObject);
-
-            if(walletAddress == null){
-                return Utils.returnException("No wallet address provided",getExecService(), onFailed);
-            }
-
-            AddressData addressData = getAddress(walletAddress);
-
-            if(addressData == null){
-                return Utils.returnException("Address not found in this wallet",getExecService(), onFailed);
-            }
-            ArrayList<PriceAmount> balanceList = getBalanceList(addressData.getBalance(),true, m_networkType);
-
-
-            long feeAmountNanoErgs = getFeeAmountNanoErgs(dataObject);
             
-            if(feeAmountNanoErgs == -1){
-                return Utils.returnException("No fee provided", getExecService(), onFailed);
+            if(txData.getFeeInputData() == null){
+                throw new Exception("No fee input provided");
             }
 
-            if(feeAmountNanoErgs < 1000000){
-                return Utils.returnException("Minimum fee of 0.001 Erg required (1000000 nanoErg)", getExecService(), onFailed);
-            }
-
-            long amountToSpendNanoErgs = getAmountToSpendNanoErgs(dataObject);
-          
+            ErgoInputData[] assetInputs = txData.getAssetsInputData();
             
-            ErgoToken[] assetArray = null;
-            try{
-                assetArray = getTokenArray(dataObject);
-            }catch(NullPointerException e){
-                return Utils.returnException(e, getExecService(), onFailed);
-            }
+            for(ErgoInputData inputData : assetInputs){
+                if(inputData.getWalletType().equals(ErgoTransactionData.CURRENT_WALLET_FILE)){
+                    AddressData addressData = getAddressData(inputData.getAddressString());
 
-            for(ErgoToken sendAmount : assetArray){
-                PriceAmount balanceAmount = getPriceAmountFromList(balanceList, sendAmount.getId().toString());
-                if(sendAmount.getValue() > balanceAmount.getLongAmount()){
-                    return Utils.returnException("Insufficent " + balanceAmount.getCurrency().getName(), getExecService(), onFailed);
+                    if(addressData == null){
+                        throw new Exception("Input address not found in this wallet");
+                    }
+
+                    ArrayList<PriceAmount> balanceList = AddressesData.getBalanceList(addressData.getBalance(), true, getNetworkType());
+                    for(ErgoToken sendAmount : inputData.getTokens()){
+                        PriceAmount balanceAmount = AddressesData.getPriceAmountFromList(balanceList, sendAmount.getId().toString());
+                        if(sendAmount.getValue() > balanceAmount.getLongAmount()){
+                            throw new Exception("Insufficent " + balanceAmount.getCurrency().getName());
+                        }
+                    }
                 }
             }
-
-            ErgoToken[] tokenArray = assetArray;
             
-            JsonElement contractElement = contractDataObject.get("description");
-
-            if(contractElement == null || (contractElement != null && contractElement.isJsonNull())){
-                return Utils.returnException("Contract description not provided", getExecService(), onFailed);
-            }
-           
-            String contract = contractElement.getAsString();
-
-            NamedNodeUrl namedNodeUrl = getNamedNodeUrlFromDataObject(dataObject);
-
-            if(namedNodeUrl == null){
-                return Utils.returnException("Node unavailable", getExecService(), onFailed);
-            }
-
-            if(namedNodeUrl.getUrlString() == null){
-                return Utils.returnException("No node URL provided", getExecService(), onFailed);
-            }
-
-            String nodeUrl = namedNodeUrl.getUrlString();
-            String nodeApiKey = namedNodeUrl.getApiKey();
-
-            ErgoNetworkUrl explorerNetworkUrl = getExplorerUrl(dataObject);
-
-            if(explorerNetworkUrl == null){
-                return Utils.returnException("Explorer url not provided", getExecService(), onFailed);
-            }
-
-            String explorerUrl = explorerNetworkUrl.getUrlString();
-
             String title = "Wallet - Send Assets - Signature Required";
     
             Stage txStage = new Stage();
@@ -767,7 +832,7 @@ public class AddressesData {
             PasswordField passwordField = new PasswordField();
             Button closeBtn = new Button();
 
-            Scene passwordScene = getAuthorizationScene(txStage,title,closeBtn, passwordField, dataObject, locationString, rowHeight, lblCol);
+            Scene passwordScene = getAuthorizationScene(txStage,title,closeBtn, passwordField, txDataObject, locationString, rowHeight, lblCol);
 
             txStage.setScene(passwordScene);
 
@@ -790,19 +855,11 @@ public class AddressesData {
                     Object walletObject = onWalletLoaded.getSource().getValue();
                     if(walletObject != null && walletObject instanceof Wallet){
                         progressLabel.setText("Executing transaction...");
-                        executeContract(
-                            getExecService(), 
-                            (Wallet) walletObject, 
-                            walletAddress, 
-                            nodeUrl, 
-                            nodeApiKey, 
-                            explorerUrl, 
-                            m_networkType, 
-                            contract, 
-                            amountToSpendNanoErgs, 
-                            feeAmountNanoErgs, 
-                            tokenArray, 
+                        executeTransaction(
+                            getExecService(),
                             pass,
+                            (Wallet) walletObject, 
+                            txData,
                             (onSent)->{
                                
                                 Utils.returnObject(onSent.getSource().getValue(), getExecService(), onSucceeded);
@@ -897,208 +954,118 @@ public class AddressesData {
 
     }
 
-    public Future<?> executeContract(ExecutorService execService, 
-    Wallet wallet, 
-    String walletAddress, 
-    String nodeUrl, 
-    String nodeApiKey, 
-    String explorerUrl, 
-    NetworkType networkType, 
-    String contract, 
-    long amountToSpendNanoErgs,
-    long feeAmountNanoErgs,
-    ErgoToken[] tokenArray,
-    String pass,
-    EventHandler<WorkerStateEvent> onSucceeded,
-    EventHandler<WorkerStateEvent> onFailed)
-{
-    Task<JsonObject> task = new Task<JsonObject>() {
-        @Override
-        public JsonObject call() throws Exception {
+    public Future<?> executeTransaction(
+        ExecutorService execService, 
+        String pass,    
+        Wallet wallet,  
+        ErgoTransactionData txData,
+        EventHandler<WorkerStateEvent> onSucceeded,
+        EventHandler<WorkerStateEvent> onFailed)
+    {
+        Task<JsonObject> task = new Task<JsonObject>() {
+            @Override
+            public JsonObject call() throws Exception {
+                
+                NetworkType networkType = txData.getNetworkType();
+                Address changeAddress = txData.getChangeAddress(wallet);
+                String nodeUrl = txData.getNamedNodeUrl().getUrlString();
+                String nodeApiKey = txData.getNamedNodeUrl().getApiKey();
+                String explorerUrl = txData.getErgoExplorerUrl().getUrlString();
+   
+                ErgoInputData inputData = txData.getAssetsInputData()[0];
+                
+                ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, networkType, nodeApiKey, explorerUrl);
 
-       
-            Address changeAddress = getWalletAddress(wallet, walletAddress, networkType);
-    
-            ErgoClient ergoClient = RestApiErgoClient.create(nodeUrl, networkType, nodeApiKey, explorerUrl);
-
-            if (feeAmountNanoErgs < Parameters.MinFee) {
-                throw new IllegalArgumentException("fee cannot be less than MinFee (" + Parameters.MinFee + " nanoERG)");
-            }
-            List<Address> addresses = wallet.addressStream(networkType).toList();
-            
-            ProveDlog refundProp = new DLogProverInput(BigInteger.valueOf(Long.MAX_VALUE)).publicImage();
-            byte[] quoteIdBytes = new byte[32];
-            Arrays.fill(quoteIdBytes, (byte) 4);
-
-            byte[] spectrumId = new byte[32];
-            Arrays.fill(spectrumId, (byte) 3);
-
-            byte[] poolNFT = new byte[32];
-            Arrays.fill(poolNFT, (byte) 2);
-
-            byte[] redeemerPropBytes = new byte[32];
-            Arrays.fill(redeemerPropBytes, (byte) 1);
-
-            byte[] minerPropBytes = Base16.decode("1005040004000e36100204a00b08cd0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798ea02d192a39a8cc7a701730073011001020402d19683030193a38cc7b2a57300000193c2b2a57301007473027303830108cdeeac93b1a57304").get();
-                        
-            UnsignedTransaction unsignedTx = ergoClient.execute(ctx -> {
-                List<InputBox> boxesToSpend = BoxOperations.createForSenders(addresses, ctx)
-                    .withAmountToSpend(amountToSpendNanoErgs)
-                    .withFeeAmount(feeAmountNanoErgs)
-                    .withTokensToSpend(List.of(tokenArray))
+                List<Address> addresses = wallet.addressStream(networkType).toList();
+          
+                UnsignedTransaction unsignedTx = ergoClient.execute(ctx -> {
+                    List<InputBox> boxesToSpend =  BoxOperations.createForSenders(addresses, ctx)
+                    .withAmountToSpend(inputData.getNanoErgs())
+                    .withFeeAmount(inputData.getFeeNanoErgs())
+                    .withTokensToSpend(List.of(inputData.getTokens()))
                     .loadTop();
 
-                UnsignedTransactionBuilder txBuilder = ctx.newTxBuilder();
-                OutBoxBuilder newBoxBuilder = txBuilder.outBoxBuilder();
-                newBoxBuilder.value(amountToSpendNanoErgs);
-                if (tokenArray.length > 0) {
-                    newBoxBuilder.tokens(tokenArray);
-                }
-          
-                ErgoContract ergoContract = ctx.compileContract(
-                    ConstantsBuilder.create()
-                        .item("ExFeePerTokenDenom", 22222L)
-                        .item("Delta", 11111L)
-                        .item("BaseAmount", 1200L)
-                        .item("FeeNum", 996)
-                        .item("RefundProp", refundProp)
-                        .item("SpectrumIsQuote", false)
-                        .item("MaxExFee", 1400L)
-                        .item("PoolNFT", poolNFT)
-                        .item("RedeemerPropBytes", redeemerPropBytes)
-                        .item("QuoteId", quoteIdBytes)
-                        .item("MinQuoteAmount", 800L)
-                        .item("SpectrumId", spectrumId)
-                        .item("FeeDenom", 1000)
-                        .item("MinerPropBytes", minerPropBytes)
-                        .item("MaxMinerFee", 10000L)
-                    .build(), 
-                    contract
-                );
+                    UnsignedTransactionBuilder txBuilder = ctx.newTxBuilder();
+                    int outBoxSize = txData.getOutputData().size();
 
-                
+                    OutBox[] outBoxes = new OutBox[outBoxSize];
 
-                Values.ErgoTree ergoTree = ergoContract.getErgoTree();
-
-                ErgoTreeTemplate template = ErgoTreeTemplate.fromErgoTree(ergoTree);
-
-                try {
-                    Files.writeString(App.logFile.toPath(), "encodedBytes: " + template.getEncodedBytes() + "\nhex: " + template.getTemplateHashHex() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e) {
-
-                }
-    
-                newBoxBuilder.contract(ergoContract).build();
-                
-                OutBox newBox = newBoxBuilder.build();
-                return txBuilder
-                    .addInputs(boxesToSpend.toArray(new InputBox[0])).addOutputs(newBox)
-                    .fee(feeAmountNanoErgs)
+                    for(int i = 0; i < outBoxSize ; i++){
+                        OutputData outputData = txData.getOutputData().get(i);
+                        outBoxes[i] = outputData.getOutBox(ctx, txBuilder, wallet);
+                        
+                    }
+                    
+                    return txBuilder
+                    .addInputs(boxesToSpend.toArray(new InputBox[0])).addOutputs(outBoxes)
+                    .fee(inputData.getFeeNanoErgs())
                     .sendChangeTo(changeAddress)
                     .build();
-            });
+                
+                });
 
-            
-      
-            String txId = "test";/*wallet.transact(ergoClient, ergoClient.execute(ctx -> {
-                try {
-                    return wallet.key().signWithPassword(pass, ctx, unsignedTx, wallet.myAddresses.keySet());
-                } catch (WalletKey.Failure ex) {
+        
+                String txId = null; /*unsignedTx != null ?  wallet.transact(ergoClient, ergoClient.execute(ctx -> {
+                    try {
+                        return wallet.key().signWithPassword(pass, ctx, unsignedTx, wallet.myAddresses.keySet());
+                    } catch (WalletKey.Failure ex) {
 
-                    return null;
-                }
-            }));*/
+                        return null;
+                    }
+                })) : null;*/
 
 
-            if(txId != null){
+                if(txId != null){
 
-                JsonObject resultObject = new JsonObject();
-                resultObject.addProperty("result","Sent");
-                resultObject.addProperty("txId", txId);
-                resultObject.addProperty("timeStamp", System.currentTimeMillis());
+                    JsonObject resultObject = new JsonObject();
+                    resultObject.addProperty("result","Executed");
+                    resultObject.addProperty("txId", txId);
+                    resultObject.addProperty("timeStamp", System.currentTimeMillis());
 
-                try{
+                    try{
+                        
+                        BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
+                        List<BlockHeader> blockHeaderList =  dataSource != null ? dataSource.getLastBlockHeaders(1, true) : null;
+                        BlockHeader blockHeader = blockHeaderList != null && blockHeaderList.size() > 0 ? blockHeaderList.get(0)  : null;
+                        
+                        int blockHeight = blockHeader != null ? blockHeader.getHeight() : -1;
+                        long timeStamp = blockHeader != null ? blockHeader.getTimestamp() : -1;
+
+                        JsonObject networkInfoObject = new JsonObject();
+                        networkInfoObject.addProperty("networkHeight", blockHeight);
+                        networkInfoObject.addProperty("timeStamp", timeStamp);
+                        resultObject.add("networkInfo", networkInfoObject);
+                    }catch(Exception dataSourcException){
+        
+                    }
                     
-                    BlockchainDataSource dataSource = ergoClient != null ? ergoClient.getDataSource() : null;
-                    List<BlockHeader> blockHeaderList =  dataSource != null ? dataSource.getLastBlockHeaders(1, true) : null;
-                    BlockHeader blockHeader = blockHeaderList != null && blockHeaderList.size() > 0 ? blockHeaderList.get(0)  : null;
-                    
-                    int blockHeight = blockHeader != null ? blockHeader.getHeight() : -1;
-                    long timeStamp = blockHeader != null ? blockHeader.getTimestamp() : -1;
-
-                    JsonObject networkInfoObject = new JsonObject();
-                    networkInfoObject.addProperty("networkHeight", blockHeight);
-                    networkInfoObject.addProperty("timeStamp", timeStamp);
-                    resultObject.add("networkInfo", networkInfoObject);
-                }catch(Exception dataSourcException){
-     
+                    return resultObject;
+                }else{
+                    throw new Exception("Transaction signing failed");
                 }
                 
-                return resultObject;
-            }else{
-                throw new Exception("Transaction signing failed");
             }
-            
-        }
-    };
+        };
 
-    task.setOnSucceeded(onSucceeded);
-    task.setOnFailed(onFailed);
+        task.setOnSucceeded(onSucceeded);
+        task.setOnFailed(onFailed);
 
-    return execService.submit(task);
-}
-
-
-    public static Address getWalletAddress(Wallet wallet, String addressString, NetworkType networkType){
-        SimpleObjectProperty<Address> resultAddress = new SimpleObjectProperty<>(null);
-        wallet.myAddresses.forEach((index, name) -> {                    
-            try {
-                Address address = wallet.publicAddress(networkType, index);
-                if(address.toString().equals(addressString)){
-                   resultAddress.set(address);
-                }
-            } catch (Failure e) {
-       
-            }
-        });
-
-        return resultAddress.get();
+        return execService.submit(task);
     }
+
+
+
+   
 
 
     public JsonObject getDefaultExplorer(){
         JsonObject getDefaultExplorerNote = Utils.getCmdObject("getDefault");
 
-        Object explorerObj = m_walletData.getErgoNetworkData().getErgoExplorers() .sendNote(getDefaultExplorerNote);
+        Object explorerObj = m_walletData.getErgoNetworkData().getErgoExplorers().sendNote(getDefaultExplorerNote);
         NoteInterface explorerInterface = explorerObj != null && explorerObj instanceof NoteInterface ?  (NoteInterface) explorerObj : null;
-        
-        return explorerInterface != null ? explorerInterface.getJsonObject() : null;
-    }
+        JsonObject defaultObject =explorerInterface != null ?explorerInterface.getJsonObject(): null;
 
-    public ErgoNetworkUrl getExplorerUrl(JsonObject dataObject){
-        JsonElement explorerElement = dataObject.get("explorer");
-
-        JsonObject explorerObject = explorerElement != null && explorerElement.isJsonObject() ? explorerElement.getAsJsonObject() : getDefaultExplorer();
-        
-        if(explorerObject != null){
-       
-            JsonElement namedExplorerElement = explorerObject.get("ergoNetworkUrl");
-
-            JsonObject namedExplorerJson = namedExplorerElement.getAsJsonObject();
-            
-            try {
-                
-                ErgoNetworkUrl explorerUrl = new ErgoNetworkUrl(namedExplorerJson);
-                return explorerUrl;
-
-            } catch (Exception e1) {
-              
-            }
-
-            
-        }
-     
-        return null;
+        return defaultObject;
     }
 
     public JsonObject getDefaultNode(){
@@ -1106,174 +1073,6 @@ public class AddressesData {
         Object nodeObj =  m_walletData.getErgoNetworkData().getErgoNodes().sendNote(getDefaultNodeNote);
         NoteInterface nodeInterface = nodeObj != null && nodeObj instanceof NoteInterface ? (NoteInterface) nodeObj : null;
         return nodeInterface != null ? nodeInterface.getJsonObject() : null;
-    }
-
-    public static void addNodeUrlToDataObject(JsonObject dataObject, NoteInterface nodeInterface){
-        JsonObject nodeInterfaceObject = nodeInterface.getJsonObject();
-        dataObject.add("node", nodeInterfaceObject);
-    }
-
-    public NamedNodeUrl getNamedNodeUrlFromDataObject(JsonObject dataObject){
-
-        JsonElement nodeElement = dataObject.get("node");
-
-        JsonObject nodeObject = nodeElement != null && nodeElement.isJsonObject() ? nodeElement.getAsJsonObject() : getDefaultNode();
-        
-        if(nodeObject != null){
-            JsonElement namedNodeElement = nodeObject.get("namedNode");
-            if( namedNodeElement != null && namedNodeElement.isJsonObject()){
-                JsonObject namedNodeJson = namedNodeElement.getAsJsonObject();
-                
-                NamedNodeUrl namedNode = null;
-                try {
-                    namedNode = new NamedNodeUrl(namedNodeJson);
-                    return namedNode;
-                }catch(Exception e1){
-                       
-                }
-            }
-        }
-      
-        return null;
-    }
-   
-    public static String getAddressStringFromDataObject(JsonObject dataObject){
-        JsonElement walletElement = dataObject != null ? dataObject.get("wallet") : null;
-        JsonObject walletJson = walletElement != null && walletElement.isJsonObject() ? walletElement.getAsJsonObject() : null;
-        JsonElement walletAddressElement = walletJson != null ? walletJson.get("address") : null;
-        return walletAddressElement != null && !walletAddressElement.isJsonNull() ? walletAddressElement.getAsString() : null;
-    }
-
-    public static JsonObject getAddressObject(String address, String name){
-        JsonObject ergoObject = new JsonObject();
-        ergoObject.addProperty("address", address);
-        ergoObject.addProperty("name", name);
-        return ergoObject;
-    }
-
-    public static void addWalletAddressToDataObject(String address, String walletName, JsonObject dataObject){
-        JsonObject networkTypeObject = getAddressObject(address, walletName);
-        dataObject.add("wallet", networkTypeObject);
-    }
-
-  
-    public static boolean checkNetworkType(JsonObject dataObject, NetworkType networkType){
-        JsonElement networkElement = dataObject != null ? dataObject.get("network") : null;
-        JsonObject networkObject = networkElement != null && networkElement.isJsonObject() ? networkElement.getAsJsonObject() : null;
-        JsonElement networkTypeElement = networkObject != null ? networkObject.get("networkType") : null;
-        String networkTypeString = networkTypeElement != null ? networkTypeElement.getAsString() : null;
-        return networkTypeString != null &&  networkType.toString().toLowerCase().equals(networkTypeString.toLowerCase());
-    }
-
-    public static JsonObject getNetworkTypeObject(NetworkType networkType){
-        JsonObject ergoObject = new JsonObject();
-        ergoObject.addProperty("networkType", networkType.toString());
-        return ergoObject;
-    }
-
-    public static void addNetworkTypeToDataObject(NetworkType networkType, JsonObject dataObject){
-        JsonObject networkTypeObject = getNetworkTypeObject(networkType);
-        dataObject.add("network", networkTypeObject);
-    }
-
-
-    public static long getFeeAmountNanoErgs(JsonObject dataObject){
-        JsonElement feeElement = dataObject != null ? dataObject.get("feeAmount") : null;
-        JsonObject feeObject = feeElement != null && feeElement.isJsonObject() ? feeElement.getAsJsonObject() : null;
-        JsonElement nanoErgsElement = feeObject != null ? feeObject.get("nanoErgs") : null;
-        return nanoErgsElement != null ? nanoErgsElement.getAsLong() : -1;
-    }
-
-    public static long getAmountToSpendNanoErgs(JsonObject dataObject){
-        JsonElement feeElement = dataObject != null ? dataObject.get("amountToSpend") : null;
-        JsonObject feeObject = feeElement != null && feeElement.isJsonObject() ? feeElement.getAsJsonObject() : null;
-        JsonElement nanoErgsElement = feeObject != null ? feeObject.get("nanoErgs") : null;
-        return nanoErgsElement != null ? nanoErgsElement.getAsLong() : -1;
-    }
-
-    public static ErgoToken[] getTokenArray(JsonObject dataObject) throws NullPointerException{
-        JsonElement assetsElement = dataObject != null ? dataObject.get("assets") : null;
-        JsonArray assetsArray = assetsElement != null && assetsElement.isJsonArray() ? assetsElement.getAsJsonArray() : null;
-
-        if(assetsArray != null){
-            ErgoToken[] tokenArray = new ErgoToken[assetsArray.size()];
-            
-            for(int i = 0; i < assetsArray.size() ; i++ ){
-                JsonElement element = assetsArray.get(i);
-                if(element != null && !element.isJsonNull() && element.isJsonObject()){
-                    JsonObject assetJson = element.getAsJsonObject();
-                    ErgoToken ergoToken = PriceAmount.getErgoToken(assetJson);
-                    if(ergoToken == null){
-                        throw new NullPointerException("Provided asset is missing token information. (Index: "+i+")");
-                    }
-                    tokenArray[i] = ergoToken;
-                }else{
-                    throw new NullPointerException("Provided asset is not a valid json object. (Index: "+i+")");
-                }
-            
-            }
-
-            return tokenArray;
-        }
-        return new ErgoToken[0];
-    }
-    
-
-    public static JsonObject createNanoErgsObject(long nanoErg){
-        JsonObject ergoObject = new JsonObject();
-        ergoObject.addProperty("nanoErgs", nanoErg);
-        return ergoObject;
-    }
-
-    public static boolean addFeeAmountToDataObject(PriceAmount ergoAmount, JsonObject dataObject){
-        if(!ergoAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-            return false;
-        }
-        JsonObject nanoErgsObject = createNanoErgsObject(ergoAmount.getLongAmount());
-        nanoErgsObject.addProperty("ergs", ergoAmount.getBigDecimalAmount());
-        dataObject.add("feeAmount", nanoErgsObject);
-        return true;
-    }
-
-    public static void addAssetsToDataObject(PriceAmount[] priceAmounts, JsonObject dataObject){
-        priceAmounts = priceAmounts == null ? new PriceAmount[0] : priceAmounts;
-        JsonArray tokenArray = new JsonArray();
-        for(int i = 0 ; i < priceAmounts.length ; i++){
-            PriceAmount token = priceAmounts[i];
-            tokenArray.add(token.getAmountObject());
-        }
-        dataObject.add("assets", tokenArray);
-    }
-
-    public static boolean addFeeNanoErgToDataObject(long nanoErgs, JsonObject dataObject){
-
-        if(nanoErgs < ErgoNetwork.MIN_NANO_ERGS){
-            return false;
-        }
-        JsonObject nanoErgsObject = createNanoErgsObject(nanoErgs);
-        nanoErgsObject.addProperty("ergs", PriceAmount.calculateLongToBigDecimal(nanoErgs, ErgoCurrency.DECIMALS));
-        dataObject.add("feeAmount", nanoErgsObject);
-        return true;
-    }
-
-    public static void addNanoErgsToSpendToDataObject(long nanoErgs, JsonObject dataObject){
-        JsonObject nanoErgsObject = createNanoErgsObject(nanoErgs);
-        nanoErgsObject.addProperty("ergs", PriceAmount.calculateLongToBigDecimal(nanoErgs, ErgoCurrency.DECIMALS));
-        dataObject.add("amountToSpend", nanoErgsObject);
-    }
-
-    public static boolean addAmountToSpendToDataObject(PriceAmount ergoAmount, JsonObject dataObject){
-        if(ergoAmount == null || !ergoAmount.getTokenId().equals(ErgoCurrency.TOKEN_ID)){
-            return false;
-        }
-        JsonObject nanoErgsObject = createNanoErgsObject(ergoAmount.getLongAmount());
-        nanoErgsObject.addProperty("ergs", ergoAmount.getBigDecimalAmount());
-        dataObject.add("amountToSpend", nanoErgsObject);
-        return true;
-    }
-
-    public String getContractString(JsonObject datObject){
-        return null;
     }
 
 
@@ -1502,7 +1301,7 @@ public class AddressesData {
     
 
 
-    public AddressData getAddress(String address){
+    public AddressData getAddressData(String address){
         if(address != null){
             for(AddressData addressData :  m_addressDataList){
             

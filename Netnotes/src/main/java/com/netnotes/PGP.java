@@ -28,24 +28,18 @@ public class PGP {
     private String publicKey = "";
     private String clientKeyArmored = "";
 
-    public PGP() {
+    public PGP() throws IOException, InvalidAlgorithmParameterException, NoSuchAlgorithmException, PGPException {
        
-            try {
-                code = generateStrongAESKey(256);
-                byte [] bytes = code.getEncoded();
+        code = generateStrongAESKey(256);
+        byte [] bytes = code.getEncoded();
 
-                String codeString = Hex.toHexString(bytes);
+        String codeString = Hex.toHexString(bytes);
 
 
-                secretKeys = PGPainless.generateKeyRing().simpleEcKeyRing("ergonotes <ergonotes@ergonotes.io>", Passphrase.fromPassword(codeString));
-                PGPPublicKeyRing certificate = PGPainless.extractCertificate(secretKeys);
-        
-                publicKey = PGPainless.asciiArmor(certificate);
-            
-            } catch (IOException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | PGPException e) {
-           
-                e.printStackTrace();
-            }
+        secretKeys = PGPainless.generateKeyRing().simpleEcKeyRing("ergonotes <ergonotes@ergonotes.io>", Passphrase.fromPassword(codeString));
+        PGPPublicKeyRing certificate = PGPainless.extractCertificate(secretKeys);
+
+        publicKey = PGPainless.asciiArmor(certificate);
 
     }
 

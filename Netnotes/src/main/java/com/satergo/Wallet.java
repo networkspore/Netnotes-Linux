@@ -12,6 +12,7 @@ import javafx.collections.ObservableMap;
 import javafx.stage.FileChooser;
 
 import org.ergoplatform.appkit.*;
+import org.ergoplatform.sdk.SecretString;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;

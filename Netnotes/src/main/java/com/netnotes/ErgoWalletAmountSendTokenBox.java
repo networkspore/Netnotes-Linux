@@ -517,10 +517,10 @@ public class ErgoWalletAmountSendTokenBox extends HBox implements AmountBoxInter
         return sendAmount != null && sendAmount.compareTo(BigDecimal.ZERO) > 0 ? new PriceAmount(sendAmount, getCurrency()) : null;
     }
 
-    public boolean isSufficientBalance(){
+    public boolean isInsufficientBalance(){
         BigDecimal remaining = getBalanceRemaining();
 
-        return remaining.compareTo(BigDecimal.ZERO) > -1;
+        return remaining.compareTo(BigDecimal.ZERO) == -1;
     }
 
     public ReadOnlyObjectProperty<BigDecimal> sendAmountProperty(){

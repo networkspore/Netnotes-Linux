@@ -1,5 +1,6 @@
 package com.satergo;
 
+import com.netnotes.App;
 import com.netnotes.ErgoWallets;
 import com.satergo.ergo.ErgoInterface;
 import com.satergo.extra.AESEncryption;
@@ -9,9 +10,9 @@ import javafx.scene.image.Image;
 import org.ergoplatform.ErgoAddressEncoder;
 import org.ergoplatform.P2PKAddress;
 import org.ergoplatform.appkit.*;
-import org.ergoplatform.wallet.secrets.DerivationPath;
-import org.ergoplatform.wallet.secrets.ExtendedPublicKey;
-import org.ergoplatform.wallet.secrets.ExtendedSecretKey;
+import org.ergoplatform.sdk.wallet.secrets.DerivationPath;
+import org.ergoplatform.sdk.wallet.secrets.ExtendedPublicKey;
+import org.ergoplatform.sdk.wallet.secrets.ExtendedSecretKey;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
@@ -141,6 +142,8 @@ public abstract class WalletKey {
     public abstract SignedTransaction signWithPassword(String password, BlockchainContext ctx, UnsignedTransaction unsignedTx, Collection<Integer> addressIndexes) throws Failure;
 
     public abstract Address derivePublicAddress(NetworkType networkType, int index) throws Failure;
+
+    public abstract void viewWalletMnemonic(String password) throws Failure;
 
     public abstract WalletKey changedPassword(char[] currentPassword, char[] newPassword) throws Failure; // it would be cool to call this "recrypt" :)
 
@@ -285,6 +288,11 @@ public abstract class WalletKey {
             } catch (GeneralSecurityException e) {
                 throw new RuntimeException(e);
             }
+        }
+        @Override
+        public void viewWalletMnemonic(String password) throws Failure{
+            Mnemonic mnemonic = getMnemonic(password);
+            App.showMagnifyingStage("Mnemonic Recovery - Wallet" , mnemonic.getPhrase().toStringUnsecure());
         }
 
         private Mnemonic getMnemonic() throws Failure {

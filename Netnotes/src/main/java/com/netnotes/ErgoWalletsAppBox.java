@@ -11,7 +11,7 @@ import java.util.concurrent.Future;
 import org.ergoplatform.appkit.Mnemonic;
 import org.ergoplatform.appkit.MnemonicValidationException;
 import org.ergoplatform.appkit.NetworkType;
-import org.ergoplatform.appkit.SecretString;
+import org.ergoplatform.sdk.SecretString;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.Gson;
@@ -230,6 +230,25 @@ public class ErgoWalletsAppBox extends AppBox {
         }
     }
 
+    private void mnemonicRecovery(){
+        NoteInterface walletInterface = m_selectedWallet.get();
+        if(walletInterface != null){
+            JsonObject note = Utils.getCmdObject("viewWalletMnemonic");
+            note.addProperty("locationId", m_locationId);
+            note.addProperty("accessId", m_lockBox.getLockId());
+
+            walletInterface.sendNote(note, onSucceeded->{}, onFailed->{
+                Throwable exception = onFailed.getSource().getException();
+
+                try {
+                    Files.writeString(App.logFile.toPath(), "Wallet: " + walletInterface.getName() + " (viewWalletMnemonic) Error: " + (exception != null ? exception.toString() : " failed") );
+                } catch (IOException e) {
+
+                }
+            });
+        }
+    }
+
     public ErgoWalletsAppBox(Stage appStage, String locationId, NoteInterface ergoNetwork) {
         super();
 
@@ -324,8 +343,10 @@ public class ErgoWalletsAppBox extends AppBox {
 
        // MenuItem addAdrMenuItem = new MenuItem("➕  Add address to wallet");
         MenuItem sendMenuItem = new MenuItem("⮩  Send");
+        MenuItem viewMnemonicMenuItem = new MenuItem("⥀  Mnemonic Recovery");
+        
 
-        adrMenuBtn.getItems().addAll(copyAdrMenuItem, sendMenuItem, seperatorAdrMenuItem);
+        adrMenuBtn.getItems().addAll(copyAdrMenuItem, sendMenuItem, seperatorAdrMenuItem, viewMnemonicMenuItem);
         
 
 
@@ -342,6 +363,10 @@ public class ErgoWalletsAppBox extends AppBox {
             m_currentBox.set(new SendAppBox());
         });
 
+        viewMnemonicMenuItem.setOnAction(e->{
+            hideMenus.run();
+            mnemonicRecovery();
+        });
          
 
         Runnable openWallet = () -> {
@@ -924,9 +949,10 @@ public class ErgoWalletsAppBox extends AppBox {
     public void shutdown() {
         NoteInterface noteInterface = m_selectedWallet.get();
         m_balanceObject.set(null);
-        if(m_accessIdFuture != null && !m_accessIdFuture.isDone() || !m_accessIdFuture.isCancelled()){
+        if(m_accessIdFuture != null && (!m_accessIdFuture.isDone() || !m_accessIdFuture.isCancelled())){
             m_accessIdFuture.cancel(true);
         }
+        m_accessIdFuture = null;
         if(noteInterface != null){
             m_selectedWallet.set(null);
         }
@@ -2162,11 +2188,11 @@ public class ErgoWalletsAppBox extends AppBox {
                     showError("Error: No wallet selected");
                     return;
                 }
-                AddressesData.addWalletAddressToDataObject(m_lockBox.getAddress(), walletInterface.getName(), sendObject);
+                ErgoTransactionData.addWalletAddressToDataObject("senderAddress", m_lockBox.getAddress(), walletInterface.getName(), ErgoTransactionData.CURRENT_WALLET_FILE, sendObject);
         
                 JsonObject recipientObject = new JsonObject();
                 recipientObject.addProperty("address", addressInformation.getAddress().toString());
-                recipientObject.addProperty("addressType", addressInformation.getAddressType());
+                recipientObject.addProperty("addressType", addressInformation.getAddressTypeString());
                 
                 sendObject.add("recipient", recipientObject);
 
@@ -2178,7 +2204,7 @@ public class ErgoWalletsAppBox extends AppBox {
                     return;
                 }
 
-                if(!AddressesData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
+                if(!ErgoTransactionData.addFeeAmountToDataObject(feePriceAmount, sendObject)){
                     addSendBox();
                     showError("Babblefees not supported at this time");
                     return;
@@ -2194,12 +2220,9 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 PriceAmount ergoPriceAmount = ergoSendBox.getSendAmount();
                 long nanoErgs = ergoPriceAmount.getLongAmount();
+                
+                ErgoTransactionData.addNanoErgAmountToDataObject(ergoPriceAmount.getLongAmount(), sendObject);
 
-                if(!AddressesData.addAmountToSpendToDataObject(ergoPriceAmount, sendObject)){
-                    addSendBox();
-                    showError("Ergo amount is not valid");
-                    return;
-                }
 
                 JsonArray sendAssets = new JsonArray();
 
@@ -2211,7 +2234,7 @@ public class ErgoWalletsAppBox extends AppBox {
                         ErgoWalletAmountSendTokenBox sendBox = (ErgoWalletAmountSendTokenBox) amountBox;
                         PriceAmount sendAmount = sendBox.getSendAmount();
                         if(sendAmount!= null){
-                            if(!sendBox.isSufficientBalance()){
+                            if(sendBox.isInsufficientBalance()){
                                 addSendBox();
                                 showError("Insufficient " + sendBox.getCurrency().getName() +" balance");
                                 return;
@@ -2238,7 +2261,7 @@ public class ErgoWalletsAppBox extends AppBox {
 
                 sendObject.add("assets", sendAssets);
 
-                AddressesData.addNetworkTypeToDataObject(m_networkType, sendObject);
+                ErgoTransactionData.addNetworkTypeToDataObject(m_networkType, sendObject);
 
                 JsonObject note = Utils.getCmdObject("sendAssets");
                 note.addProperty("accessId", m_lockBox.getLockId());

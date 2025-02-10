@@ -16,7 +16,7 @@ public class ErgoPoolBoxData{
     private ErgoBoxAsset m_lp = null;
     private PriceAmount m_assetX = null;
     private PriceAmount m_assetY = null;
-    private long m_feeNum = -1;
+    private int m_feeNum = -1;
     private BigDecimal m_price;
     private long m_timeStamp = 0;
     private int m_scale = 0;
@@ -64,7 +64,7 @@ public class ErgoPoolBoxData{
 
         JsonElement r4Element = r4Register.getRenderedValue();
         if(r4Element != null){
-            m_feeNum = r4Element.getAsLong();
+            m_feeNum = r4Element.getAsInt();
         }else{
             throw new NullPointerException("R4 register value is null");
         }
@@ -111,7 +111,7 @@ public class ErgoPoolBoxData{
         return m_assetY;
     }
 
-    public long getFeeNum() {
+    public int getFeeNum() {
         return m_feeNum;
     }
 
