@@ -12,10 +12,15 @@ import java.util.concurrent.ExecutorService;
 import org.apache.commons.io.FileUtils;
 
 import com.google.gson.JsonObject;
+import io.netnotes.engine.FreeMemory;
+import io.netnotes.engine.NamedNodeUrl;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
-import com.utils.Utils;
 
 public class ErgoNodesList {
 
@@ -43,7 +48,7 @@ public class ErgoNodesList {
     private void getData() {
         
    
-        getNetworksData().getData("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID, onSucceded ->{
+        getNetworksData().getData("data",".", NoteConstants.NODE_NETWORK, NoteConstants.ERGO_NETWORK_ID, onSucceded ->{
             Object obj = onSucceded.getSource().getValue();
         
             JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
@@ -86,14 +91,14 @@ public class ErgoNodesList {
           
             save();
             long timeStamp = System.currentTimeMillis();
-            JsonObject note = Utils.getMsgObject(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.NODE_NETWORK);
-            note.addProperty("code", App.LIST_DEFAULT_CHANGED);
+            JsonObject note = NoteConstants.getMsgObject(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.NODE_NETWORK);
+            note.addProperty("code", NoteConstants.LIST_DEFAULT_CHANGED);
             note.addProperty("timeStamp", timeStamp);
             if(id != null){
                 note.addProperty("id",  id);
             }
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.NODE_NETWORK, note.toString());
+            getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.NODE_NETWORK, note.toString());
         }
     
     }
@@ -117,10 +122,10 @@ public class ErgoNodesList {
         m_defaultNodeId = null;
         long timeStamp = System.currentTimeMillis();
         
-        JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.NODE_NETWORK);
-        note.addProperty("code", App.LIST_DEFAULT_CHANGED);
+        JsonObject note = NoteConstants.getJsonObject("networkId", NoteConstants.NODE_NETWORK);
+        note.addProperty("code", NoteConstants.LIST_DEFAULT_CHANGED);
         note.addProperty("timeStamp", timeStamp);
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.NODE_NETWORK, note.toString());
+        getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.NODE_NETWORK, note.toString());
         
 
         return true;
@@ -186,7 +191,7 @@ public class ErgoNodesList {
                                 }
                             }catch(Exception e){
                                 try {
-                                    Files.writeString(App.logFile.toPath(), e.toString() +"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                                    Files.writeString(NoteConstants.logFile.toPath(), e.toString() +"\n",StandardOpenOption.CREATE,StandardOpenOption.APPEND);
                                 } catch (IOException e1) {
                            
                                 }
@@ -227,14 +232,14 @@ public class ErgoNodesList {
     private void addNode(ErgoNodeData nodeData, boolean isSave){
         if(nodeData != null && nodeData.getId() != null){
             nodeData.addUpdateListener((obs,oldval,newval)->{
-                JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.WALLET_NETWORK);
+                JsonObject note = NoteConstants.getJsonObject("networkId", NoteConstants.WALLET_NETWORK);
                 note.addProperty("id", nodeData.getId());
-                note.addProperty("code", App.UPDATED);
+                note.addProperty("code", NoteConstants.UPDATED);
 
                 long timeStamp = System.currentTimeMillis();
                 note.addProperty("timeStamp", timeStamp);
 
-                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, ErgoNetwork.WALLET_NETWORK, note.toString());
+                getErgoNetwork().sendMessage(NoteConstants.LIST_ITEM_ADDED,timeStamp, NoteConstants.WALLET_NETWORK, note.toString());
                 
                 save();
             });
@@ -244,14 +249,14 @@ public class ErgoNodesList {
           
 
             if(isSave){
-                JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.WALLET_NETWORK);
+                JsonObject note = NoteConstants.getJsonObject("networkId", NoteConstants.WALLET_NETWORK);
                 note.addProperty("id", id);
-                note.addProperty("code", App.UPDATED);
+                note.addProperty("code", NoteConstants.UPDATED);
 
                 long timeStamp = System.currentTimeMillis();
                 note.addProperty("timeStamp", timeStamp);
 
-                getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED, timeStamp, ErgoNetwork.WALLET_NETWORK, note.toString());
+                getErgoNetwork().sendMessage(NoteConstants.LIST_ITEM_ADDED, timeStamp, NoteConstants.WALLET_NETWORK, note.toString());
 
                
             }
@@ -310,7 +315,7 @@ public class ErgoNodesList {
                                 FileUtils.deleteDirectory(nodeAppDir);
                             } catch (IOException e) {
                                 try {
-                                    Files.writeString(App.logFile.toPath(), "Error deleting node files: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                    Files.writeString(NoteConstants.logFile.toPath(), "Error deleting node files: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                 } catch (IOException e1) {
                    
                                 }
@@ -322,18 +327,18 @@ public class ErgoNodesList {
                 if(isSave){
                     save();
         
-                    JsonObject note = Utils.getJsonObject("networkId", ErgoNetwork.NODE_NETWORK);
+                    JsonObject note = NoteConstants.getJsonObject("networkId", NoteConstants.NODE_NETWORK);
                     
                     JsonArray jsonArray = new JsonArray();
                     jsonArray.add(nodeData.getJsonObject());
 
                     note.add("ids", jsonArray);
-                    note.addProperty("code", App.LIST_ITEM_REMOVED);
+                    note.addProperty("code", NoteConstants.LIST_ITEM_REMOVED);
                             
                     long timeStamp = System.currentTimeMillis();
                     note.addProperty("timeStamp", timeStamp);
                     
-                    getErgoNetwork() .sendMessage(App.LIST_ITEM_REMOVED, timeStamp, ErgoNetwork.NODE_NETWORK, note.toString());
+                    getErgoNetwork() .sendMessage(NoteConstants.LIST_ITEM_REMOVED, timeStamp, NoteConstants.NODE_NETWORK, note.toString());
                 }
 
                 return true;
@@ -354,7 +359,7 @@ public class ErgoNodesList {
             JsonArray idsArray = idsElement.getAsJsonArray();
             if(idsArray.size() > 0){
                 
-                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.NODE_NETWORK);
+                JsonObject json = NoteConstants.getMsgObject(NoteConstants.LIST_ITEM_REMOVED, timestamp, NoteConstants.NODE_NETWORK);
                 JsonArray jsonArray = new JsonArray();
 
                 for(JsonElement element : idsArray){
@@ -382,7 +387,7 @@ public class ErgoNodesList {
 
                 save();
 
-                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.NODE_NETWORK, json.toString());
+                getErgoNetwork().sendMessage( NoteConstants.LIST_ITEM_REMOVED, timestamp, NoteConstants.NODE_NETWORK, json.toString());
 
                 return json;
             }
@@ -537,7 +542,7 @@ public class ErgoNodesList {
 
     public void save() {
         JsonObject saveJson = getDataJson();
-        getNetworksData().save("data",".", ErgoNetwork.NODE_NETWORK, ErgoNetwork.NETWORK_ID, saveJson);
+        getNetworksData().save("data",".", NoteConstants.NODE_NETWORK, NoteConstants.ERGO_NETWORK_ID, saveJson);
         
  
     }
@@ -755,7 +760,7 @@ public class ErgoNodesList {
                     nodeUrl = new NamedNodeUrl(dataJson);
                 }catch(Exception e){
                     try {
-                        Files.writeString(App.logFile.toPath(), "\naddRemoteNode failed: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(NoteConstants.logFile.toPath(), "\naddRemoteNode failed: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e1) {
 
                     }
@@ -819,14 +824,14 @@ public class ErgoNodesList {
                      
                         namedNodeUrl = new NamedNodeUrl(namedNodeJson);
                     } catch (Exception e1) {
-                        return Utils.getMsgObject(App.ERROR, e1.toString());
+                        return NoteConstants.getMsgObject(NoteConstants.ERROR, e1.toString());
                     }
 
                     if(configFileNameElement != null){
                         String configFileName = configFileNameElement.getAsString();
                         String configText = configTextElement != null ? configTextElement.getAsString() : null;
 
-                        File roots[] = App.getRoots();
+                        File roots[] = Utils.getRoots();
                         String appDirString = appDirElement != null && appDirElement.isJsonPrimitive() ? appDirElement.getAsString() : null;
 
                         File appDir = appDirElement != null && Utils.findPathPrefixInRoots(roots, appDirString) ? new File(appDirString) : null;
@@ -841,16 +846,16 @@ public class ErgoNodesList {
                                     boolean success = appDir.mkdirs();
                                     if (!success && !appDir.isDirectory()) {
                                     
-                                        return Utils.getMsgObject(App.ERROR, "Unable to access folder location");
+                                        return NoteConstants.getMsgObject(NoteConstants.ERROR, "Unable to access folder location");
                                     }
 
                                 } catch (SecurityException e1) {
-                                    return Utils.getMsgObject(App.ERROR, e1.toString());
+                                    return NoteConstants.getMsgObject(NoteConstants.ERROR, e1.toString());
                                 }
                             }
 
                             if(getLocalNodeByFile(appDir) != null){
-                                return Utils.getMsgObject(App.ERROR, "Directory contains an existing node");
+                                return NoteConstants.getMsgObject(NoteConstants.ERROR, "Directory contains an existing node");
                             }
 
                             boolean isAppFile = isAppElement != null && isAppElement.isJsonPrimitive() ? isAppElement.getAsBoolean() : false;
@@ -869,39 +874,39 @@ public class ErgoNodesList {
                                     ErgoNodeLocalData localNodeData = new ErgoNodeLocalData(id, appDir, isAppFile, appFile, configFileName, configText, namedNodeUrl, this);
                                     addNode(localNodeData, true);
                                              
-                                    JsonObject returnObject = Utils.getJsonObject("code", App.SUCCESS);
+                                    JsonObject returnObject = NoteConstants.getJsonObject("code", NoteConstants.SUCCESS);
                                     returnObject.addProperty("id",id);
 
                                     return returnObject;
                                 } catch (Exception e1) {
-                                    return Utils.getMsgObject(App.ERROR, e1.toString());
+                                    return NoteConstants.getMsgObject(NoteConstants.ERROR, e1.toString());
                                 }
                                 
                             }else{
                                 
-                                return Utils.getMsgObject(App.ERROR, "App file missing");
+                                return NoteConstants.getMsgObject(NoteConstants.ERROR, "App file missing");
                                 
                             }
                         
                         }else{
                 
-                            return Utils.getMsgObject(App.ERROR, "Directory element missing");
+                            return NoteConstants.getMsgObject(NoteConstants.ERROR, "Directory element missing");
                         }
                     }else{
-                        return Utils.getMsgObject(App.ERROR, "Config element missing");
+                        return NoteConstants.getMsgObject(NoteConstants.ERROR, "Config element missing");
                     }
                 
                 }else{
                     
-                    return Utils.getMsgObject(App.ERROR, "Named node json object missing");
+                    return NoteConstants.getMsgObject(NoteConstants.ERROR, "Named node json object missing");
                 }
 
 
             }else{
-                return Utils.getMsgObject(App.ERROR, "Note data element required");
+                return NoteConstants.getMsgObject(NoteConstants.ERROR, "Note data element required");
             }
         }else{
-            return Utils.getMsgObject(App.ERROR, "Note is null");
+            return NoteConstants.getMsgObject(NoteConstants.ERROR, "Note is null");
         }
                     
           

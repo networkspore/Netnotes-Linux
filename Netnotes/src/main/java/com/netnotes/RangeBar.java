@@ -7,8 +7,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.devskiller.friendly_id.FriendlyId;
-import com.utils.Utils;
+import io.netnotes.engine.BufferedButton;
+import io.netnotes.engine.Drawing;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -190,8 +193,8 @@ public class RangeBar extends ImageView implements ControlInterface{
       
 
         Text styleText = new Text("Auto");
-        styleText.setFont(App.titleFont);
-        styleText.setFill(App.altColor);
+        styleText.setFont(Stages.titleFont);
+        styleText.setFill(Stages.altColor);
 
         Region indicatorRegion = new Region();
         indicatorRegion.setMinWidth(5);
@@ -237,13 +240,13 @@ public class RangeBar extends ImageView implements ControlInterface{
         cancelRangeBtn.setMaxHeight(20);
 
         Text rangeText = new Text(String.format("%-14s", "Select range"));
-        rangeText.setFont(App.titleFont);
-        rangeText.setFill(App.txtColor);
+        rangeText.setFont(Stages.titleFont);
+        rangeText.setFill(Stages.txtColor);
 
 
         Text topValueText = new Text("Top");
-        topValueText.setFont(App.titleFont);
-        topValueText.setFill(App.txtColor);
+        topValueText.setFont(Stages.titleFont);
+        topValueText.setFill(Stages.txtColor);
 
         TextField topValueTextField = new TextField();
         topValueTextField.setId("urlField");
@@ -271,7 +274,11 @@ public class RangeBar extends ImageView implements ControlInterface{
         };
         topValueTextField.textProperty().addListener(topValueListener);
         topValueTextField.setOnAction(e->setTopVvalueByText.run());
-
+        topValueTextField.setOnKeyPressed(e->{
+            if (Utils.keyCombCtrZ.match(e) ) { 
+                e.consume();
+            }
+        });
         Region tvtbRegion = new Region();
         tvtbRegion.setMinWidth(5);
 
@@ -281,8 +288,8 @@ public class RangeBar extends ImageView implements ControlInterface{
         topValueTextBox.setPadding(new Insets(0,0,0,10));
 
         Text botValueText = new Text("Bottom");
-        botValueText.setFont(App.titleFont);
-        botValueText.setFill(App.txtColor);
+        botValueText.setFont(Stages.titleFont);
+        botValueText.setFill(Stages.txtColor);
 
         TextField botValueTextField = new TextField();
         botValueTextField.setId("urlField");
@@ -311,7 +318,11 @@ public class RangeBar extends ImageView implements ControlInterface{
             
         };
         botValueTextField.textProperty().addListener(botChangeListener);
-
+        botValueTextField.setOnKeyPressed(e->{
+            if (Utils.keyCombCtrZ.match(e) ) { 
+                e.consume();
+            }
+        });
         Region bvtbRegion = new Region();
         bvtbRegion.setMinWidth(5);
 

@@ -1,11 +1,9 @@
 package com.netnotes;
 
-import java.io.IOException;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
@@ -13,7 +11,11 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.networks.ergo.ErgoCurrency;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.engine.PriceQuote;
 import com.google.gson.JsonElement;
 
 public class ErgoDexFees {
@@ -135,7 +137,7 @@ public class ErgoDexFees {
     }
 
     public void setNetworkFee(BigDecimal fee){
-        if(fee != null && fee.compareTo(ErgoNetwork.MIN_NETWORK_FEE) > -1){
+        if(fee != null && fee.compareTo(NoteConstants.MIN_NETWORK_FEE) > -1){
             m_networkFee.set(fee);
         }else{
             m_networkFee.set(DEFAULT_NETWORK_FEE);

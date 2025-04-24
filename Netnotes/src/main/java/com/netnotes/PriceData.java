@@ -7,7 +7,7 @@ import java.time.ZoneId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.Utils;
 
 public class PriceData {
 

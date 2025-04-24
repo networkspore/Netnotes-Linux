@@ -6,7 +6,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.time.LocalDateTime;
 
 import java.time.format.DateTimeFormatter;
@@ -16,6 +15,7 @@ import java.util.ArrayList;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.Drawing;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -525,9 +525,9 @@ public class ChartView {
             int j = 0;
 
             //    Color green = KucoinExchange.POSITIVE_COLOR;
-            Color highlightGreen = KucoinExchange.POSITIVE_HIGHLIGHT_COLOR;
-            Color garnetRed = KucoinExchange.NEGATIVE_COLOR;
-            Color highlightRed = KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR;
+            Color highlightGreen = Drawing.POSITIVE_HIGHLIGHT_COLOR;
+            Color garnetRed = Drawing.NEGATIVE_COLOR;
+            Color highlightRed = Drawing.NEGATIVE_HIGHLIGHT_COLOR;
 
             Color overlayRed = new Color(garnetRed.getRed(), garnetRed.getGreen(), garnetRed.getBlue(), 0x70);
             Color overlayRedHighlight = new Color(highlightRed.getRed(), highlightRed.getGreen(), highlightRed.getBlue(), 0x70);
@@ -771,7 +771,7 @@ public class ChartView {
             g2d.setColor(stringColor);
             g2d.drawString(closeString, stringX, stringY);
             if (!outOfBounds) {
-                g2d.setColor(m_direction ? KucoinExchange.POSITIVE_HIGHLIGHT_COLOR : KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR);
+                g2d.setColor(m_direction ? Drawing.POSITIVE_HIGHLIGHT_COLOR : Drawing.NEGATIVE_HIGHLIGHT_COLOR);
                 g2d.setFont(new Font("Arial", Font.PLAIN, 12));
                 g2d.drawString("◄", chartWidth - 9, stringY);
             }

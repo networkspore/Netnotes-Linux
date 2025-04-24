@@ -10,11 +10,15 @@ import org.ergoplatform.appkit.Mnemonic;
 import org.ergoplatform.appkit.MnemonicValidationException;
 import org.ergoplatform.appkit.NetworkType;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -77,7 +81,7 @@ public class ErgoWalletDataList {
     
 
     private void getData(){
-        getNetworksData().getData("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, (onSucceeded)->{
+        getNetworksData().getData("data", ".", NoteConstants.WALLET_NETWORK, NoteConstants.ERGO_NETWORK_ID, (onSucceeded)->{
             Object obj = onSucceeded.getSource().getValue();
             JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
             openJson(json); 
@@ -143,7 +147,7 @@ public class ErgoWalletDataList {
     }
 
     public void save(){
-        getNetworksData().save("data", ".", ErgoNetwork.WALLET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
+        getNetworksData().save("data", ".", NoteConstants.WALLET_NETWORK, NoteConstants.ERGO_NETWORK_ID, getJsonObject());
     }
 
     public void setDefaultWalletId(String id){
@@ -158,7 +162,7 @@ public class ErgoWalletDataList {
             save();
             long timeStamp = System.currentTimeMillis();
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.WALLET_NETWORK, id);
+            getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.WALLET_NETWORK, id);
         }
     
     }
@@ -182,7 +186,7 @@ public class ErgoWalletDataList {
         m_defaultWalletId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.WALLET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.WALLET_NETWORK, (String) null);
         save();
 
         return true;
@@ -207,7 +211,7 @@ public class ErgoWalletDataList {
             
             long timeStamp = System.currentTimeMillis();
 
-            getErgoNetwork().sendMessage(App.LIST_ITEM_ADDED,timeStamp, ErgoNetwork.WALLET_NETWORK, walletData.getNetworkId());
+            getErgoNetwork().sendMessage(NoteConstants.LIST_ITEM_ADDED,timeStamp, NoteConstants.WALLET_NETWORK, walletData.getNetworkId());
         }
     }
     
@@ -264,12 +268,12 @@ public class ErgoWalletDataList {
                     }
                 }
 
-                JsonObject json = Utils.getMsgObject(App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.WALLET_NETWORK);
+                JsonObject json = NoteConstants.getMsgObject(NoteConstants.LIST_ITEM_REMOVED, timestamp, NoteConstants.WALLET_NETWORK);
                 json.add("ids", jsonArray);
 
                 save();
 
-                getErgoNetwork().sendMessage( App.LIST_ITEM_REMOVED, timestamp, ErgoNetwork.WALLET_NETWORK, json.toString());
+                getErgoNetwork().sendMessage( NoteConstants.LIST_ITEM_REMOVED, timestamp, NoteConstants.WALLET_NETWORK, json.toString());
 
                 if(jsonArray.size() > 0){
                     return true;
@@ -338,23 +342,23 @@ public class ErgoWalletDataList {
         mnemonicStage.initStyle(StageStyle.UNDECORATED);
 
         Button closeBtn = new Button();
+        
+        HBox titleBox = Stages.createTopBar(m_ergoWallets.getIcon(), titleStr, closeBtn, mnemonicStage);
 
-        HBox titleBox = App.createTopBar(m_ergoWallets.getIcon(), titleStr, closeBtn, mnemonicStage);
-
-        Button imageButton = App.createImageButton(m_ergoWallets.getIcon(), "Restore wallet");
+        Button imageButton = Stages.createImageButton(m_ergoWallets.getIcon(), "Restore wallet");
 
         HBox imageBox = new HBox(imageButton);
         imageBox.setAlignment(Pos.CENTER);
 
         Text subTitleTxt = new Text("> Mnemonic phrase:");
-        subTitleTxt.setFill(App.txtColor);
-        subTitleTxt.setFont(App.txtFont);
+        subTitleTxt.setFill(Stages.txtColor);
+        subTitleTxt.setFont(Stages.txtFont);
 
         HBox subTitleBox = new HBox(subTitleTxt);
         subTitleBox.setAlignment(Pos.CENTER_LEFT);
 
         TextArea mnemonicField = new TextArea();
-        mnemonicField.setFont(App.txtFont);
+        mnemonicField.setFont(Stages.txtFont);
         mnemonicField.setId("formField");
 
         mnemonicField.setWrapText(true);
@@ -377,7 +381,7 @@ public class ErgoWalletDataList {
 
         Button nextBtn = new Button("Words left: 15");
         nextBtn.setId("toolBtn");
-        nextBtn.setFont(App.txtFont);
+        nextBtn.setFont(Stages.txtFont);
         nextBtn.setDisable(true);
         nextBtn.setOnAction(nxtEvent -> {
             String mnemonicString = mnemonicField.getText();;

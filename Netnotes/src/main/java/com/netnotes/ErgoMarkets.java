@@ -5,6 +5,9 @@ import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.image.Image;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
 import com.google.gson.JsonElement;
 
 import java.util.List;
@@ -51,8 +54,9 @@ public class ErgoMarkets {
 
    
     public Object sendNote(JsonObject note){
+        
         if(note != null){
-            JsonElement cmdElement = note.get(App.CMD);
+            JsonElement cmdElement = note.get(NoteConstants.CMD);
 
             switch (cmdElement.getAsString()) {
                 case "getMarketById":
@@ -88,10 +92,10 @@ public class ErgoMarkets {
     public void sendMessage(int code, long timeStamp, String networkId, String msg) {
         if(networkId != null && networkId.equals(NetworksData.APPS)){
             switch(code){
-                case App.LIST_ITEM_ADDED:
-                case App.LIST_ITEM_REMOVED:
-                    getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, m_defaultMarketId);
-                    getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.TOKEN_MARKET_NETWORK, m_defaultTokenMarketId);
+                case NoteConstants.LIST_ITEM_ADDED:
+                case NoteConstants.LIST_ITEM_REMOVED:
+                    getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.MARKET_NETWORK, m_defaultMarketId);
+                    getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.TOKEN_MARKET_NETWORK, m_defaultTokenMarketId);
                 break;
             }
         }
@@ -102,7 +106,7 @@ public class ErgoMarkets {
         m_defaultMarketId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.MARKET_NETWORK, (String) null);
         save();
 
         return true;
@@ -113,7 +117,7 @@ public class ErgoMarkets {
         m_defaultTokenMarketId = null;
         long timeStamp = System.currentTimeMillis();
         
-        getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.TOKEN_MARKET_NETWORK, (String) null);
+        getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.TOKEN_MARKET_NETWORK, (String) null);
         save();
 
         return true;
@@ -139,7 +143,7 @@ public class ErgoMarkets {
             save();
             long timeStamp = System.currentTimeMillis();
             
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.MARKET_NETWORK, defaultMarketId);
+            getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.MARKET_NETWORK, defaultMarketId);
         }
     }
 
@@ -151,7 +155,7 @@ public class ErgoMarkets {
             save();
             long timeStamp = System.currentTimeMillis();
         
-            getErgoNetwork().sendMessage(App.LIST_DEFAULT_CHANGED, timeStamp, ErgoNetwork.TOKEN_MARKET_NETWORK, defaultTokenMarketId);
+            getErgoNetwork().sendMessage(NoteConstants.LIST_DEFAULT_CHANGED, timeStamp, NoteConstants.TOKEN_MARKET_NETWORK, defaultTokenMarketId);
         }
     }
 
@@ -196,7 +200,7 @@ public class ErgoMarkets {
 
   
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
+        JsonElement cmdElement = note != null ? note.get(NoteConstants.CMD) : null;
         JsonElement idElement = note != null ? note.get("id") : null;
         
         if(cmdElement != null){
@@ -327,7 +331,7 @@ public class ErgoMarkets {
     }
 
     private void getData(){
-        getNetworksData().getData("data", ".", ErgoNetwork.MARKET_NETWORK, ErgoNetwork.NETWORK_ID, onSucceded ->{
+        getNetworksData().getData("data", ".", NoteConstants.MARKET_NETWORK, NoteConstants.ERGO_NETWORK_ID, onSucceded ->{
             Object obj = onSucceded.getSource().getValue();
         
             JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
@@ -343,7 +347,7 @@ public class ErgoMarkets {
 
     public void save() {
        
-        getNetworksData().save("data", ".", ErgoNetwork.MARKET_NETWORK, ErgoNetwork.NETWORK_ID, getJsonObject());
+        getNetworksData().save("data", ".", NoteConstants.MARKET_NETWORK, NoteConstants.ERGO_NETWORK_ID, getJsonObject());
         
     }
 

@@ -1,13 +1,12 @@
 package com.netnotes;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Future;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.Utils;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -66,7 +65,7 @@ public class ErgoExplorers  {
 
     public Object sendNote(JsonObject note){
 
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
        
         switch(cmdElement.getAsString()){
             case "getExplorerById":
@@ -92,7 +91,7 @@ public class ErgoExplorers  {
   
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
+        JsonElement cmdElement = note != null ? note.get(NoteConstants.CMD) : null;
         JsonElement idElement = note != null ? note.get("id") : null;
      
         if(cmdElement != null){
@@ -120,7 +119,7 @@ public class ErgoExplorers  {
     }
 
     public void getData(String subId, String id, String urlString, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        m_ergoNetwork.getNetworksData().getData(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, (onFinished)->{
+        m_ergoNetwork.getNetworksData().getData(subId, id, NoteConstants.EXPLORER_NETWORK , NoteConstants.ERGO_NETWORK_ID, (onFinished)->{
             Object obj = onFinished.getSource().getValue();
             JsonObject existingData = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
 
@@ -135,7 +134,7 @@ public class ErgoExplorers  {
                     if(sourceObject != null && sourceObject instanceof JsonObject){
                         
                             JsonObject json = (JsonObject) sourceObject;
-                            getNetworksData().save(subId, id, ErgoNetwork.EXPLORER_NETWORK , ErgoNetwork.NETWORK_ID, json);
+                            getNetworksData().save(subId, id, NoteConstants.EXPLORER_NETWORK , NoteConstants.ERGO_NETWORK_ID, json);
                             Utils.returnObject(sourceObject,getNetworksData().getExecService(), onSucceeded, onFailed);
                     
                     }else{

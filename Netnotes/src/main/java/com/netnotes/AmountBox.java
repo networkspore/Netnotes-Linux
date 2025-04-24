@@ -6,7 +6,13 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 
-import com.devskiller.friendly_id.FriendlyId;
+import io.netnotes.engine.AmountBoxInterface;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceQuote;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.apps.AppConstants;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -25,7 +31,7 @@ import javafx.scene.layout.VBox;
 
 public class AmountBox extends HBox implements AmountBoxInterface {
 
-    private long m_quoteTimeout = AddressesData.QUOTE_TIMEOUT;
+    private long m_quoteTimeout = NoteConstants.QUOTE_TIMEOUT;
     private PriceAmount m_priceAmount = null;
     private String m_id = null;
 
@@ -71,7 +77,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         ImageView currencyImageView = new ImageView();
         currencyImageView.setPreserveRatio(true);
-        currencyImageView.setFitWidth(App.MENU_BAR_IMAGE_WIDTH);
+        currencyImageView.setFitWidth(Stages.MENU_BAR_IMAGE_WIDTH);
         currencyImageView.setImage(m_priceAmount.getCurrency().getIcon());
 
 
@@ -95,7 +101,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         Label tokenIdText = new Label("Token Id");
         HBox.setHgrow(tokenIdText, Priority.ALWAYS);
-        tokenIdText.setFont(App.txtFont);
+        tokenIdText.setFont(Stages.txtFont);
         tokenIdText.setPadding(new Insets(0,5,0,5));
         tokenIdText.maxWidthProperty().bind(m_colWidth);
 
@@ -120,7 +126,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         Label descriptionText = new Label("Description");
         HBox.setHgrow(descriptionText,Priority.ALWAYS);
-        descriptionText.setFont(App.titleFont);
+        descriptionText.setFont(Stages.titleFont);
         descriptionText.setPadding(new Insets(0,5,0,5));
         descriptionText.maxWidthProperty().bind(m_colWidth);
 
@@ -145,7 +151,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         Label emissionAmountText = new Label("Emission"); 
         HBox.setHgrow(emissionAmountText,Priority.ALWAYS);
-        emissionAmountText.setFont(App.txtFont);
+        emissionAmountText.setFont(Stages.txtFont);
         emissionAmountText.setPadding(new Insets(0,5,0,5));
         emissionAmountText.maxWidthProperty().bind(m_colWidth);
 
@@ -170,7 +176,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         Label decimalsText = new Label("Decimals"); 
         HBox.setHgrow(decimalsText,Priority.ALWAYS);
-        decimalsText.setFont(App.txtFont);
+        decimalsText.setFont(Stages.txtFont);
         decimalsText.setPadding(new Insets(0,5,0,5));
         decimalsText.maxWidthProperty().bind(m_colWidth);
 
@@ -196,7 +202,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         Label urlText = new Label("Url");
         HBox.setHgrow(urlText,Priority.ALWAYS);
-        urlText.setFont(App.txtFont);
+        urlText.setFont(Stages.txtFont);
         urlText.setPadding(new Insets(0,5,0,5));
         urlText.maxWidthProperty().bind(m_colWidth);
 
@@ -223,13 +229,13 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         Label imageText = new Label("Image"); 
         HBox.setHgrow(imageText,Priority.ALWAYS);
-        imageText.setFont(App.txtFont);
+        imageText.setFont(Stages.txtFont);
         imageText.setPadding(new Insets(0,5,0,5));
         imageText.maxWidthProperty().bind(m_colWidth);
 
         String defaultImgString = m_priceAmount.getCurrency().getImageString();
 
-        TextField imageField = new TextField(defaultImgString.equals("/assets/unknown-unit.png") || defaultImgString.equals("/assets/unitErgo.png") ? "(default)" : defaultImgString);
+        TextField imageField = new TextField(defaultImgString.equals(AppConstants.UNKNOWN_ICON) || defaultImgString.equals("/assets/unitErgo.png") ? "(default)" : defaultImgString);
         HBox.setHgrow(imageField,Priority.ALWAYS);
         imageField.setEditable(false);
 
@@ -300,7 +306,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         m_quoteListener = (obs, oldval, newval)->{
             try {
-                Files.writeString(App.logFile.toPath(), "quoteChanged\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(NoteConstants.logFile.toPath(), "quoteChanged\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }

@@ -5,6 +5,7 @@ import java.util.concurrent.Future;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.NoteConstants;
 
 import javafx.scene.image.Image;
 
@@ -77,7 +78,7 @@ public class ErgoWallets  {
     public Object sendNote(JsonObject note){
      
         if(note != null && m_ergoWalletDataList != null){
-            JsonElement cmdElement = note.get(App.CMD);
+            JsonElement cmdElement = note.get(NoteConstants.CMD);
 
             if( cmdElement != null && cmdElement.isJsonPrimitive()){
                 switch (cmdElement.getAsString()) {
@@ -109,7 +110,7 @@ public class ErgoWallets  {
 
 
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
 
         if (cmdElement != null) {
             String cmd  = cmdElement.getAsString();

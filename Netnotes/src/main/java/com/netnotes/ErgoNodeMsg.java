@@ -6,9 +6,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-
-import com.devskiller.friendly_id.FriendlyId;
-import com.utils.Utils;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 
 public class ErgoNodeMsg {

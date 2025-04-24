@@ -1,5 +1,8 @@
 package com.netnotes;
 
+import io.netnotes.engine.networks.ergo.ErgoBox;
+import io.netnotes.engine.networks.ergo.ErgoBoxAsset;
+
 public class ErgoDexBoxInfo {
     private String m_poolId;
     private ErgoBoxAsset m_lp;

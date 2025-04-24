@@ -6,7 +6,13 @@ import java.util.concurrent.Future;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.networks.ergo.ErgoAmount;
+import io.netnotes.engine.networks.ergo.ErgoBox;
+import io.netnotes.engine.networks.ergo.ErgoBoxAsset;
+import io.netnotes.engine.networks.ergo.ErgoBoxRegister;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.PriceAmount;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -117,10 +123,10 @@ public class ErgoPoolBoxData{
 
     public static Future<?> getPoolBoxDataByPoolId(NoteInterface ergoInterface, String poolId, String locationId, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
         if(ergoInterface != null){
-            JsonObject cmdObject = Utils.getCmdObject("getUnspentByTokenId");
+            JsonObject cmdObject = NoteConstants.getCmdObject("getUnspentByTokenId");
             cmdObject.addProperty("tokenId", poolId);
             cmdObject.addProperty("locationId", locationId);
-            cmdObject.addProperty("networkId", ErgoNetwork.EXPLORER_NETWORK);
+            cmdObject.addProperty("networkId", NoteConstants.EXPLORER_NETWORK);
             cmdObject.addProperty("offset", 0);
             cmdObject.addProperty("limit", 1);
 

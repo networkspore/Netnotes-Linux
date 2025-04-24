@@ -8,11 +8,16 @@ import java.nio.file.StandardOpenOption;
 import java.text.NumberFormat;
 import java.time.LocalDateTime;
 
-import com.devskiller.friendly_id.FriendlyId;
+import io.netnotes.engine.Drawing;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.engine.Stages;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
@@ -241,7 +246,7 @@ public class ErgoDexMarketItem {
         m_priceText.setPrefWidth(100);
         
         Text symbolText = new Text(m_marketData.getCurrentSymbol(isInvert()));
-        symbolText.setFont(Font.font("DejaVu Sans Mono, Book", FontWeight.NORMAL, 14));
+        symbolText.setFont(Font.font("OpenSansEmoji, Regular", FontWeight.NORMAL, 14));
         symbolText.setFill(Color.WHITE);
         
         DropShadow shadow = new DropShadow();
@@ -268,7 +273,7 @@ public class ErgoDexMarketItem {
         symbolTextPaddingBox.setPadding(new Insets(10,0,0,10));
         VBox.setVgrow(symbolTextPaddingBox, Priority.ALWAYS);
         HBox.setHgrow(symbolTextPaddingBox,Priority.ALWAYS);
-        //symbolTextPaddingBox.setPrefWidth(App.DEFAULT_STATIC_WIDTH);
+        //symbolTextPaddingBox.setPrefWidth(NoteConstants.DEFAULT_STATIC_WIDTH);
         symbolTextPaddingBox.setAlignment(Pos.TOP_LEFT);
 
   
@@ -365,23 +370,23 @@ public class ErgoDexMarketItem {
         statsBox.setPadding(new Insets(0,0,0,0));
 
         Text lblPercentChangeText = new Text(String.format("%-7s", "Change"));
-        lblPercentChangeText.setFont(App.txtFont);
+        lblPercentChangeText.setFont(Stages.txtFont);
         lblPercentChangeText.setFill(Color.web("#777777"));
 
         Text lblOpenText = new Text(String.format("%-7s", "Open"));
-        lblOpenText.setFont(App.txtFont);
+        lblOpenText.setFont(Stages.txtFont);
         lblOpenText.setFill(Color.web("#777777"));
 
         Text lblHighText = new Text(String.format("%-7s", "High"));
-        lblHighText.setFont(App.txtFont);
+        lblHighText.setFont(Stages.txtFont);
         lblHighText.setFill(Color.web("#777777"));
 
         Text lblLowText = new Text(String.format("%-7s", "Low"));
-        lblLowText.setFont(App.txtFont);
+        lblLowText.setFont(Stages.txtFont);
         lblLowText.setFill(Color.web("#777777"));
 
         percentChangeText = new Text("0.00%");
-        percentChangeText.setFont(App.txtFont);
+        percentChangeText.setFont(Stages.txtFont);
 
         double textWidth = 110;
 
@@ -436,17 +441,17 @@ public class ErgoDexMarketItem {
                     public String getId() {
                         return friendlyId;
                     }
-                    
+
                     public void sendMessage(int code, long timeStamp, String networkId, Number num){
                       
                         switch(code){
-                            case App.STARTED:
-                            case App.LIST_UPDATED:
+                            case NoteConstants.STARTED:
+                            case NoteConstants.LIST_UPDATED:
                                 updateRowImg();
                                 
                             break;
                 
-                            case App.STOPPED:
+                            case NoteConstants.STOPPED:
 
                             break;
                         }   
@@ -455,7 +460,7 @@ public class ErgoDexMarketItem {
 
                     public void sendMessage(int code, long timestamp, String networkId, String msg){
                         switch(code){
-                            case App.ERROR:
+                            case NoteConstants.ERROR:
                             updateRowImg();
                             break;
                         }   
@@ -711,7 +716,7 @@ public class ErgoDexMarketItem {
             
             
             percentChangeText.setText(increaseDirection == 0 ? " 0.00%" : (increaseDirection == -1 ? "+" :"") + percentFormat.format(increase));
-            percentChangeText.setFill(increaseDirection == 0 ? App.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
+            percentChangeText.setFill(increaseDirection == 0 ? Stages.txtColor  : (increaseDirection == -1 ? Color.web("#028A0F") : Color.web("#ffb8e8")) );
         
         }else{
             priceHBox.setPadding(priceHBoxDefaultPadding);
@@ -737,7 +742,7 @@ public class ErgoDexMarketItem {
 
 
         if(chartView != null ){
-            if(chartView.getConnectionStatus() != App.ERROR ){
+            if(chartView.getConnectionStatus() != NoteConstants.ERROR ){
 
                 int width = calculateCurrentImgWidth(isCurrent());
                 int height = (int) m_currentHeight;
@@ -789,7 +794,7 @@ public class ErgoDexMarketItem {
 
                 }, (onFailed)->{
                     try {
-                        Files.writeString(App.logFile.toPath(), "(ErgoDexMarketItem) updateRowImg onFailed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(NoteConstants.logFile.toPath(), "(ErgoDexMarketItem) updateRowImg onFailed: " + onFailed.getSource().getException().toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e) {
                
                     }
@@ -800,7 +805,7 @@ public class ErgoDexMarketItem {
                 });
             }else{
                 try {
-                    Files.writeString(App.logFile.toPath(), "(ErgoDexMarketItem) updateRowImg error: " + chartView.getErrorString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(NoteConstants.logFile.toPath(), "(ErgoDexMarketItem) updateRowImg error: " + chartView.getErrorString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
               
                 }

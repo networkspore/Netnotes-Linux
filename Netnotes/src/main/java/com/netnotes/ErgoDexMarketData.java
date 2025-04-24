@@ -2,6 +2,11 @@ package com.netnotes;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import io.netnotes.engine.networks.ergo.ErgoCurrency;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.engine.PriceQuote;
 
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleLongProperty;
@@ -415,7 +420,7 @@ public class ErgoDexMarketData extends PriceQuote {
         setAmount(updateData.getQuote());
         setTimeStamp(updateData.getTimeStamp());
         
-        if(m_chartView != null && m_chartView.getConnectionStatus() != App.STOPPED){
+        if(m_chartView != null && m_chartView.getConnectionStatus() != NoteConstants.STOPPED){
             m_chartView.update();
         }
 

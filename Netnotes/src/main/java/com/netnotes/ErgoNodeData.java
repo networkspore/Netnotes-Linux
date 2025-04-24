@@ -1,8 +1,5 @@
 package com.netnotes;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -15,10 +12,14 @@ import org.ergoplatform.appkit.ErgoClient;
 import org.ergoplatform.appkit.NetworkType;
 import org.ergoplatform.appkit.RestApiErgoClient;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.networks.ergo.ErgoNetworkUrl;
+import io.netnotes.engine.NamedNodeUrl;
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.Utils;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
@@ -28,7 +29,7 @@ import javafx.scene.image.Image;
 
 public class ErgoNodeData extends Network implements NoteInterface {
 
-    public final static String PULIC_NODE_1 = "PUBLIC_NODE_1";
+
 
     public final static String PUBLIC = "PUBLIC";
     public final static String PRIVATE = "PRIVATE";
@@ -39,8 +40,8 @@ public class ErgoNodeData extends Network implements NoteInterface {
     
     public double SETUP_STAGE_WIDTH = 700; 
 
-    public final static String DEFAULT_NODE_IP = "213.239.193.208";
-    public final static int DEFAULT_MAINNET_PORT = 9053;
+   
+   
 
     private final SimpleObjectProperty< NamedNodeUrl> m_namedNodeUrlProperty = new SimpleObjectProperty<>();
 
@@ -172,10 +173,9 @@ public class ErgoNodeData extends Network implements NoteInterface {
 
     @Override
     public void start() {
-        if(getConnectionStatus() == App.STOPPED){
+        if(getConnectionStatus() == NoteConstants.STOPPED){
             super.start();
         }
-
     }
 
 
@@ -262,13 +262,13 @@ public class ErgoNodeData extends Network implements NoteInterface {
     
 
 
-        Object obj = getErgoNodesList().getErgoNetworkData().getErgoExplorers().sendNote(Utils.getCmdObject("getDefaultInterface"));
+        Object obj = getErgoNodesList().getErgoNetworkData().getErgoExplorers().sendNote(NoteConstants.getCmdObject("getDefaultInterface"));
 
         if(obj != null && obj instanceof NoteInterface){
             
             NoteInterface explorerInterface = (NoteInterface) obj;
            
-            return explorerInterface.sendNote(Utils.getCmdObject("getNetworkState"), (onState)->{
+            return explorerInterface.sendNote(NoteConstants.getCmdObject("getNetworkState"), (onState)->{
                 Object heightValueObj = onState.getSource().getValue();
 
                 JsonObject stateValueJson = heightValueObj != null && heightValueObj instanceof JsonObject ? (JsonObject) heightValueObj : null;
@@ -302,7 +302,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     @Override
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
         if (cmdElement != null && cmdElement.isJsonPrimitive()) {
             
                 String subject = cmdElement.getAsString();
@@ -322,7 +322,7 @@ public class ErgoNodeData extends Network implements NoteInterface {
     @Override
     public Object sendNote(JsonObject note){
         if(note != null){
-            JsonElement cmdElement = note.get(App.CMD);
+            JsonElement cmdElement = note.get(NoteConstants.CMD);
 
             if(cmdElement != null && cmdElement.isJsonPrimitive()){
                 String cmd = cmdElement.getAsString();

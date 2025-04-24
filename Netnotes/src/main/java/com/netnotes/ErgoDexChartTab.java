@@ -1,13 +1,23 @@
 package com.netnotes;
 
-import com.devskiller.friendly_id.FriendlyId;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.netnotes.NetworksData.ManageNetworksTab;
-import com.utils.Utils;
+import io.netnotes.engine.BufferedButton;
+import io.netnotes.engine.BufferedMenuButton;
+import io.netnotes.engine.ContentTab;
+import io.netnotes.engine.networks.ergo.ErgoCurrency;
+import io.netnotes.engine.networks.ergo.ErgoWalletControl;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.engine.NetworksData.ManageNetworksTab;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -53,7 +63,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
-import scorex.util.encode.Base16;
 
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
@@ -71,6 +80,7 @@ import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.NetworkType;
 import org.reactfx.util.FxTimer;
+
 
 public class ErgoDexChartTab extends ContentTab {
     private final ErgoDexDataList m_dataList;
@@ -126,21 +136,18 @@ public class ErgoDexChartTab extends ContentTab {
 
     private boolean m_showSwap = true;
     private SimpleBooleanProperty m_showWallet = new SimpleBooleanProperty(true);
-    private SimpleBooleanProperty m_showPoolStats = new SimpleBooleanProperty(true);
     private SimpleBooleanProperty m_showSwapFeesBox = new SimpleBooleanProperty(false);
 
     private TimeSpan m_timeSpan = new TimeSpan("30min");
-    private SimpleObjectProperty<BigDecimal> m_slippageTolerance = new SimpleObjectProperty<>( BigDecimal.valueOf(0.03));
 
-    private SimpleStringProperty m_lastPriceProperty = new SimpleStringProperty("");
 
     private SimpleObjectProperty<LocalDateTime> m_priceLastChecked = new SimpleObjectProperty<>(LocalDateTime.now());
     private String m_defaultWalletId = DEFAULT_ID;
 
     private SimpleBooleanProperty m_isSellProperty = new SimpleBooleanProperty(true);
-    private BigDecimal m_amountBigDecimal = BigDecimal.ZERO;
+    private SimpleObjectProperty<BigDecimal> m_lastPriceProperty = new SimpleObjectProperty<>(null);
 
-    private ErgoDexFees m_dexFees = null;
+   // private ErgoDexFees m_dexFees = null;
    
     public boolean isInvert(){
         return m_marketItem.isInvert();
@@ -166,11 +173,16 @@ public class ErgoDexChartTab extends ContentTab {
         m_isSellProperty.set(isSell);
         save();
     }
+
+    public ReadOnlyObjectProperty<BigDecimal> lastPriceProperty(){
+        return m_lastPriceProperty;
+    }
    
 
     public String getNFT(){
         return m_marketData.getPoolId();
     }
+
 
 
 
@@ -198,7 +210,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_chartBox.setAlignment(Pos.CENTER);
         m_chartBox.setId("darkBox");
         setLoadingBox();
-        
+
         getData((onSucceeded)->{
             Object obj = onSucceeded.getSource().getValue();
             JsonObject json = obj != null && obj instanceof JsonObject ? (JsonObject) obj : null;
@@ -277,8 +289,8 @@ public class ErgoDexChartTab extends ContentTab {
 
     // ErgoDex exchange = m_dataList.getErgoDex();
         
-        BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
-        BufferedButton invertBtn = new BufferedButton( isInvert() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
+        BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", Stages.MENU_BAR_IMAGE_WIDTH);
+        BufferedButton invertBtn = new BufferedButton( isInvert() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", Stages.MENU_BAR_IMAGE_WIDTH);
         
         invertBtn.setOnAction(e->{
             m_dataList.isInvertProperty().set(!m_dataList.isInvertProperty().get());
@@ -308,8 +320,8 @@ public class ErgoDexChartTab extends ContentTab {
 
        
         Text headingText = new Text(m_marketData.getCurrentSymbol(isInvert()));
-        headingText.setFont(App.txtFont);
-        headingText.setFill(App.txtColor);
+        headingText.setFont(Stages.txtFont);
+        headingText.setFill(Stages.txtColor);
 
 
         m_timeSpanBtn = new MenuButton(m_timeSpan.getName() + " ");
@@ -324,8 +336,8 @@ public class ErgoDexChartTab extends ContentTab {
         HBox.setHgrow(headingSpacerL,Priority.ALWAYS);
 
         Text dashText = new Text("  - ");
-        dashText.setFont(App.txtFont);
-        dashText.setFill(App.txtColor);
+        dashText.setFont(Stages.txtFont);
+        dashText.setFill(Stages.txtColor);
 
         HBox headingCenterBox = new HBox( headingText, dashText, m_timeSpanBtn);
         headingCenterBox.setAlignment(Pos.CENTER);
@@ -362,7 +374,7 @@ public class ErgoDexChartTab extends ContentTab {
 
                     //⯈🗘
         m_toggleSwapBtn = new Button("⯈");
-        m_toggleSwapBtn.setTextFill(App.txtColor);
+        m_toggleSwapBtn.setTextFill(Stages.txtColor);
         m_toggleSwapBtn.setFont( Font.font("OCR A Extended", 10));
         m_toggleSwapBtn.setPadding(new Insets(2,2,2,1));
         m_toggleSwapBtn.setId("barBtn");
@@ -411,7 +423,7 @@ public class ErgoDexChartTab extends ContentTab {
         m_chartScroll.prefViewportHeightProperty().bind(m_chartScrollHeight);
 
         m_chartBox.minWidthProperty().bind(m_chartScrollWidth.subtract(1));
-        m_chartBox.minHeightProperty().bind(m_chartScrollHeight.subtract(App.VIEWPORT_HEIGHT_OFFSET));
+        m_chartBox.minHeightProperty().bind(m_chartScrollHeight.subtract(Stages.VIEWPORT_HEIGHT_OFFSET));
 
         m_rangeHeight.bind(getNetworksData().getContentTabs().bodyHeightProperty().subtract(headerPaddingBox.heightProperty()).subtract(65));
         
@@ -492,9 +504,10 @@ public class ErgoDexChartTab extends ContentTab {
         isInvertProperty().addListener(m_invertListener);
 
         Binding<String> titleBinding = Bindings.createObjectBinding(()->{
+            BigDecimal lastPrice = m_lastPriceProperty.get() == null ? BigDecimal.ZERO : m_lastPriceProperty.get();
             boolean isInvert = isInvert();
             String currentSymbol = m_marketData.getCurrentSymbol(isInvert);
-            String number = m_lastPriceProperty.get();
+            String number =  lastPrice.toPlainString() + "";
             int index = number.indexOf(".");
             String leftSide = index != -1 ? number.substring(0, index + 1) : number;
             String rightSide = index != -1 ?  number.substring(index + 1) : "";
@@ -613,28 +626,22 @@ public class ErgoDexChartTab extends ContentTab {
     private void openJson(JsonObject json){
         if(json != null){
             JsonElement timeSpanElement = json.get("timeSpan");
-            JsonElement slippageToleranceElement = json.get("slippageTolerance");
             JsonElement showSwapElement = json.get("showSwap");
             JsonElement showWalletElement = json.get("showWallet");
             JsonElement defaeultWalletIdElement = json.get("defaultWalletId");
             JsonElement showSwapSettingsElement = json.get("showSwapSettings");
             JsonElement isSellElement = json.get("isSell");
-            JsonElement dexFees = json.get("dexFees");
-
+            
             JsonObject timeSpanJson = timeSpanElement != null && timeSpanElement.isJsonObject() ? timeSpanElement.getAsJsonObject() : null;
  
             TimeSpan timeSpan = timeSpanJson != null ? new TimeSpan(timeSpanJson) : new TimeSpan("30min");
             boolean showSwap = showSwapElement != null && !showSwapElement.isJsonNull() ? showSwapElement.getAsBoolean() : true;
             boolean showWallet = showWalletElement != null && !showWalletElement.isJsonNull() ? showWalletElement.getAsBoolean() : true;
             String defaultWalletId = defaeultWalletIdElement == null ?  DEFAULT_ID : (defaeultWalletIdElement.isJsonNull() ? null : defaeultWalletIdElement.getAsString());
-            BigDecimal slippageTolerance = slippageToleranceElement != null ? slippageToleranceElement.getAsBigDecimal() : ErgoDex.MIN_SLIPPAGE_TOLERANCE;
             boolean showSwapSettings = showSwapSettingsElement != null ? showSwapSettingsElement.getAsBoolean() : false;
             boolean isSell = isSellElement != null ? isSellElement.getAsBoolean() : true;
 
-            m_dexFees = new ErgoDexFees(dexFees != null ? dexFees.getAsJsonObject() : null);
-
-            m_slippageTolerance.set(slippageTolerance);
-
+           
             m_showSwapFeesBox.set(showSwapSettings);
             m_timeSpan = timeSpan;
             m_showSwap = showSwap;
@@ -650,10 +657,8 @@ public class ErgoDexChartTab extends ContentTab {
         json.addProperty("showSwap", m_showSwap);
         json.addProperty("showSwapSettings", m_showSwapFeesBox.get());
         json.addProperty("showWallet", m_showWallet.get());
-        json.addProperty("slippageTolerance", m_slippageTolerance.get());
         json.addProperty("isSell", m_isSellProperty.get());
         json.add("timeSpan", m_timeSpan.getJsonObject());
-        json.add("dexFees", m_dexFees.getJsonObject());
         
         return json;
     }
@@ -662,16 +667,6 @@ public class ErgoDexChartTab extends ContentTab {
         getNetworksData().save("chartData", m_marketData.getId(), ErgoDexDataList.NETWORK_ID, ErgoDex.NETWORK_ID, getJsonObject());
     }
 
-    public PriceAmount getLastPriceAmount(){
-        boolean isInvert = isInvert();
-        ErgoDexPrice dexPrice = m_chartView.getLastDexPrice();
-        
-        PriceCurrency quoteCurrency = isInvert ? m_marketData.getBaseCurrency() : m_marketData.getQuoteCurrency();
-        
-        BigDecimal quotePrice = dexPrice != null ?  (isInvert ? dexPrice.getInvertedPrice(): dexPrice.getPrice() ) : (isInvert ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice());
-
-        return new PriceAmount( quotePrice, quoteCurrency);
-    }
 
     public void chartUpdated(boolean createChart){
         
@@ -681,20 +676,15 @@ public class ErgoDexChartTab extends ContentTab {
         }else{
             updateChart();
         }
-        updateSPFQuote();
     }
 
-    public void updateSPFQuote(){
-        PriceQuote priceQuote = m_dataList.getErgoQuoteInToken(ErgoDex.SPF_ID);
-        m_dexFees.setSpfQuote(priceQuote);
-    }
 
     public void addChartViewListener(){
         
         String friendlyId = FriendlyId.createFriendlyId();
 
         ErgoDexChartView chartView = m_marketData.getChartView();
-        chartView.enableCHainData(true);
+
         
         if(chartView != null && m_chartMsgInterface == null){
             
@@ -706,16 +696,16 @@ public class ErgoDexChartTab extends ContentTab {
                 public void sendMessage(int code, long timestamp,String networkId, Number num){
                     
                     switch(code){
-                        case App.STARTED:
-                        case App.LIST_UPDATED:
-                        case App.LIST_CHANGED:
+                        case NoteConstants.STARTED:
+                        case NoteConstants.LIST_UPDATED:
+                        case NoteConstants.LIST_CHANGED:
                             chartUpdated(true);
                             
                         break;
-                        case App.LIST_CHECKED:
+                        case NoteConstants.LIST_CHECKED:
                             chartUpdated(false);
                         break;
-                        case App.STOPPED:
+                        case NoteConstants.STOPPED:
                             
                         break;
                     }  
@@ -754,7 +744,7 @@ public class ErgoDexChartTab extends ContentTab {
             if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
                 ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
                 m_numbers = numbers;
-                m_lastPriceProperty.set(m_numbers.getClose().toPlainString());
+                m_lastPriceProperty.set(m_numbers.getClose());
             }
         
         }, 
@@ -766,7 +756,7 @@ public class ErgoDexChartTab extends ContentTab {
     public void createChart(){
 
         LocalDateTime now = m_priceLastChecked.get();
-        int viewPortHeight = (int) m_chartScrollHeight.get() - App.VIEWPORT_HEIGHT_OFFSET;
+        int viewPortHeight = (int) m_chartScrollHeight.get() - Stages.VIEWPORT_HEIGHT_OFFSET;
         int viewPortWidth = (int) m_chartScrollWidth.get();
         int maxBars =  (ErgoDexChartView.MAX_CHART_WIDTH / (m_cellWidth + m_cellPadding));
 
@@ -784,7 +774,7 @@ public class ErgoDexChartTab extends ContentTab {
             if(sourceValue != null && sourceValue instanceof ErgoDexNumbers){
                 ErgoDexNumbers numbers = (ErgoDexNumbers) sourceValue;
                 m_numbers = numbers;
-                m_lastPriceProperty.set(m_numbers.getClose().toPlainString());
+                m_lastPriceProperty.set(m_numbers.getClose());
                 drawChart(viewPortWidth, viewPortHeight, timeSpan, now != null ? now : LocalDateTime.now());
                 setChartScrollRight();
             }
@@ -796,6 +786,10 @@ public class ErgoDexChartTab extends ContentTab {
     }
 
     private void drawChart(int viewPortWidth, int viewPortHeight, TimeSpan timeSpan, LocalDateTime now){
+        if(m_numbers == null){
+            return;
+        }
+
         int size = m_numbers.dataLength();
         
         if(size > 0){
@@ -855,7 +849,7 @@ public class ErgoDexChartTab extends ContentTab {
 
     public void updateChart(){
         LocalDateTime now = m_priceLastChecked.get();
-        drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - App.VIEWPORT_HEIGHT_OFFSET, m_timeSpan, now != null ? now : LocalDateTime.now());
+        drawChart((int) m_chartScrollWidth.get(), (int) m_chartScrollHeight.get() - Stages.VIEWPORT_HEIGHT_OFFSET, m_timeSpan, now != null ? now : LocalDateTime.now());
     }
 
     public void setChartScrollRight(){
@@ -901,7 +895,6 @@ public class ErgoDexChartTab extends ContentTab {
             isInvertProperty().removeListener(m_invertListener);
         }
         if(m_chartMsgInterface != null){
-            m_chartView.enableCHainData(false);
             m_chartView.removeMsgListener(m_chartMsgInterface);
             m_chartMsgInterface = null;
         } 
@@ -916,11 +909,12 @@ public class ErgoDexChartTab extends ContentTab {
 
         private VBox m_swapScrollContentBox;
         private ScrollPane m_swapBoxScroll;
-        private ErgoDexWalletBox m_dexWallet = null;  
+        private ErgoDexWalletBox m_dexWallet = null;
+        private DexOrderBook m_dexOrderBox = null;
      
-        private MenuButton m_slippageMenu;
 
-        private ErgoDexSwapInfoBox m_txInfoBox;
+        private DexSwapInfoBox m_txInfoBox;
+        private TextField orderPriceTextField;
 
         private Tooltip m_errTip;
     
@@ -938,6 +932,10 @@ public class ErgoDexChartTab extends ContentTab {
         private TextField m_amountField = null;
         private TextField m_volumeField = null;
 
+
+
+
+
         public ErgoDexSwapBox(){
             super();
             setMinWidth(SWAP_BOX_MIN_WIDTH);
@@ -951,7 +949,8 @@ public class ErgoDexChartTab extends ContentTab {
             m_quoteCurrencyImage = m_marketData.getQuoteCurrency().getBackgroundIcon(BG_ICON_HEIGHT);
             
             m_dexWallet = new ErgoDexWalletBox();
-            m_txInfoBox = new ErgoDexSwapInfoBox();
+            m_txInfoBox = new DexSwapInfoBox();
+ 
 
             m_sellBtn = new Button("Sell");
             m_sellBtn.setId(isSellProperty().get() ? "iconBtnSelected" : "iconBtn");
@@ -976,15 +975,15 @@ public class ErgoDexChartTab extends ContentTab {
             m_buyBtn.prefWidthProperty().bind(buySellBox.widthProperty().divide(2));
     
             
-            Button marketOrderBtn = new Button("Market");
-            marketOrderBtn.setId("selectedBtn");
+            Button orderTypeBtn = new Button("Limit");
+            orderTypeBtn.setId("selectedBtn");
     
-            HBox orderTypeBtnBox = new HBox(marketOrderBtn);
+            HBox orderTypeBtnBox = new HBox(orderTypeBtn);
             HBox.setHgrow(orderTypeBtnBox, Priority.ALWAYS);
         
             orderTypeBtnBox.setAlignment(Pos.CENTER_LEFT);
     
-            marketOrderBtn.prefWidthProperty().bind(orderTypeBtnBox.widthProperty().divide(3));
+            orderTypeBtn.prefWidthProperty().bind(orderTypeBtnBox.widthProperty().divide(3));
     
             HBox orderTypeBox = new HBox(orderTypeBtnBox);
             HBox.setHgrow(orderTypeBox, Priority.ALWAYS);
@@ -994,18 +993,53 @@ public class ErgoDexChartTab extends ContentTab {
             
     
             Text orderPriceText = new Text(String.format("%-9s", "Price"));
-            orderPriceText.setFill(App.txtColor);
-            orderPriceText.setFont(App.txtFont);
+            orderPriceText.setFill(Stages.txtColor);
+            orderPriceText.setFont(Stages.txtFont);
     
             ImageView orderPriceImageView = new ImageView(PriceCurrency.getBlankBgIcon(BG_ICON_HEIGHT, m_marketData.getCurrentSymbol(isInvert())));
             orderPriceImageView.imageProperty().bind(Bindings.createObjectBinding(()->PriceCurrency.getBlankBgIcon(BG_ICON_HEIGHT, m_marketData.getCurrentSymbol(isInvertProperty().get())), isInvertProperty()));
     
-            TextField orderPriceTextField = new TextField( (isInvert() ? m_marketData.getInvertedLastPrice() : m_marketData.getLastPrice()).toPlainString());
+            orderPriceTextField = new TextField();
             HBox.setHgrow(orderPriceTextField, Priority.ALWAYS);
             orderPriceTextField.setAlignment(Pos.CENTER_RIGHT);
             orderPriceTextField.setEffect(textShadow);
-            orderPriceTextField.textProperty().bind(m_lastPriceProperty);
             orderPriceTextField.setId("swapFieldStatic");
+
+
+            orderPriceTextField.focusedProperty().addListener((obs,oldval,newval)->{
+                boolean isZero = Utils.isTextZero(orderPriceTextField.getText());
+                if(!newval){
+                    
+                    if(isZero){
+                        orderPriceTextField.setText("0");
+                    }
+                }else{
+                    if(isZero){
+                        orderPriceTextField.setText("");
+                    }
+                }
+            });
+            orderPriceTextField.setOnKeyPressed(e->{
+                if (Utils.keyCombCtrZ.match(e) ) { 
+                    e.consume();
+                }
+            });
+            orderPriceTextField.textProperty().addListener((obs, oldval, newval)->{
+         
+                int decimals = m_lastPriceProperty.get() != null ?  m_lastPriceProperty.get().scale() : m_marketData.getQuoteDecimals();
+         
+                String number = newval.replaceAll("[^0-9.]", "");
+                int index = number.indexOf(".");
+                String leftSide = index != -1 ? number.substring(0, index + 1) : number;
+                String rightSide = index != -1 ?  number.substring(index + 1) : "";
+                rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
+                rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
+                number = (leftSide + rightSide);
+                orderPriceTextField.setText(number);
+
+                m_txInfoBox.setOrderPrice(Utils.isTextZero(number) ? BigDecimal.ZERO : new BigDecimal(Utils.formatStringToNumber(number, decimals)));
+                
+            });
     
             HBox orderPriceTextFieldBox = new HBox(orderPriceTextField);
             HBox.setHgrow(orderPriceTextFieldBox, Priority.ALWAYS);
@@ -1017,12 +1051,9 @@ public class ErgoDexChartTab extends ContentTab {
             orderPriceCheckedField.setId("smallSecondaryColor");
             orderPriceCheckedField.textProperty().bind(Bindings.createObjectBinding(()->m_priceLastChecked.get() != null ? Utils.formatTimeString(m_priceLastChecked.get()) : "" , m_priceLastChecked));
     
-            HBox orderPriceStatusBox = new HBox(orderPriceCheckedField);
-            VBox.setVgrow(orderPriceStatusBox, Priority.ALWAYS);
-            HBox.setHgrow(orderPriceStatusBox, Priority.ALWAYS);
-            orderPriceStatusBox.setAlignment(Pos.BOTTOM_RIGHT);
+
     
-            StackPane orderPriceStackBox = new StackPane(orderPriceImageView, orderPriceStatusBox, orderPriceTextFieldBox);
+            StackPane orderPriceStackBox = new StackPane(orderPriceImageView, orderPriceTextFieldBox);
             HBox.setHgrow(orderPriceStackBox, Priority.ALWAYS);
             orderPriceStackBox.setAlignment(Pos.CENTER_LEFT);
             orderPriceStackBox.setId("darkBox");
@@ -1039,8 +1070,8 @@ public class ErgoDexChartTab extends ContentTab {
             
     
             Text amountText = new Text(String.format("%-9s", "Amount"));
-            amountText.setFill(App.txtColor);
-            amountText.setFont(App.txtFont);
+            amountText.setFill(Stages.txtColor);
+            amountText.setFont(Stages.txtFont);
     
             amountFieldImage = new ImageView();
             amountFieldImage.setImage(getAmountImage(isSellProperty().get(), isInvert()));
@@ -1062,6 +1093,11 @@ public class ErgoDexChartTab extends ContentTab {
                     if(isZero){
                         m_amountField.setText("");
                     }
+                }
+            });
+            m_amountField.setOnKeyPressed(e->{
+                if (Utils.keyCombCtrZ.match(e) ) { 
+                    e.consume();
                 }
             });
     
@@ -1105,8 +1141,8 @@ public class ErgoDexChartTab extends ContentTab {
 
             
             Text volumeText = new Text(String.format("%-9s", "Volume"));
-            volumeText.setFill(App.txtColor);
-            volumeText.setFont(App.txtFont);
+            volumeText.setFill(Stages.txtColor);
+            volumeText.setFont(Stages.txtFont);
     
             volumeFieldImage = new ImageView();
             volumeFieldImage.setImage(getVolumeImage(isSellProperty().get(), isInvert()));
@@ -1137,102 +1173,88 @@ public class ErgoDexChartTab extends ContentTab {
             HBox.setHgrow(quoteAmountPaddingBox,Priority.ALWAYS);
             quoteAmountPaddingBox.setPadding(new Insets(5));
 
-            Text slippageText = new Text("Slippage Tolerance ");
-            slippageText.setFont(App.smallFont);
-            slippageText.setFill(App.txtColor);
-            
-            Tooltip slippageToleranceTip = new Tooltip("Slippage tolerance: Transaction will revert if\nprice changes unfavorably by this percentage.");
-            slippageToleranceTip.setShowDelay(javafx.util.Duration.millis(100));
-            slippageToleranceTip.setShowDuration(javafx.util.Duration.seconds(20));
-
-            m_slippageMenu = new MenuButton();
-            m_slippageMenu.setId("arrowMenuButtonSmall");
-            m_slippageMenu.setTooltip(slippageToleranceTip);
-            m_slippageMenu.textProperty().bind(Bindings.createObjectBinding(()->{
-                BigDecimal slippage = m_slippageTolerance.get();
-                return slippage.multiply(BigDecimal.valueOf(100)).intValue() + "% ";
-            }, m_slippageTolerance));
-
-            MenuItem onePercentItem = new MenuItem(" 1%");
-            onePercentItem.setOnAction(e->setSlippageTolerance(BigDecimal.valueOf(0.01)));
-            MenuItem threePercentItem = new MenuItem(" 3%");
-            threePercentItem.setOnAction(e->m_slippageTolerance.set(BigDecimal.valueOf(0.03)));
-            MenuItem sevenPercentItem = new MenuItem( " 7%");
-            sevenPercentItem.setOnAction(e->setSlippageTolerance(BigDecimal.valueOf(0.07)));
-            m_slippageMenu.getItems().addAll(onePercentItem, threePercentItem, sevenPercentItem);
-
-
-            HBox slippageMenuBox = new HBox(m_slippageMenu);
-            slippageMenuBox.setId("darkBox");
-
-            HBox slippageBox = new HBox(slippageText, slippageMenuBox);
-            HBox.setHgrow(slippageBox, Priority.ALWAYS);
-            slippageBox.setPadding(new Insets(0,10,0,10));
-            slippageBox.setAlignment(Pos.CENTER_RIGHT);
         
             HBox isBuyPaddingBox = new HBox(buySellBox);
             HBox.setHgrow(isBuyPaddingBox, Priority.ALWAYS);
             isBuyPaddingBox.setPadding(new Insets(15));
-    
+
+          
+            
             m_executeBtn = new Button("Loading...");
             m_executeBtn.setPadding(new Insets(5, 15, 5,15));
             m_executeBtn.setOnAction(e->{
                  
-                BigDecimal amount = m_amountBigDecimal;
+                BigDecimal amount = m_txInfoBox.getAmount();
                 if(amount == null || amount.equals(BigDecimal.ZERO)){
                     showError("Enter an amount");
                     return;
                 }
-                boolean isFeeSPF = m_dexFees.isFeeSPF();
+       
                 PriceCurrency amountCurrency = getAmountCurrency();
                 PriceCurrency volumeCurrency = getVolumeCurrency();
 
-                BigDecimal minOutputBigDecimal = calculateMinOutputVolume();
-                PriceAmount minQuoteVolume = new PriceAmount(minOutputBigDecimal, volumeCurrency); 
-                m_dexFees.setMinQuoteVolume(minQuoteVolume);
+                BigDecimal dexFeeBigDecimal = m_txInfoBox.getDexFee();
+                BigDecimal networkFeeBigDecimal = m_txInfoBox.getNetworkFee();
+
+                boolean isAmountErg = m_txInfoBox.isAmountErg();
+            
+                int amountDecimals = amountCurrency.getDecimals();  
+                        
+                long dexFeeLong = PriceAmount.calculateBigDecimalToLong(dexFeeBigDecimal, ErgoCurrency.DECIMALS);
+                long baseAmount = PriceAmount.calculateBigDecimalToLong(amount, amountDecimals);
                 
-                BigDecimal minExFeeBigDecimal = m_dexFees.minExFeeProperty().get();
-                BigDecimal maxExFeeBigDecimal = m_dexFees.maxExFeeProperty().get();
-                BigDecimal networkFeeBigDecimal = m_dexFees.getNetworkFee();
-                long exFeePerTokenNum = m_dexFees.getExFeePerTokenNum();
-                long exFeePerTokenDenom = m_dexFees.getExFeePerTokenDenom();
+                long nanoErgs = (isAmountErg ? baseAmount : 0L) + dexFeeLong;
+                long networkFeeNanoErgs = ErgoCurrency.getNanoErgsFromErgs(networkFeeBigDecimal);
+    
+                PriceAmount[] outputTokens = isAmountErg ? new PriceAmount[0] : new PriceAmount[]{new PriceAmount(amount, amountCurrency) };
+    
+ 
+                long dexFee = ErgoCurrency.getNanoErgsFromErgs(dexFeeBigDecimal);
+            
+                String tokenId = isAmountErg ? volumeCurrency.getTokenId() : amountCurrency.getTokenId();
 
                 NoteInterface ergoInterface = getErgoInterface();
 
-             
+           
             
-                String errorString = getExecuteErrorString(ergoInterface, amount, amountCurrency, isFeeSPF, networkFeeBigDecimal, minExFeeBigDecimal, maxExFeeBigDecimal);
+                String errorString = m_txInfoBox.getExecuteErrorString(ergoInterface, amount, amountCurrency, volumeCurrency, networkFeeBigDecimal, dexFeeBigDecimal);
                 if(errorString != null){
                     showError(errorString);
                     return;
                 }
 
-                if(exFeePerTokenNum == -1 || exFeePerTokenDenom == -1){
-                    showError("Table is not fully loaded... Try again");
-                    return;
-                }
+                long pricePerToken = m_txInfoBox.getPricePerToken();
+                long feePerToken = m_txInfoBox.getFeePerToken();
 
-                executeSwap(ergoInterface,amount,amountCurrency,volumeCurrency,minQuoteVolume,isFeeSPF,maxExFeeBigDecimal,exFeePerTokenNum, exFeePerTokenDenom,networkFeeBigDecimal, (onComplete)->{
+        
+
+                executeSwap(ergoInterface, isAmountErg, tokenId, outputTokens, baseAmount, pricePerToken, dexFee, feePerToken, nanoErgs, networkFeeNanoErgs, (onComplete)->{
                     Object sourceValue = onComplete.getSource().getValue();
                     if(sourceValue != null && sourceValue instanceof JsonObject){
-                        try{
-                            Files.writeString(App.logFile.toPath(), (JsonObject)sourceValue + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                        }catch(IOException ioEx){
-
-                        }
+                        Utils.logJson("**Executed Swap**", (JsonObject)sourceValue );
                     } 
                 }, onError->{
                     Throwable exception = onError.getSource().getException();
                     String msg =  exception.getMessage();
+                    int length = exception.getStackTrace().length;
+                    String stackTrace = "";
+                    for(int i = 0; i < length ; i ++){
+                        StackTraceElement element = exception.getStackTrace()[i];
+                        stackTrace += element.toString() +  "\n";
+                    }
+
                     try {
-                        Files.writeString(App.logFile.toPath(), exception + "",StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(NoteConstants.logFile.toPath(), exception + "\n" + stackTrace,StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e1) {
 
                     }
+
+
+
                     showError(exception != null ? msg : "Swap failed");
                 });
 
-                m_amountField.setText("0");
+               
 
             });
             m_executeBtn.setId("iconBtnSelected");
@@ -1250,7 +1272,7 @@ public class ErgoDexChartTab extends ContentTab {
 
            
     
-            VBox marketBox = new VBox( isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, slippageBox, executePaddingBox, m_txInfoBox);
+            VBox marketBox = new VBox( isBuyPaddingBox, pricePaddingBox, amountPaddingBox, quoteAmountPaddingBox, executePaddingBox, m_txInfoBox);
             marketBox.setPadding(new Insets(5));
             marketBox.setId("bodyBox");
     
@@ -1262,12 +1284,33 @@ public class ErgoDexChartTab extends ContentTab {
             double barWidth = 3;
             double barHeight = 3;
 
-            m_swapScrollContentBox = new VBox(m_dexWallet);
+            
+
+            m_swapScrollContentBox = new VBox();
             m_swapScrollContentBox.setAlignment(Pos.TOP_CENTER);
             m_swapBoxScroll = new ScrollPane(m_swapScrollContentBox); 
-            m_swapBoxScroll.prefViewportWidthProperty().bind(widthProperty()); 
-            m_swapBoxScroll.prefViewportHeightProperty().bind(heightProperty().subtract(marketPaddingBox.heightProperty()).subtract(1));
-        
+
+
+            m_swapBoxScroll.prefViewportWidthProperty().bind(widthProperty().subtract(1)); 
+            m_dexOrderBox = new DexOrderBook();
+            m_swapScrollContentBox.getChildren().addAll( m_dexWallet, m_dexOrderBox);
+   
+            heightProperty().addListener((obs,oldval,newval)->{
+                double height = newval.doubleValue();
+                double boxHeight = marketPaddingBox.heightProperty().get();
+                double scrollHeight = height - boxHeight - 1;
+                m_swapBoxScroll.setPrefViewportHeight(scrollHeight);
+
+            });
+            marketPaddingBox.heightProperty().addListener((obs,oldval,newval)->{
+                double height =  heightProperty().get();
+                double boxHeight = newval.doubleValue();
+                double scrollHeight = height - boxHeight - 1;
+                m_swapBoxScroll.setPrefViewportHeight(scrollHeight);   
+            });
+
+
+
             m_swapScrollContentBox.setPrefWidth(m_swapBoxScroll.prefViewportWidthProperty().get()-barWidth);
             m_swapScrollContentBox.setMinHeight(m_swapBoxScroll.prefViewportHeightProperty().get()-barHeight);
 
@@ -1313,29 +1356,16 @@ public class ErgoDexChartTab extends ContentTab {
                 rightSide = rightSide.length() > decimals ? rightSide.substring(0, decimals) : rightSide;
                 number = (leftSide + rightSide);
                 m_amountField.setText(number);
-                m_amountBigDecimal = Utils.isTextZero(number) ? BigDecimal.ZERO : new BigDecimal(Utils.formatStringToNumber(number, decimals));
-                setVolume();
+                m_txInfoBox.setAmount(Utils.isTextZero(number) ? BigDecimal.ZERO : new BigDecimal(Utils.formatStringToNumber(number, decimals)));
             });
 
-            m_amountField.textProperty().set(m_amountBigDecimal.toPlainString());
-            m_slippageTolerance.addListener((obs,oldval,newval)->setVolume());
-            m_chartView.ergoPoolBoxData().addListener((obs,oldval,newval)->setVolume());
-            m_dexWallet.walletUpdatedProperty().addListener((obs,oldVal,newval)->checkSwap());
+            m_amountField.setText(m_txInfoBox.getAmount().toPlainString());
+            m_dexWallet.walletUpdatedProperty().addListener((obs,oldVal,newval)->m_txInfoBox.checkSwap());
             update();
         }
 
     
 
-        public void setVolume(){
-           
-            BigDecimal volume = calculateSubTotalVolume();
-            PriceCurrency volumeCurrency = getVolumeCurrency();
-
-            m_txInfoBox.volumeProperty().set(volume);
-            m_dexFees.setMinQuoteVolume(new PriceAmount(calculateMinOutputVolume(), volumeCurrency)); 
-            
-            checkSwap();
-        }
 
         public void update(){
        
@@ -1349,211 +1379,12 @@ public class ErgoDexChartTab extends ContentTab {
             
             m_executeBtn.setText(isSell ? "Sell " + amountCurrency.getSymbol() : "Buy " + volumeCurrency.getSymbol());
 
-            setVolume();
+            m_txInfoBox.updateVolume();
 
         }
 
       
-
-           /*
-         if (input.asset.id === this.assetX.id)
-      return this.y.withAmount(
-        BigInt(
-          math
-            .evaluate!(`(${this.y.amount} * ${input.amount} * ${this.feeNum}) / ((${this.x.amount} + (${this.x.amount} * ${slippage}) / ${10000n}) * ${this.feeDenom} + ${input.amount} * ${this.feeNum})`)
-            .toFixed(0)
-        )
-      )
-    else
-      return this.x.withAmount(
-        BigInt(
-          math
-            .evaluate!(`(${this.x.amount} * ${input.amount} * ${this.feeNum}) / ((${this.y.amount} + (${this.y.amount} * ${slippage}) / ${10000n}) * ${this.feeDenom} + ${input.amount} * ${this.feeNum})`)
-            .toFixed(0)
-        )
-      )
-
-
-      ////
-     
-
-      if (output.asset.id === this.assetX.id && minimalOutput > 0 && output.amount <= this.x.amount) {
-      return this.y.withAmount(
-        BigInt(
-          math
-            .evaluate!(`(${this.y.amount} * ${output.amount} * ${this.feeDenom} * (${10000n} + ${slippage})) / (${10000n} * (${this.x.amount} - ${output.amount}) * ${this.feeNum})`)
-            .toFixed(0)
-        )
-      )
-    } else if (output.asset.id === this.assetY.id && minimalOutput > 0 && output.amount <= this.y.amount) {
-      return this.x.withAmount(
-        BigInt(
-          math
-            .evaluate!(`(${this.x.amount} * ${output.amount} * ${this.feeDenom} * (${10000n} + ${slippage})) / (${10000n} * (${this.y.amount} - ${output.amount}) * ${this.feeNum})`)
-            .toFixed(0)
-        )
-      )
-    } else {
-      return undefined
-    }
-         */
-        public BigDecimal calculateMinOutputVolume(){
-            BigDecimal amount = m_amountBigDecimal;
-            ErgoPoolBoxData boxData = m_chartView.getErgoPoolBoxData();
-          
-           // boolean isSell = isSellProperty().get();
-          //  boolean isInvert = isInvert();
-            PriceCurrency amountCurrency = getAmountCurrency();
-            PriceCurrency volumeCurrency = getVolumeCurrency();
-
-           // int decimals = volumeCurrency.getDecimals();
-            long amountLong =  PriceAmount.calculateBigDecimalToLong(amount, amountCurrency.getDecimals());
-
-            if(boxData != null && amountLong > 0){
-                
-                BigDecimal xAmount = boxData.getAssetX().getBigDecimalAmount(); 
-                BigDecimal yAmount = boxData.getAssetY().getBigDecimalAmount();
-
-              //  long feeNum = boxData.getFeeNum();
-              //  BigDecimal fee = PriceAmount.calculateLongToBigDecimal(feeNum, ErgoDex.POOL_FEE_MAX_DECIMALS);  
-               // BigDecimal fee2 = BigDecimal.valueOf(feeNum).divide(BigDecimal.valueOf(1000));
-
-               
-
-                //PriceAmount.calculateLongToBigDecimal(amountLong, decimals);
-
-                BigDecimal maxSlippage = m_slippageTolerance.get();
-
-                String amountTokenId = amountCurrency.getTokenId();
-
-                boolean isX2Y = amountTokenId.equals(boxData.getAssetX().getTokenId());
-
-                BigDecimal price = xAmount.divide(yAmount, 19, RoundingMode.HALF_UP);
-
-
-                BigDecimal priceSlip = price.multiply(maxSlippage);
-
-                price = isX2Y ? price.add(priceSlip) : price.subtract(priceSlip);
-
-                int volumeScale = volumeCurrency.getDecimals();
-
-                BigDecimal volume = isX2Y ?  amount.divide(price, volumeScale, RoundingMode.FLOOR) : amount.multiply(price).setScale(volumeScale, RoundingMode.FLOOR);
-
-                
-                return volume;
-                
-
-            }
-            
-            return BigDecimal.ZERO;
-            
-
-        }
-
-        public BigDecimal calculateSubTotalVolume(){
-            BigDecimal amount = m_amountBigDecimal;
-            BigDecimal priceQuote = m_numbers != null ? m_numbers.getClose() : BigDecimal.ZERO;
-            if(amount == null || priceQuote == null || priceQuote.equals(BigDecimal.ZERO) || amount.equals(BigDecimal.ZERO)){
-                return BigDecimal.ZERO;
-            }
-
-            boolean isSell = isSellProperty().get();
-            PriceCurrency volumeCurrency = getVolumeCurrency();
-            int scale = Math.min(volumeCurrency.getDecimals(), priceQuote.scale());
-
-            BigDecimal volume = isSell ? amount.multiply(priceQuote).setScale(scale, RoundingMode.FLOOR) : amount.divide(priceQuote, scale, RoundingMode.FLOOR);
-           
-            return volume;
-        }
-
-        public void checkSwap(){
-            NoteInterface ergoInterface = getErgoInterface();
-            PriceCurrency amountCurrency = getAmountCurrency();
-            BigDecimal minExFee = m_dexFees.minExFeeProperty().get();
-            BigDecimal maxExFee = m_dexFees.maxExFeeProperty().get();
-            boolean isFeeSPF = m_dexFees.isFeeSPF();
-            BigDecimal networkFee = m_dexFees.getNetworkFee();
-            boolean isUnlocked = m_dexWallet.getErgoWalletControl().isUnlocked();
-
-            if(isUnlocked){
-                String err = getExecuteErrorString(ergoInterface, m_amountBigDecimal, amountCurrency, isFeeSPF, networkFee, minExFee, maxExFee);
-                if(err != null){
-                    m_amountField.setId("swapFieldUnavailable");
-                    m_volumeField.setId("swapFieldUnavailable");
-                }else{
-                    m_amountField.setId("swapFieldAvailable");
-                    m_volumeField.setId("swapFieldAvailable");
-                }
-            }else{
-                m_amountField.setId("swapField");
-                m_volumeField.setId("swapField");
-            }
-            
-            
-        }
-
-        public String getExecuteErrorString(NoteInterface ergoInterface, BigDecimal amount, PriceCurrency amountCurrency, boolean isSpectrumFee, BigDecimal networkFee, BigDecimal minExFee, BigDecimal maxExFee){
-            String amountTokenId = amountCurrency.getTokenId();
-            String amountSymbol = amountCurrency.getSymbol();
-
-            NetworkType networkType = m_dexWallet.getErgoWalletControl().getNetworkType();
-
-            PriceAmount ergoAmountBalance = m_dexWallet.ergoAmountProperty().get();
-            boolean isUnlocked = m_dexWallet.getErgoWalletControl().isUnlocked();
-            boolean isNetworkType = networkType != null && networkType == ErgoDex.NETWORK_TYPE;
-            boolean isNetwork = ergoInterface != null;
-
-            if(!isUnlocked || !isNetworkType || ergoAmountBalance == null){
-
-                return !isNetwork ? "Ergo network disabled" :  (!isUnlocked ? "Wallet is locked" : (ergoAmountBalance == null ? "Wallet balance unavailable": "Wallet network type is " + (networkType == null ? "unavailable" : networkType.toString()) + ": " + ErgoDex.NETWORK_TYPE.toString() + " required"));
-            }
-
-            if( minExFee == null || maxExFee == null){
-                return "SPF fee cannot currently be calculated";
-            }
-
-            PriceAmount amountBalance = m_dexWallet.getAvailablePriceAmountByTokenId(amountTokenId);
-
-            if(amountBalance == null){
-                return "Wallet does not contain " + amountCurrency.getSymbol();
-            }
-
-            BigDecimal walletAmountBalanceBigDecimal = amountBalance.getBigDecimalAmount();
-            boolean isFeeTypeErg = !isSpectrumFee;
-
-            BigDecimal ergoFees = isFeeTypeErg ? networkFee.add(maxExFee) : networkFee;
-            BigDecimal fees = isFeeTypeErg ? ergoFees : maxExFee;
-
-            String feeCurrencyId = isSpectrumFee ? ErgoDex.SPF_ID : ErgoCurrency.TOKEN_ID;
-            String feeCurrencySymbol = isSpectrumFee ? "SPF" : "ERG";
-            
-            PriceAmount feeCurrencyBalance = m_dexWallet.getBalancePriceAmountByTokenId(feeCurrencyId);
-            
-            BigDecimal minHouseingAmount = ErgoNetwork.MIN_NETWORK_FEE;
-
-            BigDecimal feeCurrencyBalanceBigDecimal = feeCurrencyBalance.getBigDecimalAmount();
-            BigDecimal ergoBalanceBigDecimal = ergoAmountBalance.getBigDecimalAmount();
-
-            boolean isAmountFeeType = amountTokenId.equals(feeCurrencyId);
-    
-            if(isFeeTypeErg && isAmountFeeType && amount.add(ergoFees).add(minHouseingAmount).compareTo(ergoBalanceBigDecimal) == 1){
-                return "Insufficent ERG balance for swap,fee"+(isFeeTypeErg ? "s" : "" )+" and token housing.\n(Required: " + amount.add(ergoFees).add(minHouseingAmount) + " ERG)";
-            }
-
-            if(ergoFees.add(minHouseingAmount).compareTo(ergoBalanceBigDecimal) == 1){
-                return "Insufficent ERG balance for fee"+(isFeeTypeErg ? "s" : "" )+" and token housing.\n(Required: " + ergoFees.add(minHouseingAmount) + " ERG)";
-            }
-            if(isAmountFeeType && amount.add(fees).compareTo(feeCurrencyBalanceBigDecimal) == 1){
-                return "Insufficent " + amountSymbol + " balance with fees.\n(Required: " + amount.add(fees) + " " +amountSymbol + ")" ;
-            }
-            if(fees.compareTo(feeCurrencyBalanceBigDecimal) == 1){
-                return "Insufficent balance for swap fee\n(Required: " + fees + " " + feeCurrencySymbol + ")";
-            }
-            if(amount.compareTo(walletAmountBalanceBigDecimal) == 1){
-                return "Insufficent " + amountSymbol + " balance";
-            }
-            return null;
-        }
+      
         
 
         public boolean isNetworkEnabled(){
@@ -1596,7 +1427,7 @@ public class ErgoDexChartTab extends ContentTab {
 
             if(m_logErrors){
                 try {
-                    Files.writeString(App.logFile.toPath(), msg +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(NoteConstants.logFile.toPath(), msg +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
 
                 }
@@ -1606,7 +1437,7 @@ public class ErgoDexChartTab extends ContentTab {
             msg = Utils.formatStringLineLength(msg, maxLength);
 
             
-            double stringWidth =  Utils.computeTextWidth(App.txtFont, msg.length() >= maxLength ? String.format("%" +maxLength+"s", "") : msg );
+            double stringWidth =  Utils.computeTextWidth(Stages.txtFont, msg.length() >= maxLength ? String.format("%" +maxLength+"s", "") : msg );
             Point2D p = m_executeBtn.localToScene(0.0, 0.0);
             double x =  p.getX() + m_executeBtn.getScene().getX() + m_executeBtn.getScene().getWindow().getX() + (m_executeBtn.widthProperty().get() / 2) - (stringWidth/2);
 
@@ -1635,99 +1466,56 @@ public class ErgoDexChartTab extends ContentTab {
             return m_dataList.ergoInterfaceProperty().get();
         }
 
-        public Future<?> executeSwap(NoteInterface ergoInterface, BigDecimal amount, PriceCurrency amountCurrency, PriceCurrency volumeCurrency,  PriceAmount minQuoteVolume, boolean isFeeSPF, BigDecimal maxExFeeBigDecimal, long exFeePerTokenNum, long exFeePerTokenDenom, BigDecimal networkFeeBigDecimal, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
+        public Future<?> executeSwap(NoteInterface ergoInterface, boolean isAmountErg, String tokenId,  PriceAmount[] outputTokens, long amount, long pricePerToken, long dexFee, long feePerToken, long nanoErgs, long networkFee, EventHandler<WorkerStateEvent> onComplete, EventHandler<WorkerStateEvent> onError){
            
 
-
-            ErgoPoolBoxData boxData = m_marketData.getChartView().getErgoPoolBoxData();
             String walletAddress = m_dexWallet.getErgoWalletControl().getCurrentAddress();
 
             if(walletAddress == null){
                 return Utils.returnException("Wallet is locked", getExecService(), onError);
             }
+       
+            try {
+                Files.writeString(NoteConstants.logFile.toPath(),"walletAddress: " + walletAddress + "\ntokenId: " + tokenId+ "\npricePerToken: " + pricePerToken + "\nfeePerToken: " + feePerToken + "\nnanoErgs: " + nanoErgs,StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e1) {
 
-            if(boxData == null){
-                return Utils.returnException("Required pool data is unavailable, the\n'Ergo Explorer' may be experiencing a heavy load", getExecService(), onError);
             }
 
-        
-            long maxMinerFee = ErgoDexFees.getNanoErgsFromErgs(networkFeeBigDecimal);
-            int amountDecimals = amountCurrency.getDecimals();
-            String quoteId = volumeCurrency.getTokenId();
-
-            long minQuoteAmount = minQuoteVolume.getLongAmount();
-           // long minExFee = PriceAmount.calculateBigDecimalToLong(minExFeeBigDecimal,  isFeeSPF ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS);
-            
-        //    BigDecimal exFeePerToken = BigDecimal.valueOf(minExFee).divide(BigDecimal.valueOf(minQuoteVolume),  18, RoundingMode.HALF_UP);
-            
-            int contractType = amountCurrency.getTokenId().equals(ErgoCurrency.TOKEN_ID) ? 0 : (quoteId.equals(ErgoCurrency.TOKEN_ID) ? 1 : 2);
-            contractType = contractType + (m_dexFees.isFeeSPF() ? 10 : 0);
-            long maxExFee = PriceAmount.calculateBigDecimalToLong(maxExFeeBigDecimal, isFeeSPF ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS);
-            long baseAmount = PriceAmount.calculateBigDecimalToLong(amount, amountDecimals);
-            
-            long nanoErgs = baseAmount + (isFeeSPF ? 0L : maxExFee);
-            int feeNum = boxData.getFeeNum();
-            int feeDenom = 1000;
-           // long[] fractional = Utils.decimalToFractional(exFeePerToken);
-
-            boolean isSpectrumQuote = quoteId.equals(ErgoDex.SPF_ID);
-            String poolId = m_marketData.getPoolId();
-
-            PriceAmount[] outputTokens = isFeeSPF ? new PriceAmount[]{new PriceAmount(maxExFee, ErgoDex.SPF_CURRENCY) } : new PriceAmount[0];
-
-            long delta = exFeePerTokenDenom - exFeePerTokenNum;
             JsonObject outputData = null;
-            switch(contractType){
-                case 0:
-                    outputData = ErgoDexContracts.getN2tErgSellOutputData(walletAddress, poolId, baseAmount, quoteId, minQuoteAmount, exFeePerTokenNum, exFeePerTokenDenom, maxMinerFee, feeDenom, feeNum, nanoErgs);
-                break;    
-                case 10:
-                    outputData = ErgoDexContracts.getN2tSpfSellOutputData(isSpectrumQuote, baseAmount, delta, exFeePerTokenDenom, maxExFee, poolId, quoteId, minQuoteAmount, feeNum, maxMinerFee, walletAddress, nanoErgs, outputTokens);
-                break;    
-                default:
-                    return Utils.returnException("This contract has not been enabled yet", getExecService(), onError);
-            }
-
-            if(outputData != null){ 
+            try{
+     
+                    
+                outputData = isAmountErg ? ErgoDexContracts.getBuyTokenOutputData(
+                    walletAddress, 
+                    tokenId, 
+                    pricePerToken, 
+                    feePerToken, 
+                    nanoErgs
+                ) : ErgoDexContracts.getSellTokenOutputData(
+                    walletAddress, 
+                    tokenId, 
+                    pricePerToken, 
+                    feePerToken, 
+                    outputTokens, 
+                    nanoErgs
+                );
                 
-                return m_dexWallet.getErgoWalletControl().executeSimpleTransaction(nanoErgs, maxMinerFee, outputTokens, outputData, getExecService(), onComplete, onError);
+              
+            }catch(Exception e){
+                return Utils.returnException(e, getExecService(), onError);
+            }
+            if(outputData != null){ 
+
+                return m_dexWallet.getErgoWalletControl().executeSimpleTransaction(nanoErgs, networkFee, outputTokens, outputData,  onComplete, onError);
             }else{
-                return Utils.returnException("Swap is not enabled", getExecService(), onError);
+                return Utils.returnException("This swap has not been enabled yet", getExecService(), onError);
             }
            
         }
        
        
-        public long getMinQuoteAmount(long slippage){
 
 
-            return 0;
-        }
-
-        public BigDecimal getFeePerToken(long minExFee, long minOutput){
-            
-            return BigDecimal.valueOf(minExFee).divide(BigDecimal.valueOf(minOutput), 18, RoundingMode.HALF_UP);
-        }
-
-        public void setSlippageTolerance(BigDecimal decimal){
-            m_slippageTolerance.set(decimal);
-            save();
-        }
-        
-        public void setNitro(BigDecimal nitro){
-            m_dexFees.setNitro(nitro);
-            save();
-        }
-
-        public void setNetworkFee(BigDecimal decimal){
-            m_dexFees.setNetworkFee(decimal);
-            save();
-        }
-
-        public void setMaxExFee(BigDecimal maxExFee){
-            m_dexFees.setMaxExFee(maxExFee);
-            save();
-        }
 
         public void setShowSwapSettings(boolean showSettings){
             m_showSwapFeesBox.set(showSettings);
@@ -1743,6 +1531,7 @@ public class ErgoDexChartTab extends ContentTab {
     
            
         }
+
 
         public class ErgoDexWalletBox extends VBox {
 
@@ -1815,8 +1604,8 @@ public class ErgoDexChartTab extends ContentTab {
                 m_walletControl = new ErgoWalletControl(getLocationId(), getErgoNetworkInterface());
 
                 Text headingText = new Text("Ergo Wallet ");
-                headingText.setFont(App.txtFont);
-                headingText.setFill(App.txtColor);
+                headingText.setFont(Stages.txtFont);
+                headingText.setFill(Stages.txtColor);
 
                 headingText.setMouseTransparent(true);
 
@@ -1834,14 +1623,14 @@ public class ErgoDexChartTab extends ContentTab {
                 }, m_ergoAmountProperty, m_walletControl.walletNameProperty(), m_dataList.isNetworkEnabledProperty()));
                 
                 ergoAmountHeadingField.prefWidthProperty().bind(Bindings.createObjectBinding(()->{
-                    double w = Utils.computeTextWidth(App.txtFont, ergoAmountHeadingField.textProperty().get()) + 20;
+                    double w = Utils.computeTextWidth(Stages.txtFont, ergoAmountHeadingField.textProperty().get()) + 20;
                     return w < 30 ? 30 : (w > 200 ? 200 : w);
                 }, ergoAmountHeadingField.textProperty()));
-
+                
 
                 Text ergText= new Text("");
-                ergText.setFont(App.defjaVuTxt);
-                ergText.setFill(App.txtColor);
+                ergText.setFont(Stages.openSansTxt);
+                ergText.setFill(Stages.txtColor);
                 ergText.textProperty().bind(Bindings.createObjectBinding(()->{
                     PriceAmount ergoAmount =  m_ergoAmountProperty.get();
                     return ergoAmount != null ? ErgoCurrency.FONT_SYMBOL + " " : "";
@@ -2196,10 +1985,10 @@ public class ErgoDexChartTab extends ContentTab {
             public PriceAmount getBalancePriceAmountByTokenId(String tokenId){
                 JsonObject balanceObject = m_walletControl.balanceProperty().get();
 
-                ArrayList<PriceAmount> priceAmountList = AddressesData.getBalanceList(balanceObject,true, ErgoDex.NETWORK_TYPE);
+                ArrayList<PriceAmount> priceAmountList = NoteConstants.getBalanceList(balanceObject,true, ErgoDex.NETWORK_TYPE);
                     
                     
-                return AddressesData.getPriceAmountFromList(priceAmountList, tokenId);
+                return NoteConstants.getPriceAmountFromList(priceAmountList, tokenId);
               
             }
     
@@ -2217,12 +2006,12 @@ public class ErgoDexChartTab extends ContentTab {
                         @Override
                         public void sendMessage(int code, long timestamp, String networkId, String msg) {
                             switch(networkId){
-                                case ErgoNetwork.WALLET_NETWORK:
+                                case NoteConstants.WALLET_NETWORK:
                                     switch(code){
-                                        case App.LIST_ITEM_REMOVED:
+                                        case NoteConstants.LIST_ITEM_REMOVED:
                                             m_walletControl.walletRemoved(msg);
                                         break;
-                                        case App.LIST_DEFAULT_CHANGED:
+                                        case NoteConstants.LIST_DEFAULT_CHANGED:
                                             if(getChartWalletId() != null && getChartWalletId().equals(DEFAULT_ID)){
                                                 m_walletControl.getDefaultWallet();
                                             }
@@ -2307,7 +2096,7 @@ public class ErgoDexChartTab extends ContentTab {
                     MenuItem openErgoNetworkItem = new MenuItem("Manage wallets…");
                     openErgoNetworkItem.setOnAction(e->{
                         m_openWalletBtn.hide();
-                        getNetworksData().openNetwork(ErgoNetwork.NETWORK_ID);
+                        getNetworksData().openNetwork(NoteConstants.ERGO_NETWORK_ID);
                     });
 
                     m_openWalletBtn.getItems().addAll(defaultWallet, disableWallet, separatorItem, openErgoNetworkItem);
@@ -2347,7 +2136,7 @@ public class ErgoDexChartTab extends ContentTab {
                             if(address != null){
                                 MenuItem addressItem = new MenuItem((nameElement != null && !nameElement.isJsonNull() ? nameElement.getAsString() + ": "  : "" ) + address);
                                 addressItem.setOnAction(e->{
-                                    m_walletControl.currentAddressProperty().set(address);
+                                    m_walletControl.setCurrentAddress(address);
                                     m_walletControl.updateBalance();
                                 });
                                 m_walletAdrMenu.getItems().add(addressItem);
@@ -2368,9 +2157,15 @@ public class ErgoDexChartTab extends ContentTab {
             
         }
         
-        public class ErgoDexSwapInfoBox extends VBox{
-     
+        public class DexSwapInfoBox extends VBox{
+            public final static BigDecimal DEFAULT_MIN_DEX_FEE = NoteConstants.MIN_NETWORK_FEE.multiply(BigDecimal.valueOf(3));
+            
+
+            private SimpleObjectProperty<BigDecimal> m_orderPriceProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+            private SimpleObjectProperty<BigDecimal> m_amountProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
             private SimpleObjectProperty<BigDecimal> m_volumeProperty = new SimpleObjectProperty<>(BigDecimal.ZERO);
+            private SimpleObjectProperty<BigDecimal> m_dexFeeProperty = new SimpleObjectProperty<>(DEFAULT_MIN_DEX_FEE);
+            private SimpleObjectProperty<BigDecimal> m_networkFeeProperty = new SimpleObjectProperty<>(NoteConstants.MIN_NETWORK_FEE);
 
             private VBox m_settingsBodyPaddingBox;
             
@@ -2385,49 +2180,25 @@ public class ErgoDexChartTab extends ContentTab {
             private ChangeListener<String> m_networkFeeTextListener = null;
             private ChangeListener<Boolean> m_networkFeeFocusListener = null;
 
-            private Text m_maxSwapFeeText = null;
-            private TextField m_maxSwapFeeField = null;
-            private Tooltip m_maxSwapTooltip;
-            private Label m_maxSwapInfoLbl;
-            private HBox m_maxSwapFeeBox;
-            private HBox m_maxSwapFeeFieldBox;
-            private Button m_maxSwapFeeEnterBtn = null;
-            private EventHandler<ActionEvent> m_maxSwapFieldAction;
-            private ChangeListener<String> m_maxSwapFeeTextListener = null;
-            private ChangeListener<Boolean> m_maxSwapFeeFocusListener = null;
-            private Binding<String> m_maxExFeeBinding;
+            private Text m_swapFeeText = null;
+            private TextField m_swapFeeField = null;
+            private Tooltip m_swapTooltip;
+            private Label m_swapInfoLbl;
+            private HBox m_swapFeeBox;
+            private HBox m_swapFeeFieldBox;
+            private Button m_swapFeeEnterBtn = null;
+            private EventHandler<ActionEvent> m_swapFieldAction;
+            private ChangeListener<String> m_swapFeeTextListener = null;
+            private ChangeListener<Boolean> m_swapFeeFocusListener = null;
+            private Binding<String> m_dexFeeBinding;
 
-            private Text m_nitroText = null;
-            private TextField m_nitroField = null;
-            private ChangeListener<Boolean> m_nitroFocusListener = null;
-            private Tooltip m_nitroTooltip = null;
-            private Label m_nitroInfoLbl = null;
-            private HBox m_nitroFieldBox = null;
-            private EventHandler<ActionEvent> m_nitroFieldAction = null;
-            private ChangeListener<String> m_nitroTextListener = null;
-            private Button m_nitroEnterBtn = null;
-            private Binding<String> m_nitroBinding = null;
-            private HBox m_nitroBox = null;
-           
 
-            private Tooltip m_slippageAmountToolTip = null;
-            private Label m_slippageAmountInfoLbl = null;
-            private Text m_slippageAmountText = null;
-            private Text m_slippageAmountLbl = null;
-            private HBox m_slippageAmountFieldBox = null;
-            private HBox m_slippageAmountBox = null;
 
-            private Tooltip m_minErgoToolTip = null;
-            private Label m_minErgoInfoLbl = null;
-            private Text m_minErgoText = null;
-            private Text m_minErgoAmountText = null;
-            private HBox m_minErgoFieldBox = null;
-            private HBox m_minErgoBox = null;
 
             private VBox m_settingsExtendedBox = null;
             private SimpleBooleanProperty m_showResetBtn = new SimpleBooleanProperty(false);
 
-            public ErgoDexSwapInfoBox(){
+            public DexSwapInfoBox(){
                 super();
                // m_minErgReq = new SimpleObjectProperty<>(BigDecimal.ZERO);
                
@@ -2443,8 +2214,8 @@ public class ErgoDexChartTab extends ContentTab {
                 showFeesBtn.textProperty().bind(Bindings.createObjectBinding(()->m_showSwapFeesBox.get() ? "⏷" : "⏵", m_showSwapFeesBox));
               
                 Text feesText = new Text("Fees ");
-                feesText.setFont(App.smallFont);
-                feesText.setFill(App.txtColor);
+                feesText.setFont(Stages.smallFont);
+                feesText.setFill(Stages.txtColor);
                 feesText.setMouseTransparent(true);
         
                 TextField totalFeesField = new TextField();
@@ -2462,7 +2233,7 @@ public class ErgoDexChartTab extends ContentTab {
                 Tooltip defaultBtnTooltip = new Tooltip("Reset fees");
                 defaultBtnTooltip.setShowDelay(javafx.util.Duration.millis(100));
 
-                BufferedButton resetFeesBtn = new BufferedButton("/assets/refresh-white-30.png", App.MENU_BAR_IMAGE_WIDTH);
+                BufferedButton resetFeesBtn = new BufferedButton("/assets/refresh-white-30.png", Stages.MENU_BAR_IMAGE_WIDTH);
                 resetFeesBtn.setOnAction(e->{
                     setDefaultFees();
                 });
@@ -2475,23 +2246,20 @@ public class ErgoDexChartTab extends ContentTab {
                 deductionsBox.setOnMouseClicked(e-> setShowSwapSettings(!m_showSwapFeesBox.get()));
 
                 Binding<Boolean> showResetBtnBinding = Bindings.createObjectBinding(()->{
-                    boolean isSPF = m_dexFees.isFeeSPF();
-                    if(isSPF){
+                    
+                    BigDecimal dexFee = m_dexFeeProperty.get();
+                    if(dexFee == null){
                         return true;
                     }
-                    BigDecimal maxExFee = m_dexFees.maxExFeeProperty().get();
-                    if(maxExFee == null){
-                        return true;
-                    }
-                    BigDecimal networkFee = m_dexFees.getNetworkFee();
+                    BigDecimal networkFee = m_networkFeeProperty.get();
                     if(networkFee == null){
                         return true;
                     }
-                    if(!networkFee.equals(ErgoDexFees.DEFAULT_NETWORK_FEE)){
+                    if(!networkFee.equals(NoteConstants.MIN_NETWORK_FEE)){
                         return true;
                     }
-                    return !maxExFee.equals(ErgoDexFees.DEFAULT_ERG_MAX_EX_FEE);
-                }, m_dexFees.maxExFeeProperty(), m_dexFees.isSPFProperty());
+                    return !dexFee.equals(NoteConstants.MIN_NETWORK_FEE);
+                }, m_dexFeeProperty);
 
                 m_showResetBtn.bind(showResetBtnBinding);
 
@@ -2509,51 +2277,20 @@ public class ErgoDexChartTab extends ContentTab {
         
                 
                 totalFeesField.textProperty().bind(Bindings.createObjectBinding(()->{
-                    boolean isSPF = m_dexFees.isFeeSPF();
-                    BigDecimal maxExFee = m_dexFees.maxExFeeProperty().get();
-                    maxExFee = maxExFee == null ? BigDecimal.ZERO : maxExFee.stripTrailingZeros();
-                    BigDecimal networkFee = m_dexFees.getNetworkFee().stripTrailingZeros();
-                    return isSPF ?  maxExFee.toPlainString() + " SPF " +  networkFee.toPlainString() + " ERG" : maxExFee.add(networkFee).toPlainString() + " ERG";
-                }, m_dexFees.maxExFeeProperty(), m_dexFees.networkFeeProperty()));
+      
+                    BigDecimal dexFee = m_dexFeeProperty.get() == null ? BigDecimal.ZERO : m_dexFeeProperty.get().stripTrailingZeros();
+                    BigDecimal networkFee =  m_networkFeeProperty.get() == null ? BigDecimal.ZERO :  m_networkFeeProperty.get().stripTrailingZeros();
+                    return dexFee.add(networkFee).toPlainString() + " ERG";
+                }, m_dexFeeProperty, m_networkFeeProperty));
 
    
-
-
-                HBox minVolumeHGradient = new HBox();
-                minVolumeHGradient.setId("hGradient");
-                minVolumeHGradient.setMinHeight(2);
-                minVolumeHGradient.setMinWidth(150);
- 
-                Text minVolumeText = new Text("Minimum output");
-                minVolumeText.setFont(App.smallFont);
-                minVolumeText.setFill(App.txtColor);
-                minVolumeText.setMouseTransparent(true);
-        
-                Label minVolumeField = new Label();
-                minVolumeField.setId("addressField");
-                minVolumeField.textProperty().bind(Bindings.createObjectBinding(()->{
-                    PriceAmount volumeAmount = m_dexFees.minVolumeProperty().get();
-                    return volumeAmount == null ? "0" : volumeAmount.getBigDecimalAmount().toPlainString();
-                }, m_dexFees.minVolumeProperty()));
-            
-                HBox minVolumeFieldBox = new HBox(minVolumeField);
-                HBox.setHgrow(minVolumeFieldBox, Priority.ALWAYS);
-                minVolumeFieldBox.setAlignment(Pos.CENTER_RIGHT);
-          
-                HBox minVolumeBox = new HBox(minVolumeText, minVolumeFieldBox);
-                HBox.setHgrow(minVolumeBox, Priority.ALWAYS);
-                minVolumeBox.setMouseTransparent(true);
-                minVolumeBox.setAlignment(Pos.CENTER_LEFT);
-                minVolumeBox.setPadding(new Insets(5,5,5,10));
-                minVolumeBox.setId("footerBar");
-           
                 m_settingsBodyPaddingBox = new VBox();
                 m_settingsBodyPaddingBox.setPadding(new Insets(2, 5,5,5));
 
                 VBox deductionsPaddingBox = new VBox(bodyHGradient, deductionsBox, m_settingsBodyPaddingBox);
                 deductionsPaddingBox.setId("bodyBox");
 
-                getChildren().addAll( minVolumeBox, deductionsPaddingBox);
+                getChildren().addAll( deductionsPaddingBox);
 
                 updateShowDeductions(m_showSwapFeesBox.get());
 
@@ -2561,15 +2298,254 @@ public class ErgoDexChartTab extends ContentTab {
 
             }
 
+            public boolean isAmountErg(){
+                PriceCurrency amountCurrency = getAmountCurrency();
+                return amountCurrency.getTokenId().equals(ErgoCurrency.TOKEN_ID);
+            }
+
+            public PriceCurrency getTokenCurrency(){
+                return m_txInfoBox.isAmountErg() ? getVolumeCurrency() : getAmountCurrency();
+            }
+
+            public long getPricePerToken(){
+                if(isSwapWithoutErg()){
+                    return 0;
+                }
+                
+                BigDecimal amount = getAmount();
+                BigDecimal volume = getVolume();
+
+                if(amount.equals(BigDecimal.ZERO) || volume.equals(BigDecimal.ZERO)){
+                    return 0;
+                }
+
+                boolean isAmountErg = isAmountErg();
+
+                BigDecimal tokenBigDecimal = isAmountErg ? volume : amount;
+                BigDecimal ergs = isAmountErg ? amount : volume;
+                PriceCurrency tokenCurrency = isAmountErg ? getVolumeCurrency() : getAmountCurrency();
+
+                return ErgoDexContracts.getPricePerToken(ergs, tokenBigDecimal, tokenCurrency);
+            }
+
+            public long getFeePerToken(){
+                boolean isAmountErg = m_txInfoBox.isAmountErg();
+
+                BigDecimal dexFeeBigDecimal = getDexFee();
+                BigDecimal tokenBigDecimal = isAmountErg ? getVolume() : getAmount();
+                PriceCurrency tokenCurrency = isAmountErg ? getVolumeCurrency() : getAmountCurrency();
+                
+                return ErgoDexContracts.getFeePerToken(dexFeeBigDecimal, tokenBigDecimal, tokenCurrency);
+            }
+
+            public ReadOnlyObjectProperty<BigDecimal> amountProperty(){
+                return m_amountProperty;
+            }
      
-            public SimpleObjectProperty<BigDecimal> volumeProperty(){
+            public ReadOnlyObjectProperty<BigDecimal> volumeProperty(){
                 return m_volumeProperty;
             }
 
+            public ReadOnlyObjectProperty<BigDecimal> dexFeeProperty(){
+                return m_dexFeeProperty;
+            }
+
+            public ReadOnlyObjectProperty<BigDecimal> networkFeeProperty(){
+                return m_networkFeeProperty;
+            }
+
+            public ReadOnlyObjectProperty<BigDecimal> priceProperty(){
+                return m_orderPriceProperty;
+            }
 
             public void setDefaultFees(){
-                m_dexFees.reset();
+                m_dexFeeProperty.set(NoteConstants.MIN_NETWORK_FEE);
+                m_networkFeeProperty.set(NoteConstants.MIN_NETWORK_FEE);
                 save();
+            }
+
+            public void setNetworkFee(BigDecimal feeBigDecimal){
+                m_networkFeeProperty.set(feeBigDecimal);
+                save();
+            }
+
+            public BigDecimal getNetworkFee(){
+                return m_networkFeeProperty.get();
+            }
+
+            public void setDexFee(BigDecimal dexFeeBigDecimal){
+                m_dexFeeProperty.set(dexFeeBigDecimal);
+                save();
+            }
+
+            public BigDecimal getDexFee(){
+                return m_dexFeeProperty.get();
+            }
+
+            public void setVolume(BigDecimal volumeBigDecimal){
+                m_volumeProperty.set(volumeBigDecimal);
+            }
+
+            public BigDecimal getVolume(){
+                return m_volumeProperty.get();
+            }
+
+            public void setAmount(BigDecimal amountBigDecimal){
+                m_amountProperty.set(amountBigDecimal);
+                updateVolume();
+            }
+
+
+            public BigDecimal getAmount(){
+                return m_amountProperty.get();
+            }
+
+            public BigDecimal getOrderPrice(){
+                return m_orderPriceProperty.get();
+            }
+
+            public void setOrderPrice(BigDecimal priceBigDecimal){
+                m_orderPriceProperty.set(priceBigDecimal);
+                updateVolume();
+            }
+
+            public void updateVolume(){
+            
+                BigDecimal volume = calculateVolume();
+
+                setVolume(volume);
+            
+                checkSwap();
+            }
+
+            public BigDecimal calculateVolume(){
+                BigDecimal amount = getAmount();
+                BigDecimal priceQuote = getOrderPrice();
+                if(amount == null || priceQuote == null || priceQuote.equals(BigDecimal.ZERO) || amount.equals(BigDecimal.ZERO)){
+                    return BigDecimal.ZERO;
+                }
+    
+                boolean isSell = isSellProperty().get();
+                PriceCurrency volumeCurrency = getVolumeCurrency();
+                int scale = Math.min(volumeCurrency.getDecimals(), priceQuote.scale());
+    
+                BigDecimal volume = isSell ? amount.multiply(priceQuote).setScale(scale, RoundingMode.FLOOR) : amount.divide(priceQuote, scale, RoundingMode.FLOOR);
+               
+                return volume;
+            }
+    
+            public void checkSwap(){
+                NoteInterface ergoInterface = getErgoInterface();
+                PriceCurrency amountCurrency = getAmountCurrency();
+                PriceCurrency volumeCurrency = getVolumeCurrency();
+      
+                BigDecimal amount = getAmount();
+                BigDecimal dexFee = getDexFee();
+                BigDecimal networkFee = getNetworkFee();
+                boolean isUnlocked = m_dexWallet.getErgoWalletControl().isUnlocked();
+    
+                if(isUnlocked){
+                    String err = getExecuteErrorString(ergoInterface, amount, amountCurrency, volumeCurrency, networkFee, dexFee);
+                    if(err != null){
+                        m_amountField.setId("swapFieldUnavailable");
+                        m_volumeField.setId("swapFieldUnavailable");
+                    }else{
+                        m_amountField.setId("swapFieldAvailable");
+                        m_volumeField.setId("swapFieldAvailable");
+                    }
+                }else{
+                    m_amountField.setId("swapField");
+                    m_volumeField.setId("swapField");
+                }
+                
+                
+            }
+
+            public boolean isSwapWithoutErg(){
+                PriceCurrency amountCurrency = getAmountCurrency();
+                PriceCurrency volumeCurrency = getVolumeCurrency();
+                String ergoCurrencyId = ErgoCurrency.TOKEN_ID;
+
+                return !amountCurrency.getTokenId().equals(ergoCurrencyId) && !volumeCurrency.getTokenId().equals(ergoCurrencyId);
+            }
+
+            public String getExecuteErrorString(NoteInterface ergoInterface, BigDecimal amount, PriceCurrency amountCurrency, PriceCurrency volumeCurrency, BigDecimal networkFee, BigDecimal dexFee){
+                String amountTokenId = amountCurrency.getTokenId();
+                String amountSymbol = amountCurrency.getSymbol();
+    
+    
+                if(isSwapWithoutErg()){
+                    return "Token to token swaps are not currently enabled.";
+                }
+
+                NetworkType networkType = m_dexWallet.getErgoWalletControl().getNetworkType();
+    
+                PriceAmount ergoAmountBalance = m_dexWallet.ergoAmountProperty().get();
+                boolean isUnlocked = m_dexWallet.getErgoWalletControl().isUnlocked();
+                boolean isNetworkType = networkType != null && networkType == ErgoDex.NETWORK_TYPE;
+                boolean isNetwork = ergoInterface != null;
+    
+                if(!isUnlocked || !isNetworkType || ergoAmountBalance == null){
+    
+                    return !isNetwork ? "Ergo network disabled" :  (!isUnlocked ? "Wallet is locked" : (ergoAmountBalance == null ? "Wallet balance unavailable": "Wallet network type is " + (networkType == null ? "unavailable" : networkType.toString()) + ": " + ErgoDex.NETWORK_TYPE.toString() + " required"));
+                }
+    
+                if( dexFee == null){
+                    return "Fee is invalid";
+                }
+    
+                if(m_txInfoBox.getFeePerToken() < 2){
+                    return "Dex fee must be more than 1 nanoERG per token";
+                }
+    
+                PriceAmount amountBalance = m_dexWallet.getAvailablePriceAmountByTokenId(amountTokenId);
+    
+                if(amountBalance == null){
+                    return "Wallet does not contain " + amountCurrency.getSymbol();
+                }
+    
+                BigDecimal walletAmountBalanceBigDecimal = amountBalance.getBigDecimalAmount();
+    
+    
+                BigDecimal ergoFees = networkFee.add(dexFee);
+                BigDecimal fees = ergoFees;
+    
+                String feeCurrencyId = ErgoCurrency.TOKEN_ID;
+                String feeCurrencySymbol = ErgoCurrency.SYMBOL;
+                
+                PriceAmount feeCurrencyBalance = m_dexWallet.getBalancePriceAmountByTokenId(feeCurrencyId);
+                
+                BigDecimal minHouseingAmount = NoteConstants.MIN_NETWORK_FEE;
+    
+                BigDecimal feeCurrencyBalanceBigDecimal = feeCurrencyBalance.getBigDecimalAmount();
+                BigDecimal ergoBalanceBigDecimal = ergoAmountBalance.getBigDecimalAmount();
+    
+                boolean isAmountFeeType = amountTokenId.equals(feeCurrencyId);
+        
+                if(isAmountFeeType && amount.add(ergoFees).add(minHouseingAmount).compareTo(ergoBalanceBigDecimal) == 1){
+                    return "Insufficent ERG balance for swap, with fees and token housing.\n(Required: " + amount.add(ergoFees).add(minHouseingAmount) + " ERG)";
+                }
+    
+                if(ergoFees.add(minHouseingAmount).compareTo(ergoBalanceBigDecimal) == 1){
+                    return "Insufficent ERG balance for fees and token housing.\n(Required: " + ergoFees.add(minHouseingAmount) + " ERG)";
+                }
+     
+                if(fees.compareTo(feeCurrencyBalanceBigDecimal) == 1){
+                    return "Insufficent balance for swap fee\n(Required: " + fees + " " + feeCurrencySymbol + ")";
+                }
+                if(amount.compareTo(walletAmountBalanceBigDecimal) == 1){
+                    return "Insufficent " + amountSymbol + " balance";
+                }
+
+                if(getPricePerToken() < 2){
+                    return "Order price is invalid";
+                }
+
+                if(getFeePerToken() < 2){
+                    return "Dex fee is insufficient";
+                }
+
+                return null;
             }
 
             
@@ -2578,15 +2554,15 @@ public class ErgoDexChartTab extends ContentTab {
                 if(value){
                     if(m_settingsExtendedBox == null){
                         m_networkFeeText = new Text(String.format("%-15s", "Network Fee" ));
-                        m_networkFeeText.setFont(App.smallFont);
-                        m_networkFeeText.setFill(App.txtColor);
+                        m_networkFeeText.setFont(Stages.smallFont);
+                        m_networkFeeText.setFill(Stages.txtColor);
 
                         m_networkFeeEnterBtn = new Button("↵");
                         m_networkFeeEnterBtn.setFocusTraversable(true);
                         m_networkFeeEnterBtn.setPadding(Insets.EMPTY);
                         m_networkFeeEnterBtn.setMinWidth(25);
                 
-                        m_networkFeeField = new TextField(m_dexFees.getNetworkFee() + "");
+                        m_networkFeeField = new TextField(m_networkFeeProperty.get() + "");
                         HBox.setHgrow(m_networkFeeField, Priority.ALWAYS);
                         m_networkFeeField.setAlignment(Pos.CENTER_RIGHT);
                         m_networkFeeField.setId("smallPrimaryColor");
@@ -2598,6 +2574,11 @@ public class ErgoDexChartTab extends ContentTab {
                         };
 
                         m_networkFeeField.setOnAction(m_networkFeeFieldAction);
+                        m_networkFeeField.setOnKeyPressed(e->{
+                            if (Utils.keyCombCtrZ.match(e) ) { 
+                                e.consume();
+                            }
+                        });
 
                         m_networkFeeTextListener = (obs,oldval,newval)->{
                             if(m_networkFeeField != null){
@@ -2619,7 +2600,7 @@ public class ErgoDexChartTab extends ContentTab {
                             if(m_networkFeeField != null){
                                 if(!newval){
                                     String str = m_networkFeeField.getText();
-                                    BigDecimal defaultFee = ErgoNetwork.MIN_NETWORK_FEE;
+                                    BigDecimal defaultFee = NoteConstants.MIN_NETWORK_FEE;
                                     if(Utils.isTextZero(str)){
                                         setNetworkFee(defaultFee);
                                     }else{
@@ -2632,7 +2613,7 @@ public class ErgoDexChartTab extends ContentTab {
                                         }
                                     }
                                     
-                                    m_networkFeeField.setText(m_dexFees.getNetworkFee() + "");
+                                    m_networkFeeField.setText(m_networkFeeProperty.get() + "");
                                     if(m_networkFeeFieldBox.getChildren().contains(m_networkFeeEnterBtn)){
                                         m_networkFeeFieldBox.getChildren().remove(m_networkFeeEnterBtn);
                                     }
@@ -2648,7 +2629,7 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeField.focusedProperty().addListener(m_networkFeeFocusListener);
 
                         
-                        m_networkFeeTooltip = new Tooltip("The fee paid to miners to insentivize them to include the transaction in a block. (Minimum: "+ErgoNetwork.MIN_NETWORK_FEE+" ERG)");
+                        m_networkFeeTooltip = new Tooltip("The fee paid to miners to insentivize them to include the transaction in a block. (Minimum: "+NoteConstants.MIN_NETWORK_FEE+" ERG)");
                         m_networkFeeTooltip.setShowDelay(javafx.util.Duration.millis(100));
                         m_networkFeeTooltip.setShowDuration(javafx.util.Duration.seconds(20));
 
@@ -2666,37 +2647,42 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeBox.setAlignment(Pos.CENTER_LEFT);
                         m_networkFeeBox.setPadding(new Insets(0,0, 5,0));
                         
-                        m_maxSwapFeeText = new Text(String.format("%-15s", "DEX Fee"));
-                        m_maxSwapFeeText.setFont(App.smallFont);
-                        m_maxSwapFeeText.setFill(App.txtColor);
+                        m_swapFeeText = new Text(String.format("%-15s", "DEX Fee"));
+                        m_swapFeeText.setFont(Stages.smallFont);
+                        m_swapFeeText.setFill(Stages.txtColor);
 
-                        m_maxSwapFeeEnterBtn = new Button("↵");
-                        m_maxSwapFeeEnterBtn.setFocusTraversable(true);
-                        m_maxSwapFeeEnterBtn.setPadding(Insets.EMPTY);
-                        m_maxSwapFeeEnterBtn.setMinWidth(25);
+                        m_swapFeeEnterBtn = new Button("↵");
+                        m_swapFeeEnterBtn.setFocusTraversable(true);
+                        m_swapFeeEnterBtn.setPadding(Insets.EMPTY);
+                        m_swapFeeEnterBtn.setMinWidth(25);
 
-                        m_maxSwapFeeField = new TextField();
-                        HBox.setHgrow(m_maxSwapFeeField, Priority.ALWAYS);
-                        m_maxSwapFeeField.setAlignment(Pos.CENTER_RIGHT);
-                        m_maxSwapFeeField.setId("smallPrimaryColor");
+                        m_swapFeeField = new TextField();
+                        HBox.setHgrow(m_swapFeeField, Priority.ALWAYS);
+                        m_swapFeeField.setAlignment(Pos.CENTER_RIGHT);
+                        m_swapFeeField.setId("smallPrimaryColor");
 
-                        m_maxExFeeBinding = Bindings.createObjectBinding(()->{
-                            BigDecimal maxExFee = m_dexFees.maxExFeeProperty().get();
-                            return maxExFee != null ? maxExFee + "" : "";
-                        }, m_dexFees.maxExFeeProperty());
+                        m_dexFeeBinding = Bindings.createObjectBinding(()->{
+                            BigDecimal dexFee = m_dexFeeProperty.get();
+                            return dexFee != null ? dexFee + "" : "";
+                        }, m_dexFeeProperty);
 
-                        m_maxSwapFeeField.textProperty().bind(m_maxExFeeBinding);
+                        m_swapFeeField.textProperty().bind(m_dexFeeBinding);
 
-                        m_maxSwapFieldAction = e->{
-                            if(m_maxSwapFeeEnterBtn != null){
-                                Platform.runLater(()-> m_maxSwapFeeEnterBtn.requestFocus());
+                        m_swapFieldAction = e->{
+                            if(m_swapFeeEnterBtn != null){
+                                Platform.runLater(()-> m_swapFeeEnterBtn.requestFocus());
                             }
                         };
 
-                        m_maxSwapFeeField.setOnAction(m_maxSwapFieldAction);
-                        m_maxSwapFeeTextListener = (obs,oldval,newval)->{
-                            if(m_maxSwapFeeField != null){
-                                int scale = m_dexFees.isFeeSPF() ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS;
+                        m_swapFeeField.setOnAction(m_swapFieldAction);
+                        m_swapFeeField.setOnKeyPressed(e->{
+                            if (Utils.keyCombCtrZ.match(e) ) { 
+                                e.consume();
+                            }
+                        });
+                        m_swapFeeTextListener = (obs,oldval,newval)->{
+                            if(m_swapFeeField != null){
+                                int scale =ErgoCurrency.DECIMALS;
                                 String number = newval.replaceAll("[^0-9.]", "");
                                 int index = number.indexOf(".");
                                 String leftSide = index != -1 ? number.substring(0, index + 1) : number;
@@ -2704,222 +2690,65 @@ public class ErgoDexChartTab extends ContentTab {
                                 rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
                                 rightSide = rightSide.length() > scale ? rightSide.substring(0, scale) : rightSide;
                             
-                                m_maxSwapFeeField.setText(leftSide +  rightSide);
+                                m_swapFeeField.setText(leftSide +  rightSide);
                             }
                         };
 
-                        m_maxSwapFeeField.textProperty().bind(m_maxExFeeBinding);
-                        m_maxSwapFeeFocusListener = (obs,oldval,newval)->{
-                            if(m_maxSwapFeeField != null){
+                        m_swapFeeField.textProperty().bind(m_dexFeeBinding);
+                        m_swapFeeFocusListener = (obs,oldval,newval)->{
+                            if(m_swapFeeField != null){
                                 if(!newval){
-                                    boolean isSpf = m_dexFees.isFeeSPF();
+                                  
 
-                                    String str = m_maxSwapFeeField.getText();
+                                    String str = m_swapFeeField.getText();
                                     
                                     if(!Utils.isTextZero(str)){
-                                        int scale = isSpf ? SPFCurrency.DECIMALS : ErgoCurrency.DECIMALS;
+                                        int scale = ErgoCurrency.DECIMALS;
                                         BigDecimal newFee = new BigDecimal(Utils.formatStringToNumber(str, scale));
                                         
                                         
-                                        setMaxExFee(newFee);
+                                        setDexFee(newFee);
                                         
                                     }else{
-                                        setMaxExFee(BigDecimal.ZERO);
+                                        setDexFee(BigDecimal.ZERO);
                                     }
                      
-                                    if(m_maxSwapFeeFieldBox.getChildren().contains(m_maxSwapFeeEnterBtn)){
-                                        m_maxSwapFeeFieldBox.getChildren().remove(m_maxSwapFeeEnterBtn);
+                                    if(m_swapFeeFieldBox.getChildren().contains(m_swapFeeEnterBtn)){
+                                        m_swapFeeFieldBox.getChildren().remove(m_swapFeeEnterBtn);
                                     }
-                                    m_maxSwapFeeField.textProperty().removeListener(m_maxSwapFeeTextListener);
-                                    m_maxSwapFeeField.textProperty().bind(m_maxExFeeBinding);
+                                    m_swapFeeField.textProperty().removeListener(m_swapFeeTextListener);
+                                    m_swapFeeField.textProperty().bind(m_dexFeeBinding);
                                 }else{
-                                    m_maxSwapFeeField.textProperty().unbind();
-                                    m_maxSwapFeeField.textProperty().addListener(m_maxSwapFeeTextListener);
-                                    if(!m_maxSwapFeeFieldBox.getChildren().contains(m_maxSwapFeeEnterBtn)){
-                                        m_maxSwapFeeFieldBox.getChildren().add(m_maxSwapFeeEnterBtn);
+                                    m_swapFeeField.textProperty().unbind();
+                                    m_swapFeeField.textProperty().addListener(m_swapFeeTextListener);
+                                    if(!m_swapFeeFieldBox.getChildren().contains(m_swapFeeEnterBtn)){
+                                        m_swapFeeFieldBox.getChildren().add(m_swapFeeEnterBtn);
                                     }
                                 }
                             }
                         };
-                        m_maxSwapFeeField.focusedProperty().addListener(m_maxSwapFeeFocusListener);
+                        m_swapFeeField.focusedProperty().addListener(m_swapFeeFocusListener);
 
-                        m_maxSwapTooltip = new Tooltip("The maximum execution fee to pay in order to give your transaction\npriority. Increasing this value may decrease slippage and ensure execution.");
-                        m_maxSwapTooltip.setShowDelay(javafx.util.Duration.millis(100));
-                        m_maxSwapTooltip.setShowDuration(javafx.util.Duration.seconds(20));
+                        m_swapTooltip = new Tooltip("The maximum execution fee to pay in order to give your transaction\npriority. Increasing this value may decrease slippage and ensure execution.");
+                        m_swapTooltip.setShowDelay(javafx.util.Duration.millis(100));
+                        m_swapTooltip.setShowDuration(javafx.util.Duration.seconds(20));
 
-                        m_maxSwapInfoLbl = new Label("ⓘ");
-                        m_maxSwapInfoLbl.setTooltip(m_maxSwapTooltip);
-                        m_maxSwapInfoLbl.setId("logoBtn");
+                        m_swapInfoLbl = new Label("ⓘ");
+                        m_swapInfoLbl.setTooltip(m_swapTooltip);
+                        m_swapInfoLbl.setId("logoBtn");
 
-                        m_maxSwapFeeFieldBox = new HBox(m_maxSwapFeeField);
-                        HBox.setHgrow(m_maxSwapFeeFieldBox, Priority.ALWAYS);
-                        m_maxSwapFeeFieldBox.setId("darkBox");
-                        m_maxSwapFeeFieldBox.setAlignment(Pos.CENTER_LEFT);
+                        m_swapFeeFieldBox = new HBox(m_swapFeeField);
+                        HBox.setHgrow(m_swapFeeFieldBox, Priority.ALWAYS);
+                        m_swapFeeFieldBox.setId("darkBox");
+                        m_swapFeeFieldBox.setAlignment(Pos.CENTER_LEFT);
 
-                        m_maxSwapFeeBox = new HBox(m_maxSwapInfoLbl, m_maxSwapFeeText, m_maxSwapFeeFieldBox);
-                        HBox.setHgrow(m_maxSwapFeeBox, Priority.ALWAYS);
-                        m_maxSwapFeeBox.setAlignment(Pos.CENTER_LEFT);
-                        m_maxSwapFeeBox.setPadding(new Insets(0,0,5,0));
-                        
-                        //
-                        m_nitroText = new Text(String.format("%-15s", "Nitro" ));
-                        m_nitroText.setFont(App.smallFont);
-                        m_nitroText.setFill(App.txtColor);
+                        m_swapFeeBox = new HBox(m_swapInfoLbl, m_swapFeeText, m_swapFeeFieldBox);
+                        HBox.setHgrow(m_swapFeeBox, Priority.ALWAYS);
+                        m_swapFeeBox.setAlignment(Pos.CENTER_LEFT);
+                        m_swapFeeBox.setPadding(new Insets(0,0,5,0));
+                      
 
-                        m_nitroEnterBtn = new Button("↵");
-                        m_nitroEnterBtn.setFocusTraversable(true);
-                        m_nitroEnterBtn.setPadding(Insets.EMPTY);
-                        m_nitroEnterBtn.setMinWidth(25);
-                
-                        m_nitroField = new TextField();
-                        HBox.setHgrow(m_nitroField, Priority.ALWAYS);
-                        m_nitroField.setAlignment(Pos.CENTER_RIGHT);
-                        m_nitroField.setId("smallPrimaryColor");
-
-                        m_nitroFieldAction = e->{
-                            if(m_nitroEnterBtn != null){
-                                Platform.runLater(()-> m_nitroEnterBtn.requestFocus());
-                            }
-                        };
-
-                        m_nitroField.setOnAction(m_nitroFieldAction);
-
-                        m_nitroTextListener = (obs,oldval,newval)->{
-                            if(m_nitroField != null){
-                          
-                                String number = newval.replaceAll("[^0-9.]", "");
-                                int index = number.indexOf(".");
-                                String leftSide = index != -1 ? number.substring(0, index + 1) : number;
-                                String rightSide = index != -1 ?  number.substring(index + 1) : "";
-                                rightSide = rightSide.length() > 0 ? rightSide.replaceAll("[^0-9]", "") : "";
-                                rightSide = rightSide.length() > ErgoDex.POOL_FEE_MAX_DECIMALS ? rightSide.substring(0, ErgoDex.POOL_FEE_MAX_DECIMALS) : rightSide;
-                            
-                                m_nitroField.setText(leftSide +  rightSide);
-
-                            }
-                        };
-
-                        
-                        m_nitroBinding = Bindings.createObjectBinding(()->{
-                            BigDecimal nitro = m_dexFees.nitroProperty().get();
-                            return nitro != null ? nitro + "" : "";
-                        }, m_dexFees.nitroProperty());
-                        m_nitroField.textProperty().bind(m_nitroBinding);
-
-                        m_nitroFocusListener = (obs,oldval,newval)->{
-                            if(m_nitroField != null){
-                                if(!newval){
-                                    String str = m_nitroField.getText();
-                                    
-                                    setNitro(new BigDecimal(Utils.formatStringToNumber(str, 3)));
-                                
-                     
-                                    if(m_nitroFieldBox.getChildren().contains(m_nitroEnterBtn)){
-                                        m_nitroFieldBox.getChildren().remove(m_nitroEnterBtn);
-                                    }
-                                    m_nitroField.textProperty().removeListener(m_nitroTextListener);
-                                    m_nitroField.textProperty().bind(m_nitroBinding);
-                                }else{
-                                    m_nitroField.textProperty().unbind();
-                                    m_nitroField.textProperty().addListener(m_nitroTextListener);
-
-                                    if(!m_nitroFieldBox.getChildren().contains(m_nitroEnterBtn)){
-                                        m_nitroFieldBox.getChildren().add(m_nitroEnterBtn);
-                                    }
-                                }
-                            }
-                        };  
-                   
-
-                        m_nitroField.focusedProperty().addListener(m_nitroFocusListener);
-
-                        
-                        m_nitroTooltip = new Tooltip("The factor to set the maximum execution fee in order to\ngive your transaction high priortiy at a higher execution fee cost.(Minimum: "+ ErgoDexFees.MIN_NITRO +" ERG)");
-                        m_nitroTooltip.setShowDelay(javafx.util.Duration.millis(100));
-                        m_nitroTooltip.setShowDuration(javafx.util.Duration.seconds(20));
-
-                        m_nitroInfoLbl = new Label("ⓘ");
-                        m_nitroInfoLbl.setId("logoBtn");
-                        m_nitroInfoLbl.setTooltip(m_nitroTooltip);
-
-                        m_nitroFieldBox = new HBox(m_nitroField);
-                        HBox.setHgrow(m_nitroFieldBox, Priority.ALWAYS);
-                        m_nitroFieldBox.setId("darkBox");
-                        m_nitroFieldBox.setAlignment(Pos.CENTER_LEFT);
-
-
-                        m_nitroBox = new HBox(m_nitroInfoLbl, m_nitroText, m_nitroFieldBox);
-                        HBox.setHgrow(m_nitroBox, Priority.ALWAYS);
-                        m_nitroBox.setAlignment(Pos.CENTER_LEFT);
-                        m_nitroBox.setPadding(new Insets(0,0,5,0));
-
-                        //
-                        m_slippageAmountToolTip = new Tooltip("The maximum amount of difference in volume resulting\nfrom current price and executed price slippage");
-                        m_slippageAmountToolTip.setShowDelay(javafx.util.Duration.millis(100));
-                        m_slippageAmountToolTip.setShowDuration(javafx.util.Duration.seconds(20));
-
-                        m_slippageAmountInfoLbl = new Label("ⓘ");
-                        m_slippageAmountInfoLbl.setTooltip(m_slippageAmountToolTip);
-                        m_slippageAmountInfoLbl.setId("logoBtn");
-
-                        m_slippageAmountText = new Text(String.format("%-15s", "Max Slippage"));
-                        m_slippageAmountText.setFont(App.smallFont);
-                        m_slippageAmountText.setFill(App.txtColor);
-
-                        m_slippageAmountLbl = new Text();
-                        m_slippageAmountLbl.setFont(App.smallFont);
-                        m_slippageAmountLbl.setFill(App.txtColor);
-                        m_slippageAmountLbl.textProperty().bind(Bindings.createObjectBinding(()->{
-                            BigDecimal volume = m_volumeProperty.get();
-                            PriceAmount minVolumePrice = m_dexFees.minVolumeProperty().get();
-                            BigDecimal minVolume = minVolumePrice != null ? minVolumePrice.getBigDecimalAmount() : BigDecimal.ZERO;
-                            if(volume.compareTo(BigDecimal.ZERO) > -1 && minVolume.compareTo(BigDecimal.ZERO) > -1){
-                                BigDecimal slippageAmount = volume.subtract(minVolume);
-                                return slippageAmount + "";
-                            }
-                            return "0";
-                        }, m_dexFees.minVolumeProperty()));
-
-                        
-
-                        m_slippageAmountFieldBox = new HBox(m_slippageAmountLbl);
-                        HBox.setHgrow(m_slippageAmountFieldBox, Priority.ALWAYS);
-                        m_slippageAmountFieldBox.setAlignment(Pos.CENTER_RIGHT);
-                        m_slippageAmountFieldBox.setPadding(new Insets(0,10, 0, 0));
-
-                        m_slippageAmountBox = new HBox(m_slippageAmountInfoLbl, m_slippageAmountText, m_slippageAmountFieldBox);
-                        m_slippageAmountBox.setAlignment(Pos.CENTER_LEFT);
-                        HBox.setHgrow(m_slippageAmountBox, Priority.ALWAYS);
-                        m_slippageAmountBox.setPadding(new Insets(0,0,5,0));
-
-                        //Min ergo balance
-
-                        m_minErgoToolTip = new Tooltip("The minimum balance required to house tokens. (Warning:\nInactive addresses can become subject to storage/rent.\nBalances going below the minimum threshold can result\nin loss of tokens.)");
-                        m_minErgoToolTip.setShowDelay(javafx.util.Duration.millis(100));
-                        m_minErgoToolTip.setShowDuration(javafx.util.Duration.seconds(20));
-
-                        m_minErgoInfoLbl = new Label("ⓘ");
-                        m_minErgoInfoLbl.setTooltip(m_minErgoToolTip);
-                        m_minErgoInfoLbl.setId("logoBtn");
-
-                        m_minErgoText = new Text(String.format("%-15s", "Token Housing"));
-                        m_minErgoText.setFont(App.smallFont);
-                        m_minErgoText.setFill(App.txtColor);
-
-                        m_minErgoAmountText = new Text(ErgoNetwork.MIN_NETWORK_FEE + " ERG");
-                        m_minErgoAmountText.setFont(App.smallFont);
-                        m_minErgoAmountText.setFill(App.txtColor);
-
-                        m_minErgoFieldBox = new HBox(m_minErgoAmountText);
-                        HBox.setHgrow(m_minErgoFieldBox, Priority.ALWAYS);
-                        m_minErgoFieldBox.setAlignment(Pos.CENTER_RIGHT);
-
-                        m_minErgoBox = new HBox(m_minErgoInfoLbl, m_minErgoText, m_minErgoFieldBox);
-                        m_minErgoBox.setId("tabsBox");
-                        m_minErgoBox.setAlignment(Pos.CENTER_LEFT);
-                        HBox.setHgrow(m_minErgoBox, Priority.ALWAYS);
-
-                        m_settingsExtendedBox = new VBox(m_networkFeeBox, m_maxSwapFeeBox, m_nitroBox, m_slippageAmountBox, m_minErgoBox);
+                        m_settingsExtendedBox = new VBox(m_networkFeeBox, m_swapFeeBox);
                         m_settingsExtendedBox.setPadding(new Insets(0,5,0,10));
                         
                     }
@@ -2954,66 +2783,25 @@ public class ErgoDexChartTab extends ContentTab {
                         m_networkFeeFocusListener = null;
                         m_networkFeeEnterBtn = null;
 
-                        m_maxSwapFeeFieldBox.getChildren().clear();
-                        m_maxSwapFeeBox.getChildren().clear();
-                        m_maxSwapFeeField.textProperty().unbind();
-                        m_maxSwapFeeField.textProperty().removeListener(m_maxSwapFeeTextListener);
-                        m_maxSwapFeeField.focusedProperty().removeListener(m_maxSwapFeeFocusListener);
-                        m_maxSwapInfoLbl.setTooltip(null);
-                        m_maxSwapFeeField.setOnAction(null);
-                        m_maxSwapFeeEnterBtn.setOnAction(null);
-                        m_maxExFeeBinding = null;
-                        m_maxSwapFieldAction = null;
-                        m_maxSwapFeeText = null;
-                        m_maxSwapFeeField = null;
-                        m_maxSwapTooltip = null;
-                        m_maxSwapInfoLbl = null;
-                        m_maxSwapFeeBox = null;
-                        m_maxSwapFeeTextListener = null;
-                        m_maxSwapFeeFocusListener = null;
-                        m_maxSwapFeeFieldBox = null;
-                        m_maxSwapFeeEnterBtn = null;
-
-                        m_nitroFieldBox.getChildren().clear();
-                        m_nitroBox.getChildren().clear();
-                        m_nitroField.textProperty().unbind();
-                        m_nitroField.textProperty().removeListener(m_nitroTextListener);
-                        m_nitroField.focusedProperty().removeListener(m_nitroFocusListener);
-                        m_nitroInfoLbl.setTooltip(null);
-                        m_nitroField.setOnAction(null);
-                        m_nitroEnterBtn.setOnAction(null);
-                        m_nitroText = null;
-                        m_nitroField = null;
-                        m_nitroFocusListener = null;
-                        m_nitroTooltip = null;
-                        m_nitroInfoLbl = null;
-                        m_nitroFieldBox = null;
-                        m_nitroFieldAction = null;
-                        m_nitroTextListener = null;
-                        m_nitroEnterBtn = null;
-                        m_nitroBinding = null;
-                        m_nitroBox = null;
-                       
-                        m_slippageAmountFieldBox.getChildren().clear();
-                        m_slippageAmountBox.getChildren().clear();
-                        m_slippageAmountLbl.textProperty().unbind();
-                        m_slippageAmountInfoLbl.setTooltip(null);
-                        m_slippageAmountToolTip = null;
-                        m_slippageAmountInfoLbl = null;
-                        m_slippageAmountText = null;
-                        m_slippageAmountLbl = null;
-                        m_slippageAmountFieldBox = null;
-                        m_slippageAmountBox = null;
-
-                        m_minErgoFieldBox.getChildren().clear();
-                        m_minErgoBox.getChildren().clear();
-                        m_minErgoInfoLbl.setTooltip(null);
-                        m_minErgoToolTip = null;
-                        m_minErgoInfoLbl = null;
-                        m_minErgoText = null;
-                        m_minErgoAmountText = null;
-                        m_minErgoFieldBox = null;
-                        m_minErgoBox = null;
+                        m_swapFeeFieldBox.getChildren().clear();
+                        m_swapFeeBox.getChildren().clear();
+                        m_swapFeeField.textProperty().unbind();
+                        m_swapFeeField.textProperty().removeListener(m_swapFeeTextListener);
+                        m_swapFeeField.focusedProperty().removeListener(m_swapFeeFocusListener);
+                        m_swapInfoLbl.setTooltip(null);
+                        m_swapFeeField.setOnAction(null);
+                        m_swapFeeEnterBtn.setOnAction(null);
+                        m_dexFeeBinding = null;
+                        m_swapFieldAction = null;
+                        m_swapFeeText = null;
+                        m_swapFeeField = null;
+                        m_swapTooltip = null;
+                        m_swapInfoLbl = null;
+                        m_swapFeeBox = null;
+                        m_swapFeeTextListener = null;
+                        m_swapFeeFocusListener = null;
+                        m_swapFeeFieldBox = null;
+                        m_swapFeeEnterBtn = null;
 
                         m_settingsExtendedBox = null;
                     }
@@ -3024,66 +2812,107 @@ public class ErgoDexChartTab extends ContentTab {
             }
         }
         
-        public class ErgoDexChainData extends VBox{
+        public class DexOrderBook extends VBox {
+            private ScrollPane m_buyScroll = null;
+            private VBox m_buyListBox = null;
 
+            private ScrollPane m_sellScroll = null;
+            private VBox m_sellListBox = null;
+
+            private SimpleDoubleProperty m_remainingSpace = new SimpleDoubleProperty(80);
+
+            private String m_buyTemplateHash = null;
+            private String m_sellTemplateHash = null;
+            
+            public DexOrderBook(){
+                super();
+              
+
+                HBox.setHgrow(DexOrderBook.this, Priority.ALWAYS);
+
+                m_buyListBox = new VBox();
+                m_buyListBox.setId("blackBox");
+
+                m_buyScroll = new ScrollPane(m_buyListBox);
+
+                m_buyScroll.setMinViewportHeight(40);
+
+
+                TextField lastPriceField = new TextField();
+                HBox.setHgrow(lastPriceField, Priority.ALWAYS);
+                lastPriceField.setId("hand");
+                lastPriceField.setOnMouseClicked(e->{
+                    orderPriceTextField.textProperty().set(lastPriceField.getText());
+                    orderPriceTextField.positionCaret(orderPriceTextField.getText().length()-1);
+                    orderPriceTextField.positionCaret(0);
+                });
+
+                HBox topPriceHGradient = new HBox();
+                HBox.setHgrow(topPriceHGradient, Priority.ALWAYS);
+                topPriceHGradient.setId("hGradient");
+                topPriceHGradient.setMinHeight(2);
+
+                HBox botPriceHGradient = new HBox();
+                HBox.setHgrow(botPriceHGradient, Priority.ALWAYS);
+                botPriceHGradient.setId("hGradient");
+                botPriceHGradient.setMinHeight(2);
+
+                HBox lastPricePaddingBox = new HBox(lastPriceField);
+                HBox.setHgrow(lastPricePaddingBox, Priority.ALWAYS);
+                lastPricePaddingBox.setPadding(new Insets(5));
           
-    
-        }
+                VBox lastPriceFieldBox = new VBox(topPriceHGradient, lastPricePaddingBox, botPriceHGradient);
+                HBox.setHgrow(lastPriceFieldBox, Priority.ALWAYS);
+                lastPriceFieldBox.setAlignment(Pos.CENTER_RIGHT);
 
+                m_sellListBox = new VBox();
+                m_sellListBox.setId("blackBox");
+
+
+                m_sellScroll = new ScrollPane(m_sellListBox);
+    
+                m_sellScroll.setMinViewportHeight(40);
+
+                DexOrderBook.this.widthProperty().addListener((obs,oldval,newval)->{
+                    double w = newval.doubleValue();
+                    m_sellScroll.setPrefViewportWidth(w > 100 ? w-1 : 100);
+                    m_buyScroll.setPrefViewportWidth(w > 100 ? w-1 : 100);
+      
+                });
+
+                m_remainingSpace.addListener((obs,oldval,newval)->{
+                    double height = newval.doubleValue() -2;
+              
+                    double scrollHeight = height / 2;
+                    scrollHeight = scrollHeight < 30 ? 30 : scrollHeight;
+                    m_sellScroll.setPrefViewportHeight(scrollHeight);
+                    m_buyScroll.setPrefViewportHeight(scrollHeight);
+
+                    m_buyListBox.setMinHeight(scrollHeight - 10);
+                    m_sellListBox.setMinHeight(scrollHeight - 10);
+                });
+
+                Binding<String> lastPriceFieldTextBinding = Bindings.createObjectBinding(()->{
+                    BigDecimal lastPrice = m_lastPriceProperty.get();
+                    if(lastPrice != null){
+                        return lastPrice.toPlainString();
+                    }
+                    return "";
+                }, m_lastPriceProperty);
+
+                lastPriceField.textProperty().bind(lastPriceFieldTextBinding);
+                m_remainingSpace.bind(m_swapBoxScroll.prefViewportHeightProperty().subtract(lastPriceFieldBox.heightProperty()).subtract(m_dexWallet.heightProperty()).subtract(30));
+
+                DexOrderBook.this.getChildren().addAll(m_buyScroll, lastPriceFieldBox, m_sellScroll);
+
+            }
+
+
+           
+        }
+    
         
     }
 
-    public class ErgoDexStatsBox extends VBox {
-       
-        public ErgoDexStatsBox(){
-
-    
-            ImageView poolStatsIconView = new ImageView(m_dataList.getErgoDex().getSmallAppIcon());
-            poolStatsIconView.setFitWidth(20);
-            poolStatsIconView.setPreserveRatio(true);
-    
-            Label poolStatsLbl = new Label("Profile");
-            poolStatsLbl.setFont(App.titleFont);
-            poolStatsLbl.setTextFill(App.txtColor);
-            poolStatsLbl.setPadding(new Insets(0, 0, 0, 10));
-    
-            Region poolStatsSpacer = new Region();
-            HBox.setHgrow(poolStatsSpacer, Priority.ALWAYS);
-    
-            
-            
-            BufferedButton poolStatsToggleShowBtn = new BufferedButton("/assets/caret-up-15.png", 15);
-            poolStatsToggleShowBtn.setId("toolBtn");
-            poolStatsToggleShowBtn.setPadding(new Insets(0, 5, 0, 3));
-            poolStatsToggleShowBtn.setOnAction(e->{
-                m_showPoolStats.set(!m_showPoolStats.get());
-            });
-            
-    
-            
-            HBox poolStatsTopBar = new HBox(poolStatsIconView, poolStatsLbl, poolStatsSpacer, poolStatsToggleShowBtn);
-            poolStatsTopBar.setAlignment(Pos.CENTER_LEFT);
-            poolStatsTopBar.setPadding(new Insets(5,1, 5, 5));
-            poolStatsTopBar.setId("networkTopBar");
-    
-            
-    
-            VBox poolStatsBox = new VBox();
-    
-            VBox poolStatsPaddingBox = new VBox(poolStatsTopBar, poolStatsBox);
-            
-            
-            m_showPoolStats.addListener((obs,oldval,newval)->{
-                
-                poolStatsToggleShowBtn .setImage( newval ? new Image("/assets/caret-up-15.png") : new Image("/assets/caret-down-15.png"));   
-            
-                if(newval){
-                    
-                }else{
-                
-                }
-            });
-        }
-    }
-
+   
 }

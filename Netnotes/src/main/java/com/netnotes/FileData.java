@@ -3,9 +3,9 @@ package com.netnotes;
 import java.io.File;
 import java.nio.file.Files;
 
-import com.devskiller.friendly_id.FriendlyId;
-
-import com.utils.Utils;
+import io.netnotes.engine.HashData;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 public class FileData {
 

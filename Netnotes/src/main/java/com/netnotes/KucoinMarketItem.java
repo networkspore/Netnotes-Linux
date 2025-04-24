@@ -11,6 +11,14 @@ import org.reactfx.util.FxTimer;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.BufferedButton;
+import io.netnotes.engine.BufferedMenuButton;
+import io.netnotes.engine.Drawing;
+import io.netnotes.engine.IconButton;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.ResizeHelper;
+import io.netnotes.engine.Stages;
 import com.google.gson.JsonArray;
 
 
@@ -212,8 +220,8 @@ public class KucoinMarketItem {
             int y1 = (height / 2) - (fontHeight / 2);
             int x2 = x1 + lastWidth;
             int y2 = y1 + fontHeight;
-            java.awt.Color color1 = positive ? KucoinExchange.POSITIVE_COLOR : KucoinExchange.NEGATIVE_HIGHLIGHT_COLOR;
-            java.awt.Color color2 = positive ? KucoinExchange.POSITIVE_HIGHLIGHT_COLOR : KucoinExchange.NEGATIVE_COLOR;
+            java.awt.Color color1 = positive ? Drawing.POSITIVE_COLOR : Drawing.NEGATIVE_HIGHLIGHT_COLOR;
+            java.awt.Color color2 = positive ? Drawing.POSITIVE_HIGHLIGHT_COLOR : Drawing.NEGATIVE_COLOR;
 
             Drawing.drawBarFillColor(positive ? 0 : 1, false, FILL_COLOR, color1.getRGB(), color2.getRGB(), img, x1, y1, x2, y2);
 
@@ -255,9 +263,9 @@ public class KucoinMarketItem {
             Button closeBtn = new Button();
             Button fillRightBtn = new Button();
 
-            HBox titleBox = App.createTopBar(m_dataList.getKucoinExchange().getSmallAppIcon(), fillRightBtn, maximizeBtn, closeBtn, m_stage);
+            HBox titleBox = Stages.createTopBar(m_dataList.getKucoinExchange().getSmallAppIcon(), fillRightBtn, maximizeBtn, closeBtn, m_stage);
 
-            BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedMenuButton menuButton = new BufferedMenuButton("/assets/menu-outline-30.png", Stages.MENU_BAR_IMAGE_WIDTH);
 
             HBox menuAreaBox = new HBox();
             HBox.setHgrow(menuAreaBox, Priority.ALWAYS);
@@ -293,13 +301,13 @@ public class KucoinMarketItem {
             });
 
             Text headingText = new Text(m_name + "  - ");
-            headingText.setFont(App.txtFont);
+            headingText.setFont(Stages.txtFont);
             headingText.setFill(Color.WHITE);
 
             Region headingSpacerL = new Region();
 
             MenuButton timeSpanBtn = new MenuButton(m_timeSpan.getName());
-            timeSpanBtn.setFont(App.txtFont);
+            timeSpanBtn.setFont(Stages.txtFont);
 
             timeSpanBtn.setContentDisplay(ContentDisplay.LEFT);
             timeSpanBtn.setAlignment(Pos.CENTER_LEFT);
@@ -350,7 +358,7 @@ public class KucoinMarketItem {
                 public void onMsgChanged(JsonObject newVal) {
                     if (newVal != null) {
 
-                        JsonElement subjectElement = newVal.get(App.CMD);
+                        JsonElement subjectElement = newVal.get(NoteConstants.CMD);
                         JsonElement topicElement = newVal.get("topic");
                         JsonElement dataElement = newVal.get("data");
 
@@ -437,8 +445,8 @@ public class KucoinMarketItem {
             cancelRangeBtn.setMaxHeight(20);
 
             Text rangeText = new Text(String.format("%-14s", "Price range"));
-            rangeText.setFont(App.titleFont);
-            rangeText.setFill(App.txtColor);
+            rangeText.setFont(Stages.titleFont);
+            rangeText.setFill(Stages.txtColor);
 
             HBox chartRangeToolbox = new HBox(rangeText, setRangeBtn, btnSpacer, cancelRangeBtn);
             chartRangeToolbox.setId("bodyBox");

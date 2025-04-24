@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
 import javafx.beans.property.SimpleObjectProperty;
 
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.HashData;
+import io.netnotes.engine.NamedNodeUrl;
+import io.netnotes.engine.Utils;
 import com.google.gson.JsonElement;
 
 import org.apache.commons.codec.binary.Hex;

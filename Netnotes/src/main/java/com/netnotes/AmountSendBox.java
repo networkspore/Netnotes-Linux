@@ -8,8 +8,16 @@ import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import com.devskiller.friendly_id.FriendlyId;
-import com.utils.Utils;
+import io.netnotes.engine.AmountBoxInterface;
+import io.netnotes.engine.Drawing;
+import io.netnotes.engine.networks.ergo.ErgoCurrency;
+import io.netnotes.engine.IconButton;
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.engine.PriceQuote;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -106,6 +114,11 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
         amountField.setEditable(editable);
         amountField.setPadding(new Insets(3, 10, 3, 10));
         amountField.setUserData(textFieldId);
+        amountField.setOnKeyPressed(e->{
+            if (Utils.keyCombCtrZ.match(e) ) { 
+                e.consume();
+            }
+        });
         amountField.textProperty().addListener((obs, oldval, newval)->{
             PriceCurrency currency = balance.getCurrency();
             String number = newval.replaceAll("[^0-9.]", "");
@@ -117,10 +130,9 @@ public class AmountSendBox extends HBox implements AmountBoxInterface {
         
             amountField.setText(leftSide +  rightSide);
         });
-      
 
         Button enterButton = new Button("[ ENTER ]");
-        enterButton.setFont(App.txtFont);
+        enterButton.setFont(Stages.txtFont);
         enterButton.setId("toolBtn");
 
         

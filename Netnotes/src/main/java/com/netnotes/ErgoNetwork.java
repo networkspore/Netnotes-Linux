@@ -1,18 +1,29 @@
 package com.netnotes;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Future;
 
 import org.ergoplatform.appkit.NetworkType;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import io.netnotes.engine.AppBox;
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NetworkInformation;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.TabInterface;
+import io.netnotes.engine.networks.ergo.ErgoConstants;
+import io.netnotes.engine.networks.ergo.ErgoExplorersAppBox;
+import io.netnotes.engine.networks.ergo.ErgoMarketAppBox;
+import io.netnotes.engine.networks.ergo.ErgoNodesAppBox;
+import io.netnotes.engine.networks.ergo.ErgoWalletsAppBox;
+import io.netnotes.engine.networks.ergo.ErgoTokenMarketAppBox;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.utils.Utils;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
@@ -39,16 +50,9 @@ public class ErgoNetwork extends Network implements NoteInterface {
     public final static String SUMMARY = "";
     public final static String NETWORK_ID = "ERGO_NETWORK";
 
-    public static final String WALLET_NETWORK = "WALLET_NETWORK";
-    public static final String NODE_NETWORK = "NODE_NETWORK";
-    public static final String EXPLORER_NETWORK = "EXPLORER_NETWORK";
-    public static final String MARKET_NETWORK = "MARKET_NETWORK";
-    public static final String TOKEN_MARKET_NETWORK = "TOKEN_MARKET_NETWORK";
-    
-    public final static BigDecimal MIN_NETWORK_FEE = BigDecimal.valueOf(0.001);
-    public final static long MIN_NANO_ERGS = 1000000L;
 
-    public static final int COL_WIDTH = 160;
+
+
     
     private NetworkType m_networkType = NetworkType.MAINNET;
    
@@ -89,11 +93,11 @@ public class ErgoNetwork extends Network implements NoteInterface {
     }
 
     public static String getAppIconString(){
-        return "/assets/ergo-network.png";
+        return ErgoConstants.ERGO_NETWORK_ICON256;
     }
 
     public static String getSmallAppIconString(){
-        return "/assets/ergo-network-30.png";
+        return ErgoConstants.ERGO_NETWORK_ICON;
     }
     public JsonArray getKeyWordsArray(){
         JsonArray keywordsArray = new JsonArray();
@@ -123,7 +127,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     @Override
     protected void start(){
-        if(getConnectionStatus() == App.STOPPED){
+        if(getConnectionStatus() == NoteConstants.STOPPED){
             super.start();
             
         }
@@ -141,12 +145,12 @@ public class ErgoNetwork extends Network implements NoteInterface {
     private void sendStatus(){
         long timeStamp = System.currentTimeMillis();
 
-        JsonObject json = Utils.getJsonObject("code", App.STATUS);
+        JsonObject json = NoteConstants.getJsonObject("code", NoteConstants.STATUS);
         json.addProperty("networkId", ErgoNetwork.NETWORK_ID);
         json.addProperty("timeStamp", timeStamp);
         json.addProperty("statusCode", getConnectionStatus());
 
-        sendMessage(App.STATUS, timeStamp, ErgoNetwork.NETWORK_ID, json.toString());
+        sendMessage(NoteConstants.STATUS, timeStamp, ErgoNetwork.NETWORK_ID, json.toString());
     }
 
    
@@ -164,10 +168,9 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
     @Override
     public Object sendNote(JsonObject note){
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
         JsonElement networkIdElement = note.get("networkId");
         JsonElement locationIdElement = note.get("locationId");
-      
     
         if (cmdElement != null  && networkIdElement != null && networkIdElement != null && networkIdElement.isJsonPrimitive() && locationIdElement != null && locationIdElement.isJsonPrimitive()) {
             String locationId = locationIdElement.getAsString();
@@ -182,13 +185,13 @@ public class ErgoNetwork extends Network implements NoteInterface {
                 String networkId = networkIdElement.getAsString();
 
                 switch(networkId){
-                    case WALLET_NETWORK:
+                    case NoteConstants.WALLET_NETWORK:
                         return m_ergNetData.getErgoWallets().sendNote(note);
-                    case EXPLORER_NETWORK:
+                    case NoteConstants.EXPLORER_NETWORK:
                         return m_ergNetData.getErgoExplorers().sendNote(note);
-                    case NODE_NETWORK:
+                    case NoteConstants.NODE_NETWORK:
                         return m_ergNetData.getErgoNodes().sendNote(note);
-                    case MARKET_NETWORK:
+                    case NoteConstants.MARKET_NETWORK:
                         return m_ergNetData.getErgoMarkets().sendNote(note);
 
                
@@ -204,7 +207,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
     
     @Override
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
         JsonElement networkIdElement = note.get("networkId");
         JsonElement locationIdElement = note.get("locationId");
 
@@ -220,13 +223,13 @@ public class ErgoNetwork extends Network implements NoteInterface {
                 String networkId = networkIdElement.getAsString();
 
                 switch(networkId){
-                    case WALLET_NETWORK:
+                    case NoteConstants.WALLET_NETWORK:
                         return m_ergNetData.getErgoWallets().sendNote(note, onSucceeded, onFailed);
-                    case EXPLORER_NETWORK:
+                    case NoteConstants.EXPLORER_NETWORK:
                         return m_ergNetData.getErgoExplorers().sendNote(note, onSucceeded, onFailed);
-                    case NODE_NETWORK:
+                    case NoteConstants.NODE_NETWORK:
                         return m_ergNetData.getErgoNodes().sendNote(note, onSucceeded, onFailed);
-                    case MARKET_NETWORK:
+                    case NoteConstants.MARKET_NETWORK:
                       return m_ergNetData.getErgoMarkets().sendNote(note, onSucceeded, onFailed);
                 }
 
@@ -257,6 +260,20 @@ public class ErgoNetwork extends Network implements NoteInterface {
             return m_ergoNetworkTab;
         }
     }
+    @Override
+    protected void sendMessage(int code, long timeStamp,String networkId, String msg){
+        super.sendMessage(code, timeStamp, networkId, msg);
+    }
+
+    @Override
+    protected void sendMessage(int code, long timeStamp, String networkId, Number num){
+        super.sendMessage(code, timeStamp, networkId, num);
+    }
+
+    @Override
+    protected NoteMsgInterface getListener(String id){
+        return super.getListener(id);
+    }
 
     private class ErgoNetworkTab extends AppBox implements TabInterface{
         
@@ -272,7 +289,7 @@ public class ErgoNetwork extends Network implements NoteInterface {
         private VBox m_tabScrollContent = null;
         private NoteMsgInterface m_ergoNetworkMsgInterface = null;
         
-        private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
+        private SimpleStringProperty m_status = new SimpleStringProperty(NoteConstants.STATUS_STOPPED);
         private Button m_menuBtn;
 
         private SimpleStringProperty m_titleProperty = new SimpleStringProperty(getName());
@@ -296,8 +313,8 @@ public class ErgoNetwork extends Network implements NoteInterface {
             m_tabScroll.prefViewportHeightProperty().bind(heightObject);
             m_tabScroll.prefViewportWidthProperty().bind(widthObject);
 
-            m_tabScrollContent.prefWidthProperty().bind(widthObject.subtract(App.VIEWPORT_WIDTH_OFFSET));
-            m_tabScrollContent.minHeightProperty().bind(heightObject.subtract(App.VIEWPORT_HEIGHT_OFFSET));
+            m_tabScrollContent.prefWidthProperty().bind(widthObject.subtract(Stages.VIEWPORT_WIDTH_OFFSET));
+            m_tabScrollContent.minHeightProperty().bind(heightObject.subtract(Stages.VIEWPORT_HEIGHT_OFFSET));
 
             getChildren().add(m_tabScroll);
           
@@ -314,19 +331,19 @@ public class ErgoNetwork extends Network implements NoteInterface {
                 }
                 public void sendMessage(int code, long timestamp, String networkId, Number num){
                     switch(networkId){
-                        case WALLET_NETWORK:
+                        case NoteConstants.WALLET_NETWORK:
                             m_ergoWalletsAppBox.sendMessage(code, timestamp,networkId, num);
                         break;
-                        case NODE_NETWORK:
+                        case NoteConstants.NODE_NETWORK:
                             m_ergoNodesAppBox.sendMessage(code, timestamp, networkId, num);
                         break;
-                        case EXPLORER_NETWORK:
+                        case NoteConstants.EXPLORER_NETWORK:
                             m_ergoExplorerAppBox.sendMessage(code, timestamp, networkId, num);
                         break;
-                        case MARKET_NETWORK:
+                        case NoteConstants.MARKET_NETWORK:
                             m_ergoMarketsAppBox.sendMessage(code, timestamp, networkId, num);
                         break;
-                        case TOKEN_MARKET_NETWORK:
+                        case NoteConstants.TOKEN_MARKET_NETWORK:
                             m_ergoTokenMarketAppBox.sendMessage(code, timestamp, networkId, num);
                         break;
                     }
@@ -334,19 +351,19 @@ public class ErgoNetwork extends Network implements NoteInterface {
 
                 public void sendMessage(int code, long timestamp, String networkId, String msg){
                     switch(networkId){
-                        case WALLET_NETWORK:
+                        case NoteConstants.WALLET_NETWORK:
                             m_ergoWalletsAppBox.sendMessage(code, timestamp,networkId, msg);
                         break;
-                        case NODE_NETWORK:
+                        case NoteConstants.NODE_NETWORK:
                             m_ergoNodesAppBox.sendMessage(code, timestamp, networkId, msg);
                         break;
-                        case EXPLORER_NETWORK:
+                        case NoteConstants.EXPLORER_NETWORK:
                             m_ergoExplorerAppBox.sendMessage(code, timestamp, networkId, msg);
                         break;
-                        case MARKET_NETWORK:
+                        case NoteConstants.MARKET_NETWORK:
                             m_ergoMarketsAppBox.sendMessage(code, timestamp, networkId, msg);
                         break;
-                        case TOKEN_MARKET_NETWORK:
+                        case NoteConstants.TOKEN_MARKET_NETWORK:
                             m_ergoTokenMarketAppBox.sendMessage(code, timestamp, networkId, msg);
                         break;
                     }
@@ -441,20 +458,19 @@ public class ErgoNetwork extends Network implements NoteInterface {
     
         public void setStatus(String value){
             switch(value){
-                case App.STATUS_STOPPED:
+                case NoteConstants.STATUS_STOPPED:
                     m_menuBtn.setId("menuTabBtn");
                     shutdown();
                     m_ergoNetworkTab = null;
                 break;
-                case App.STATUS_MINIMIZED:
+                case NoteConstants.STATUS_MINIMIZED:
                     m_menuBtn.setId("minimizedMenuBtn"); 
                 break;
-                case App.STATUS_STARTED:
+                case NoteConstants.STATUS_STARTED:
                     m_menuBtn.setId("activeMenuBtn");
                 break;
                 
             }
-            
             m_status.set(value);
         }
     

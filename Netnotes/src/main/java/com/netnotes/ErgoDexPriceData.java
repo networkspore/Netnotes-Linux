@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.Utils;
 
 
 public class ErgoDexPriceData {

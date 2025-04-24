@@ -2,11 +2,13 @@ package com.netnotes;
 
 import org.ergoplatform.appkit.NetworkType;
 
+import io.netnotes.engine.PriceCurrency;
+
 public class SPFCurrency extends PriceCurrency {
     public final static String TOKEN_ID = "9a06d9e545a41fd51eeffc5e20d818073bf820c635e2a9d922269913e0de369d";
     public final static String NAME = "SPF";
     public final static String SYMBOL = "SPF";
-    public final static String IMAGE_STRING = "/assets/spf.svg";
+    public final static String IMAGE_STRING = "/assets/ergoTokenIcons/spf.png";
     public final static int DECIMALS = 6;
     public final static String FONT_SYMBOL  = "SPF";
     public final static String TOKEN_TYPE = "EIP-004";

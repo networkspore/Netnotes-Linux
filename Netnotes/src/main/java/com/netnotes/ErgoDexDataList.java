@@ -13,15 +13,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.networks.ergo.ErgoBox;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.engine.PriceQuote;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 
 import org.reactfx.util.FxTimer;
 import org.reactfx.util.Timer;
-
-import com.utils.Utils;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -69,7 +75,7 @@ public class ErgoDexDataList  {
     private SimpleBooleanProperty m_isInvert;
    
 
-    private int m_connectionStatus = App.STOPPED;
+    private int m_connectionStatus = NoteConstants.STOPPED;
     
     public static final int MIN_BTN_IMG_WIDTH = 350;
     
@@ -116,7 +122,7 @@ public class ErgoDexDataList  {
         m_gridHeight = gridHeight;
         m_timeSpanObject = timeSpanObject;
 
-        m_defaultCharSize = Utils.computeTextWidth(App.txtFont, " ");
+        m_defaultCharSize = Utils.computeTextWidth(Stages.txtFont, " ");
 
         m_layoutBox = new VBox();
         m_layoutBox.setId("darkBox");
@@ -191,7 +197,7 @@ public class ErgoDexDataList  {
                     statusLabel.setText( LOADING);
 
                     return;
-                case App.STATUS_ERROR:
+                case NoteConstants.STATUS_ERROR:
                     
                     statusLabel.setText( m_errMsg);
 
@@ -268,36 +274,36 @@ public class ErgoDexDataList  {
             }
 
             public void sendMessage(int code, long timeStamp, String poolId, Number num){
-  
-                    switch(code){
-                        case App.LIST_CHANGED:
-                        case App.LIST_UPDATED:
-                            m_statusMsg.set(App.STATUS_STARTED);
-                            updateMarkets(m_ergodex.marketsList());
-                            m_connectionStatus = App.STARTED;
+            
+                switch(code){
+                    case NoteConstants.LIST_CHANGED:
+                    case NoteConstants.LIST_UPDATED:
+                        m_statusMsg.set(NoteConstants.STATUS_STARTED);
+                        updateMarkets(m_ergodex.marketsList());
+                        m_connectionStatus = NoteConstants.STARTED;
+                    
+
+                    case NoteConstants.STOPPED:
+
+                    break;
+                    case NoteConstants.STARTED:
+                        m_connectionStatus = NoteConstants.STARTED;
+                    case NoteConstants.ERROR:
+                        //   JsonElement msgElement = json != null ? json.get("msg") : null;
+                        m_connectionStatus = NoteConstants.ERROR;
                         
-
-                        case App.STOPPED:
-
-                        break;
-                        case App.STARTED:
-                            m_connectionStatus = App.STARTED;
-                        case App.ERROR:
-                         //   JsonElement msgElement = json != null ? json.get("msg") : null;
-                            m_connectionStatus = App.ERROR;
-                            
-                          
-                        //  getLastUpdated().set(LocalDateTime.now());
-                        break;
-                    } 
+                        
+                    //  getLastUpdated().set(LocalDateTime.now());
+                    break;
+                } 
                 
             }
         
             public void sendMessage(int code, long timestamp, String networkId, String msg){
-                if(code == App.ERROR){
-                    m_connectionStatus = App.ERROR;
+                if(code == NoteConstants.ERROR){
+                    m_connectionStatus = NoteConstants.ERROR;
                     m_errMsg = msg;
-                    m_statusMsg.set(App.STATUS_ERROR);
+                    m_statusMsg.set(NoteConstants.STATUS_ERROR);
                 }
             }
 
@@ -305,9 +311,9 @@ public class ErgoDexDataList  {
 
         };
         
-        if(m_ergodex.getConnectionStatus() == App.STARTED && m_ergodex.marketsList().size() > 0){
+        if(m_ergodex.getConnectionStatus() == NoteConstants.STARTED && m_ergodex.marketsList().size() > 0){
             updateMarkets(m_ergodex.marketsList());
-            m_connectionStatus = App.STARTED;
+            m_connectionStatus = NoteConstants.STARTED;
         }
 
         m_ergodex.addMsgListener(m_spectrumMsgInterface);
@@ -399,7 +405,7 @@ public class ErgoDexDataList  {
             
         }
         
-        if(update.get() || m_connectionStatus == App.ERROR){
+        if(update.get() || m_connectionStatus == NoteConstants.ERROR){
             sort();
             updateGrid();
         }
@@ -648,7 +654,7 @@ public class ErgoDexDataList  {
                     }
                 }, (onFailed)->{
                     try {
-                        Files.writeString(App.logFile.toPath(), "failed: " + onFailed.getSource().getException().toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(NoteConstants.logFile.toPath(), "failed: " + onFailed.getSource().getException().toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e) {
     
                     }
@@ -687,7 +693,7 @@ public class ErgoDexDataList  {
     }
 
     public PriceQuote getTokenQuoteInErg(String tokenId){
-        JsonObject note = Utils.getCmdObject("getTokenQuoteInErg");
+        JsonObject note = NoteConstants.getCmdObject("getTokenQuoteInErg");
         note.addProperty("locationId", getLocationId());
         note.addProperty("tokenId", tokenId);
         Object obj = getErgoDex().sendNote(note);
@@ -695,7 +701,7 @@ public class ErgoDexDataList  {
     }
 
     public PriceQuote getErgoQuoteInToken(String quoteId){
-        JsonObject note = Utils.getCmdObject("getQuoteById");
+        JsonObject note = NoteConstants.getCmdObject("getQuoteById");
         note.addProperty("locationId", getLocationId());
         note.addProperty("quoteId", quoteId);
         Object obj = getErgoDex().sendNote(note);
@@ -704,7 +710,7 @@ public class ErgoDexDataList  {
 
     
     public PriceQuote getQuoteById(String baseId, String quoteId){
-        JsonObject note = Utils.getCmdObject("getQuoteById");
+        JsonObject note = NoteConstants.getCmdObject("getQuoteById");
         note.addProperty("locationId", getLocationId());
         note.addProperty("baseId", baseId);
         note.addProperty("quoteId", quoteId);
@@ -747,13 +753,13 @@ public class ErgoDexDataList  {
 
     public void shutdown(){
  
-        m_connectionStatus = App.STOPPED;
+        m_connectionStatus = NoteConstants.STOPPED;
 
         m_marketsList.forEach((item)->{
             item.shutdown();
         });
        
-        statusMsgProperty().set(App.STATUS_STOPPED);
+        statusMsgProperty().set(NoteConstants.STATUS_STOPPED);
 
         m_ergodex.removeMsgListener(m_spectrumMsgInterface);
         m_spectrumMsgInterface = null;

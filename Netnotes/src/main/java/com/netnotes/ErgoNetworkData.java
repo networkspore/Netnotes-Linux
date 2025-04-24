@@ -4,8 +4,10 @@ import java.util.ArrayList;
 
 import org.ergoplatform.appkit.NetworkType;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.beans.property.SimpleLongProperty;
 

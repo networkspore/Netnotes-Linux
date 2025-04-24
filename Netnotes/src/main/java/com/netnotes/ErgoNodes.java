@@ -6,6 +6,8 @@ import java.util.concurrent.Future;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.NetworkInformation;
+import io.netnotes.engine.NoteConstants;
 
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
@@ -61,7 +63,7 @@ public class ErgoNodes {
     public Object sendNote(JsonObject note){
         
         if(m_ergoNodesList != null){
-            JsonElement cmdElement = note.get(App.CMD);
+            JsonElement cmdElement = note.get(NoteConstants.CMD);
 
             switch (cmdElement.getAsString()) {
                 case "getNodes":
@@ -96,7 +98,7 @@ public class ErgoNodes {
 
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        JsonElement cmdElement = note != null ? note.get(App.CMD) : null;
+        JsonElement cmdElement = note != null ? note.get(NoteConstants.CMD) : null;
         JsonElement idElement = note != null ? note.get("id") : null;
         
         if(cmdElement != null){
@@ -142,7 +144,7 @@ public class ErgoNodes {
 
             Button maximizeBtn = new Button();
 
-            HBox titleBox = App.createTopBar(getSmallAppIcon(), maximizeBtn, closeBtn, m_stage);
+            HBox titleBox = NoteConstants.createTopBar(getSmallAppIcon(), maximizeBtn, closeBtn, m_stage);
 
             ScrollPane scrollPane = new ScrollPane();
             scrollPane.setId("bodyBox");
@@ -289,6 +291,6 @@ public class ErgoNodes {
     }
 
     public NetworkInformation getNetworkInformation(){
-        return new NetworkInformation(ErgoNetwork.NODE_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
+        return new NetworkInformation(NoteConstants.NODE_NETWORK, NAME, getAppIconString(), getSmallAppIconString(), DESCRIPTION);
     }
 }

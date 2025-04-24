@@ -6,8 +6,11 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 
-import com.devskiller.friendly_id.FriendlyId;
-import com.utils.Utils;
+import io.netnotes.engine.Drawing;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.engine.PriceQuote;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
@@ -71,6 +74,11 @@ public class AmountFeeBox extends HBox {
         amountField.setAlignment(Pos.CENTER_LEFT);
         amountField.setPadding(new Insets(3, 0, 3, 0));
         amountField.setUserData(textFieldId);
+        amountField.setOnKeyPressed(e->{
+            if (Utils.keyCombCtrZ.match(e) ) { 
+                e.consume();
+            }
+        });
         amountField.textProperty().addListener((obs, oldval, newval)->{
            
             String number = newval.replaceAll("[^0-9.]", "");

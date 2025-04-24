@@ -1,6 +1,7 @@
 package com.netnotes;
 
 import com.google.gson.JsonObject;
+import io.netnotes.engine.IconButton;
 
 public class Contact extends IconButton {
 

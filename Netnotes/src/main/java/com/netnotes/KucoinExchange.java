@@ -24,13 +24,21 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.reactfx.util.FxTimer;
 
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import com.utils.Utils;
+import io.netnotes.engine.BufferedButton;
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NetworkInformation;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.ResizeHelper;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -44,10 +52,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -77,12 +82,6 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     private File logFile = new File("netnotes-log.txt");
 
-    public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
-    public static java.awt.Color POSITIVE_COLOR = new java.awt.Color(0xff028A0F, true);
-
-    public static java.awt.Color NEGATIVE_COLOR = new java.awt.Color(0xff9A2A2A, true);
-    public static java.awt.Color NEGATIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xffe96d71, true);
-    public static java.awt.Color NEUTRAL_COLOR = new java.awt.Color(0x111111);
 
     public final static int CONNECTED = 4;
     private WebSocketClient m_websocketClient = null;
@@ -307,7 +306,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             Button maxBtn = new Button();
 
-            HBox titleBox = App.createTopBar(getSmallAppIcon(), maxBtn, closeBtn, m_appStage);
+            HBox titleBox = Stages.createTopBar(getSmallAppIcon(), maxBtn, closeBtn, m_appStage);
             titleBox.setPadding(new Insets(7, 8, 5, 10));
 
             m_appStage.titleProperty().bind(Bindings.concat(NAME, " - ", kucoinData.statusProperty()));
@@ -317,9 +316,9 @@ public class KucoinExchange extends Network implements NoteInterface {
 
             Tooltip refreshTip = new Tooltip("Refresh");
             refreshTip.setShowDelay(new javafx.util.Duration(100));
-            refreshTip.setFont(App.txtFont);
+            refreshTip.setFont(Stages.txtFont);
 
-            BufferedButton refreshBtn = new BufferedButton("/assets/refresh-white-30.png",App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton refreshBtn = new BufferedButton("/assets/refresh-white-30.png",Stages.MENU_BAR_IMAGE_WIDTH);
      
             refreshBtn.setId("menuBtn");
             refreshBtn.setOnAction(refreshAction -> {
@@ -364,7 +363,7 @@ public class KucoinExchange extends Network implements NoteInterface {
             Font smallerFont = Font.font("OCR A Extended", 10);
 
             Text lastUpdatedTxt = new Text("Updated ");
-            lastUpdatedTxt.setFill(App.formFieldColor);
+            lastUpdatedTxt.setFill(Stages.formFieldColor);
             lastUpdatedTxt.setFont(smallerFont);
 
             TextField lastUpdatedField = new TextField();
@@ -623,7 +622,7 @@ public class KucoinExchange extends Network implements NoteInterface {
 
     public JsonObject getReadyJson() {
         JsonObject json = new JsonObject();
-        json.addProperty(App.CMD, "READY");
+        json.addProperty(NoteConstants.CMD, "READY");
         json.addProperty("networkId", getNetworkId());
         return json;
     }
@@ -773,7 +772,7 @@ public class KucoinExchange extends Network implements NoteInterface {
                 }
                 m_openTunnels.clear();
 
-                m_socketMsg.set(Utils.getCmdObject("close"));
+                m_socketMsg.set(NoteConstants.getCmdObject("close"));
                 setConnectionStatus(0);
                 m_connectionStatusProperty.set(0);
             
@@ -803,7 +802,7 @@ public class KucoinExchange extends Network implements NoteInterface {
     @Override
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
 
-        JsonElement subjecElement = note.get(App.CMD);
+        JsonElement subjecElement = note.get(NoteConstants.CMD);
         JsonElement transactionCurrencyElement = note.get("transactionCurrency");
         JsonElement quoteCurrencyElement = note.get("quoteCurrency");
 

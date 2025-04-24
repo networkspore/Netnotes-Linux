@@ -1,5 +1,8 @@
 package com.netnotes;
 
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NoteInterface;
+
 import javafx.scene.layout.VBox;
 
 public class AddressAmountsList extends Network {

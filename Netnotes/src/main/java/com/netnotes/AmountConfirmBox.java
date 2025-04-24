@@ -10,6 +10,10 @@ import javafx.scene.image.ImageView;
 
 import java.math.BigDecimal;
 
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.engine.Stages;
+
 import javafx.scene.layout.VBox;
 
 public class AmountConfirmBox extends AmountBox {
@@ -64,9 +68,9 @@ public class AmountConfirmBox extends AmountBox {
         imgPaddingBox.setPadding(new Insets(0,15,0,10)); 
         imgPaddingBox.setAlignment(Pos.CENTER_LEFT);
         imgPaddingBox.minHeightProperty().bind(m_rowHeight);
-
+        
         TextField currencyName = new TextField(m_defaultName);
-        currencyName.setFont(App.txtFont);
+        currencyName.setFont(Stages.txtFont);
         currencyName.setPadding(new Insets(3, 10, 3, 10));
         currencyName.setPrefWidth(60);
 

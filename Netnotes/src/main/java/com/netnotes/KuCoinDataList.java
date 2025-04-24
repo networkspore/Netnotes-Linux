@@ -19,13 +19,15 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 
-
-
-import com.devskiller.friendly_id.FriendlyId;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.utils.Utils;
+import io.netnotes.engine.IconButton;
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -588,11 +590,11 @@ public class KuCoinDataList extends Network implements NoteInterface {
             HBox imageBox = new HBox();
             imageBox.setAlignment(Pos.CENTER);
             HBox.setHgrow(imageBox, Priority.ALWAYS);
-
+            
             if (m_notConnected) {
                 Button notConnectedBtn = new Button("No Connection");
-                notConnectedBtn.setFont(App.txtFont);
-                notConnectedBtn.setTextFill(App.txtColor);
+                notConnectedBtn.setFont(Stages.txtFont);
+                notConnectedBtn.setTextFill(Stages.txtColor);
                 notConnectedBtn.setId("menuBtn");
                 notConnectedBtn.setGraphicTextGap(15);
                 notConnectedBtn.setGraphic(IconButton.getIconView(new Image("/assets/cloud-offline-150.png"), 150));
@@ -603,7 +605,7 @@ public class KuCoinDataList extends Network implements NoteInterface {
 
             } else {
                 Button loadingBtn = new Button("Loading...");
-                loadingBtn.setFont(App.txtFont);
+                loadingBtn.setFont(Stages.txtFont);
                 loadingBtn.setTextFill(Color.WHITE);
                 loadingBtn.setId("transparentColor");
                 loadingBtn.setGraphicTextGap(15);

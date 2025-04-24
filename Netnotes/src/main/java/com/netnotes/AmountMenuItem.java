@@ -9,7 +9,10 @@ import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import com.devskiller.friendly_id.FriendlyId;
+import io.netnotes.engine.Drawing;
+import io.netnotes.engine.PriceAmount;
+import io.netnotes.engine.PriceCurrency;
+import io.netnotes.friendly_id.FriendlyId;
 
 import javafx.beans.value.ChangeListener;
 import javafx.embed.swing.SwingFXUtils;

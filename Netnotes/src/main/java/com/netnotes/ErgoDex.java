@@ -7,6 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -22,8 +25,20 @@ import org.ergoplatform.appkit.NetworkType;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.netnotes.NetworksData.ManageNetworksTab;
-import com.utils.Utils;
+import io.netnotes.engine.AppBox;
+import io.netnotes.engine.BufferedButton;
+import io.netnotes.engine.networks.NetworkConstants;
+import io.netnotes.engine.networks.ergo.ErgoCurrency;
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NetworkInformation;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.TabInterface;
+import io.netnotes.engine.Utils;
+import io.netnotes.engine.NetworksData.ManageNetworksTab;
 
 import javafx.beans.binding.Binding;
 import javafx.beans.binding.Bindings;
@@ -31,6 +46,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -60,7 +76,7 @@ public class ErgoDex extends Network implements NoteInterface {
     public final static String NETWORK_ID = "ERGO_DEX";
     public final static String API_URL = "https://api.spectrum.fi";
 
-    public final static String IMAGE_LINK = "https://raw.githubusercontent.com/spectrum-finance/token-logos/master/logos/ergo";
+   // public final static String IMAGE_LINK = "https://raw.githubusercontent.com/spectrum-finance/token-logos/master/logos/ergo";
 
 
     public static java.awt.Color POSITIVE_HIGHLIGHT_COLOR = new java.awt.Color(0xff3dd9a4, true);
@@ -83,9 +99,18 @@ public class ErgoDex extends Network implements NoteInterface {
 
     public final static String MINER_ADDRESS = "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe";
 
-    public final static long BLOCK_TIME_MILLIS = 2L * 60L * 1000L;
-    public final static long DATA_TIMEOUT_SPAN = (15*1000)-100;
-    public final static long TICKER_DATA_TIMEOUT_SPAN = 1000*60;
+    public final static long ONE_SECOND_MILLIS =    1000L;
+    public final static long ONE_MINUTE_MILLIS =    1000L * 60L;
+    public final static long ONE_HOUR_MILLIS =      1000L * 60L * 60L;
+
+    public static final long ONE_DAY_MILLIS =       1000L * 60L * 60L * 24;
+    public static final long ONE_WEEK_MILLIS =      1000L * 60L * 60L * 24L * 7L;
+
+    public static final long ONE_MONTH_MILLIS =     1000L * 60L * 60L * 24L * 7L * 4L;
+    public static final long SIX_MONTH_MILLIS =     1000L * 60L * 60L * 24L * 7L * 4L * 6L;
+    public static final long ONE_YEAR_MILLIS =      1000L * 60L * 60L * 24L * 365L;
+
+    public final static long BLOCK_TIME_MILLIS = ONE_MINUTE_MILLIS * 2L;
     
     public final static BigDecimal MIN_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.01);
     public final static BigDecimal DEFAULT_SLIPPAGE_TOLERANCE = BigDecimal.valueOf(0.03);
@@ -108,7 +133,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
     private ArrayList<ErgoDexMarketData> m_marketsList = new ArrayList<>();
 
-
+    private int m_n2tItems = 0;
 
     private ScheduledExecutorService m_schedualedExecutor = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> m_scheduledFuture = null;
@@ -167,7 +192,7 @@ public class ErgoDex extends Network implements NoteInterface {
     }
 
 
-    public static ErgoDexMarketData getMarketDataByTickerId(ArrayList<ErgoDexMarketData> dataList, String tickerId) {
+    public static ErgoDexMarketData getMarketDataByTickerId(ErgoDexMarketData[] dataList, String tickerId) {
         if (tickerId != null) {
             for (ErgoDexMarketData data : dataList) {
                 if (data.getTickerId().equals(tickerId) ) {
@@ -308,7 +333,7 @@ public class ErgoDex extends Network implements NoteInterface {
     private class ErgoDexTab extends AppBox implements TabInterface{
         private Button m_menuBtn;
         private ErgoDexDataList m_dexDataList = null;
-        private String noNetworkImgString = "/assets/globe-outline-white-30.png";
+        private String noNetworkImgString = NetworkConstants.NETWORK_ICON;
 
         private boolean m_isErgoNetwork = true;
         
@@ -317,7 +342,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
         private SimpleObjectProperty<TimeSpan> m_itemTimeSpan = new SimpleObjectProperty<TimeSpan>(new TimeSpan("1day"));
         private SimpleBooleanProperty m_isInvert = new SimpleBooleanProperty(false);
-        private SimpleStringProperty m_status = new SimpleStringProperty(App.STATUS_STOPPED);
+        private SimpleStringProperty m_status = new SimpleStringProperty(NoteConstants.STATUS_STOPPED);
         private HBox m_menuBar;
         private VBox m_bodyPaddingBox;
 
@@ -421,7 +446,7 @@ public class ErgoDex extends Network implements NoteInterface {
             
             Tooltip networkTip = new Tooltip("Network: (select)");
             networkTip.setShowDelay(new javafx.util.Duration(50));
-            networkTip.setFont(App.txtFont);
+            networkTip.setFont(Stages.txtFont);
 
             networkMenuBtn.setTooltip(networkTip);
 
@@ -454,11 +479,11 @@ public class ErgoDex extends Network implements NoteInterface {
             /*
             Tooltip refreshTip = new Tooltip("Refresh");
             refreshTip.setShowDelay(new javafx.util.Duration(100));
-            refreshTip.setFont(App.txtFont);
+            refreshTip.setFont(NoteConstants.txtFont);
 
         
 
-            BufferedMenuButton sortTypeButton = new BufferedMenuButton("/assets/filter.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedMenuButton sortTypeButton = new BufferedMenuButton("/assets/filter.png", NoteConstants.MENU_BAR_IMAGE_WIDTH);
 
             MenuItem sortLiquidityItem = new MenuItem(ErgpDexSort.SortType.LIQUIDITY_VOL);
             MenuItem sortBaseVolItem = new MenuItem(ErgpDexSort.SortType.BASE_VOL);
@@ -519,7 +544,7 @@ public class ErgoDex extends Network implements NoteInterface {
             });
 
 
-            BufferedButton sortDirectionButton = new BufferedButton(m_dexDataList.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton sortDirectionButton = new BufferedButton(m_dexDataList.getSortMethod().isAsc() ? "/assets/sortAsc.png" : "/assets/sortDsc.png", Stages.MENU_BAR_IMAGE_WIDTH);
             sortDirectionButton.setOnAction(e->{
                 ErgpDexSort sortMethod = m_dexDataList.getSortMethod();
                 sortMethod.setDirection(sortMethod.isAsc() ? ErgpDexSort.SortDirection.DSC : ErgpDexSort.SortDirection.ASC);
@@ -528,7 +553,7 @@ public class ErgoDex extends Network implements NoteInterface {
                 m_dexDataList.updateGrid();
             });
             */
-            BufferedButton swapTargetButton = new BufferedButton(m_dexDataList.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", App.MENU_BAR_IMAGE_WIDTH);
+            BufferedButton swapTargetButton = new BufferedButton(m_dexDataList.isInvertProperty().get() ? "/assets/targetSwapped.png" : "/assets/targetStandard.png", Stages.MENU_BAR_IMAGE_WIDTH);
             swapTargetButton.setOnAction(e->{
                 m_isInvert.set(!m_dexDataList.isInvertProperty().get());
             });
@@ -651,8 +676,8 @@ public class ErgoDex extends Network implements NoteInterface {
             Binding<String> errorTxtBinding = Bindings.createObjectBinding(()->(m_dexDataList.statusMsgProperty().get().startsWith("Error") ? m_dexDataList.statusMsgProperty().get() : "") ,m_dexDataList.statusMsgProperty());
 
             Text errorText = new Text("");
-            errorText.setFont(App.titleFont);
-            errorText.setFill(App.altColor);
+            errorText.setFont(Stages.titleFont);
+            errorText.setFill(Stages.altColor);
             errorText.textProperty().bind(errorTxtBinding);
             
             Region lastUpdatedRegion = new Region();
@@ -752,15 +777,15 @@ public class ErgoDex extends Network implements NoteInterface {
         public void setStatus(String value) {
             
             switch(value){
-                case App.STATUS_STOPPED:
+                case NoteConstants.STATUS_STOPPED:
                     m_menuBtn.setId("menuTabBtn");
                     shutdown();
                     
                 break;
-                case App.STATUS_MINIMIZED:
+                case NoteConstants.STATUS_MINIMIZED:
                     m_menuBtn.setId("minimizedMenuBtn"); 
                 break;
-                case App.STATUS_STARTED:
+                case NoteConstants.STATUS_STARTED:
                     m_menuBtn.setId("activeMenuBtn");
                 break;
                 
@@ -842,7 +867,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
     @Override
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed) {
-        JsonElement subjectElement = note.get(App.CMD);
+        JsonElement subjectElement = note.get(NoteConstants.CMD);
         JsonElement locationIdElement = note.get("locationId");
       
         String cmd = subjectElement != null && subjectElement.isJsonPrimitive() ? subjectElement.getAsString() : null;
@@ -956,110 +981,161 @@ public class ErgoDex extends Network implements NoteInterface {
         return Utils.getUrlJson(urlString, execService, onSucceeded, onFailed);
     }
 
-    private void getMarketUpdate(JsonArray jsonArray){
+    private static Future<?> parseList(JsonArray jsonArray, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded){
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() {
+                ArrayList<ErgoDexMarketData> tmpMarketsList = new ArrayList<>();
+                long timeStamp = System.currentTimeMillis();
 
-        ArrayList<ErgoDexMarketData> tmpMarketsList = new ArrayList<>();
-        long timeStamp = System.currentTimeMillis();
+                SimpleBooleanProperty isChanged = new SimpleBooleanProperty(false);
+                for (int i = 0; i < jsonArray.size(); i++) {
+            
+                    JsonElement marketObjectElement = jsonArray.get(i);
+                    if (marketObjectElement != null && marketObjectElement.isJsonObject()) {
 
-        SimpleBooleanProperty isChanged = new SimpleBooleanProperty(false);
-        for (int i = 0; i < jsonArray.size(); i++) {
-    
-            JsonElement marketObjectElement = jsonArray.get(i);
-            if (marketObjectElement != null && marketObjectElement.isJsonObject()) {
+                        JsonObject marketDataJson = marketObjectElement.getAsJsonObject();
+                        
+                        try{
+                            
+                            ErgoDexMarketData marketData = new ErgoDexMarketData(marketDataJson, timeStamp);
+                            
+                            int marketIndex = getMarketDataIndexById(tmpMarketsList, marketData.getId());
+                            
 
-                JsonObject marketDataJson = marketObjectElement.getAsJsonObject();
+                            if(marketIndex != -1){
+                                ErgoDexMarketData lastData = tmpMarketsList.get(marketIndex);
+                                BigDecimal quoteVolume =lastData.getQuoteVolume() != null ? lastData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
                 
-                try{
-                    
-                    ErgoDexMarketData marketData = new ErgoDexMarketData(marketDataJson, timeStamp);
-               
-                    int marketIndex = getMarketDataIndexById(tmpMarketsList, marketData.getId());
-                    
+                                BigDecimal newVolume = marketData.getQuoteVolume() != null ? marketData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
 
-                    if(marketIndex != -1){
-                        ErgoDexMarketData lastData = tmpMarketsList.get(marketIndex);
-                        BigDecimal quoteVolume =lastData.getQuoteVolume() != null ? lastData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
-          
-                        BigDecimal newVolume = marketData.getQuoteVolume() != null ? marketData.getQuoteVolume().getBigDecimalAmount() : BigDecimal.ZERO;
+                                if(newVolume.compareTo(quoteVolume) > 0){
+                                    tmpMarketsList.set(marketIndex, marketData);
+                                }
+                            }else{
+                                isChanged.set(true);
+                                tmpMarketsList.add(marketData);
+                            }
 
-                        if(newVolume.compareTo(quoteVolume) > 0){
-                            tmpMarketsList.set(marketIndex, marketData);
+                            
+                            
+                        }catch(Exception e){
+                            try {
+                                Files.writeString(NoteConstants.logFile.toPath(), "egoDex(updateMarkets): " + e.toString() + " " + marketDataJson.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            } catch (IOException e1) {
+                            
+                            }
                         }
-                    }else{
-                        isChanged.set(true);
-                        tmpMarketsList.add(marketData);
+                        
                     }
 
-                    
-                    
-                }catch(Exception e){
-                    try {
-                        Files.writeString(App.logFile.toPath(), "egoDex(updateMarkets): " + e.toString() + " " + marketDataJson.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                    } catch (IOException e1) {
-                    
-                    }
                 }
-                
-            }
 
-        }
-      
-        
-        if(tmpMarketsList.size() != 0){
+                return tmpMarketsList.toArray(new ErgoDexMarketData[tmpMarketsList.size()]);
+            }
+        };
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+    }
+
+    private static Future<?> doMerge(JsonArray tickerArray, ErgoDexMarketData[] dataArray, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded){
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() {
+                for (int j = 0; j < tickerArray.size(); j++) {
+                        
+                    JsonElement tickerObjectElement = tickerArray.get(j);
+                    if (tickerObjectElement != null && tickerObjectElement.isJsonObject()) {
+
+                        JsonObject tickerDataJson = tickerObjectElement.getAsJsonObject();
+
+                        JsonElement tickerIdElement = tickerDataJson.get("ticker_id");
+                        String tickerId = tickerIdElement != null && tickerIdElement.isJsonPrimitive() ? tickerIdElement.getAsString() : null;
+                        JsonElement poolIdElement = tickerDataJson.get("pool_id");
+                        String poolId = poolIdElement != null && !poolIdElement.isJsonNull() && poolIdElement.isJsonPrimitive() ? poolIdElement.getAsString() : null;
+
+                        if(tickerId != null){
+                    
+                        
+                            ErgoDexMarketData marketData = getMarketDataByTickerId(dataArray, tickerId);
+                        
+                        
+                            
+                            if(marketData != null){
+                                
+                                JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
+                            
+                                if(liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() ){
+
+                                    marketData.setLiquidityUSD(liquidityUsdElement.getAsBigDecimal());
+
+                                }
+                                if( poolId != null ){
+                                    marketData.setPoolId(poolId);
+                                }
+                            }
+
+                        }
+                    
+                        
+                    }
+
+                }
+                List<ErgoDexMarketData> tmpMarketsList = Arrays.asList(dataArray);
+
+                Collections.sort(tmpMarketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketData::getLiquidityUSD)));
+
+                return dataArray;
+            }
+        };
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+    }
+
+    private static Future<?> sortData(ErgoDexMarketData[] data, ExecutorService execService, EventHandler<WorkerStateEvent> onSucceeded){
+        Task<Object> task = new Task<Object>() {
+            @Override
+            public Object call() {
+                List<ErgoDexMarketData> tmpMarketsList = Arrays.asList(data);
+
+                Collections.sort(tmpMarketsList, Collections.reverseOrder(Comparator.comparing(ErgoDexMarketData::getLiquidityUSD)));
+
+                return tmpMarketsList;
+            }
+        };
+
+        task.setOnSucceeded(onSucceeded);
+
+        return execService.submit(task);
+    }
+
+    private void mergeTickerData(ErgoDexMarketData[] data){
+        if(data.length != 0){
             getTickers((onTickerArray)->{
 
                 Object tickerSourceObject = onTickerArray.getSource().getValue();
                 if (tickerSourceObject != null && tickerSourceObject instanceof JsonArray) {
                     JsonArray tickerArray = (JsonArray) tickerSourceObject;
 
-                    
-        
-                    for (int j = 0; j < tickerArray.size(); j++) {
-                
-                        JsonElement tickerObjectElement = tickerArray.get(j);
-                        if (tickerObjectElement != null && tickerObjectElement.isJsonObject()) {
-
-                            JsonObject tickerDataJson = tickerObjectElement.getAsJsonObject();
-
-                            JsonElement tickerIdElement = tickerDataJson.get("ticker_id");
-                            String tickerId = tickerIdElement != null && tickerIdElement.isJsonPrimitive() ? tickerIdElement.getAsString() : null;
-                            JsonElement poolIdElement = tickerDataJson.get("pool_id");
-                            String poolId = poolIdElement != null && !poolIdElement.isJsonNull() && poolIdElement.isJsonPrimitive() ? poolIdElement.getAsString() : null;
-
-                            if(tickerId != null){
-                        
-                               
-                                ErgoDexMarketData marketData = getMarketDataByTickerId(tmpMarketsList, tickerId);
-                            
-                             
-                                
-                                if(marketData != null){
-                                    
-                                    JsonElement liquidityUsdElement = tickerDataJson.get("liquidity_in_usd");
-                                  
-                                    if(liquidityUsdElement != null && liquidityUsdElement.isJsonPrimitive() ){
-
-                                        marketData.setLiquidityUSD(liquidityUsdElement.getAsBigDecimal());
-       
-                                    }
-                                    if( poolId != null ){
-                                        marketData.setPoolId(poolId);
-                                    }
-                                }
-
-                            }
-                        
-                            
+                    doMerge(tickerArray, data,getExecService(), onMerged->{
+                        Object mergedObj = onMerged.getSource().getValue();
+                        if(mergedObj != null & mergedObj instanceof ErgoDexMarketData[]){
+                            ErgoDexMarketData[] mergedData = (ErgoDexMarketData[]) mergedObj;
+                            updateMarketList(mergedData);                            
                         }
+                    });
 
-                    }
-                    updateMarketList(tmpMarketsList);
+                   
                    // Platform.runLater(()->updateMarketArray(completeDataArray));
 
                 }
             }, (onTickersFailed)->{
                 try {
-                    Files.writeString(App.logFile.toPath(), "egoDex (onTickersFailed): " + onTickersFailed.getSource().getException().toString() +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(NoteConstants.logFile.toPath(), "egoDex (onTickersFailed): " + onTickersFailed.getSource().getException().toString() +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e) {
                    
                 }
@@ -1068,29 +1144,140 @@ public class ErgoDex extends Network implements NoteInterface {
         }
     }
 
+    private void getMarketUpdate(JsonArray jsonArray){
+        parseList(jsonArray, getExecService(), onComplete->{
+            Object obj = onComplete.getSource().getValue();
+            if(obj != null && obj instanceof ErgoDexMarketData[]){
+                mergeTickerData((ErgoDexMarketData[]) obj);
+            }
+        });
+    }
+
+    private JsonObject getAvailableQuotes(JsonObject note){
+        int size = m_marketsList.size();
+        if(size > 0){
+            JsonObject json = new JsonObject();
+            JsonArray jsonArray = new JsonArray();
+            for(int i = 0; i < size; i++){
+                ErgoDexMarketData marketData = m_marketsList.get(i);
+                jsonArray.add(marketData.getJsonObject());
+            }
+            json.addProperty("size", jsonArray.size());
+            json.add("quotes", jsonArray);
+            return json;
+        }
+        return null;
+    }
+
+    private JsonObject getAvailableQuotesInErg(JsonObject note){
 
 
+        int listSize = m_marketsList.size();
+        if(m_n2tItems > 0 && listSize > 0){
 
-    private void updateMarketList(ArrayList<ErgoDexMarketData> data){
-        int size = data.size();
+            JsonElement offsetElement = note.get("offset");
+            JsonElement limitElement = note.get("limit");
+            JsonElement filterElement = note.get("filter");
+
+            int offset = offsetElement != null && !offsetElement.isJsonNull() ? offsetElement.getAsInt() : 0;
+            int limit = limitElement != null && !limitElement.isJsonNull() ? limitElement.getAsInt() : 50;
+            String filter = filterElement != null && !filterElement.isJsonNull() ? filterElement.getAsString() : null;
+            
+
+            int maxPages = (int)Math.floor(m_n2tItems / limit);
+            int maxOffset = (maxPages * limit);
+
+            limit = limit < 1 ? 1 : limit > m_n2tItems ? m_n2tItems : limit;
+            offset = offset < 0 ? 0 : (offset > maxOffset) ? maxOffset : offset;
+            
+            
+            if(filter != null && filter.length() > 0){
+                JsonObject json = new JsonObject();
+                JsonArray jsonArray = new JsonArray();
+                String lowerCaseFilter = filter.toLowerCase();
+                List<ErgoDexMarketData> searchList = m_marketsList.stream().filter(item -> item.getSymbol().toLowerCase().indexOf(lowerCaseFilter) != -1 && item.isNative2Token()).collect(Collectors.toList());
+                int searchListSize = searchList.size();
+           
+                int i = 0; 
+                int j = 0;
+                while(i < searchListSize){
+                    ErgoDexMarketData marketData = searchList.get(i);
+                    if(j >= offset){
+                        jsonArray.add( marketData.getPriceQuote(true).getJsonObject());
+                        if(jsonArray.size() >= limit){
+                            break;
+                        }
+                    }
+                    j = j + 1;
+                    i++;
+                }
+                json.addProperty("offset", offset);
+                json.addProperty("limit", limit);
+                json.addProperty("total", searchListSize);
+                json.addProperty("size", jsonArray.size());
+                json.add("quotes", jsonArray);
+                return json;
+            }else{
+                JsonObject json = new JsonObject();
+                JsonArray jsonArray = new JsonArray();
+                int i = 0; 
+                int j = 0;
+                boolean isN2t = false;
+                while(i < listSize){
+                    ErgoDexMarketData marketData = m_marketsList.get(i);
+                    isN2t = marketData.isNative2Token();
+                    if(j >= offset && isN2t){
+                        jsonArray.add( marketData.getPriceQuote(true).getJsonObject());
+                        if(jsonArray.size() >= limit){
+                            break;
+                        }
+                    }
+                    j = isN2t ? j + 1 : j;
+                    i++;
+                }
+                json.addProperty("offset", offset);
+                json.addProperty("limit", limit);
+                json.addProperty("total", m_n2tItems);
+                json.addProperty("size", jsonArray.size());
+                json.add("quotes", jsonArray);
+                return json;
+            }
+        }
+        return null;
+          
+    }
+
+    
+
+    private void updateMarketList(ErgoDexMarketData[] data){
+        int size = data.length;
         long timeStamp = System.currentTimeMillis();
 
         if(m_marketsList.size() == 0){
-                for(int i = 0; i < size; i++){
-                    ErgoDexMarketData marketData = data.get(i);
-                    if(marketData != null){
-                        marketData.setErgoDex(this);
-                        m_marketsList.add(marketData);    
-                    }
+            int numN2tItems = 0;
+            for(int i = 0; i < size; i++){
+                ErgoDexMarketData marketData = data[i];
+                if(marketData != null){
+                    marketData.setErgoDex(this);
+                    m_marketsList.add(marketData);    
                 }
-                data.clear();
-                
-            sendMessage(App.LIST_CHANGED, timeStamp,NETWORK_ID, m_marketsList.size());
+                numN2tItems = marketData.isNative2Token() ? numN2tItems + 1 : numN2tItems;
+            }
+
+            if(m_marketsList.size() > 0){
+                if(getConnectionStatus() != NoteConstants.STARTED){
+                    setConnectionStatus(NoteConstants.STARTED);
+                }
+            }
+            m_n2tItems = numN2tItems;
+            sendMessage(NoteConstants.LIST_CHANGED, timeStamp,NETWORK_ID, m_marketsList.size());
         }else{
             SimpleBooleanProperty changed = new SimpleBooleanProperty(false);
+            int numN2tItems = 0;
             for(int i = 0; i < size; i++){
-                ErgoDexMarketData newMarketData = data.get(i);
-                
+                ErgoDexMarketData newMarketData = data[i];
+                numN2tItems = newMarketData.isNative2Token() ? numN2tItems + 1 : numN2tItems;
+
                 ErgoDexMarketData marketData = getMarketDataById(m_marketsList, newMarketData.getId());
                 if(marketData != null){
                     marketData.update(newMarketData);
@@ -1101,14 +1288,21 @@ public class ErgoDex extends Network implements NoteInterface {
                    
                 }
             }
-            data.clear();
+  
+            if(m_marketsList.size() > 0){
+                if(getConnectionStatus() != NoteConstants.STARTED){
+                    setConnectionStatus(NoteConstants.STARTED);
+                }
+            }
+            m_n2tItems = numN2tItems;
             if(changed.get()){
-                sendMessage(App.LIST_CHANGED, timeStamp,NETWORK_ID,  m_marketsList.size());
+                sendMessage(NoteConstants.LIST_CHANGED, timeStamp,NETWORK_ID,  m_marketsList.size());
             }else{
-                sendMessage(App.LIST_UPDATED, timeStamp,NETWORK_ID,  m_marketsList.size());
+                sendMessage(NoteConstants.LIST_UPDATED, timeStamp,NETWORK_ID,  m_marketsList.size());
             }
             
         }
+        
     }
     
     
@@ -1128,7 +1322,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
             }catch(IOException | InvalidKeyException | NoSuchPaddingException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e){
                 try {
-                    Files.writeString(App.logFile.toPath(), "\negoDex: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                    Files.writeString(NoteConstants.logFile.toPath(), "\negoDex: getTickersMarkets: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                 } catch (IOException e1) {
 
                 }
@@ -1248,7 +1442,7 @@ public class ErgoDex extends Network implements NoteInterface {
 
     @Override
     public void stop(){
-        setConnectionStatus(App.STOPPED);
+        setConnectionStatus(NoteConstants.STOPPED);
 
         m_marketsList.clear();
         if (m_scheduledFuture != null && !m_scheduledFuture.isDone()) {
@@ -1262,10 +1456,10 @@ public class ErgoDex extends Network implements NoteInterface {
     @Override
     public void start(){
       
-        if(getConnectionStatus() == App.STOPPED){
+        if(getConnectionStatus() == NoteConstants.STOPPED){
 
-            setConnectionStatus(App.STARTING);
-            sendMessage(App.STARTING, System.currentTimeMillis(), NETWORK_ID, App.STARTING);
+            setConnectionStatus(NoteConstants.STARTING);
+            sendMessage(NoteConstants.STARTING, System.currentTimeMillis(), NETWORK_ID, NoteConstants.STARTING);
             ExecutorService executor = getNetworksData().getExecService();
             
             Runnable exec = ()->{
@@ -1279,26 +1473,23 @@ public class ErgoDex extends Network implements NoteInterface {
 
                         /*try {
                             com.google.gson.Gson gson = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
-                            Files.writeString(App.logFile.toPath(), gson.toJson(marketJsonArray) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            Files.writeString(NoteConstants.logFile.toPath(), gson.toJson(marketJsonArray) +"\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                         } catch (IOException e) {
 
                         }*/
         
-                        if(getConnectionStatus() != App.STARTED){
-                            setConnectionStatus(App.STARTED);
-                            sendMessage(App.STARTED, System.currentTimeMillis(), NETWORK_ID, App.STARTED);
-                        }
+                       
                         getMarketUpdate(marketJsonArray);
                     } 
                  
                 }, (onfailed)->{
                     
-                    setConnectionStatus(App.ERROR);
+                    setConnectionStatus(NoteConstants.ERROR);
                     Throwable throwable = onfailed.getSource().getException();
                     String msg= throwable instanceof java.net.SocketException ? "Connection unavailable" : (throwable instanceof java.net.UnknownHostException ? "Unknown host: Spectrum Finance unreachable" : throwable.toString());
                   
 
-                    sendMessage(App.ERROR, System.currentTimeMillis(),NETWORK_ID, msg);
+                    sendMessage(NoteConstants.ERROR, System.currentTimeMillis(),NETWORK_ID, msg);
                 });
                 
 
@@ -1326,7 +1517,7 @@ public class ErgoDex extends Network implements NoteInterface {
     @Override
     public Object sendNote(JsonObject note){
     
-        JsonElement subjectElement = note.get(App.CMD);
+        JsonElement subjectElement = note.get(NoteConstants.CMD);
         JsonElement locationIdElement = note.get("locationId");
 
         String cmd = subjectElement != null && subjectElement.isJsonPrimitive() ? subjectElement.getAsString() : null;
@@ -1341,6 +1532,8 @@ public class ErgoDex extends Network implements NoteInterface {
                 note.remove("locationString");
                 note.addProperty("locationString", locationString);
                 switch(cmd){
+                    case "getStatus":
+                        return getConnectionStatus();
                     case "getQuote":
                         return getQuote(note);
                     case "getTokenQuoteInErg":
@@ -1351,6 +1544,10 @@ public class ErgoDex extends Network implements NoteInterface {
                         return getQuoteById(note);
                     case "getQuoteBySymbol":
                         return getQuoteBySymbol(note);
+                    case "getAvailableQuotes":
+                        return getAvailableQuotes(note);
+                    case "getAvailableQuotesInErg":
+                        return getAvailableQuotesInErg(note);
                 }
             }
         }

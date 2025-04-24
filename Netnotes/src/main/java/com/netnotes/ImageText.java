@@ -12,6 +12,8 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
+import io.netnotes.engine.Drawing;
+
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 

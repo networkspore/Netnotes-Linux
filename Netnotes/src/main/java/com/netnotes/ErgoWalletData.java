@@ -11,17 +11,25 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 
-import com.devskiller.friendly_id.FriendlyId;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import io.netnotes.engine.HashData;
+import io.netnotes.engine.JsonParametersBox;
+import io.netnotes.engine.Network;
+import io.netnotes.engine.NetworksData;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.NoteInterface;
+import io.netnotes.engine.NoteMsgInterface;
+import io.netnotes.engine.ResizeHelper;
+import io.netnotes.engine.Stages;
+import io.netnotes.engine.TabInterface;
+import io.netnotes.engine.Utils;
+import io.netnotes.friendly_id.FriendlyId;
 
 import org.ergoplatform.appkit.Address;
 import org.ergoplatform.appkit.NetworkType;
 import com.satergo.Wallet;
 import com.satergo.WalletKey.Failure;
-
-import com.utils.Utils;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -177,24 +185,24 @@ public class ErgoWalletData extends Network implements NoteInterface {
             if(walletFile != null && walletFile.isFile()){
                 
                 if(!walletFile.getAbsolutePath().equals(m_walletFile.getAbsolutePath())){
-                    if( getConnectionStatus() == App.STOPPED){
+                    if( getConnectionStatus() == NoteConstants.STOPPED){
                         setWalletFile(walletFile);
                 
                         save();
-                        return Utils.getMsgObject(App.UPDATED, "Saved");
+                        return NoteConstants.getMsgObject(NoteConstants.UPDATED, "Saved");
                     }else{
-                        return Utils.getMsgObject(App.ERROR, "Error: In use");
+                        return NoteConstants.getMsgObject(NoteConstants.ERROR, "Error: In use");
                     }
                 }else{
-                    return Utils.getMsgObject(App.WARNING, "No change");
+                    return NoteConstants.getMsgObject(NoteConstants.WARNING, "No change");
                 }   
                 
             }else{
-                return Utils.getMsgObject(App.ERROR, "Error: Invalid");
+                return NoteConstants.getMsgObject(NoteConstants.ERROR, "Error: Invalid");
             }
             
         }else{
-            return Utils.getMsgObject(App.ERROR, "Error: Not authorized");
+            return NoteConstants.getMsgObject(NoteConstants.ERROR, "Error: Not authorized");
         }
     }
 
@@ -230,20 +238,20 @@ public class ErgoWalletData extends Network implements NoteInterface {
                     if(!getErgoWalletsDataList().containsName(name)){
                         setName(name);
                         save();
-                        return Utils.getMsgObject(App.UPDATED, "Saved");
+                        return NoteConstants.getMsgObject(NoteConstants.UPDATED, "Saved");
                     }else{
-                        return Utils.getMsgObject(App.ERROR, "Name in use");
+                        return NoteConstants.getMsgObject(NoteConstants.ERROR, "Name in use");
                     }
                 }else{
-                    return Utils.getMsgObject(App.WARNING, "No change");
+                    return NoteConstants.getMsgObject(NoteConstants.WARNING, "No change");
                 }   
                 
             }else{
-                return Utils.getMsgObject(App.ERROR, "Error: Invalid");
+                return NoteConstants.getMsgObject(NoteConstants.ERROR, "Error: Invalid");
             }
             
         }else{
-            return Utils.getMsgObject(App.ERROR, "Error: Not authorized");
+            return NoteConstants.getMsgObject(NoteConstants.ERROR, "Error: Not authorized");
         }
      
     }
@@ -261,20 +269,20 @@ public class ErgoWalletData extends Network implements NoteInterface {
         String title = getName() + " - " + authorizeString;
 
         Stage passwordStage = new Stage();
-        passwordStage.getIcons().add(App.logo);
+        passwordStage.getIcons().add(Stages.logo);
         passwordStage.initStyle(StageStyle.UNDECORATED);
         passwordStage.setTitle(title);
 
         Button closeBtn = new Button();
+       
+        HBox titleBox = Stages.createTopBar(Stages.icon, title, closeBtn, passwordStage);
 
-        HBox titleBox = App.createTopBar(App.icon, title, closeBtn, passwordStage);
-
-        ImageView btnImageView = new ImageView(App.logo);
+        ImageView btnImageView = new ImageView(Stages.logo);
         btnImageView.setPreserveRatio(true);
         btnImageView.setFitHeight(75);
 
         Label textField = new Label(authorizeString);
-        textField.setFont(App.mainFont);
+        textField.setFont(Stages.mainFont);
         textField.setPadding(new Insets(20,0,20,15));
 
         VBox imageBox = new VBox(btnImageView, textField);
@@ -291,11 +299,11 @@ public class ErgoWalletData extends Network implements NoteInterface {
         walletInformationBox.setPadding(new Insets(0,0,0,10));
 
         Text passwordTxt = new Text("Enter password:");
-        passwordTxt.setFill(App.txtColor);
-        passwordTxt.setFont(App.txtFont);
+        passwordTxt.setFill(Stages.txtColor);
+        passwordTxt.setFont(Stages.txtFont);
 
         PasswordField passwordField = new PasswordField();
-        passwordField.setFont(App.txtFont);
+        passwordField.setFont(Stages.txtFont);
         passwordField.setId("passField");
         HBox.setHgrow(passwordField, Priority.ALWAYS);
 
@@ -311,8 +319,8 @@ public class ErgoWalletData extends Network implements NoteInterface {
         VBox.setVgrow(layoutVBox, Priority.ALWAYS);
     
 
-        double defaultHeight = App.STAGE_HEIGHT + 60;
-        double defaultWidth = App.STAGE_WIDTH + 100;
+        double defaultHeight = Stages.STAGE_HEIGHT + 60;
+        double defaultWidth = Stages.STAGE_WIDTH + 100;
 
         Scene passwordScene = new Scene(layoutVBox, defaultWidth , defaultHeight);
         passwordScene.setFill(null);
@@ -352,7 +360,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
             cancelBtn.setId("iconBtnSelected");
             Label progressLabel = new Label(isTxAvailable() ? "Verifying..." : "Waiting for wallet access...");
             
-            Scene waitingScene = App.getWaitngScene(progressLabel, cancelBtn, passwordStage);
+            Scene waitingScene = Stages.getWaitngScene(progressLabel, cancelBtn, passwordStage);
             passwordStage.setScene(waitingScene);
             passwordStage.centerOnScreen();
 
@@ -375,7 +383,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                                 addressDataList.add(addressData);
                             } catch (Failure e) {
                                 try {
-                                    Files.writeString(App.logFile.toPath(), "AddressesData - address failure: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                    Files.writeString(NoteConstants.logFile.toPath(), "AddressesData - address failure: " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                 } catch (IOException e1) {
 
                                 }
@@ -470,22 +478,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
 
 
 
-    private JsonObject getBalance(JsonObject note){
 
-        JsonElement addressElement = note.get("address");
-        String address = addressElement != null && addressElement.isJsonPrimitive() ? addressElement.getAsString() : null;
-        
-        AddressData addressData = address!= null ? m_addressesData.getAddressData(address) : null;
-            
-        if(addressData != null){
-           
-            return addressData.getBalance();
-        }
-
-        return null;
-    
-        
-    }
    
     public JsonObject isOpen(){
         JsonObject json = new JsonObject();
@@ -505,7 +498,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
     @Override
     public Future<?> sendNote(JsonObject note, EventHandler<WorkerStateEvent> onSucceeded, EventHandler<WorkerStateEvent> onFailed){
         // getAddresses
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
         JsonElement locationIdElement = note.get("locationId");
    
         String locationId = locationIdElement != null && !locationIdElement.isJsonNull() ? locationIdElement.getAsString() : null;
@@ -525,10 +518,18 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }else{
                 try{
                     switch(cmd){
+                        case "getTransactions":
+                            return m_addressesData.getTransactions(note, onSucceeded, onFailed);
+                        case "getTransactionViews":
+                            return m_addressesData.getTransactionViews(note, onSucceeded, onFailed);
+                        case "updateAddressBoxInfo":
+                            return m_addressesData.updateAddressBoxInfo(note, onSucceeded, onFailed);
                         case "sendAssets":
                             return m_addressesData.sendAssets(note,locationString, onSucceeded, onFailed);
                         case "executeTransaction":
                             return m_addressesData.executeTransaction(note, locationString, onSucceeded, onFailed);
+                        case "reclaimBox":
+                            return m_addressesData.reclaimBox(note, locationId, locationString, onSucceeded, onFailed);
                         case "viewWalletMnemonic":
                             m_addressesData.viewWalletMnemonic(locationString, onSucceeded, onFailed);
                         break;
@@ -551,7 +552,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
     @Override
     public Object sendNote(JsonObject note){
 
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
         JsonElement accessIdElement = note.get("accessId");
         JsonElement locationIdElement = note.get("locationId");
         String cmd = cmdElement != null && !cmdElement.isJsonNull() && cmdElement.isJsonPrimitive() ? cmdElement.getAsString() : null;
@@ -569,7 +570,7 @@ public class ErgoWalletData extends Network implements NoteInterface {
                         case "getAddresses":
                             return m_addressesData.getAddressesJson();
                         case "getBalance":
-                            return getBalance(note);
+                            return m_addressesData.getBalance(note);
                         case "getNetworkType":
                             return m_addressesData.getNetworkType();
                     }
@@ -591,6 +592,21 @@ public class ErgoWalletData extends Network implements NoteInterface {
             }
         }
         return null;
+    }
+
+    @Override
+    protected void sendMessage(int code, long timeStamp,String networkId, String msg){
+        super.sendMessage(code, timeStamp, networkId, msg);
+    }
+
+    @Override
+    protected void sendMessage(int code, long timeStamp, String networkId, Number num){
+        super.sendMessage(code, timeStamp, networkId, num);
+    }
+
+    @Override
+    protected NoteMsgInterface getListener(String id){
+        return super.getListener(id);
     }
 
     public boolean hasAccess(String accessId){

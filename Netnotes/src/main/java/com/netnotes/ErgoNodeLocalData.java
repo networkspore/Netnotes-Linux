@@ -25,21 +25,21 @@ import org.apache.commons.io.FileUtils;
 import org.ergoplatform.appkit.NetworkType;
 import org.reactfx.util.FxTimer;
 
-import com.utils.Utils;
-import com.utils.Version;
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.EventHandler;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Alert.AlertType;
 
 import com.google.gson.JsonObject;
-import com.GitHubAPI.GitHubAPI;
-import com.GitHubAPI.GitHubAPI.GitHubAsset;
-import com.devskiller.friendly_id.FriendlyId;
+import io.netnotes.engine.GitHubAPI;
+import io.netnotes.engine.HashData;
+import io.netnotes.engine.NamedNodeUrl;
+import io.netnotes.engine.NoteConstants;
+import io.netnotes.engine.Utils;
+import io.netnotes.engine.Version;
+import io.netnotes.engine.GitHubAPI.GitHubAsset;
 import com.google.gson.JsonElement;
 
 public class ErgoNodeLocalData extends ErgoNodeData {
@@ -54,7 +54,6 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public final static int DEFAULT_MEM_GB_REQUIRED = 6;
 
-    public static final int INSTALL_PROGRESS = 100;
 
     public final static String STARTUP_STRING = "Starting up...";
 
@@ -85,7 +84,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     private ScheduledFuture<?> m_scheduledFuture = null;
     private SimpleStringProperty m_consoleOutputProperty = new SimpleStringProperty("");
 
-    private int m_statusCode = App.STOPPED;
+    private int m_statusCode = NoteConstants.STOPPED;
     private String m_warnings = "";
 
     private Version m_appVersion = new Version();
@@ -171,7 +170,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
    
 
 
-        m_statusCode = App.STOPPED;
+        m_statusCode = NoteConstants.STOPPED;
 
         JsonObject statusJson = new JsonObject();
         statusJson.addProperty("status", "Stopped");
@@ -200,7 +199,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     @Override
     public Object sendNote(JsonObject note) {
         
-        JsonElement cmdElement = note.get(App.CMD);
+        JsonElement cmdElement = note.get(NoteConstants.CMD);
 
         if(cmdElement != null){
             switch (cmdElement.getAsString()) {
@@ -224,7 +223,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
 
     public void hashError(String appFileName, String configFileName, boolean isAppHash, boolean isConfigHash, HashData appFileHashData, HashData configFileHashData, long timeStamp) {
-        int code = App.ERROR; 
+        int code = NoteConstants.ERROR; 
         
         HashData appHashData = m_appFileHashData;
         HashData configHashData = m_nodeConfigData.getConfigFileHashData();
@@ -249,11 +248,11 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         }else{
 
             json.addProperty("status", "Directory not found");
-            json.addProperty("code", App.ERROR);
+            json.addProperty("code", NoteConstants.ERROR);
             
         }
         
-        JsonObject msgObject = Utils.getMsgObject(code, timeStamp, ErgoNetwork.NODE_NETWORK);
+        JsonObject msgObject = NoteConstants.getMsgObject(code, timeStamp, NoteConstants.NODE_NETWORK);
   
         msgObject.add("data", json);
 
@@ -290,7 +289,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
 
             JsonElement namedNodeElement = jsonObj == null ? null : jsonObj.get("namedNode");
-            NamedNodeUrl namedNodeUrl = namedNodeElement != null && namedNodeElement.isJsonObject() ? new NamedNodeUrl(namedNodeElement.getAsJsonObject()) : new NamedNodeUrl(getId(), getName(), "127.0.0.1", DEFAULT_MAINNET_PORT, "", NetworkType.MAINNET);
+            NamedNodeUrl namedNodeUrl = namedNodeElement != null && namedNodeElement.isJsonObject() ? new NamedNodeUrl(namedNodeElement.getAsJsonObject()) : new NamedNodeUrl(getId(), getName(), "127.0.0.1", NamedNodeUrl.DEFAULT_MAINNET_PORT, "", NetworkType.MAINNET);
     
 
             namedNodeUrlProperty().set( namedNodeUrl);
@@ -335,7 +334,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
             }catch(Exception e ){
                 try {
-                    Files.writeString(App.logFile.toPath(),"\nLocalNode: "+getName()+" Error: " + e.toString(), StandardOpenOption.CREATE,StandardOpenOption.APPEND);
+                    Files.writeString(NoteConstants.logFile.toPath(),"\nLocalNode: "+getName()+" Error: " + e.toString(), StandardOpenOption.CREATE,StandardOpenOption.APPEND);
                 } catch (IOException e1) {
   
                 }
@@ -389,7 +388,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     
 
     public void cleanSync() throws IOException {
-        Files.writeString(App.logFile.toPath(), "\nErgoLocalNode: Clean Sync Required - Re-syncing node", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        Files.writeString(NoteConstants.logFile.toPath(), "\nErgoLocalNode: Clean Sync Required - Re-syncing node", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 
         File stateDir = new File(m_appDir.getCanonicalPath() + "/.ergo/state");
         File historyDir = new File(m_appDir.getCanonicalPath() + "/.ergo/history");
@@ -404,7 +403,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
     }
 
     protected void setStatusStopped(){
-        updateStatus(App.STOPPED, "Stopped");
+        updateStatus(NoteConstants.STOPPED, "Stopped");
     }
 
     public JsonObject getStatus(){   
@@ -422,7 +421,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         JsonElement appVersionElement = statusJson.get("appVersion");
         String appVersionString = appVersionElement != null && appVersionElement.isJsonPrimitive() ? appVersionElement.getAsString() : null;
            
-        if(statusCode != App.STOPPED){
+        if(statusCode != NoteConstants.STOPPED){
             JsonElement fullHeightElement = statusJson.get("fullHeight");
             JsonElement maxPeerHeightElement = statusJson.get("maxPeerHeight");
             JsonElement peerCountElement = statusJson.get("peersCount");
@@ -454,7 +453,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             boolean synced = nodeBlockHeight != -1 && networkBlockHeight != -1 && headersHeight != -1 && headersHeight >= networkBlockHeight && nodeBlockHeight >= networkBlockHeight;
           
 
-            if(statusCode == App.STARTING){
+            if(statusCode == NoteConstants.STARTING){
                 json.addProperty("status","Starting");
             }else{
                 json.addProperty("synced", synced);
@@ -498,7 +497,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
  
 
-        sendMessage(App.STATUS, timeStamp,  getNetworkId(), json.toString());
+        sendMessage(NoteConstants.STATUS, timeStamp,  getNetworkId(), json.toString());
 
     }
 
@@ -518,7 +517,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
 
         m_statusJson = json;
-        sendMessage(App.STATUS, timeStamp,getNetworkId(), json.toString());
+        sendMessage(NoteConstants.STATUS, timeStamp,getNetworkId(), json.toString());
 
       
     }
@@ -557,7 +556,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
              
       
                     
-                    updateStatus(App.STARTED,  json);
+                    updateStatus(NoteConstants.STARTED,  json);
                   
 
                     isGettingInfo.set(false);
@@ -637,10 +636,10 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         m_warnings = "";
   
         try {
-            Utils.removeAppResource(m_appFileName);
+            Main.removeAppResource(m_appFileName);
         } catch (IOException e) {
             try {
-                Files.writeString(App.logFile.toPath(), "\nLocalNode reset removeAppResource: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(NoteConstants.logFile.toPath(), "\nLocalNode reset removeAppResource: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
             }
         
@@ -703,9 +702,9 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
                         if(proc.isAlive()){
                             Utils.returnObject(null,getNetworksData().getExecService(), (onSucceeded)->{
-                                Utils.addAppResource(m_appFileName);
+                                Main.addAppResource(m_appFileName);
                                 
-                                updateStatus(App.STARTED, "Started");
+                                updateStatus(NoteConstants.STARTED, "Started");
 
                             },null);
                         }
@@ -715,7 +714,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                             s = stdInput.readLine();
                         } catch (IOException e) {
                             try {
-                                Files.writeString(App.logFile.toPath(), "\nNode starting: No input: " + e.toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                Files.writeString(NoteConstants.logFile.toPath(), "\nNode starting: No input: " + e.toString() , StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             } catch (IOException e1) {
                               
                             }
@@ -759,7 +758,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                         String errLine = null;
                         while ((errLine = stderr.readLine()) != null) {
 
-                            Files.writeString(App.logFile.toPath(), "\nLocal node execution error: " + errLine, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            Files.writeString(NoteConstants.logFile.toPath(), "\nLocal node execution error: " + errLine, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                              
                         }
 
@@ -771,7 +770,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     } catch (Exception e) {
                         try{
 
-                            Files.writeString(App.logFile.toPath(), "\nLocal node error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                            Files.writeString(NoteConstants.logFile.toPath(), "\nLocal node error: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                              
                         }catch(IOException e1){
 
@@ -824,10 +823,10 @@ public class ErgoNodeLocalData extends ErgoNodeData {
         
         long timeStamp = System.currentTimeMillis();
 
-        if (m_appDir != null && m_statusCode == App.STOPPED) {
+        if (m_appDir != null && m_statusCode == NoteConstants.STOPPED) {
 
     
-            updateStatus(App.STARTING, "Starting");
+            updateStatus(NoteConstants.STARTING, "Starting");
 
             Utils.checkDrive(m_appDir, getNetworksData().getExecService(), (onSuccess)->{
                 
@@ -867,16 +866,16 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                      
 
                         } catch (IOException er1) {
-                            sendError(App.STOPPED, er1.toString(), "IOException");
+                            sendError(NoteConstants.STOPPED, er1.toString(), "IOException");
                     
                         }
                     } else {
-                        sendError(App.STOPPED, "File data unavailable", "Application");
+                        sendError(NoteConstants.STOPPED, "File data unavailable", "Application");
            
                     }
 
                 }else{
-                    sendError(App.STOPPED,"File system did not respond", "Application");
+                    sendError(NoteConstants.STOPPED,"File system did not respond", "Application");
                 }
 
             }, onFailed->{
@@ -885,7 +884,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             
         } else {
             if (m_appDir == null) {
-                sendError(App.STOPPED,"Setup required", "Application");
+                sendError(NoteConstants.STOPPED,"Setup required", "Application");
                 terminate();
             }
         }
@@ -906,7 +905,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
 
         
-        sendMessage(App.STATUS, timeStamp, getNetworkId(), errJson.toString());
+        sendMessage(NoteConstants.STATUS, timeStamp, getNetworkId(), errJson.toString());
 
     }
  
@@ -946,13 +945,13 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
 
     public void terminate() {
-        if ( m_statusCode != App.STOPPED) {   
+        if ( m_statusCode != NoteConstants.STOPPED) {   
             terminateProcess();
         }
     }
 
     public void terminateProcess(){
-        if (m_statusCode != App.STOPPED) {
+        if (m_statusCode != NoteConstants.STOPPED) {
 
             if(!Utils.sendTermSig(m_appFileName)){
                 reset();
@@ -1039,13 +1038,13 @@ public class ErgoNodeLocalData extends ErgoNodeData {
 
     public static String getStatusCodeString(int statusCode){
         switch(statusCode){
-            case App.STARTED:
+            case NoteConstants.STARTED:
                 return "Running";
-            case App.STARTING:
+            case NoteConstants.STARTING:
                 return  "Starting";
-            case App.UPDATING:
+            case NoteConstants.UPDATING:
                 return "Updating";
-            case App.STOPPED:
+            case NoteConstants.STOPPED:
                 return "Stopped";
             default:
                 return "Unavailable";
@@ -1096,10 +1095,10 @@ public class ErgoNodeLocalData extends ErgoNodeData {
       
     }
 
-    private ProgressIndicator m_updateProgressIndicator;
+
 
     public void updateApp(boolean force){
-        if(m_statusCode != App.UPDATING){
+        if(m_statusCode != NoteConstants.UPDATING){
 
             m_cancelUpdate.set(false);  
           
@@ -1108,7 +1107,7 @@ public class ErgoNodeLocalData extends ErgoNodeData {
             File prevAppFile = getAppFile();
 
             terminate();
-            updateStatus(App.UPDATING, "Checking for updates...");
+            updateStatus(NoteConstants.UPDATING, "Checking for updates...");
 
             
 
@@ -1130,31 +1129,21 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                     if (m_latestVersion.compareTo(prevVersion) > 0  || prevAppFile == null || (prevAppFile != null && !prevAppFile.isFile()) || force) { 
 
                         File appFile =  new File(appDirString + "/" + name);
-                        m_updateProgressIndicator = new ProgressIndicator();
-
-                        m_updateProgressIndicator.progressProperty().addListener((obs,oldval,newval)->{
-                            sendMessage(INSTALL_PROGRESS, System.currentTimeMillis(), ErgoNetwork.NODE_NETWORK, newval);
-                        });
-            
-        
-                    
-                        Utils.getUrlFileHash(url, appFile, getNetworksData().getExecService(), (onDlSucceeded) -> {
-                            m_updateProgressIndicator = null;
+      
+                        Utils.getUrlFileHash(url,getAppIcon(),"Downloading...", appFile, getNetworksData().getExecService(), (onDlSucceeded) -> {
                             Object dlObject = onDlSucceeded.getSource().getValue();
                             if (dlObject != null && dlObject instanceof HashData) {
                                 m_appFileHashData = (HashData) dlObject;
                                 m_appFileName = name;
                                 m_appVersion = m_latestVersion;
 
-                
-
                                 if (m_deleteOldFiles) {
                                     if (prevAppFile != null && !prevAppFile.getName().equals(name) && prevAppFile.isFile()) {
                                         prevAppFile.delete();
-                                    }
+                                         }
                                 }
 
-                                updateStatus(App.STOPPED, m_appFileName +": " +  m_appVersion.get());
+                                updateStatus(NoteConstants.STOPPED, m_appFileName +": " +  m_appVersion.get());
                                 
                                 getLastUpdated().set(LocalDateTime.now());
                                 if(m_isRunOnStart){
@@ -1163,16 +1152,16 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                             } else {
                 
                                 
-                                sendError(App.STOPPED, "Download incomplete", "Network");
+                                sendError(NoteConstants.STOPPED, "Download incomplete", "Network");
                             
                             }
                         }, (onError)->{
-                            sendError(App.STOPPED, onError.getSource().getException().toString(), "Network");
-                        }, m_updateProgressIndicator, m_cancelUpdate);
+                            sendError(NoteConstants.STOPPED, onError.getSource().getException().toString(), "Network");
+                        });
 
                     }else{
 
-                        updateStatus(App.STOPPED, "Node is latest: " + m_latestVersion.get());
+                        updateStatus(NoteConstants.STOPPED, "Node is latest: " + m_latestVersion.get());
                         if(m_isRunOnStart){
                             run();
                         }
@@ -1181,11 +1170,11 @@ public class ErgoNodeLocalData extends ErgoNodeData {
                 
                 }else{
 
-                    sendError(App.STOPPED,"Network unavailable", "Network");
+                    sendError(NoteConstants.STOPPED,"Network unavailable", "Network");
 
                 }
             }, onError->{
-                sendError(App.STOPPED, onError.getSource().getException().toString(), "Network");
+                sendError(NoteConstants.STOPPED, onError.getSource().getException().toString(), "Network");
             });
    
         }

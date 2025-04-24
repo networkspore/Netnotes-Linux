@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import com.google.gson.JsonPrimitive;
+import io.netnotes.engine.NoteConstants;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -31,7 +32,7 @@ public class ErgoNodeConfigFile{
             parseConfigFile(file);
         } catch (IOException e) {
             try {
-                Files.writeString(App.logFile.toPath(), "ConfigFile: " + file.getName() + ": " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(NoteConstants.logFile.toPath(), "ConfigFile: " + file.getName() + ": " + e.toString() + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }
@@ -148,7 +149,7 @@ public class ErgoNodeConfigFile{
                         if(indexOfCloseBrace != -1){
                             int lastIndexOfDot = m_currentHeading.lastIndexOf(".");
                             if(lastIndexOfDot == -1){
-                                Files.writeString(App.logFile.toPath(), "\nErr (no dot): " + line, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                Files.writeString(NoteConstants.logFile.toPath(), "\nErr (no dot): " + line, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             }else{
                                 m_currentHeading = lastIndexOfDot == 0 ? "" : m_currentHeading.substring(0, lastIndexOfDot);
                             }
