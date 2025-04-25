@@ -306,7 +306,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         m_quoteListener = (obs, oldval, newval)->{
             try {
-                Files.writeString(NoteConstants.logFile.toPath(), "quoteChanged\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(AppConstants.LOG_FILE.toPath(), "quoteChanged\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }

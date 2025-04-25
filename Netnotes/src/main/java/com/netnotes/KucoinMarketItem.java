@@ -19,6 +19,9 @@ import io.netnotes.engine.NoteConstants;
 import io.netnotes.engine.NoteInterface;
 import io.netnotes.engine.ResizeHelper;
 import io.netnotes.engine.Stages;
+import io.netnotes.engine.apps.RangeBar;
+import io.netnotes.engine.apps.TimeSpan;
+
 import com.google.gson.JsonArray;
 
 

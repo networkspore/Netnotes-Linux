@@ -57,7 +57,7 @@ public class Main {
     }
 
 
-    public static void addAppResource(String appName) {
+    public static void addAppResource(String appName) throws IOException{
         File resourceFile = new File(RESOURCES_FILENAME);
         if(appName == null){
             return;
@@ -83,14 +83,9 @@ public class Main {
             appsArray.add(appName);
             resourcesObject.add("apps", appsArray);
 
-            try {
-                Files.writeString(resourceFile.toPath(), resourcesObject.toString());
-            } catch (IOException e) {
-                try {
-                    Files.writeString(NoteConstants.logFile.toPath(), "\naddAppResource: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-                } catch (IOException e1) {
-                }
-            }
+       
+            Files.writeString(resourceFile.toPath(), resourcesObject.toString());
+        
         }
 
 

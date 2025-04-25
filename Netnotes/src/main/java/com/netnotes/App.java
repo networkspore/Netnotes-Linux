@@ -34,10 +34,13 @@ import io.netnotes.engine.HostServicesInterface;
 import io.netnotes.engine.Network;
 import io.netnotes.engine.NetworkInformation;
 import io.netnotes.engine.NetworksData;
-import io.netnotes.engine.NoteConstants;
 import io.netnotes.engine.Stages;
 import io.netnotes.engine.Version;
 import io.netnotes.engine.adapters.notes.NotesAdapter;
+import io.netnotes.engine.apps.AppConstants;
+import io.netnotes.engine.networks.ergo.ErgoNetwork;
+import io.netnotes.engine.apps.ergoDex.ErgoDex;
+import io.netnotes.engine.adapters.Adapter;
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 
@@ -103,7 +106,7 @@ public class App extends Application {
                                     Alert a = new Alert(AlertType.ERROR, msg, ButtonType.OK);
                                     a.show();
                                     try {
-                                        Files.writeString(NoteConstants.logFile.toPath(), "Verification error: " + msg + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                        Files.writeString(AppConstants.LOG_FILE.toPath(), "Verification error: " + msg + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                                     } catch (IOException e) {
                                         e.printStackTrace();
                                     }
@@ -124,7 +127,7 @@ public class App extends Application {
                             Alert a = new Alert(AlertType.ERROR, msg, ButtonType.OK);
                             a.show();
                             try {
-                                Files.writeString(NoteConstants.logFile.toPath(), "Verification error: " + msg + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                                Files.writeString(AppConstants.LOG_FILE.toPath(), "Verification error: " + msg + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -287,7 +290,7 @@ public class App extends Application {
                 return GITHUB_PROJECT;
             }
             @Override
-            public Network createAdapter(String networkId) {
+            public Adapter createAdapter(String networkId) {
                 switch(networkId){
                     case NotesAdapter.NETWORK_ID:
                         return new NotesAdapter(m_networksData);
@@ -301,6 +304,16 @@ public class App extends Application {
             @Override
             public NetworkInformation[] getSupportedAdapters() {
                 return new NetworkInformation[] { NotesAdapter.getNetworkInformation()};
+            }
+            @Override
+            public void addAppResource(String arg0) throws IOException {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'addAppResource'");
+            }
+            @Override
+            public void removeAppResource(String arg0) throws IOException {
+                // TODO Auto-generated method stub
+                throw new UnsupportedOperationException("Unimplemented method 'removeAppResource'");
             }
         };
 

@@ -17,6 +17,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.netnotes.engine.NoteConstants;
 import io.netnotes.engine.Utils;
+import io.netnotes.engine.apps.AppConstants;
 import io.netnotes.friendly_id.FriendlyId;
 
 public class DataId {
@@ -30,7 +31,7 @@ public class DataId {
                    Files.createDirectory(m_dataDir.toPath());
                 } catch (IOException e) {
                     try {
-                        Files.writeString(NoteConstants.logFile.toPath(), "\nNetwork could not create directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                        Files.writeString(AppConstants.LOG_FILE.toPath(), "\nNetwork could not create directory: " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                     } catch (IOException e1) {
                  
                     }
@@ -70,7 +71,7 @@ public class DataId {
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {
             try {
-                Files.writeString(NoteConstants.logFile.toPath(), "SpectrumFinance (saveIndexFile): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(AppConstants.LOG_FILE.toPath(), "SpectrumFinance (saveIndexFile): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }
@@ -91,7 +92,7 @@ public class DataId {
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {
             try {
-                Files.writeString(NoteConstants.logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(AppConstants.LOG_FILE.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }
@@ -115,7 +116,7 @@ public class DataId {
                 | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException
                 | IOException e) {
             try {
-                Files.writeString(NoteConstants.logFile.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+                Files.writeString(AppConstants.LOG_FILE.toPath(), "SpectrumFinance (getIndexFileArray): " + e.toString(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } catch (IOException e1) {
 
             }
