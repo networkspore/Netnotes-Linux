@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import com.google.gson.JsonParseException;
+
 import io.netnotes.engine.AppData;
 import io.netnotes.engine.AppInterface;
 import io.netnotes.engine.HostServicesInterface;
@@ -41,6 +42,9 @@ import io.netnotes.engine.apps.AppConstants;
 import io.netnotes.engine.networks.ergo.ErgoNetwork;
 import io.netnotes.engine.apps.ergoDex.ErgoDex;
 import io.netnotes.engine.adapters.Adapter;
+
+import org.ergoplatform.sdk.SecretString;
+
 import at.favre.lib.crypto.bcrypt.BCrypt;
 import at.favre.lib.crypto.bcrypt.LongPasswordStrategies;
 
@@ -72,19 +76,19 @@ public class App extends Application {
                 Object sourceObj = enterEvent.getSource();
                 if(sourceObj != null && sourceObj instanceof TextField){
                     TextField passwordField = (TextField) sourceObj;
-                    String password = passwordField.getText();
-                
-                    if(password.length() > 0 && m_statusStage == null){
-                        Platform.runLater(() -> passwordField.setText(""));
+                    if(passwordField.getText().length() > 0 && m_statusStage == null){
+                        SecretString pass = SecretString.create(passwordField.getText());
+                    
+                        passwordField.setText("");
                         m_statusStage = Stages.getStatusStage("Verifying - Netnotes", "Verifying...");
                         m_statusStage.show();
-                         Task<Object> task = new Task<Object>() {
+                        Task<Object> task = new Task<Object>() {
                             @Override
                             public Object call() throws NoSuchAlgorithmException, InvalidKeySpecException {
                                 
                                 
                                 byte[] hashBytes = appData.getAppKeyBytes();
-                                BCrypt.Result result = BCrypt.verifyer(BCrypt.Version.VERSION_2A, LongPasswordStrategies.hashSha512(BCrypt.Version.VERSION_2A)).verify(password.toCharArray(), hashBytes);
+                                BCrypt.Result result = BCrypt.verifyer(BCrypt.Version.VERSION_2A, LongPasswordStrategies.hashSha512(BCrypt.Version.VERSION_2A)).verify(pass.getData(), hashBytes);
                             
                                 return result;
                             }
@@ -94,7 +98,8 @@ public class App extends Application {
                             Object obj = onSucceeded.getSource().getValue();
                             if(obj != null && obj instanceof BCrypt.Result && ((BCrypt.Result) obj).verified){
                                 
-                                appData.createKey(password, onCreated->{
+                                appData.createKey(pass, onCreated->{
+                                    pass.erase();
                                     m_statusStage.close();
                                     m_statusStage = null;
                                     openNetnotes(appData, appStage);
@@ -111,8 +116,8 @@ public class App extends Application {
                                         e.printStackTrace();
                                     }
                                 });
-                               
-                              
+                            
+                            
                             }else{
                                 m_statusStage.close();
                                 m_statusStage = null;
@@ -131,10 +136,11 @@ public class App extends Application {
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
-                   
+                
                         });
                 
                         executorService.submit(task);
+                        
                     }
                 }
             });
@@ -150,11 +156,11 @@ public class App extends Application {
     public void setupApp(Stage appStage, ExecutorService execService, ScheduledExecutorService scheduledExecutorService){
         Button closeBtn = new Button();
 
-        Stages.createPassword(appStage, "Create Password - Netnotes", Stages.icon, Stages.logo, closeBtn, (onFinished)->{
+        Stages.createPassword(appStage, "Create Password - Netnotes", Stages.icon, Stages.logo, closeBtn, execService, (onFinished)->{
             Object sourceObject = onFinished.getSource().getValue();
 
-            if (sourceObject != null && sourceObject instanceof String) {
-                String newPassword = (String) sourceObject;
+            if (sourceObject != null && sourceObject instanceof SecretString) {
+                SecretString newPassword = (SecretString) sourceObject;
                         
         
                 if (!newPassword.equals("") && m_statusStage == null) {
@@ -174,6 +180,7 @@ public class App extends Application {
                         Object obj = onSucceeded.getSource().getValue();
 
                         if(obj != null && obj instanceof AppData){
+                            newPassword.erase();
                             openNetnotes((AppData) obj, appStage);
                         }
                     });
@@ -195,7 +202,7 @@ public class App extends Application {
                 }
             }
 
-        }, execService);
+        });
 
         appStage.show();
         closeBtn.setOnAction(e->{

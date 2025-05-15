@@ -235,7 +235,7 @@ public class AmountBox extends HBox implements AmountBoxInterface {
 
         String defaultImgString = m_priceAmount.getCurrency().getImageString();
 
-        TextField imageField = new TextField(defaultImgString.equals(AppConstants.UNKNOWN_ICON) || defaultImgString.equals("/assets/unitErgo.png") ? "(default)" : defaultImgString);
+        TextField imageField = new TextField(defaultImgString.equals(Stages.UNKNOWN_IMAGE_PATH) || defaultImgString.equals("/assets/unitErgo.png") ? "(default)" : defaultImgString);
         HBox.setHgrow(imageField,Priority.ALWAYS);
         imageField.setEditable(false);
 

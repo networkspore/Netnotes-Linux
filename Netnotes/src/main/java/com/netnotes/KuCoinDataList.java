@@ -61,14 +61,14 @@ public class KuCoinDataList extends Network implements NoteInterface {
     private String m_searchText = null;
 
     public KuCoinDataList(KucoinExchange kuCoinExchange) {
-        super(null, "Ergo Charts List", "KUCOIN_CHARTS_LIST", kuCoinExchange);
+        super(null, "Ergo Charts List", "KUCOIN_CHARTS_LIST", kuCoinExchange.getNetworksData());
         m_kucoinExchange = kuCoinExchange;
 
         setup();
 
     }
     public KuCoinDataList(KucoinExchange kuCoinExchange, SecretKey oldval, SecretKey newval ) {
-        super(null, "Ergo Charts List", "KUCOIN_CHARTS_LIST", kuCoinExchange);
+        super(null, "Ergo Charts List", "KUCOIN_CHARTS_LIST", kuCoinExchange.getNetworksData());
         m_kucoinExchange = kuCoinExchange;
 
         updateFile(oldval, newval);
